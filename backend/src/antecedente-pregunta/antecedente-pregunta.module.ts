@@ -4,6 +4,6 @@ import { AntecedentePreguntaService } from './antecedente-pregunta.service';
 
 @Module({
   controllers: [AntecedentePreguntaController],
-  providers: [AntecedentePreguntaService]
+  providers: [AntecedentePreguntaService],
 })
 export class AntecedentePreguntaModule {}
