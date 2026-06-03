@@ -1,9 +1,11 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Rol {
@@ -35,8 +37,9 @@ model RolPrivilegio {
 }
 
 model Departamento {
-  id_departamento Int       @id
-  nombre          String    @db.VarChar(255)
+  id_departamento Int        @id @default(autoincrement())
+  nombre          String     @db.VarChar(255)
+
   municipios      Municipio[]
   personas        Persona[]
 
@@ -44,12 +47,13 @@ model Departamento {
 }
 
 model Municipio {
-  id_municipio    Int    @id
-  nombre          String @db.VarChar(255)
-  id_departamento Int
+  id_municipio     Int          @id @default(autoincrement())
+  nombre           String       @db.VarChar(255)
 
-  departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
-  personas     Persona[]
+  id_departamento   Int
+  departamento     Departamento @relation(fields: [id_departamento], references: [id_departamento])
+
+  personas         Persona[]
 
   @@map("municipio")
 }

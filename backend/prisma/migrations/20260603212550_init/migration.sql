@@ -1,6 +1,9 @@
 -- CreateEnum
 CREATE TYPE "EstadoConsulta" AS ENUM ('agendada', 'completada', 'cancelada', 'no_asistio');
 
+-- CreateEnum
+CREATE TYPE "Sexo" AS ENUM ('M', 'F');
+
 -- CreateTable
 CREATE TABLE "rol" (
     "id_rol" SERIAL NOT NULL,
@@ -27,7 +30,7 @@ CREATE TABLE "rol_privilegio" (
 
 -- CreateTable
 CREATE TABLE "departamento" (
-    "id_departamento" INTEGER NOT NULL,
+    "id_departamento" SERIAL NOT NULL,
     "nombre" VARCHAR(255) NOT NULL,
 
     CONSTRAINT "departamento_pkey" PRIMARY KEY ("id_departamento")
@@ -35,8 +38,9 @@ CREATE TABLE "departamento" (
 
 -- CreateTable
 CREATE TABLE "municipio" (
-    "id_municipio" INTEGER NOT NULL,
+    "id_municipio" SERIAL NOT NULL,
     "nombre" VARCHAR(255) NOT NULL,
+    "id_departamento" INTEGER NOT NULL,
 
     CONSTRAINT "municipio_pkey" PRIMARY KEY ("id_municipio")
 );
@@ -55,6 +59,7 @@ CREATE TABLE "persona" (
     "id_departamento" INTEGER NOT NULL,
     "id_ciudad" INTEGER NOT NULL,
     "direccion_linea" TEXT,
+    "sexo" "Sexo" NOT NULL,
 
     CONSTRAINT "persona_pkey" PRIMARY KEY ("id_persona")
 );
@@ -160,6 +165,9 @@ ALTER TABLE "rol_privilegio" ADD CONSTRAINT "rol_privilegio_id_rol_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "rol_privilegio" ADD CONSTRAINT "rol_privilegio_id_privilegio_fkey" FOREIGN KEY ("id_privilegio") REFERENCES "privilegio"("id_privilegio") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "municipio" ADD CONSTRAINT "municipio_id_departamento_fkey" FOREIGN KEY ("id_departamento") REFERENCES "departamento"("id_departamento") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "persona" ADD CONSTRAINT "persona_id_departamento_fkey" FOREIGN KEY ("id_departamento") REFERENCES "departamento"("id_departamento") ON DELETE RESTRICT ON UPDATE CASCADE;
