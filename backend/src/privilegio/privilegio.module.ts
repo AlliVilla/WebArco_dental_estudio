@@ -4,6 +4,6 @@ import { PrivilegioService } from './privilegio.service';
 
 @Module({
   controllers: [PrivilegioController],
-  providers: [PrivilegioService]
+  providers: [PrivilegioService],
 })
 export class PrivilegioModule {}
