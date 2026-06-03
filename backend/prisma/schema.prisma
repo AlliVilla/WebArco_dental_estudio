@@ -37,14 +37,18 @@ model RolPrivilegio {
 model Departamento {
   id_departamento Int       @id
   nombre          String    @db.VarChar(255)
+  municipios      Municipio[]
   personas        Persona[]
 
   @@map("departamento")
 }
 
 model Municipio {
-  id_municipio Int       @id
-  nombre       String    @db.VarChar(255)
+  id_municipio    Int    @id
+  nombre          String @db.VarChar(255)
+  id_departamento Int
+
+  departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
   personas     Persona[]
 
   @@map("municipio")
@@ -55,6 +59,11 @@ enum EstadoConsulta {
   completada
   cancelada
   no_asistio
+}
+
+enum Sexo {
+  M
+  F
 }
 
 model Persona {
@@ -70,7 +79,7 @@ model Persona {
   id_departamento    Int
   id_ciudad          Int
   direccion_linea    String?  @db.Text
-
+  sexo Sexo
   departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
   municipio    Municipio    @relation(fields: [id_ciudad], references: [id_municipio])
   usuarios     Usuario[]
