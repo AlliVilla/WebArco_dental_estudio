@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Rol {
+  id_rol      Int             @id @default(autoincrement())
+  nombre      String          @unique @db.VarChar(100)
+  privilegios RolPrivilegio[]
+  usuarios    Usuario[]
+
+  @@map("rol")
+}
+
+model Privilegio {
+  id_privilegio Int             @id @default(autoincrement())
+  nombre        String          @unique @db.VarChar(100)
+  roles         RolPrivilegio[]
+
+  @@map("privilegio")
+}
+
+model RolPrivilegio {
+  id_rol        Int
+  id_privilegio Int
+
+  rol        Rol        @relation(fields: [id_rol], references: [id_rol])
+  privilegio Privilegio @relation(fields: [id_privilegio], references: [id_privilegio])
+
+  @@id([id_rol, id_privilegio])
+  @@map("rol_privilegio")
+}
+
+model Departamento {
+  id_departamento Int       @id
+  nombre          String    @db.VarChar(255)
+  personas        Persona[]
+
+  @@map("departamento")
+}
+
+model Municipio {
+  id_municipio Int       @id
+  nombre       String    @db.VarChar(255)
+  personas     Persona[]
+
+  @@map("municipio")
+}
+
+enum EstadoConsulta {
+  agendada
+  completada
+  cancelada
+  no_asistio
+}
+
+model Persona {
+  id_persona         Int      @id @default(autoincrement())
+  numero_identidad   String   @unique @db.Char(13)
+  primer_nombre      String   @db.VarChar(50)
+  segundo_nombre     String?  @db.VarChar(50)
+  primer_apellido    String   @db.VarChar(50)
+  segundo_apellido   String?  @db.VarChar(50)
+  fecha_nacimiento   DateTime @db.Date
+  telefono           String   @db.VarChar(20)
+  correo_electronico String?  @unique @db.VarChar(255)
+  id_departamento    Int
+  id_ciudad          Int
+  direccion_linea    String?  @db.Text
+
+  departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
+  municipio    Municipio    @relation(fields: [id_ciudad], references: [id_municipio])
+  usuarios     Usuario[]
+  consultas    Consulta[]
+
+  @@map("persona")
+}
+
+model Usuario {
+  id_usuario Int     @id @default(autoincrement())
+  id_persona Int
+  username   String  @unique @db.VarChar(100)
+  password   String  @db.VarChar(255)
+  id_rol     Int
+  firma      String? @db.Text
+  activo     Boolean @default(true)
+
+  persona   Persona    @relation(fields: [id_persona], references: [id_persona])
+  rol       Rol        @relation(fields: [id_rol], references: [id_rol])
+  consultas Consulta[]
+
+  @@map("usuario")
+}
+
+model AntecedentePregunta {
+  id_pregunta Int                    @id @default(autoincrement())
+  pregunta    String                 @db.VarChar(255)
+  orden_num   Int
+  respuestas  AntecedenteRespuesta[]
+
+  @@map("antecedente_pregunta")
+}
+
+model AntecedenteRespuesta {
+  id_respuesta Int     @id @default(autoincrement())
+  id_consulta  Int
+  id_pregunta  Int
+  explanation  String? @db.Text
+
+  consulta Consulta            @relation(fields: [id_consulta], references: [id_consulta])
+  pregunta AntecedentePregunta @relation(fields: [id_pregunta], references: [id_pregunta])
+
+  @@map("antecedente_respuesta")
+}
+
+model Consulta {
+  id_consulta          Int            @id @default(autoincrement())
+  id_persona           Int
+  id_usuario           Int
+  fecha_inicio         DateTime       @db.Timestamp()
+  fecha_fin            DateTime?      @db.Timestamp()
+  diagnostico          String?        @db.Text
+  tratamiento          String?        @db.Text
+  firma_paciente       String?        @db.Text
+  consentimiento       Boolean        @default(false)
+  estado               EstadoConsulta @default(agendada)
+  recordatorio_enviado Boolean        @default(false)
+
+  persona      Persona                @relation(fields: [id_persona], references: [id_persona])
+  doctor       Usuario                @relation(fields: [id_usuario], references: [id_usuario])
+  antecedentes AntecedenteRespuesta[]
+  odontogramas Odontograma[]
+  pagos        PagoPaciente[]
+
+  @@map("consulta")
+}
+
+model Diente {
+  numero_diente Int           @id
+  nombre        String?       @db.VarChar(50)
+  odontogramas  Odontograma[]
+
+  @@map("diente")
+}
+
+model Odontograma {
+  id_odontograma Int     @id @default(autoincrement())
+  id_consulta    Int
+  id_diente      Int
+  estado         String? @db.VarChar(100)
+  observacion    String? @db.Text
+
+  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
+  diente   Diente   @relation(fields: [id_diente], references: [numero_diente])
+
+  @@map("odontograma")
+}
+
+model PagoPaciente {
+  id_pago        Int      @id @default(autoincrement())
+  id_consulta    Int
+  fecha          DateTime @db.Date
+  abono          Decimal  @db.Decimal(10, 2)
+  saldo          Decimal  @db.Decimal(10, 2)
+  observacion    String?  @db.Text
+  firma_paciente String?  @db.Text
+
+  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
+
+  @@map("pago_paciente")
+}
