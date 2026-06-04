@@ -56,7 +56,6 @@ CREATE TABLE "persona" (
     "fecha_nacimiento" DATE NOT NULL,
     "telefono" VARCHAR(20) NOT NULL,
     "correo_electronico" VARCHAR(255),
-    "id_departamento" INTEGER NOT NULL,
     "id_ciudad" INTEGER NOT NULL,
     "direccion_linea" TEXT,
     "sexo" "Sexo" NOT NULL,
@@ -168,9 +167,6 @@ ALTER TABLE "rol_privilegio" ADD CONSTRAINT "rol_privilegio_id_privilegio_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "municipio" ADD CONSTRAINT "municipio_id_departamento_fkey" FOREIGN KEY ("id_departamento") REFERENCES "departamento"("id_departamento") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "persona" ADD CONSTRAINT "persona_id_departamento_fkey" FOREIGN KEY ("id_departamento") REFERENCES "departamento"("id_departamento") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "persona" ADD CONSTRAINT "persona_id_ciudad_fkey" FOREIGN KEY ("id_ciudad") REFERENCES "municipio"("id_municipio") ON DELETE RESTRICT ON UPDATE CASCADE;

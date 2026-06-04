@@ -1,11 +1,24 @@
 const { insertDepartamentos } =   require("./seeders/departamento");
-const {insertMunicipios } = require("./seeders/municipios");
+const { insertMunicipios } = require("./seeders/municipios");
+const { insertRoles } = require("./seeders/roles");
+const { insertPrivilegios } = require("./seeders/privilegios");
+const { insertRolesPrivilegios} = require("./seeders/rolesprivilegios");
+const { insertPersonas } = require("./seeders/persona");
+const { insertUsuarios } = require("./seeders/usuarios");
+const { insertAntecedentesPreguntas } = require("./seeders/antecendentespreguntas");
+const { insertDientes } = require("./seeders/dientes");  
 
 async function insertSeeder(){
     try{
+        await insertDientes();
+        await insertAntecedentesPreguntas();
+        await insertRoles();
+        await insertPrivilegios();
+        await insertRolesPrivilegios();
         await insertDepartamentos();
         await insertMunicipios();
-
+        await insertPersonas();
+        await insertUsuarios();
         console.log("Seeder realizado exitosamente")
     }catch(error){
         console.error("Error:", error);

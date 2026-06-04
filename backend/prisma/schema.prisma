@@ -41,7 +41,6 @@ model Departamento {
   nombre          String     @db.VarChar(255)
 
   municipios      Municipio[]
-  personas        Persona[]
 
   @@map("departamento")
 }
@@ -80,11 +79,9 @@ model Persona {
   fecha_nacimiento   DateTime @db.Date
   telefono           String   @db.VarChar(20)
   correo_electronico String?  @unique @db.VarChar(255)
-  id_departamento    Int
   id_ciudad          Int
   direccion_linea    String?  @db.Text
   sexo Sexo
-  departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
   municipio    Municipio    @relation(fields: [id_ciudad], references: [id_municipio])
   usuarios     Usuario[]
   consultas    Consulta[]
