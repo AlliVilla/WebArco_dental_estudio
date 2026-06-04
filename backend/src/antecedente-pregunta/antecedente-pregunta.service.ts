@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreatePreguntaDto } from './dto/create-pregunta.dto';
 import { RespuestaItemDto } from './dto/save-respuestas.dto';
 
 const preguntaSelect = {
@@ -26,6 +27,17 @@ export class AntecedentePreguntaService {
     return this.prisma.antecedentePregunta.findMany({
       select: preguntaSelect,
       orderBy: { orden_num: 'asc' },
+    });
+  }
+
+  create(dto: CreatePreguntaDto) {
+    return this.prisma.antecedentePregunta.create({
+      data: {
+        pregunta: dto.pregunta,
+        orden_num: dto.orden_num,
+        requiere_explicacion: dto.requiere_explicacion ?? false,
+      },
+      select: preguntaSelect,
     });
   }
 

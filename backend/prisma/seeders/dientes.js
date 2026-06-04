@@ -75,7 +75,7 @@ async function insertDientes() {
     { numero_diente: 85, nombre: "2do molar inf. derecho (temporal)" },
   ];
 
-  await prisma.diente.createMany({ data: dientes });
+  await prisma.diente.createMany({ data: dientes, skipDuplicates: true });
 
   console.log("Dientes (permanentes + temporales) insertados correctamente");
 }

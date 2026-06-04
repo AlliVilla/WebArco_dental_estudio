@@ -16,11 +16,10 @@ async function insertRoles() {
         },
     ];
 
-    for (const rol of roles) {
-      await prisma.rol.create({
-        data: rol,
-      });
-    }
+    await prisma.rol.createMany({
+      data: roles,
+      skipDuplicates: true,
+    });
 
     console.log("Roles insertados correctamente")
 };

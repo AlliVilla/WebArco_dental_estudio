@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
 
-// Optionally call prisma.$connect() when starting long-lived processes.
-const prisma = new PrismaClient();
+const adapter = new PrismaPg(process.env.DATABASE_URL);
+const prisma = new PrismaClient({ adapter });
 module.exports = prisma;

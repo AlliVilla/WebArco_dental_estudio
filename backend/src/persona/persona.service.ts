@@ -59,7 +59,7 @@ export class PersonaService {
         segundo_nombre: createPersonaDto.segundo_nombre,
         primer_apellido: createPersonaDto.primer_apellido,
         segundo_apellido: createPersonaDto.segundo_apellido,
-        fecha_nacimiento: createPersonaDto.fecha_nacimiento,
+        fecha_nacimiento: new Date(createPersonaDto.fecha_nacimiento),
         telefono: createPersonaDto.telefono,
         id_ciudad: createPersonaDto.id_ciudad,
         id_departamento: municipio.id_departamento,
@@ -222,7 +222,7 @@ export class PersonaService {
     if (updatePersonaDto.segundo_apellido !== undefined)
       updateData.segundo_apellido = updatePersonaDto.segundo_apellido;
     if (updatePersonaDto.fecha_nacimiento !== undefined)
-      updateData.fecha_nacimiento = updatePersonaDto.fecha_nacimiento;
+      updateData.fecha_nacimiento = new Date(updatePersonaDto.fecha_nacimiento);
     if (updatePersonaDto.telefono !== undefined)
       updateData.telefono = updatePersonaDto.telefono;
     if (updatePersonaDto.id_ciudad !== undefined) {

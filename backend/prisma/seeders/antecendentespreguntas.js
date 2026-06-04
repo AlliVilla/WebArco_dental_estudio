@@ -28,7 +28,7 @@ async function insertAntecedentesPreguntas(){
         },
     ];
 
-    prisma.antecedentePregunta.createMany({data: antecendetespreguntas});
+    await prisma.antecedentePregunta.createMany({data: antecendetespreguntas, skipDuplicates: true});
     console.log("Antecendente-Pregunta insertados correctamente");
 }
 

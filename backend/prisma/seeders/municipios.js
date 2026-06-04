@@ -336,11 +336,10 @@ async function insertMunicipios() {
     { nombre: "Yorito", id_departamento: 18 },
   ];
 
-  for (const municipio of municipios) {
-    await prisma.municipio.create({
-      data: municipio,
-    });
-  }
+  await prisma.municipio.createMany({
+    data: municipios,
+    skipDuplicates: true,
+  });
 
   console.log("Municipios insertados correctamente");
 }

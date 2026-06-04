@@ -32,6 +32,7 @@ services:
       - ./backend/nest-cli.json:/app/nest-cli.json
       - ./backend/tsconfig.json:/app/tsconfig.json
       - ./backend/tsconfig.build.json:/app/tsconfig.build.json
+      - ./backend/prisma.config.ts:/app/prisma.config.ts
     environment:
       PORT: ${BACKEND_PORT:-3030}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-webarcodental}
@@ -41,6 +42,7 @@ services:
     command: >
       sh -c "
         npx prisma migrate deploy &&
+        npx prisma db seed &&
         npm run start:dev
       "
 

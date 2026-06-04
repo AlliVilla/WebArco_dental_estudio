@@ -46,11 +46,10 @@ async function insertPrivilegios() {
     { nombre: "FOOTER_VER" }
   ];
 
-  for (const privilegio of privilegios) {
-    await prisma.privilegio.create({
-      data: privilegio,
-    });
-  }
+  await prisma.privilegio.createMany({
+    data: privilegios,
+    skipDuplicates: true,
+  });
 
   console.log("Privilegios insertados correctamente");
 }

@@ -22,11 +22,10 @@ async function insertDepartamentos() {
     { nombre: "Yoro" },
   ];
 
-  for (const departamento of departamentos) {
-    await prisma.departamento.create({
-      data: departamento,
-    });
-  }
+  await prisma.departamento.createMany({
+    data: departamentos,
+    skipDuplicates: true,
+  });
 
   console.log("Departamentos insertados correctamente");
 }
