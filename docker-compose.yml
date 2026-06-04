@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: dental_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-webarcodental}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: dental_backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3030}:3030"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - ./backend/package.json:/app/package.json
+      - ./backend/nest-cli.json:/app/nest-cli.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
+      - ./backend/tsconfig.build.json:/app/tsconfig.build.json
+    environment:
+      PORT: ${BACKEND_PORT:-3030}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-webarcodental}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        npm run start:dev
+      "
+
+volumes:
+  postgres_data:

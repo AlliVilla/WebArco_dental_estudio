@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Rol {
@@ -41,6 +40,7 @@ model Departamento {
   nombre          String     @db.VarChar(255)
 
   municipios      Municipio[]
+  personas        Persona[]
 
   @@map("departamento")
 }
@@ -79,9 +79,11 @@ model Persona {
   fecha_nacimiento   DateTime @db.Date
   telefono           String   @db.VarChar(20)
   correo_electronico String?  @unique @db.VarChar(255)
+  id_departamento    Int
   id_ciudad          Int
   direccion_linea    String?  @db.Text
   sexo Sexo
+  departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
   municipio    Municipio    @relation(fields: [id_ciudad], references: [id_municipio])
   usuarios     Usuario[]
   consultas    Consulta[]
@@ -116,15 +118,16 @@ model AntecedentePregunta {
 }
 
 model AntecedenteRespuesta {
-  id_respuesta      Int     @id @default(autoincrement())
+  id_respuesta      Int      @id @default(autoincrement())
   id_consulta       Int
   id_pregunta       Int
   respuesta_boolean Boolean?
-  explanation       String? @db.Text
+  explanation       String?  @db.Text
 
   consulta Consulta            @relation(fields: [id_consulta], references: [id_consulta])
   pregunta AntecedentePregunta @relation(fields: [id_pregunta], references: [id_pregunta])
 
+  @@index([id_consulta])
   @@map("antecedente_respuesta")
 }
 

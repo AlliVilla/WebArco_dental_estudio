@@ -13,7 +13,7 @@ export class PersonaService {
   constructor(private prisma: PrismaService) {}
 
   async create(createPersonaDto: CreatePersonaDto) {
-    const { numero_identidad, correo_electronico, ...rest } = createPersonaDto;
+    const { numero_identidad, correo_electronico } = createPersonaDto;
 
     // Check if numero_identidad already exists
     const existingPersonaByIdentity = await this.prisma.persona.findUnique({
@@ -39,7 +39,7 @@ export class PersonaService {
       }
     }
 
-    // Verify that id_ciudad exists
+    // Verify that id_ciudad exists and get its departamento
     const municipio = await this.prisma.municipio.findUnique({
       where: { id_municipio: createPersonaDto.id_ciudad },
     });
@@ -55,14 +55,20 @@ export class PersonaService {
       data: {
         numero_identidad,
         correo_electronico: correo_electronico || null,
-        ...rest,
+        primer_nombre: createPersonaDto.primer_nombre,
+        segundo_nombre: createPersonaDto.segundo_nombre,
+        primer_apellido: createPersonaDto.primer_apellido,
+        segundo_apellido: createPersonaDto.segundo_apellido,
+        fecha_nacimiento: createPersonaDto.fecha_nacimiento,
+        telefono: createPersonaDto.telefono,
+        id_ciudad: createPersonaDto.id_ciudad,
+        id_departamento: municipio.id_departamento,
+        direccion_linea: createPersonaDto.direccion_linea,
+        sexo: createPersonaDto.sexo,
       },
       include: {
-        municipio: {
-          include: {
-            departamento: true,
-          },
-        },
+        municipio: true,
+        departamento: true,
       },
     });
 
@@ -118,11 +124,8 @@ export class PersonaService {
         skip,
         take: limit,
         include: {
-          municipio: {
-            include: {
-              departamento: true,
-            },
-          },
+          municipio: true,
+          departamento: true,
         },
         orderBy: {
           id_persona: 'desc',
@@ -146,11 +149,8 @@ export class PersonaService {
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: id },
       include: {
-        municipio: {
-          include: {
-            departamento: true,
-          },
-        },
+        municipio: true,
+        departamento: true,
       },
     });
 
@@ -165,7 +165,7 @@ export class PersonaService {
     // Verify persona exists
     await this.findOne(id);
 
-    const { numero_identidad, correo_electronico, ...rest } = updatePersonaDto;
+    const { numero_identidad, correo_electronico } = updatePersonaDto;
 
     // Check if numero_identidad already exists for a different persona
     if (numero_identidad) {
@@ -193,7 +193,8 @@ export class PersonaService {
       }
     }
 
-    // Verify that id_ciudad exists (if provided)
+    // Verify that id_ciudad exists (if provided) and derive id_departamento
+    let nuevoIdDepartamento: number | undefined;
     if (updatePersonaDto.id_ciudad) {
       const municipio = await this.prisma.municipio.findUnique({
         where: { id_municipio: updatePersonaDto.id_ciudad },
@@ -204,22 +205,41 @@ export class PersonaService {
           `No existe un municipio/ciudad con el id ${updatePersonaDto.id_ciudad}`,
         );
       }
+
+      nuevoIdDepartamento = municipio.id_departamento;
     }
 
-    const updateData: Record<string, unknown> = { ...rest };
+    const updateData: Record<string, unknown> = {};
     if (numero_identidad) updateData.numero_identidad = numero_identidad;
     if (correo_electronico !== undefined)
       updateData.correo_electronico = correo_electronico;
+    if (updatePersonaDto.primer_nombre !== undefined)
+      updateData.primer_nombre = updatePersonaDto.primer_nombre;
+    if (updatePersonaDto.segundo_nombre !== undefined)
+      updateData.segundo_nombre = updatePersonaDto.segundo_nombre;
+    if (updatePersonaDto.primer_apellido !== undefined)
+      updateData.primer_apellido = updatePersonaDto.primer_apellido;
+    if (updatePersonaDto.segundo_apellido !== undefined)
+      updateData.segundo_apellido = updatePersonaDto.segundo_apellido;
+    if (updatePersonaDto.fecha_nacimiento !== undefined)
+      updateData.fecha_nacimiento = updatePersonaDto.fecha_nacimiento;
+    if (updatePersonaDto.telefono !== undefined)
+      updateData.telefono = updatePersonaDto.telefono;
+    if (updatePersonaDto.id_ciudad !== undefined) {
+      updateData.id_ciudad = updatePersonaDto.id_ciudad;
+      updateData.id_departamento = nuevoIdDepartamento;
+    }
+    if (updatePersonaDto.direccion_linea !== undefined)
+      updateData.direccion_linea = updatePersonaDto.direccion_linea;
+    if (updatePersonaDto.sexo !== undefined)
+      updateData.sexo = updatePersonaDto.sexo;
 
     const updatedPersona = await this.prisma.persona.update({
       where: { id_persona: id },
       data: updateData,
       include: {
-        municipio: {
-          include: {
-            departamento: true,
-          },
-        },
+        municipio: true,
+        departamento: true,
       },
     });
 

@@ -81,6 +81,7 @@ CREATE TABLE "antecedente_pregunta" (
     "id_pregunta" SERIAL NOT NULL,
     "pregunta" VARCHAR(255) NOT NULL,
     "orden_num" INTEGER NOT NULL,
+    "requiere_explicacion" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "antecedente_pregunta_pkey" PRIMARY KEY ("id_pregunta")
 );
@@ -90,6 +91,7 @@ CREATE TABLE "antecedente_respuesta" (
     "id_respuesta" SERIAL NOT NULL,
     "id_consulta" INTEGER NOT NULL,
     "id_pregunta" INTEGER NOT NULL,
+    "respuesta_boolean" BOOLEAN,
     "explanation" TEXT,
 
     CONSTRAINT "antecedente_respuesta_pkey" PRIMARY KEY ("id_respuesta")
