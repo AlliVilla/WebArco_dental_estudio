@@ -1,0 +1,90 @@
+# WEBArco_dental_estudio — Agent Instructions
+
+## Proyecto
+Sistema de gestión clínica para Arco Dental Studio (San Pedro Sula, Honduras).
+Maneja fichas clínicas, citas, odontograma, antecedentes médicos y módulo financiero.
+
+## Stack
+- **Frontend:** React + TypeScript + Vite
+- **Backend:** NestJS + TypeScript + Prisma
+- **Base de datos:** PostgreSQL
+- **Auth:** JWT
+
+## Estructura backend (NestJS)
+```
+src/
+├── prisma/
+├── rol/
+├── privilegio/
+├── departamento/
+├── municipio/
+├── persona/
+├── usuario/
+├── consulta/
+├── odontograma/
+├── pago-paciente/
+└── antecedente-pregunta/
+```
+
+## Estructura frontend (React)
+```
+src/
+├── api/
+├── components/
+├── pages/
+├── hooks/
+├── store/
+└── types/
+```
+
+## Convenciones generales
+- Todo el código, variables, comentarios y mensajes de error en **español**
+- Nombres de archivos en kebab-case: `ficha-clinica.service.ts`
+- Nombres de clases en PascalCase: `FichaClinicaService`
+- Nombres de variables y funciones en camelCase: `obtenerPaciente()`
+- Constantes en UPPER_SNAKE_CASE: `ESTADO_CONSULTA`
+- No hardcodear strings, usar enums o constantes
+
+## Convenciones backend (NestJS)
+- Controladores solo reciben requests y delegan al servicio, sin lógica de negocio
+- Servicios contienen toda la lógica de negocio
+- Prisma solo se llama desde servicios, nunca desde controladores
+- Validar siempre los DTOs con `class-validator`
+- Usar `class-transformer` para serializar respuestas
+- Manejar errores con excepciones de NestJS (`NotFoundException`, `BadRequestException`, etc.)
+- Cada módulo tiene su propio DTO de creación y actualización
+- Nunca exponer el password ni datos sensibles en las respuestas
+
+## Convenciones frontend (React)
+- Componentes funcionales con hooks, nunca class components
+- Un componente por archivo
+- Separar lógica de negocio en custom hooks (`useConsultas`, `usePacientes`)
+- Llamadas a la API solo desde la carpeta `api/`, nunca directo en componentes
+- Tipar todo con TypeScript, prohibido usar `any`
+- Usar React Query para manejo de estado del servidor
+
+## Base de datos
+- Migraciones solo con Prisma Migrate, nunca editar la BD directo
+- Nunca borrar datos, usar soft delete con campo `activo boolean`
+- Toda tabla tiene `created_at` y `updated_at`
+- FKs siempre con índice (usar `@@index` en Prisma para optimización en PostgreSQL)
+
+## Seguridad
+- Rutas protegidas con JWT guard
+- Validar permisos por rol en cada endpoint (doctor, contador, admin)
+- Nunca loggear passwords ni tokens
+- Sanitizar inputs antes de guardar
+
+## Git
+- Ramas: `main`, `develop`, `feature/nombre-feature`, `fix/nombre-bug`
+- Commits en español y descriptivos: `feat: agregar módulo de citas`
+- Pull request obligatorio para mergear a `develop`
+- No pushear directo a `main`
+
+## Lo que NO hacer
+- No lógica en controladores
+- No llamadas a Prisma fuera de servicios
+- No `any` en TypeScript
+- No strings hardcodeados
+- No pushear a `main` directamente
+- No exponer datos sensibles en respuestas
