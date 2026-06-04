@@ -4,6 +4,6 @@ import { OdontogramaService } from './odontograma.service';
 
 @Module({
   controllers: [OdontogramaController],
-  providers: [OdontogramaService]
+  providers: [OdontogramaService],
 })
 export class OdontogramaModule {}

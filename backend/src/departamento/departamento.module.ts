@@ -4,6 +4,6 @@ import { DepartamentoService } from './departamento.service';
 
 @Module({
   controllers: [DepartamentoController],
-  providers: [DepartamentoService]
+  providers: [DepartamentoService],
 })
 export class DepartamentoModule {}

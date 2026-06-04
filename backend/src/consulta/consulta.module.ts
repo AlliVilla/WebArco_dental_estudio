@@ -4,6 +4,6 @@ import { ConsultaService } from './consulta.service';
 
 @Module({
   controllers: [ConsultaController],
-  providers: [ConsultaService]
+  providers: [ConsultaService],
 })
 export class ConsultaModule {}

@@ -11,9 +11,22 @@ import { ConsultaModule } from './consulta/consulta.module';
 import { OdontogramaModule } from './odontograma/odontograma.module';
 import { PagoPacienteModule } from './pago-paciente/pago-paciente.module';
 import { AntecedentePreguntaModule } from './antecedente-pregunta/antecedente-pregunta.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [RolModule, PrivilegioModule, DepartamentoModule, MunicipioModule, PersonaModule, UsuarioModule, ConsultaModule, OdontogramaModule, PagoPacienteModule, AntecedentePreguntaModule],
+  imports: [
+    PrismaModule,
+    RolModule,
+    PrivilegioModule,
+    DepartamentoModule,
+    MunicipioModule,
+    PersonaModule,
+    UsuarioModule,
+    ConsultaModule,
+    OdontogramaModule,
+    PagoPacienteModule,
+    AntecedentePreguntaModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
