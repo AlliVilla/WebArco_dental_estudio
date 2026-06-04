@@ -120,7 +120,7 @@ export class AntecedentePreguntaService {
     }
 
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const client = tx as { antecedenteRespuesta: AntecedenteRespuestaTx };
+      const client = tx as unknown as { antecedenteRespuesta: AntecedenteRespuestaTx };
       await client.antecedenteRespuesta.deleteMany({
         where: { id_consulta },
       });
