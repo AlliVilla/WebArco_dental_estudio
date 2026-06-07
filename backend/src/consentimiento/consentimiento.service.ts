@@ -177,7 +177,9 @@ export class ConsentimientoService {
       this.prisma.consulta.count({ where: this.getEstadoWhere('incompletos') }),
     ]);
 
-    return { total, completos, pendientes, incompletos };
+    const alerta_global = pendientes > 0;
+
+    return { total, completos, pendientes, incompletos, alerta_global };
   }
 
   async updateSignatures(idConsulta: number, data: UpdateSignaturesDto) {
