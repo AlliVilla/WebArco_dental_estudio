@@ -21,6 +21,13 @@ import {
 import { ExpedienteClinicoService } from './expediente-clinico.service';
 import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
 import { ActualizarFirmasDto } from './dto/actualizar-firmas.dto';
+import {
+  ExpedienteResponseDto,
+  FirmasPendientesResponseDto,
+  RegistrarVisitaResponseDto,
+  ConsultaResponseDto,
+  ActualizarFirmasResponseDto,
+} from './dto/expediente-responses.dto';
 
 @ApiTags('Expediente Clínico')
 @Controller('clinical-history')
@@ -46,6 +53,7 @@ export class ExpedienteClinicoController {
   @ApiOkResponse({
     description:
       'Expediente clínico completo con datos del paciente y lista de consultas',
+    type: ExpedienteResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
   async obtenerExpediente(
@@ -71,6 +79,7 @@ export class ExpedienteClinicoController {
   @ApiOkResponse({
     description:
       'Lista de consultas con firmas incompletas y detalle de quién falta',
+    type: FirmasPendientesResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
   async obtenerFirmasPendientes(
@@ -96,6 +105,7 @@ export class ExpedienteClinicoController {
   })
   @ApiCreatedResponse({
     description: 'Visita registrada exitosamente con estado de firmas',
+    type: RegistrarVisitaResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
   @ApiBadRequestResponse({ description: 'Datos inválidos o doctor inexistente' })
@@ -125,7 +135,10 @@ export class ExpedienteClinicoController {
     description: 'ID de la visita/consulta',
     example: 1,
   })
-  @ApiOkResponse({ description: 'Detalle de la visita con estado de firmas' })
+  @ApiOkResponse({
+    description: 'Detalle de la visita con estado de firmas',
+    type: ConsultaResponseDto,
+  })
   @ApiNotFoundResponse({
     description: 'Paciente no encontrado o visita no pertenece al paciente',
   })
@@ -159,6 +172,7 @@ export class ExpedienteClinicoController {
   @ApiOkResponse({
     description:
       'Firmas actualizadas exitosamente con estado de firmas resultante',
+    type: ActualizarFirmasResponseDto,
   })
   @ApiNotFoundResponse({
     description: 'Paciente no encontrado o visita no pertenece al paciente',
