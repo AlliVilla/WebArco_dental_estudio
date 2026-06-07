@@ -26,10 +26,10 @@ export class ResponseInterceptor implements NestInterceptor {
         if (isObject(response)) {
           if ('success' in response) return response;
           if ('data' in response) {
-            return { success: true, ...response };
+            return { success: true, message: 'Operación exitosa', ...response };
           }
         }
-        return { success: true, data: response ?? null };
+        return { success: true, message: 'Operación exitosa', data: response ?? null };
       }),
     );
   }
