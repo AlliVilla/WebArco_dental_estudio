@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
 
 /** Campos del doctor incluidos en cada consulta */
 const doctorSelect = {
@@ -136,6 +137,103 @@ export class ExpedienteClinicoService {
         this.mapearConsultaConEstadoFirmas(consulta),
       ),
     };
+  }
+
+  /**
+   * Registra una nueva visita/consulta en el expediente del paciente.
+   * Si se envía firma_doctor, actualiza también la firma del usuario.
+   * Retorna la visita creada con el estado de firmas calculado.
+   */
+  async registrarVisita(idPaciente: number, dto: RegistrarVisitaDto) {
+    // Verificar que el paciente existe
+    await this.assertPacienteExiste(idPaciente);
+
+    // Verificar que el doctor (usuario) existe
+    const doctor = await this.prisma.usuario.findUnique({
+      where: { id_usuario: dto.id_usuario },
+      select: { id_usuario: true, firma: true },
+    });
+    if (!doctor) {
+      throw new BadRequestException(
+        `No existe un usuario con el id ${dto.id_usuario}`,
+      );
+    }
+
+    // Construir diagnóstico final (incluye notas_adicionales si se proporcionan)
+    let diagnosticoFinal: string | undefined = dto.diagnostico;
+    if (dto.notas_adicionales) {
+      diagnosticoFinal = diagnosticoFinal
+        ? `${diagnosticoFinal}\n\n--- Notas adicionales ---\n${dto.notas_adicionales}`
+        : `--- Notas adicionales ---\n${dto.notas_adicionales}`;
+    }
+
+    // Crear la visita en una transacción para garantizar consistencia
+    const visita = await this.prisma.$transaction(async (tx) => {
+      // 1. Crear la consulta/visita
+      const nuevaConsulta = await tx.consulta.create({
+        data: {
+          id_persona: idPaciente,
+          id_usuario: dto.id_usuario,
+          fecha_inicio: new Date(dto.fecha_inicio),
+          fecha_fin: dto.fecha_fin ? new Date(dto.fecha_fin) : null,
+          diagnostico: diagnosticoFinal ?? null,
+          tratamiento: dto.tratamiento ?? null,
+          firma_paciente: dto.firma_paciente ?? null,
+          consentimiento: Boolean(dto.firma_paciente),
+          estado: 'agendada',
+        },
+        include: visitaInclude,
+      });
+
+      // 2. Actualizar la firma del doctor si se proporcionó
+      if (dto.firma_doctor) {
+        await tx.usuario.update({
+          where: { id_usuario: dto.id_usuario },
+          data: { firma: dto.firma_doctor },
+        });
+        // Reflejar la nueva firma en el objeto doctor de la consulta
+        (nuevaConsulta.doctor as { firma: string | null }).firma = dto.firma_doctor;
+      }
+
+      return nuevaConsulta;
+    });
+
+    const visitaMapeada = this.mapearConsultaConEstadoFirmas(visita);
+
+    return {
+      mensaje: 'Visita registrada exitosamente',
+      alerta_firmas: !visitaMapeada.estado_firmas.firmas_completas
+        ? {
+            activa: true,
+            pendientes: visitaMapeada.estado_firmas.pendientes,
+          }
+        : { activa: false, pendientes: [] },
+      visita: visitaMapeada,
+    };
+  }
+
+  /**
+   * Retorna el detalle completo de una visita específica de un paciente.
+   * Incluye estado de firmas calculado.
+   */
+  async obtenerDetalleVisita(idPaciente: number, idVisita: number) {
+    await this.assertPacienteExiste(idPaciente);
+
+    const visita = await this.prisma.consulta.findFirst({
+      where: {
+        id_consulta: idVisita,
+        id_persona: idPaciente,
+      },
+      include: visitaInclude,
+    });
+
+    if (!visita) {
+      throw new NotFoundException(
+        `No se encontró la visita con id ${idVisita} para el paciente con id ${idPaciente}`,
+      );
+    }
+
+    return this.mapearConsultaConEstadoFirmas(visita);
   }
 
   // ─── Helpers privados ───────────────────────────────────────────────────────
