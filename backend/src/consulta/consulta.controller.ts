@@ -49,20 +49,18 @@ export class ConsultaController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Listar consultas', description: 'Obtiene un listado paginado de consultas. Permite filtrar por paciente, doctor y estado.' })
+  @ApiOperation({ summary: 'Listar consultas', description: 'Obtiene un listado paginado de consultas. Permite filtrar por paciente y doctor.' })
   @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1' })
   @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 10)', example: '10' })
   @ApiQuery({ name: 'id_persona', required: false, description: 'Filtrar por ID del paciente', example: '1' })
   @ApiQuery({ name: 'id_usuario', required: false, description: 'Filtrar por ID del doctor', example: '1' })
-  @ApiQuery({ name: 'estado', required: false, description: 'Filtrar por estado (agendada, completada, cancelada, no_asistio)', example: 'agendada' })
   @ApiOkResponse({ description: 'Listado de consultas con paginación' })
-  @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos o estado inválido' })
+  @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('id_persona') id_persona?: string,
     @Query('id_usuario') id_usuario?: string,
-    @Query('estado') estado?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
@@ -71,10 +69,9 @@ export class ConsultaController {
       throw new BadRequestException('page y limit deben ser mayores a 0');
     }
 
-    const filters: { id_persona?: number; id_usuario?: number; estado?: string } = {};
+    const filters: { id_persona?: number; id_usuario?: number } = {};
     if (id_persona) filters.id_persona = parseInt(id_persona, 10);
     if (id_usuario) filters.id_usuario = parseInt(id_usuario, 10);
-    if (estado) filters.estado = estado;
 
     return this.consultaService.findAll(pageNum, limitNum, filters);
   }
@@ -91,7 +88,7 @@ export class ConsultaController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Actualizar una consulta', description: 'Actualiza parcial o totalmente los datos de una consulta (diagnóstico, tratamiento, estado, etc.).' })
+  @ApiOperation({ summary: 'Actualizar una consulta', description: 'Actualiza parcial o totalmente los datos de una consulta (diagnóstico, tratamiento, etc.).' })
   @ApiParam({ name: 'id', description: 'ID de la consulta', example: 1 })
   @ApiOkResponse({ description: 'Consulta actualizada exitosamente' })
   @ApiNotFoundResponse({ description: 'Consulta no encontrada' })
@@ -105,7 +102,7 @@ export class ConsultaController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Eliminar/cancelar una consulta', description: 'Elimina la consulta si no tiene registros asociados. Si tiene antecedentes, odontogramas o pagos, la marca como cancelada.' })
+  @ApiOperation({ summary: 'Eliminar una consulta', description: 'Elimina la consulta si no tiene registros asociados (antecedentes, odontogramas o pagos).' })
   @ApiParam({ name: 'id', description: 'ID de la consulta', example: 1 })
   @ApiOkResponse({ description: 'Consulta eliminada o cancelada exitosamente' })
   @ApiNotFoundResponse({ description: 'Consulta no encontrada' })

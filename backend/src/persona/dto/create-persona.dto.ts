@@ -66,10 +66,10 @@ export class CreatePersonaDto {
   @IsEmail({}, { message: 'correo electrónico debe ser válido' })
   correo_electronico?: string;
 
-  @ApiProperty({ description: 'ID del municipio/ciudad de residencia', example: 1 })
-  @IsNotEmpty({ message: 'id_ciudad es obligatorio' })
-  @IsInt({ message: 'id_ciudad debe ser un número entero' })
-  id_ciudad: number;
+  @ApiProperty({ description: 'ID del municipio de residencia', example: 1 })
+  @IsNotEmpty({ message: 'id_municipio es obligatorio' })
+  @IsInt({ message: 'id_municipio debe ser un número entero' })
+  id_municipio: number;
 
   @ApiPropertyOptional({ description: 'Dirección detallada', example: 'Barrio El Centro, frente al parque principal' })
   @IsOptional()
