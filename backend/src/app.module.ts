@@ -11,6 +11,7 @@ import { ConsultaModule } from './consulta/consulta.module';
 import { OdontogramaModule } from './odontograma/odontograma.module';
 import { PagoPacienteModule } from './pago-paciente/pago-paciente.module';
 import { AntecedentePreguntaModule } from './antecedente-pregunta/antecedente-pregunta.module';
+import { CitaModule } from './cita/cita.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { PrismaModule } from './prisma/prisma.module';
     OdontogramaModule,
     PagoPacienteModule,
     AntecedentePreguntaModule,
+    CitaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

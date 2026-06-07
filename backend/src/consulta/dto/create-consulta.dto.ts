@@ -1,7 +1,6 @@
 import {
   IsString,
   IsInt,
-  IsEnum,
   IsOptional,
   IsDateString,
   IsBoolean,
@@ -9,13 +8,6 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
-export enum EstadoConsulta {
-  agendada = 'agendada',
-  completada = 'completada',
-  cancelada = 'cancelada',
-  no_asistio = 'no_asistio',
-}
 
 export class CreateConsultaDto {
   @ApiProperty({ description: 'ID de la persona/paciente', example: 1 })
@@ -30,6 +22,12 @@ export class CreateConsultaDto {
   @Min(1, { message: 'id_usuario debe ser mayor a 0' })
   id_usuario: number;
 
+  @ApiPropertyOptional({ description: 'ID de la cita asociada (opcional)', example: 1 })
+  @IsOptional()
+  @IsInt({ message: 'id_cita debe ser un número entero' })
+  @Min(1, { message: 'id_cita debe ser mayor a 0' })
+  id_cita?: number;
+
   @ApiProperty({ description: 'Fecha y hora de inicio de la consulta (ISO 8601)', example: '2025-06-03T10:00:00Z' })
   @IsNotEmpty({ message: 'fecha_inicio es obligatoria' })
   @IsDateString({}, { message: 'fecha_inicio debe ser una fecha válida (ISO 8601)' })
@@ -39,6 +37,16 @@ export class CreateConsultaDto {
   @IsOptional()
   @IsDateString({}, { message: 'fecha_fin debe ser una fecha válida (ISO 8601)' })
   fecha_fin?: string;
+
+  @ApiPropertyOptional({ description: 'Motivo de la consulta', example: 'Dolor en muela del juicio' })
+  @IsOptional()
+  @IsString({ message: 'motivo debe ser texto' })
+  motivo?: string;
+
+  @ApiPropertyOptional({ description: 'Notas adicionales', example: 'Paciente requiere traducción' })
+  @IsOptional()
+  @IsString({ message: 'notas debe ser texto' })
+  notas?: string;
 
   @ApiPropertyOptional({ description: 'Diagnóstico de la consulta', example: 'Caries dental en molar inferior' })
   @IsOptional()
@@ -59,9 +67,4 @@ export class CreateConsultaDto {
   @IsOptional()
   @IsBoolean({ message: 'consentimiento debe ser un booleano' })
   consentimiento?: boolean;
-
-  @ApiPropertyOptional({ description: 'Estado de la consulta', enum: EstadoConsulta, example: 'agendada' })
-  @IsOptional()
-  @IsEnum(EstadoConsulta, { message: 'estado debe ser agendada, completada, cancelada o no_asistio' })
-  estado?: EstadoConsulta;
 }
