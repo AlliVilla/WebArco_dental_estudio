@@ -9,28 +9,30 @@ export class ConsentimientoService {
   constructor(private prisma: PrismaService) {}
 
   private getEstadoWhere(estado?: string) {
+    const base = { consentimiento: true };
     switch (estado) {
       case 'completos':
         return {
+          ...base,
           firma_paciente: { not: null },
-          consentimiento: true,
           doctor: { firma: { not: null } },
         };
       case 'pendientes':
         return {
-          firma_paciente: null,
-          consentimiento: false,
+          ...base,
+          OR: [
+            { firma_paciente: { not: null }, doctor: { firma: null } },
+            { firma_paciente: null, doctor: { firma: { not: null } } },
+          ],
         };
       case 'incompletos':
         return {
-          OR: [
-            { firma_paciente: { not: null }, doctor: { firma: null } },
-            { firma_paciente: { not: null }, doctor: { firma: { not: null } }, consentimiento: false },
-            { firma_paciente: null, consentimiento: true },
-          ],
+          ...base,
+          firma_paciente: null,
+          doctor: { firma: null },
         };
       default:
-        return {};
+        return base;
     }
   }
 
@@ -111,14 +113,14 @@ export class ConsentimientoService {
     ]);
 
     const data = consultas.map((c) => {
-      let estadoFirma = 'pendiente';
+      let estadoFirma = 'incompleto';
       const tieneFirmaPaciente = !!c.firma_paciente;
       const tieneFirmaDoctor = !!c.doctor.firma;
 
-      if (tieneFirmaPaciente && tieneFirmaDoctor && c.consentimiento) {
+      if (tieneFirmaPaciente && tieneFirmaDoctor) {
         estadoFirma = 'completo';
-      } else if (tieneFirmaPaciente || c.consentimiento) {
-        estadoFirma = 'incompleto';
+      } else if (tieneFirmaPaciente || tieneFirmaDoctor) {
+        estadoFirma = 'pendiente';
       }
 
       return {
@@ -152,11 +154,11 @@ export class ConsentimientoService {
 
     const tieneFirmaPaciente = !!consulta.firma_paciente;
     const tieneFirmaDoctor = !!consulta.doctor.firma;
-    let estadoFirma = 'pendiente';
-    if (tieneFirmaPaciente && tieneFirmaDoctor && consulta.consentimiento) {
+    let estadoFirma = 'incompleto';
+    if (tieneFirmaPaciente && tieneFirmaDoctor) {
       estadoFirma = 'completo';
-    } else if (tieneFirmaPaciente || consulta.consentimiento) {
-      estadoFirma = 'incompleto';
+    } else if (tieneFirmaPaciente || tieneFirmaDoctor) {
+      estadoFirma = 'pendiente';
     }
 
     return {
@@ -169,7 +171,7 @@ export class ConsentimientoService {
 
   async getStats() {
     const [total, completos, pendientes, incompletos] = await Promise.all([
-      this.prisma.consulta.count(),
+      this.prisma.consulta.count({ where: { consentimiento: true } }),
       this.prisma.consulta.count({ where: this.getEstadoWhere('completos') }),
       this.prisma.consulta.count({ where: this.getEstadoWhere('pendientes') }),
       this.prisma.consulta.count({ where: this.getEstadoWhere('incompletos') }),
