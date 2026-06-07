@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Query, Param, Patch, Body, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiOkResponse, ApiCreatedResponse, ApiNotFoundResponse, ApiBadRequestResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiOkResponse, ApiCreatedResponse, ApiNotFoundResponse, ApiBadRequestResponse, ApiConflictResponse, } from '@nestjs/swagger';
 import { ConsentimientoService } from './consentimiento.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
@@ -8,7 +8,7 @@ import { UpdateSignaturesDto } from './dto/update-signatures.dto';
 @ApiTags('Consentimientos')
 @Controller('consents')
 export class ConsentimientoController {
-  constructor(private readonly consentimientoService: ConsentimientoService) {}
+  constructor(private readonly consentimientoService: ConsentimientoService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -57,11 +57,12 @@ export class ConsentimientoController {
 
   @Patch(':id/signatures')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Actualizar firmas faltantes', description: 'Registra o actualiza la firma del paciente o del doctor de manera independiente.' })
+  @ApiOperation({ summary: 'Actualizar firmas faltantes', description: 'Registra la firma del paciente o del doctor de manera independiente. No permite sobreescribir una firma ya existente.' })
   @ApiParam({ name: 'id', description: 'ID del consentimiento (consulta)', example: 1 })
   @ApiOkResponse({ description: 'Firmas actualizadas y detalle del consentimiento devuelto exitosamente' })
   @ApiNotFoundResponse({ description: 'Consentimiento no encontrado' })
-  @ApiBadRequestResponse({ description: 'Datos de firmas inválidos' })
+  @ApiBadRequestResponse({ description: 'Cuerpo vacío: debe enviar al menos una firma' })   // Fix #11
+  @ApiConflictResponse({ description: 'La firma ya existe y no puede sobreescribirse' })    // Fix #11
   updateSignatures(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateSignaturesDto: UpdateSignaturesDto,

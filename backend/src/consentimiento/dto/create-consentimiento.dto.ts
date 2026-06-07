@@ -22,12 +22,17 @@ export class CreateConsentimientoDto {
   @IsInt()
   id_doctor: number;
 
+  @ApiPropertyOptional({ description: 'Diagnóstico asociado al consentimiento', example: 'Maloclusión clase II' })
+  @IsOptional()
+  @IsString()
+  diagnostico?: string;
+
   @ApiPropertyOptional({ description: 'Firma digital del paciente en Base64', example: 'data:image/png;base64,iVBORw0KGgo...' })
   @IsOptional()
   @IsString()
   firma_paciente?: string;
 
-  @ApiPropertyOptional({ description: 'Firma digital del doctor en Base64', example: 'data:image/png;base64,iVBORw0KGgo...' })
+  @ApiPropertyOptional({ description: 'Firma digital del doctor en Base64 (se guarda como snapshot histórico de esta consulta)', example: 'data:image/png;base64,iVBORw0KGgo...' })
   @IsOptional()
   @IsString()
   firma_doctor?: string;

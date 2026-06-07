@@ -14,7 +14,7 @@ export class QueryConsentimientoDto {
   tratamiento?: string;
 
   @ApiPropertyOptional({
-    description: 'Estado de las firmas del consentimiento',
+    description: 'Estado de las firmas del consentimiento. Los valores retornados por la API son en singular (completo/pendiente/incompleto); este filtro los acepta en plural.',
     enum: ['completos', 'pendientes', 'incompletos', 'todos'],
     example: 'pendientes',
   })
@@ -42,14 +42,24 @@ export class QueryConsentimientoDto {
   @Type(() => Number)
   anio?: number;
 
-  @ApiPropertyOptional({ description: 'Número de página para paginación (por defecto 1)', minimum: 1, example: 1 })
+  @ApiPropertyOptional({
+    description: 'Número de página para paginación',
+    minimum: 1,
+    default: 1,
+    example: 1,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Type(() => Number)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Límite de resultados por página (por defecto 10)', minimum: 1, example: 10 })
+  @ApiPropertyOptional({
+    description: 'Límite de resultados por página',
+    minimum: 1,
+    default: 10,
+    example: 10,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
