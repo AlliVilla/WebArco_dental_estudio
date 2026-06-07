@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { BrevoService } from 'src/utils/email/brevo.service';
+import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -10,13 +12,14 @@ import { PrivilegesGuard } from '../guards/privileges.guard';
 @Module({
   imports: [
     PassportModule,
+    ConfigModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '24h' },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, PrivilegesGuard],
+  providers: [BrevoService, AuthService, JwtStrategy, JwtAuthGuard, PrivilegesGuard],
   exports: [AuthService, JwtAuthGuard, PrivilegesGuard],
 })
 export class AuthModule {}
