@@ -2,7 +2,6 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateConsultaDto } from './dto/create-consulta.dto';
@@ -10,6 +9,15 @@ import { UpdateConsultaDto } from './dto/update-consulta.dto';
 import { Prisma } from '@prisma/client';
 
 const consultaInclude = {
+  cita: {
+    select: {
+      id_cita: true,
+      tipo_cita: true,
+      estado: true,
+      fecha_inicio: true,
+      fecha_fin: true,
+    },
+  },
   persona: {
     select: {
       id_persona: true,
@@ -43,19 +51,25 @@ export class ConsultaService {
     await this.assertPersonaExists(createConsultaDto.id_persona);
     await this.assertUsuarioExists(createConsultaDto.id_usuario);
 
+    if (createConsultaDto.id_cita) {
+      await this.assertCitaExists(createConsultaDto.id_cita);
+    }
+
     const consulta = await this.prisma.consulta.create({
       data: {
         id_persona: createConsultaDto.id_persona,
         id_usuario: createConsultaDto.id_usuario,
+        id_cita: createConsultaDto.id_cita ?? null,
         fecha_inicio: new Date(createConsultaDto.fecha_inicio),
         fecha_fin: createConsultaDto.fecha_fin
           ? new Date(createConsultaDto.fecha_fin)
           : null,
+        motivo: createConsultaDto.motivo ?? null,
+        notas: createConsultaDto.notas ?? null,
         diagnostico: createConsultaDto.diagnostico ?? null,
         tratamiento: createConsultaDto.tratamiento ?? null,
         firma_paciente: createConsultaDto.firma_paciente ?? null,
         consentimiento: createConsultaDto.consentimiento ?? false,
-        estado: createConsultaDto.estado ?? 'agendada',
       },
       include: consultaInclude,
     });
@@ -69,7 +83,6 @@ export class ConsultaService {
     filters?: {
       id_persona?: number;
       id_usuario?: number;
-      estado?: string;
     },
   ) {
     const skip = (page - 1) * limit;
@@ -81,15 +94,6 @@ export class ConsultaService {
     }
     if (filters?.id_usuario) {
       where.id_usuario = filters.id_usuario;
-    }
-    if (filters?.estado) {
-      const estadosValidos = ['agendada', 'completada', 'cancelada', 'no_asistio'];
-      if (!estadosValidos.includes(filters.estado)) {
-        throw new BadRequestException(
-          `Estado inválido. Debe ser: ${estadosValidos.join(', ')}`,
-        );
-      }
-      where.estado = filters.estado as any;
     }
 
     const [consultas, total] = await Promise.all([
@@ -163,18 +167,27 @@ export class ConsultaService {
     if (updateConsultaDto.id_usuario) {
       await this.assertUsuarioExists(updateConsultaDto.id_usuario);
     }
+    if (updateConsultaDto.id_cita) {
+      await this.assertCitaExists(updateConsultaDto.id_cita);
+    }
 
     const updateData: Record<string, unknown> = {};
     if (updateConsultaDto.id_persona !== undefined)
       updateData.id_persona = updateConsultaDto.id_persona;
     if (updateConsultaDto.id_usuario !== undefined)
       updateData.id_usuario = updateConsultaDto.id_usuario;
+    if (updateConsultaDto.id_cita !== undefined)
+      updateData.id_cita = updateConsultaDto.id_cita;
     if (updateConsultaDto.fecha_inicio !== undefined)
       updateData.fecha_inicio = new Date(updateConsultaDto.fecha_inicio);
     if (updateConsultaDto.fecha_fin !== undefined)
       updateData.fecha_fin = updateConsultaDto.fecha_fin
         ? new Date(updateConsultaDto.fecha_fin)
         : null;
+    if (updateConsultaDto.motivo !== undefined)
+      updateData.motivo = updateConsultaDto.motivo;
+    if (updateConsultaDto.notas !== undefined)
+      updateData.notas = updateConsultaDto.notas;
     if (updateConsultaDto.diagnostico !== undefined)
       updateData.diagnostico = updateConsultaDto.diagnostico;
     if (updateConsultaDto.tratamiento !== undefined)
@@ -183,8 +196,6 @@ export class ConsultaService {
       updateData.firma_paciente = updateConsultaDto.firma_paciente;
     if (updateConsultaDto.consentimiento !== undefined)
       updateData.consentimiento = updateConsultaDto.consentimiento;
-    if (updateConsultaDto.estado !== undefined)
-      updateData.estado = updateConsultaDto.estado;
 
     const updated = await this.prisma.consulta.update({
       where: { id_consulta: id },
@@ -209,15 +220,9 @@ export class ConsultaService {
     });
 
     if (antecedentesCount > 0 || odontogramasCount > 0 || pagosCount > 0) {
-      const updated = await this.prisma.consulta.update({
-        where: { id_consulta: id },
-        data: { estado: 'cancelada' },
-        include: consultaInclude,
-      });
-      return {
-        message: 'Consulta cancelada exitosamente (tiene registros asociados)',
-        data: updated,
-      };
+      throw new BadRequestException(
+        'No se puede eliminar la consulta porque tiene registros asociados (antecedentes, odontogramas o pagos)',
+      );
     }
 
     await this.prisma.consulta.delete({
@@ -225,6 +230,18 @@ export class ConsultaService {
     });
 
     return { message: 'Consulta eliminada exitosamente' };
+  }
+
+  private async assertCitaExists(id: number) {
+    const cita = await this.prisma.cita.findUnique({
+      where: { id_cita: id },
+      select: { id_cita: true },
+    });
+    if (!cita) {
+      throw new BadRequestException(
+        `No existe una cita con el id ${id}`,
+      );
+    }
   }
 
   private async assertPersonaExists(id: number) {

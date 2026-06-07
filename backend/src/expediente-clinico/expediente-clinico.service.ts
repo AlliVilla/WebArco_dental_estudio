@@ -72,11 +72,14 @@ export class ExpedienteClinicoService {
         correo_electronico: true,
         sexo: true,
         direccion_linea: true,
-        departamento: {
-          select: { id_departamento: true, nombre: true },
-        },
         municipio: {
-          select: { id_municipio: true, nombre: true },
+          select: {
+            id_municipio: true,
+            nombre: true,
+            departamento: {
+              select: { id_departamento: true, nombre: true },
+            },
+          },
         },
       },
     });
@@ -183,10 +186,9 @@ export class ExpedienteClinicoService {
           tratamiento: dto.tratamiento ?? null,
           firma_paciente: dto.firma_paciente ?? null,
           consentimiento: Boolean(dto.firma_paciente),
-          estado: 'agendada',
         },
         include: visitaInclude,
-      });
+      }) as Prisma.ConsultaGetPayload<{ include: typeof visitaInclude }>;
 
       // 2. Actualizar la firma del doctor si se proporcionó
       if (dto.firma_doctor) {
@@ -195,13 +197,13 @@ export class ExpedienteClinicoService {
           data: { firma: dto.firma_doctor },
         });
         // Reflejar la nueva firma en el objeto doctor de la consulta
-        (nuevaConsulta.doctor as { firma: string | null }).firma = dto.firma_doctor;
+        nuevaConsulta.doctor.firma = dto.firma_doctor;
       }
 
       return nuevaConsulta;
     });
 
-    const visitaMapeada = this.mapearConsultaConEstadoFirmas(visita);
+    const visitaMapeada = this.mapearConsultaConEstadoFirmas(visita as Parameters<typeof this.mapearConsultaConEstadoFirmas>[0]);
 
     return {
       mensaje: 'Visita registrada exitosamente',

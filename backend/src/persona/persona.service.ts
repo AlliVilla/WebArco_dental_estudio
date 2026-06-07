@@ -15,7 +15,6 @@ export class PersonaService {
   async create(createPersonaDto: CreatePersonaDto) {
     const { numero_identidad, correo_electronico } = createPersonaDto;
 
-    // Check if numero_identidad already exists
     const existingPersonaByIdentity = await this.prisma.persona.findUnique({
       where: { numero_identidad },
     });
@@ -26,7 +25,6 @@ export class PersonaService {
       );
     }
 
-    // Check if correo_electronico already exists (if provided)
     if (correo_electronico) {
       const existingPersonaByEmail = await this.prisma.persona.findUnique({
         where: { correo_electronico },
@@ -39,18 +37,16 @@ export class PersonaService {
       }
     }
 
-    // Verify that id_ciudad exists and get its departamento
     const municipio = await this.prisma.municipio.findUnique({
-      where: { id_municipio: createPersonaDto.id_ciudad },
+      where: { id_municipio: createPersonaDto.id_municipio },
     });
 
     if (!municipio) {
       throw new BadRequestException(
-        `No existe un municipio/ciudad con el id ${createPersonaDto.id_ciudad}`,
+        `No existe un municipio con el id ${createPersonaDto.id_municipio}`,
       );
     }
 
-    // Create persona
     const persona = await this.prisma.persona.create({
       data: {
         numero_identidad,
@@ -61,14 +57,16 @@ export class PersonaService {
         segundo_apellido: createPersonaDto.segundo_apellido,
         fecha_nacimiento: new Date(createPersonaDto.fecha_nacimiento),
         telefono: createPersonaDto.telefono,
-        id_ciudad: createPersonaDto.id_ciudad,
-        id_departamento: municipio.id_departamento,
+        id_municipio: createPersonaDto.id_municipio,
         direccion_linea: createPersonaDto.direccion_linea,
         sexo: createPersonaDto.sexo,
       },
       include: {
-        municipio: true,
-        departamento: true,
+        municipio: {
+          include: {
+            departamento: true,
+          },
+        },
       },
     });
 
@@ -124,8 +122,11 @@ export class PersonaService {
         skip,
         take: limit,
         include: {
-          municipio: true,
-          departamento: true,
+          municipio: {
+            include: {
+              departamento: true,
+            },
+          },
         },
         orderBy: {
           id_persona: 'desc',
@@ -149,8 +150,11 @@ export class PersonaService {
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: id },
       include: {
-        municipio: true,
-        departamento: true,
+        municipio: {
+          include: {
+            departamento: true,
+          },
+        },
       },
     });
 
@@ -162,12 +166,10 @@ export class PersonaService {
   }
 
   async update(id: number, updatePersonaDto: UpdatePersonaDto) {
-    // Verify persona exists
     await this.findOne(id);
 
     const { numero_identidad, correo_electronico } = updatePersonaDto;
 
-    // Check if numero_identidad already exists for a different persona
     if (numero_identidad) {
       const existingPersona = await this.prisma.persona.findUnique({
         where: { numero_identidad },
@@ -180,7 +182,6 @@ export class PersonaService {
       }
     }
 
-    // Check if correo_electronico already exists for a different persona
     if (correo_electronico) {
       const existingPersona = await this.prisma.persona.findUnique({
         where: { correo_electronico },
@@ -193,20 +194,16 @@ export class PersonaService {
       }
     }
 
-    // Verify that id_ciudad exists (if provided) and derive id_departamento
-    let nuevoIdDepartamento: number | undefined;
-    if (updatePersonaDto.id_ciudad) {
+    if (updatePersonaDto.id_municipio) {
       const municipio = await this.prisma.municipio.findUnique({
-        where: { id_municipio: updatePersonaDto.id_ciudad },
+        where: { id_municipio: updatePersonaDto.id_municipio },
       });
 
       if (!municipio) {
         throw new BadRequestException(
-          `No existe un municipio/ciudad con el id ${updatePersonaDto.id_ciudad}`,
+          `No existe un municipio con el id ${updatePersonaDto.id_municipio}`,
         );
       }
-
-      nuevoIdDepartamento = municipio.id_departamento;
     }
 
     const updateData: Record<string, unknown> = {};
@@ -225,10 +222,8 @@ export class PersonaService {
       updateData.fecha_nacimiento = new Date(updatePersonaDto.fecha_nacimiento);
     if (updatePersonaDto.telefono !== undefined)
       updateData.telefono = updatePersonaDto.telefono;
-    if (updatePersonaDto.id_ciudad !== undefined) {
-      updateData.id_ciudad = updatePersonaDto.id_ciudad;
-      updateData.id_departamento = nuevoIdDepartamento;
-    }
+    if (updatePersonaDto.id_municipio !== undefined)
+      updateData.id_municipio = updatePersonaDto.id_municipio;
     if (updatePersonaDto.direccion_linea !== undefined)
       updateData.direccion_linea = updatePersonaDto.direccion_linea;
     if (updatePersonaDto.sexo !== undefined)
@@ -238,8 +233,11 @@ export class PersonaService {
       where: { id_persona: id },
       data: updateData,
       include: {
-        municipio: true,
-        departamento: true,
+        municipio: {
+          include: {
+            departamento: true,
+          },
+        },
       },
     });
 
@@ -247,11 +245,8 @@ export class PersonaService {
   }
 
   async remove(id: number) {
-    // Verify persona exists
     await this.findOne(id);
 
-    // Perform soft delete (logical deletion)
-    // First, check if the persona has related records
     const consultasCount = await this.prisma.consulta.count({
       where: { id_persona: id },
     });
@@ -266,7 +261,6 @@ export class PersonaService {
       );
     }
 
-    // Hard delete only if no related records
     await this.prisma.persona.delete({
       where: { id_persona: id },
     });
