@@ -247,7 +247,7 @@ export class AlertaFirmaDetalleDto {
 
 export class RegistrarVisitaResponseDto {
   @ApiProperty({ example: 'Visita registrada exitosamente' })
-  mensaje: string;
+  message: string;
 
   @ApiProperty({ type: () => AlertaFirmaDetalleDto })
   alerta_firmas: AlertaFirmaDetalleDto;
@@ -258,7 +258,7 @@ export class RegistrarVisitaResponseDto {
 
 export class ActualizarFirmasResponseDto {
   @ApiProperty({ example: 'Firmas actualizadas exitosamente' })
-  mensaje: string;
+  message: string;
 
   @ApiProperty({ type: () => AlertaFirmaDetalleDto })
   alerta_firmas: AlertaFirmaDetalleDto;

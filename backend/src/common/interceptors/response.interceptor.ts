@@ -6,31 +6,64 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { ApiResponseDto } from '../dto/api-response.dto';
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value)
-  );
-}
+const DEFAULT_MESSAGES: Record<number, string> = {
+  200: 'Operación exitosa',
+  201: 'Recurso creado exitosamente',
+  204: 'Recurso eliminado exitosamente',
+};
 
 @Injectable()
-export class ResponseInterceptor implements NestInterceptor {
+export class ResponseInterceptor<T>
+  implements NestInterceptor<T, ApiResponseDto<T>>
+{
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<unknown> {
+  ): Observable<ApiResponseDto<T>> {
+    const statusCode = context.switchToHttp().getResponse().statusCode;
+
     return next.handle().pipe(
-      map((response) => {
-        if (isObject(response)) {
-          if ('success' in response) return response;
-          if ('data' in response) {
-            return { success: true, message: 'Operación exitosa', ...response };
-          }
-        }
-        return { success: true, message: 'Operación exitosa', data: response ?? null };
-      }),
+      map((data) => this.wrapResponse(data, statusCode) as ApiResponseDto<T>),
     );
+  }
+
+  private wrapResponse(
+    data: unknown,
+    statusCode: number,
+  ): ApiResponseDto<unknown> {
+    if (data === null || data === undefined) {
+      return {
+        success: true,
+        data: null,
+        message: DEFAULT_MESSAGES[statusCode] ?? 'Operación exitosa',
+      };
+    }
+
+    if (typeof data !== 'object') {
+      return {
+        success: true,
+        data,
+        message: DEFAULT_MESSAGES[statusCode] ?? 'Operación exitosa',
+      };
+    }
+
+    const extracted = data as Record<string, unknown>;
+
+    const message =
+      (extracted['message'] as string | undefined) ??
+      (extracted['mensaje'] as string | undefined) ??
+      (DEFAULT_MESSAGES[statusCode] ?? 'Operación exitosa');
+
+    const { message: _m, mensaje: _mj, ...rest } = extracted;
+
+    const hasSignificantKeys = Object.keys(rest).length > 0;
+
+    return {
+      success: true,
+      data: hasSignificantKeys ? rest : null,
+      message,
+    } as ApiResponseDto<unknown>;
   }
 }

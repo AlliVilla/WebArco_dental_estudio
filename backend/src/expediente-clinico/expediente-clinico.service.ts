@@ -206,7 +206,7 @@ export class ExpedienteClinicoService {
     const visitaMapeada = this.mapearConsultaConEstadoFirmas(visita as Parameters<typeof this.mapearConsultaConEstadoFirmas>[0]);
 
     return {
-      mensaje: 'Visita registrada exitosamente',
+      message: 'Visita registrada exitosamente',
       alerta_firmas: !visitaMapeada.estado_firmas.firmas_completas
         ? {
             activa: true,
@@ -317,7 +317,7 @@ export class ExpedienteClinicoService {
     const visitaMapeada = this.mapearConsultaConEstadoFirmas(visitaActualizada);
 
     return {
-      mensaje: 'Firmas actualizadas exitosamente',
+      message: 'Firmas actualizadas exitosamente',
       alerta_firmas: !visitaMapeada.estado_firmas.firmas_completas
         ? {
             activa: true,
