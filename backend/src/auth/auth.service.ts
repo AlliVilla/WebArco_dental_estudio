@@ -1,7 +1,5 @@
 import {
   Injectable,
-  NotFoundException,
-  ConflictException,
   BadRequestException,
   UnauthorizedException
 } from '@nestjs/common';
@@ -12,7 +10,7 @@ import { hashPassword } from '../utils/bcrypt/hashPassword';
 
 import { comparePassword } from '../utils/bcrypt/comparePassword';
 import { generateToken, generateRefreshToken } from '../utils/jwt/generateToken';
-import { decodeToken, verifyResetToken } from '../utils/jwt/verifyToken';
+import { decodeToken, verifyResetToken, verifyRefreshToken } from '../utils/jwt/verifyToken';
 
 import { ForgotPasswordDto } from './dto/forgotPassword';
 import { LoginDto } from './dto/login';
@@ -25,15 +23,15 @@ export class AuthService {
   constructor(private prisma: PrismaService, private brevo: BrevoService) {}
 
   async login(loginDto: LoginDto) {
-    const { user, password } = loginDto;
+    const { username, password } = loginDto;
 
     const userExists = await this.prisma.usuario.findUnique({
-      where: { username: user },
+      where: { username },
       include: { persona: true },
     });
 
     if (!userExists) {
-      throw new UnauthorizedException(`No existe el usuario: ${user}`);
+      throw new UnauthorizedException('Credenciales incorrectas.');
     }
 
     const isPasswordValid = await comparePassword(
@@ -42,9 +40,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException(
-        `Credenciales incorrectas para usuario: ${user}`,
-      );
+      throw new UnauthorizedException('Credenciales incorrectas.');
     }
 
     const tokenPayload = {
@@ -115,14 +111,14 @@ export class AuthService {
     let payload: any;
     try {
       payload = decodeToken(token);
-    } catch (error) {
-      throw new BadRequestException('El token es inválido o ha expirado.');
+    } catch {
+      throw new BadRequestException('Token de recuperación inválido o expirado.');
     }
 
     const userId = payload?.sub;
 
     if (!userId) {
-      throw new BadRequestException('Token malformado.');
+      throw new BadRequestException('Token de recuperación inválido o expirado.');
     }
 
     const user = await this.prisma.usuario.findUnique({
@@ -130,19 +126,19 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado.');
+      throw new BadRequestException('Token de recuperación inválido o expirado.');
     }
 
     const secretKey = (process.env.JWT_SECRET || 'your-secret-key') + user.password;
     try {
       verifyResetToken(token, secretKey);
-    } catch (error) {
-      throw new BadRequestException('El token es inválido, ha expirado o ya fue usado.');
+    } catch {
+      throw new BadRequestException('Token de recuperación inválido o expirado.');
     }
 
     const isSamePassword = await comparePassword(newPassword, user.password);
     if (isSamePassword) {
-      throw new BadRequestException('La nueva contraseña no puede ser igual a la antigua.');
+      throw new BadRequestException('La nueva contraseña no puede ser igual a la anterior.');
     }
 
     const hashedPassword = await hashPassword(newPassword); 
@@ -159,6 +155,35 @@ export class AuthService {
       data: null,
       message: 'Contraseña actualizada correctamente.',
     };
+  }
+
+  async refreshToken(refreshToken: string) {
+    let payload: any;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Refresh token inválido o expirado.');
+    }
+
+    const user = await this.prisma.usuario.findUnique({
+      where: { id_usuario: payload.sub },
+      include: { persona: true },
+    });
+
+    if (!user || !user.activo) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo.');
+    }
+
+    const tokenPayload = {
+      sub: user.id_usuario,
+      username: user.username,
+      email: user.persona?.correo_electronico ?? undefined,
+      id_rol: user.id_rol,
+    };
+
+    const access_token = generateToken(tokenPayload, '24h');
+
+    return { access_token };
   }
 }
 
