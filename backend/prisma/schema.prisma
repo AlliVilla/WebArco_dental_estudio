@@ -40,7 +40,6 @@ model Departamento {
   nombre          String     @db.VarChar(255)
 
   municipios      Municipio[]
-  personas        Persona[]
 
   @@map("departamento")
 }
@@ -57,11 +56,14 @@ model Municipio {
   @@map("municipio")
 }
 
-enum EstadoConsulta {
-  agendada
-  completada
+enum EstadoCita {
+  programada
+  confirmada
   cancelada
   no_asistio
+  atendida
+  ausente
+  reprogramada
 }
 
 enum Sexo {
@@ -79,14 +81,13 @@ model Persona {
   fecha_nacimiento   DateTime @db.Date
   telefono           String   @db.VarChar(20)
   correo_electronico String?  @unique @db.VarChar(255)
-  id_departamento    Int
-  id_ciudad          Int
+  id_municipio       Int
   direccion_linea    String?  @db.Text
   sexo Sexo
-  departamento Departamento @relation(fields: [id_departamento], references: [id_departamento])
-  municipio    Municipio    @relation(fields: [id_ciudad], references: [id_municipio])
-  usuarios     Usuario[]
-  consultas    Consulta[]
+  municipio Municipio @relation(fields: [id_municipio], references: [id_municipio])
+  usuarios  Usuario[]
+  consultas Consulta[]
+  citas     Cita[]
 
   @@map("persona")
 }
@@ -100,9 +101,11 @@ model Usuario {
   firma      String? @db.Text
   activo     Boolean @default(true)
 
-  persona   Persona    @relation(fields: [id_persona], references: [id_persona])
-  rol       Rol        @relation(fields: [id_rol], references: [id_rol])
-  consultas Consulta[]
+  persona           Persona            @relation(fields: [id_persona], references: [id_persona])
+  rol               Rol                @relation(fields: [id_rol], references: [id_rol])
+  consultas         Consulta[]
+  citas             Cita[]
+  historial_estados EstadoHistorial[]
 
   @@map("usuario")
 }
@@ -131,19 +134,41 @@ model AntecedenteRespuesta {
   @@map("antecedente_respuesta")
 }
 
-model Consulta {
-  id_consulta          Int            @id @default(autoincrement())
+model Cita {
+  id_cita              Int        @id @default(autoincrement())
   id_persona           Int
   id_usuario           Int
-  fecha_inicio         DateTime       @db.Timestamp()
-  fecha_fin            DateTime?      @db.Timestamp()
-  diagnostico          String?        @db.Text
-  tratamiento          String?        @db.Text
-  firma_paciente       String?        @db.Text
-  consentimiento       Boolean        @default(false)
-  estado               EstadoConsulta @default(agendada)
-  recordatorio_enviado Boolean        @default(false)
+  fecha_inicio         DateTime   @db.Timestamp()
+  fecha_fin            DateTime?  @db.Timestamp()
+  tipo_cita            String?    @db.VarChar(100)
+  motivo               String?    @db.Text
+  estado               EstadoCita @default(programada)
+  recordatorio_enviado Boolean    @default(false)
+  notas                String?    @db.Text
 
+  persona          Persona           @relation(fields: [id_persona], references: [id_persona])
+  doctor           Usuario           @relation(fields: [id_usuario], references: [id_usuario])
+  consulta         Consulta?
+  historial_estados EstadoHistorial[]
+
+  @@map("cita")
+}
+
+model Consulta {
+  id_consulta    Int       @id @default(autoincrement())
+  id_cita        Int?      @unique
+  id_persona     Int
+  id_usuario     Int
+  fecha_inicio   DateTime  @db.Timestamp()
+  fecha_fin      DateTime? @db.Timestamp()
+  diagnostico    String?   @db.Text
+  tratamiento    String?   @db.Text
+  motivo         String?   @db.Text
+  notas          String?   @db.Text
+  firma_paciente String?   @db.Text
+  consentimiento Boolean   @default(false)
+
+  cita         Cita?                  @relation(fields: [id_cita], references: [id_cita])
   persona      Persona                @relation(fields: [id_persona], references: [id_persona])
   doctor       Usuario                @relation(fields: [id_usuario], references: [id_usuario])
   antecedentes AntecedenteRespuesta[]
@@ -151,6 +176,21 @@ model Consulta {
   pagos        PagoPaciente[]
 
   @@map("consulta")
+}
+
+model EstadoHistorial {
+  id_historial    Int        @id @default(autoincrement())
+  id_cita         Int
+  estado_anterior EstadoCita?
+  estado_nuevo    EstadoCita
+  cambiado_por    Int
+  fecha_cambio    DateTime   @default(now())
+
+  cita    Cita    @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade)
+  usuario Usuario @relation(fields: [cambiado_por], references: [id_usuario])
+
+  @@index([id_cita])
+  @@map("estado_historial")
 }
 
 model Diente {
@@ -171,6 +211,7 @@ model Odontograma {
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
   diente   Diente   @relation(fields: [id_diente], references: [numero_diente])
 
+  @@unique([id_consulta, id_diente])
   @@map("odontograma")
 }
 
@@ -179,7 +220,6 @@ model PagoPaciente {
   id_consulta    Int
   fecha          DateTime @db.Date
   abono          Decimal  @db.Decimal(10, 2)
-  saldo          Decimal  @db.Decimal(10, 2)
   observacion    String?  @db.Text
   firma_paciente String?  @db.Text
 
