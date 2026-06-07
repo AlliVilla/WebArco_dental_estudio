@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
+import { ActualizarFirmasDto } from './dto/actualizar-firmas.dto';
 
 /** Campos del doctor incluidos en cada consulta */
 const doctorSelect = {
@@ -234,6 +235,93 @@ export class ExpedienteClinicoService {
     }
 
     return this.mapearConsultaConEstadoFirmas(visita);
+  }
+
+  /**
+   * Actualiza las firmas pendientes (paciente y/o doctor) de una visita existente.
+   * - Valida que el body traiga al menos una firma.
+   * - No sobreescribe firmas ya existentes (lanza BadRequestException).
+   * - Si dto.firma_doctor se provee, actualiza la firma del usuario doctor asociado.
+   */
+  async actualizarFirmas(
+    idPaciente: number,
+    idVisita: number,
+    dto: ActualizarFirmasDto,
+  ) {
+    // Debe enviarse al menos una firma
+    if (!dto.firma_paciente && !dto.firma_doctor) {
+      throw new BadRequestException(
+        'Debe proporcionar al menos una firma: firma_paciente o firma_doctor',
+      );
+    }
+
+    await this.assertPacienteExiste(idPaciente);
+
+    // Obtener la visita validando que pertenezca al paciente
+    const visita = await this.prisma.consulta.findFirst({
+      where: { id_consulta: idVisita, id_persona: idPaciente },
+      include: visitaInclude,
+    });
+
+    if (!visita) {
+      throw new NotFoundException(
+        `No se encontró la visita con id ${idVisita} para el paciente con id ${idPaciente}`,
+      );
+    }
+
+    // Proteger firmas ya existentes para no sobreescribirlas
+    if (dto.firma_paciente && visita.firma_paciente) {
+      throw new BadRequestException(
+        'La firma del paciente ya existe en esta visita y no puede ser sobreescrita',
+      );
+    }
+    if (dto.firma_doctor && visita.doctor.firma) {
+      throw new BadRequestException(
+        'La firma del doctor ya existe y no puede ser sobreescrita',
+      );
+    }
+
+    // Aplicar actualizaciones en una transacción
+    const visitaActualizada = await this.prisma.$transaction(async (tx) => {
+      // 1. Actualizar firma del paciente en la consulta si se proveyó
+      const datosConsulta: { firma_paciente?: string; consentimiento?: boolean } = {};
+      if (dto.firma_paciente) {
+        datosConsulta.firma_paciente = dto.firma_paciente;
+        datosConsulta.consentimiento = true;
+      }
+
+      const consultaActualizada = await tx.consulta.update({
+        where: { id_consulta: idVisita },
+        data: datosConsulta,
+        include: visitaInclude,
+      });
+
+      // 2. Actualizar firma del doctor en el perfil del usuario si se proveyó
+      if (dto.firma_doctor) {
+        await tx.usuario.update({
+          where: { id_usuario: visita.id_usuario },
+          data: { firma: dto.firma_doctor },
+        });
+        // Reflejar el cambio en el objeto retornado
+        (consultaActualizada.doctor as { firma: string | null }).firma =
+          dto.firma_doctor;
+      }
+
+      return consultaActualizada;
+    });
+
+    const visitaMapeada = this.mapearConsultaConEstadoFirmas(visitaActualizada);
+
+    return {
+      mensaje: 'Firmas actualizadas exitosamente',
+      alerta_firmas: !visitaMapeada.estado_firmas.firmas_completas
+        ? {
+            activa: true,
+            pendientes: visitaMapeada.estado_firmas.pendientes,
+          }
+        : { activa: false, pendientes: [] },
+      visita: visitaMapeada,
+    };
   }
 
   // ─── Helpers privados ───────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   ParseIntPipe,
@@ -19,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { ExpedienteClinicoService } from './expediente-clinico.service';
 import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
+import { ActualizarFirmasDto } from './dto/actualizar-firmas.dto';
 
 @ApiTags('Expediente Clínico')
 @Controller('clinical-history')
@@ -132,5 +134,48 @@ export class ExpedienteClinicoController {
     @Param('visitId', ParseIntPipe) visitId: number,
   ) {
     return this.expedienteClinicoService.obtenerDetalleVisita(patientId, visitId);
+  }
+
+  @Patch(':patientId/visits/:visitId/signatures')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar firmas pendientes de una visita',
+    description:
+      'Permite registrar la firma digital del paciente, la del doctor, o ambas ' +
+      'en una visita existente. No sobreescribe firmas ya guardadas. ' +
+      'Si tras la actualización quedan firmas pendientes, la respuesta incluye ' +
+      'una alerta indicando quién(es) aún no han firmado.',
+  })
+  @ApiParam({
+    name: 'patientId',
+    description: 'ID de la persona/paciente',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'visitId',
+    description: 'ID de la visita/consulta',
+    example: 1,
+  })
+  @ApiOkResponse({
+    description:
+      'Firmas actualizadas exitosamente con estado de firmas resultante',
+  })
+  @ApiNotFoundResponse({
+    description: 'Paciente no encontrado o visita no pertenece al paciente',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'No se envió ninguna firma, firma ya existente, o datos inválidos',
+  })
+  async actualizarFirmas(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('visitId', ParseIntPipe) visitId: number,
+    @Body() actualizarFirmasDto: ActualizarFirmasDto,
+  ) {
+    return this.expedienteClinicoService.actualizarFirmas(
+      patientId,
+      visitId,
+      actualizarFirmasDto,
+    );
   }
 }
