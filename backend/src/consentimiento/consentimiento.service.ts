@@ -183,7 +183,6 @@ export class ConsentimientoService {
             select: {
               id_usuario: true,
               username: true,
-              firma_doctor_snapshot: true,  // Fix #3: leer el snapshot, no usuario.firma
               persona: {
                 select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true },
               },
@@ -224,7 +223,6 @@ export class ConsentimientoService {
           select: {
             id_usuario: true,
             username: true,
-            firma_doctor_snapshot: true,   // Fix #3: snapshot histórico por consulta
             persona: {
               select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true },
             },
