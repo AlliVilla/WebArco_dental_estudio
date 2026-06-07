@@ -16,7 +16,7 @@ import {
   ApiNotFoundResponse,
   ApiConflictResponse,
 } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login';
 import { ForgotPasswordDto } from './dto/forgotPassword';
@@ -51,11 +51,10 @@ export class AuthController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
-  @ApiConflictResponse({ description: 'Credenciales incorrectas' })
+  @ApiUnauthorizedResponse({ description: 'Credenciales incorrectas' })
   async login(
         @Body() loginDto: LoginDto, 
-        @Res() res: Response
+        @Res({passthrough: true}) res: Response
     ) {
     const authResponse = await this.authService.login(loginDto);
 
@@ -85,7 +84,7 @@ export class AuthController {
   }
 
   @Post('logout')
-  @HttpCode(HttpStatus.RESET_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({summary: 'Log out del usuario', description: 'Se quita de las cookies el usuario que poseia el usuario'})
   async logout(@Res(({ passthrough: true })) res: Response){
     res.clearCookie('auth_token');
@@ -112,7 +111,7 @@ export class AuthController {
   }
 
   @Put('reset-password')
-  @HttpCode(HttpStatus.RESET_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({summary: 'Cambio de Contraseña', description: 'Verifica el token recibido por correo y actualiza la contraseña'})
   async resetPassword(@Body() body: ResetPasswordDto) {
     await this.authService.resetPassword(body);

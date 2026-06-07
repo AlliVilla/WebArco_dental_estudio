@@ -15,5 +15,6 @@ export class ForgotPasswordDto{
     @ApiProperty({description: 'correo del usuario', example: 'johndoe@gmail.com'})
     @IsNotEmpty({ message: 'correo eléctronico obligatorio' })
     @IsString({ message: 'correo eléctronico debe ser texto' })
+    @IsEmail({},{message: 'Texto debe tener formato de correo eléctronico'})
     email: string;
 }

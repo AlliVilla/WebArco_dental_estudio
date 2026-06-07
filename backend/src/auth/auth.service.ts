@@ -2,22 +2,23 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException
+  BadRequestException,
+  UnauthorizedException
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { BrevoService } from '../utils/email/brevo.service';
-import { hashPassword } from 'src/utils/bcrypt/hashPassword';
+import { hashPassword } from '../utils/bcrypt/hashPassword';
 
 import { comparePassword } from '../utils/bcrypt/comparePassword';
 import { generateToken, generateRefreshToken } from '../utils/jwt/generateToken';
-import { decodeToken, verifyResetToken } from 'src/utils/jwt/verifyToken';
+import { decodeToken, verifyResetToken } from '../utils/jwt/verifyToken';
 
 import { ForgotPasswordDto } from './dto/forgotPassword';
 import { LoginDto } from './dto/login';
 import { ResetPasswordDto } from './dto/resetPassword';
 
-import { buildResetPasswordEmail } from 'src/utils/email/html/forgotPassword';
+import { buildResetPasswordEmail } from '../utils/email/html/forgotPassword';
 
 @Injectable()
 export class AuthService {
@@ -32,7 +33,7 @@ export class AuthService {
     });
 
     if (!userExists) {
-      throw new NotFoundException(`No existe el usuario: ${user}`);
+      throw new UnauthorizedException(`No existe el usuario: ${user}`);
     }
 
     const isPasswordValid = await comparePassword(
@@ -41,7 +42,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new ConflictException(
+      throw new UnauthorizedException(
         `Credenciales incorrectas para usuario: ${user}`,
       );
     }
@@ -77,8 +78,11 @@ export class AuthService {
       },
     });
 
-    if(!userExists){
-      throw new NotFoundException(`No existe el usuario con el siguiente correo: ${email}`);
+    if (!userExists) {
+      return {
+        success: true,
+        message: 'Si el correo existe, se ha enviado un enlace de recuperación',
+      };
     }
 
     const resetPayload = {
@@ -101,7 +105,7 @@ export class AuthService {
     return {
       success: true,
       data: null,
-      message: 'Se ha enviado un enlace de recuperación a su correo electrónico.',
+      message: 'Si el correo existe, se ha enviado un enlace de recuperación.',
     };
   }
 
