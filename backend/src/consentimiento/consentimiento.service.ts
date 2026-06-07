@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
+import { UpdateSignaturesDto } from './dto/update-signatures.dto';
 
 @Injectable()
 export class ConsentimientoService {
@@ -19,22 +20,39 @@ export class ConsentimientoService {
         return {
           firma_paciente: null,
           consentimiento: false,
-          // Un consentimiento pendiente no tiene firma de paciente
         };
       case 'incompletos':
         return {
           OR: [
-            // Tiene firma de paciente pero el doctor no tiene firma
             { firma_paciente: { not: null }, doctor: { firma: null } },
-            // Tiene firma de paciente y doctor pero el checkbox consentimiento es false
             { firma_paciente: { not: null }, doctor: { firma: { not: null } }, consentimiento: false },
-            // El paciente no ha firmado pero ya se marcó el consentimiento (estado inconsistente)
             { firma_paciente: null, consentimiento: true },
           ],
         };
       default:
         return {};
     }
+  }
+
+  async create(data: CreateConsentimientoDto) {
+    // Si el doctor adjuntó firma, actualizamos su perfil de usuario
+    if (data.firma_doctor) {
+      await this.prisma.usuario.update({
+        where: { id_usuario: data.id_doctor },
+        data: { firma: data.firma_doctor },
+      });
+    }
+
+    return this.prisma.consulta.create({
+      data: {
+        id_persona: data.id_paciente,
+        id_usuario: data.id_doctor,
+        fecha_inicio: new Date(data.fecha),
+        tratamiento: data.tipo_tratamiento,
+        firma_paciente: data.firma_paciente,
+        consentimiento: true,
+      },
+    });
   }
 
   async findAll(query: QueryConsentimientoDto) {
@@ -83,25 +101,15 @@ export class ConsentimientoService {
         orderBy: { fecha_inicio: 'desc' },
         include: {
           persona: {
-            select: {
-              id_persona: true,
-              numero_identidad: true,
-              primer_nombre: true,
-              primer_apellido: true,
-            },
+            select: { id_persona: true, numero_identidad: true, primer_nombre: true, primer_apellido: true },
           },
           doctor: {
-            select: {
-              id_usuario: true,
-              username: true,
-              firma: true,
-            },
+            select: { id_usuario: true, username: true, firma: true },
           },
         },
       }),
     ]);
 
-    // Mapeamos los resultados para agregar un campo de estado_firmas
     const data = consultas.map((c) => {
       let estadoFirma = 'pendiente';
       const tieneFirmaPaciente = !!c.firma_paciente;
@@ -126,12 +134,36 @@ export class ConsentimientoService {
       };
     });
 
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async findOne(idConsulta: number) {
+    const consulta = await this.prisma.consulta.findUnique({
+      where: { id_consulta: idConsulta },
+      include: {
+        persona: true,
+        doctor: { select: { id_usuario: true, username: true, firma: true } },
+      },
+    });
+
+    if (!consulta) {
+      throw new NotFoundException(`Consentimiento (consulta) con ID ${idConsulta} no encontrado`);
+    }
+
+    const tieneFirmaPaciente = !!consulta.firma_paciente;
+    const tieneFirmaDoctor = !!consulta.doctor.firma;
+    let estadoFirma = 'pendiente';
+    if (tieneFirmaPaciente && tieneFirmaDoctor && consulta.consentimiento) {
+      estadoFirma = 'completo';
+    } else if (tieneFirmaPaciente || consulta.consentimiento) {
+      estadoFirma = 'incompleto';
+    }
+
     return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      ...consulta,
+      estado_firmas: estadoFirma,
+      tiene_firma_paciente: tieneFirmaPaciente,
+      tiene_firma_doctor: tieneFirmaDoctor,
     };
   }
 
@@ -143,61 +175,49 @@ export class ConsentimientoService {
       this.prisma.consulta.count({ where: this.getEstadoWhere('incompletos') }),
     ]);
 
-    return {
-      total,
-      completos,
-      pendientes,
-      incompletos,
-    };
+    return { total, completos, pendientes, incompletos };
   }
 
-  async registrarConsentimiento(idConsulta: number, data: CreateConsentimientoDto) {
-    const consulta = await this.prisma.consulta.findUnique({
-      where: { id_consulta: idConsulta },
-    });
+  async updateSignatures(idConsulta: number, data: UpdateSignaturesDto) {
+    const consulta = await this.prisma.consulta.findUnique({ where: { id_consulta: idConsulta } });
+    if (!consulta) throw new NotFoundException(`Consentimiento no encontrado`);
 
-    if (!consulta) {
-      throw new NotFoundException(`Consulta con ID ${idConsulta} no encontrada`);
+    if (data.firma_doctor) {
+      await this.prisma.usuario.update({
+        where: { id_usuario: consulta.id_usuario },
+        data: { firma: data.firma_doctor },
+      });
     }
 
-    return this.prisma.consulta.update({
-      where: { id_consulta: idConsulta },
-      data: {
-        firma_paciente: data.firma_paciente,
-        consentimiento: data.consentimiento,
-      },
-    });
+    if (data.firma_paciente) {
+      await this.prisma.consulta.update({
+        where: { id_consulta: idConsulta },
+        data: { firma_paciente: data.firma_paciente },
+      });
+    }
+
+    return this.findOne(idConsulta);
   }
 
   async imprimirConsentimiento(idConsulta: number) {
-    const consulta = await this.prisma.consulta.findUnique({
-      where: { id_consulta: idConsulta },
-      include: {
-        persona: true,
-        doctor: { select: { id_usuario: true, username: true, firma: true } },
-      },
-    });
-
-    if (!consulta) {
-      throw new NotFoundException(`Consulta con ID ${idConsulta} no encontrada`);
-    }
-
+    const data = await this.findOne(idConsulta);
     return {
-      consulta_id: consulta.id_consulta,
-      fecha: consulta.fecha_inicio,
-      diagnostico: consulta.diagnostico,
-      tratamiento: consulta.tratamiento,
+      consulta_id: data.id_consulta,
+      fecha: data.fecha_inicio,
+      diagnostico: data.diagnostico,
+      tratamiento: data.tratamiento,
       paciente: {
-        identidad: consulta.persona.numero_identidad,
-        nombre_completo: `${consulta.persona.primer_nombre} ${consulta.persona.primer_apellido}`,
-        telefono: consulta.persona.telefono,
+        identidad: data.persona.numero_identidad,
+        nombre_completo: `${data.persona.primer_nombre} ${data.persona.primer_apellido}`,
+        telefono: data.persona.telefono,
       },
       doctor: {
-        nombre: consulta.doctor.username,
-        firma: consulta.doctor.firma,
+        nombre: data.doctor.username,
+        firma: data.doctor.firma,
       },
-      firma_paciente: consulta.firma_paciente,
-      consentimiento_aceptado: consulta.consentimiento,
+      firma_paciente: data.firma_paciente,
+      consentimiento_aceptado: data.consentimiento,
+      estado_firmas: data.estado_firmas,
     };
   }
 }
