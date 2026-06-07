@@ -71,6 +71,19 @@ enum Sexo {
   F
 }
 
+enum CanalRecordatorio {
+  WhatsApp
+  SMS
+  Correo
+}
+
+enum EstadoRespuesta {
+  pendiente
+  confirmado
+  cancelado
+  sin_respuesta
+}
+
 model Persona {
   id_persona         Int      @id @default(autoincrement())
   numero_identidad   String   @unique @db.Char(13)
@@ -150,8 +163,24 @@ model Cita {
   doctor           Usuario           @relation(fields: [id_usuario], references: [id_usuario])
   consulta         Consulta?
   historial_estados EstadoHistorial[]
+  recordatorios    Recordatorio[]
 
   @@map("cita")
+}
+
+model Recordatorio {
+  id               Int               @id @default(autoincrement())
+  id_cita          Int
+  cita             Cita              @relation(fields: [id_cita], references: [id_cita])
+  canal            CanalRecordatorio
+  estado_respuesta EstadoRespuesta   @default(pendiente)
+  fecha_envio      DateTime          @default(now())
+  fecha_respuesta  DateTime?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  @@index([id_cita])
+  @@map("recordatorio")
 }
 
 model Consulta {

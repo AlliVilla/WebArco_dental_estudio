@@ -13,6 +13,7 @@ import { PagoPacienteModule } from './pago-paciente/pago-paciente.module';
 import { AntecedentePreguntaModule } from './antecedente-pregunta/antecedente-pregunta.module';
 import { CitaModule } from './cita/cita.module';
 import { ExpedienteClinicoModule } from './expediente-clinico/expediente-clinico.module';
+import { ReminderModule } from './reminder/reminder.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AntecedentePreguntaModule,
     CitaModule,
     ExpedienteClinicoModule,
+    ReminderModule,
   ],
   controllers: [AppController],
   providers: [AppService],
