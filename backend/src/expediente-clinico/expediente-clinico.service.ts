@@ -103,8 +103,10 @@ export class ExpedienteClinicoService {
       resumen: {
         total_consultas: totalConsultas,
         firmas_pendientes: firmasPendientes,
+        pendingSignaturesCount: firmasPendientes,
         alerta_firmas: firmasPendientes > 0,
       },
+      pendingSignaturesCount: firmasPendientes,
       consultas: consultas.map((consulta) =>
         this.mapearConsultaConEstadoFirmas(consulta),
       ),
