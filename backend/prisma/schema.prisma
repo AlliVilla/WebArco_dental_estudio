@@ -165,8 +165,9 @@ model Consulta {
   tratamiento    String?   @db.Text
   motivo         String?   @db.Text
   notas          String?   @db.Text
-  firma_paciente String?   @db.Text
-  consentimiento Boolean   @default(false)
+  firma_paciente        String?   @db.Text
+  firma_doctor_snapshot String?   @db.Text
+  consentimiento        Boolean   @default(false)
 
   cita         Cita?                  @relation(fields: [id_cita], references: [id_cita])
   persona      Persona                @relation(fields: [id_persona], references: [id_persona])
