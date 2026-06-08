@@ -1,5 +1,5 @@
-import api from '../../../../services/api';
-import { ApiResponse } from '../../../../types/api';
+import api from '../../../../../services/api';
+import { ApiResponse } from '../../../../../types/api';
 import { OdontogramItem } from '../types';
 
 export const odontogramaService = {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from './UIKit';
+import { Button } from '../context';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

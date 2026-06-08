@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Card, Button, Input, Alert, Avatar } from '../../../context';
-import { DollarSign, TrendingUp, Calendar, Users, Plus, FileSpreadsheet, Printer, Search, Eye, Edit, Trash2, XCircle } from 'lucide-react';
+import { Card, Alert, Avatar } from '../../../context';
+import { DollarSign, TrendingUp, Calendar, Users, Plus, FileSpreadsheet, Printer, XCircle, Eye, Edit, Trash2 } from 'lucide-react';
+import { DataTable, ConfirmModal } from '../../../components';
 
 interface IncomeRecord {
   id: string;
@@ -24,9 +25,10 @@ const mockData: IncomeRecord[] = [
 export function GestionIngresos() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [records, setRecords] = useState<IncomeRecord[]>(mockData);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterMethod, setFilterMethod] = useState('todos');
-  const [filterStatus, setFilterStatus] = useState('todos');
+
+  // Deletion confirm states
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
   // Form states
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
@@ -105,14 +107,62 @@ export function GestionIngresos() {
     setObservaciones('');
   };
 
-  const filteredRecords = records.filter((r: IncomeRecord) => {
-    const matchSearch = r.paciente.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        r.tratamiento.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchMethod = filterMethod === 'todos' || r.metodoPago.toLowerCase() === filterMethod.toLowerCase();
-    const matchStatus = filterStatus === 'todos' || r.estado.toLowerCase() === filterStatus.toLowerCase();
+  const columns = [
+    { key: 'fecha', label: 'Fecha', width: 110 },
+    {
+      key: 'paciente',
+      label: 'Paciente',
+      render: (_val: unknown, record: IncomeRecord) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Avatar initials={`${record.paciente[0]}${record.paciente.split(' ')[1]?.[0] || ''}`} size={24} color="#0BC5DF" />
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>{record.paciente}</span>
+        </div>
+      )
+    },
+    { key: 'tratamiento', label: 'Tratamiento' },
+    {
+      key: 'monto',
+      label: 'Monto',
+      render: (val: unknown) => (
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#1D9E75' }}>
+          ${Number(val).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+        </span>
+      )
+    },
+    {
+      key: 'metodoPago',
+      label: 'Método de pago',
+      render: (val: unknown) => getMetodoPagoBadge(String(val))
+    },
+    { key: 'doctor', label: 'Doctor' },
+    {
+      key: 'estado',
+      label: 'Estado',
+      render: (val: unknown) => getEstadoBadge(String(val))
+    }
+  ];
 
-    return matchSearch && matchMethod && matchStatus;
-  });
+  const getRowActions = (record: IncomeRecord) => [
+    {
+      icon: <Eye size={14} />,
+      label: 'Ver Detalles',
+      onClick: () => alert(`Detalles: ${record.paciente} - ${record.tratamiento}`)
+    },
+    {
+      icon: <Edit size={14} />,
+      label: 'Editar',
+      onClick: () => alert('Editar próximamente')
+    },
+    {
+      icon: <Trash2 size={14} />,
+      label: 'Eliminar',
+      onClick: () => {
+        setRecordToDelete(record.id);
+        setIsConfirmOpen(true);
+      },
+      danger: true
+    }
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -144,130 +194,76 @@ export function GestionIngresos() {
         ))}
       </div>
 
-      {/* Filtros y acciones */}
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-          <div>
-            <h3 style={{ margin: 0, color: '#203F49', fontSize: 15, fontWeight: 600 }}>Registros de Ingresos</h3>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#888F94' }}>Gestiona todos los ingresos de la clínica</p>
-          </div>
-          <Button variant="primary" onClick={() => setIsDialogOpen(true)} style={{ gap: 8 }}>
-            <Plus size={16} /> Registrar Ingreso
-          </Button>
-        </div>
+      {/* Tabla de Registros */}
+      <DataTable<any>
+        title="Registros de Ingresos"
+        description="Gestiona todos los ingresos de la clínica"
+        columns={columns}
+        data={records}
+        searchable={true}
+        searchPlaceholder="Buscar paciente o tratamiento..."
+        searchKeys={['paciente', 'tratamiento']}
+        filters={[
+          {
+            key: 'metodoPago',
+            placeholder: 'Todos los métodos',
+            options: [
+              { value: 'Efectivo', label: 'Efectivo' },
+              { value: 'Tarjeta', label: 'Tarjeta' },
+              { value: 'Transferencia', label: 'Transferencia' }
+            ]
+          },
+          {
+            key: 'estado',
+            placeholder: 'Todos los estados',
+            options: [
+              { value: 'Pagado', label: 'Pagado' },
+              { value: 'Pendiente', label: 'Pendiente' },
+              { value: 'Parcial', label: 'Parcial' }
+            ]
+          }
+        ]}
+        primaryAction={{
+          label: 'Registrar Ingreso',
+          icon: <Plus size={16} />,
+          onClick: () => setIsDialogOpen(true)
+        }}
+        secondaryActions={[
+          {
+            label: 'Exportar',
+            icon: <FileSpreadsheet size={13} />,
+            onClick: () => alert('Exportando registros a Excel...')
+          },
+          {
+            label: 'Imprimir',
+            icon: <Printer size={13} />,
+            onClick: () => window.print()
+          }
+        ]}
+        rowActions={getRowActions}
+        getRowKey={(row) => row.id}
+      />
 
-        {/* Filtros */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, color: '#888F94' }} />
-            <input
-              type="text"
-              placeholder="Buscar paciente o tratamiento..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '6px 10px 6px 30px',
-                borderRadius: 8,
-                border: '1px solid #D3D7DA',
-                fontSize: 12,
-                outline: 'none',
-                fontFamily: 'inherit'
-              }}
-            />
-          </div>
-
-          <select
-            value={filterMethod}
-            onChange={e => setFilterMethod(e.target.value)}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #D3D7DA', fontSize: 12, outline: 'none', color: '#5F656A', background: '#fff' }}
-          >
-            <option value="todos">Todos los métodos</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="tarjeta">Tarjeta</option>
-            <option value="transferencia">Transferencia</option>
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #D3D7DA', fontSize: 12, outline: 'none', color: '#5F656A', background: '#fff' }}
-          >
-            <option value="todos">Todos los estados</option>
-            <option value="pagado">Pagado</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="parcial">Parcial</option>
-          </select>
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" size="sm" onClick={() => alert('Exportando registros a Excel...')} style={{ gap: 6, flex: 1 }}>
-              <FileSpreadsheet size={13} /> Exportar
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => window.print()} style={{ gap: 6, flex: 1 }}>
-              <Printer size={13} /> Imprimir
-            </Button>
-          </div>
-        </div>
-
-        {/* Tabla */}
-        <div style={{ border: '0.5px solid #D3D7DA', borderRadius: 8, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: '#F8F9FA', borderBottom: '1px solid #D3D7DA' }}>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Fecha</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Paciente</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Tratamiento</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Monto</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Método de pago</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Doctor</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase' }}>Estado</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#888F94', textTransform: 'uppercase', textAlign: 'center' }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ padding: 24, textAlign: 'center', color: '#888F94', fontSize: 13 }}>
-                    No se encontraron registros de ingresos.
-                  </td>
-                </tr>
-              ) : (
-                filteredRecords.map((record: IncomeRecord, idx: number) => (
-                  <tr key={record.id} style={{ borderBottom: idx < filteredRecords.length - 1 ? '1px solid #F1F3F4' : 'none' }}>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#5F656A' }}>{record.fecha}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Avatar initials={`${record.paciente[0]}${record.paciente.split(' ')[1]?.[0] || ''}`} size={24} color="#0BC5DF" />
-                        <span style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>{record.paciente}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#203F49' }}>{record.tratamiento}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#1D9E75' }}>
-                      ${record.monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>{getMetodoPagoBadge(record.metodoPago)}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#5F656A' }}>{record.doctor}</td>
-                    <td style={{ padding: '12px 16px' }}>{getEstadoBadge(record.estado)}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => alert(`Detalles: ${record.paciente} - ${record.tratamiento}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#888F94' }}>
-                          <Eye size={14} />
-                        </button>
-                        <button onClick={() => alert('Editar próximamente')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#888F94' }}>
-                          <Edit size={14} />
-                        </button>
-                        <button onClick={() => { if(confirm('¿Eliminar registro?')) setRecords(records.filter(r => r.id !== record.id)) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#E24B4A' }}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* ConfirmModal para eliminación */}
+      <ConfirmModal
+        open={isConfirmOpen}
+        variant="danger"
+        title="¿Eliminar registro de ingreso?"
+        description="Esta acción eliminará el registro permanentemente. Esta operación no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onClose={() => {
+          setIsConfirmOpen(false);
+          setRecordToDelete(null);
+        }}
+        onConfirm={() => {
+          if (recordToDelete) {
+            setRecords(records.filter(r => r.id !== recordToDelete));
+            setRecordToDelete(null);
+          }
+          setIsConfirmOpen(false);
+        }}
+      />
 
       {/* Modal - Registrar Ingreso */}
       {isDialogOpen && (
@@ -307,42 +303,87 @@ export function GestionIngresos() {
             </div>
 
             {/* Modal Form */}
+            {/* Note: keeping form fields but we can wrap inside FormSection if needed later */}
             <form onSubmit={handleRegisterIncome} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Input
-                  label="Fecha"
-                  type="date"
-                  badge="required"
-                  value={fecha}
-                  onChange={e => setFecha(e.target.value)}
-                />
-                <Input
-                  label="Paciente"
-                  badge="required"
-                  placeholder="Nombre del paciente..."
-                  value={paciente}
-                  onChange={e => setPaciente(e.target.value)}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Fecha</label>
+                  <input
+                    type="date"
+                    required
+                    value={fecha}
+                    onChange={e => setFecha(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #D3D7DA',
+                      outline: 'none',
+                      fontSize: 14,
+                      color: '#203F49'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Paciente</label>
+                  <input
+                    placeholder="Nombre del paciente..."
+                    required
+                    value={paciente}
+                    onChange={e => setPaciente(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #D3D7DA',
+                      outline: 'none',
+                      fontSize: 14,
+                      color: '#203F49'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Tratamiento / Concepto</label>
+                <input
+                  placeholder="Ej. Limpieza dental, Resina..."
+                  required
+                  value={tratamiento}
+                  onChange={e => setTratamiento(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #D3D7DA',
+                    outline: 'none',
+                    fontSize: 14,
+                    color: '#203F49'
+                  }}
                 />
               </div>
 
-              <Input
-                label="Tratamiento / Concepto"
-                badge="required"
-                placeholder="Ej. Limpieza dental, Resina..."
-                value={tratamiento}
-                onChange={e => setTratamiento(e.target.value)}
-              />
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Input
-                  label="Monto ($)"
-                  badge="required"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={monto}
-                  onChange={e => setMonto(e.target.value)}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Monto ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                    value={monto}
+                    onChange={e => setMonto(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #D3D7DA',
+                      outline: 'none',
+                      fontSize: 14,
+                      color: '#203F49'
+                    }}
+                  />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Método de pago</label>
                   <select
@@ -366,12 +407,23 @@ export function GestionIngresos() {
                 </div>
               </div>
 
-              <Input
-                label="Doctor Responsable"
-                disabled
-                value="Dr. Karla Arita"
-                style={{ background: '#F1F3F4' }}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Doctor Responsable</label>
+                <input
+                  disabled
+                  value="Dr. Karla Arita"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #D3D7DA',
+                    outline: 'none',
+                    fontSize: 14,
+                    background: '#F1F3F4',
+                    color: '#203F49'
+                  }}
+                />
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Observaciones</label>
@@ -395,12 +447,37 @@ export function GestionIngresos() {
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-                <Button variant="secondary" type="button" onClick={() => setIsDialogOpen(false)}>
+                <button
+                  type="button"
+                  onClick={() => setIsDialogOpen(false)}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    border: '1px solid #D3D7DA',
+                    background: '#fff',
+                    color: '#5F656A',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: 'pointer'
+                  }}
+                >
                   Cancelar
-                </Button>
-                <Button variant="primary" type="submit">
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#0BC5DF',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: 'pointer'
+                  }}
+                >
                   Registrar Ingreso
-                </Button>
+                </button>
               </div>
             </form>
           </div>
