@@ -2,15 +2,15 @@ import { IsEnum, IsNotEmpty, IsInt } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum RespuestaPaciente {
-  Confirmo = 'Confirmó',
-  Cancelo = 'Canceló',
+  Confirmo = 'Confirmo',
+  Cancelo = 'Cancelo',
 }
 
 export class RegisterResponseDto {
   @ApiProperty({
     description: 'Respuesta del paciente',
     enum: RespuestaPaciente,
-    example: 'Confirmó',
+    example: 'Confirmo',
   })
   @IsEnum(RespuestaPaciente)
   @IsNotEmpty()
@@ -21,6 +21,5 @@ export class RegisterResponseDto {
     example: 1,
   })
   @IsInt()
-  @IsNotEmpty()
   cambiado_por: number;
 }

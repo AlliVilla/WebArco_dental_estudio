@@ -36,4 +36,18 @@ export class QueryReminderHistoryDto {
   @IsOptional()
   @IsString()
   end?: string;
+
+  @ApiPropertyOptional({ description: 'Número de página', minimum: 1, default: 1, example: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: 'Resultados por página', minimum: 1, default: 10, example: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  limit?: number = 10;
 }

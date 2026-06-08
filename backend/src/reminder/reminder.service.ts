@@ -26,7 +26,7 @@ const personaSelect = {
 
 const doctorSelect = {
   id_usuario: true,
-  persona: { select: { primer_nombre: true, primer_apellido: true } },
+  persona: { select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true } },
 } satisfies Prisma.UsuarioSelect;
 
 const citaInclude = {
@@ -77,10 +77,8 @@ export class ReminderService {
     ]);
 
     return {
-      data: {
-        pendientes_envio: citasPendientes,
-        esperando_respuesta: recordatoriosPendientes,
-      },
+      pendientes_envio: citasPendientes,
+      esperando_respuesta: recordatoriosPendientes,
     };
   }
 
@@ -117,7 +115,7 @@ export class ReminderService {
     ]);
 
     return {
-      data: recordatorio,
+      ...recordatorio,
       message: `Recordatorio enviado exitosamente por ${sendReminderDto.canal}`,
     };
   }
@@ -127,6 +125,11 @@ export class ReminderService {
     respuesta: RespuestaPaciente,
     cambiado_por: number,
   ) {
+    const usuarioExiste = await this.prisma.usuario.findUnique({ where: { id_usuario: cambiado_por }, select: { id_usuario: true } });
+    if (!usuarioExiste) {
+      throw new NotFoundException(`Usuario con ID ${cambiado_por} no encontrado`);
+    }
+
     const recordatorio = await this.prisma.recordatorio.findUnique({
       where: { id },
       select: { id: true, fecha_respuesta: true, id_cita: true },
@@ -191,7 +194,7 @@ export class ReminderService {
       }),
     ]);
 
-    return { data: updated, message };
+    return { ...updated, message };
   }
 
   async getHistory(query: QueryReminderHistoryDto) {
@@ -239,13 +242,21 @@ export class ReminderService {
       where.fecha_envio = { gte: thirtyDaysAgo };
     }
 
-    const records = await this.prisma.recordatorio.findMany({
-      where,
-      include: recordatorioInclude,
-      orderBy: { fecha_envio: 'desc' },
-    });
+    const { page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
 
-    return { data: records };
+    const [records, total] = await Promise.all([
+      this.prisma.recordatorio.findMany({
+        where,
+        skip,
+        take: limit,
+        include: recordatorioInclude,
+        orderBy: { fecha_envio: 'desc' },
+      }),
+      this.prisma.recordatorio.count({ where }),
+    ]);
+
+    return { records, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getStats() {
@@ -281,21 +292,18 @@ export class ReminderService {
       total > 0 ? Number(((responded / total) * 100).toFixed(2)) : 0;
 
     return {
-      data: {
-        total_enviados: total,
-        confirmadas,
-        canceladas,
-        sin_respuesta: sinRespuesta,
-        pendientes: total - responded - sinRespuesta,
-        respondidos: responded,
-        tasa_respuesta: `${tasaRespuesta}%`,
-      },
+      total_enviados: total,
+      confirmadas,
+      canceladas,
+      sin_respuesta: sinRespuesta,
+      pendientes: total - responded - sinRespuesta,
+      respondidos: responded,
+      tasa_respuesta: `${tasaRespuesta}%`,
     };
   }
 
   async exportCsv(query: QueryReminderHistoryDto) {
-    const records = await this.getHistory(query);
-    const rows = records.data as any[];
+    const { records } = await this.getHistory(query);
 
     const headers = [
       'ID Recordatorio',
@@ -311,7 +319,7 @@ export class ReminderService {
 
     const csvLines = [headers.join(',')];
 
-    for (const r of rows) {
+    for (const r of records) {
       const fechaEnvio = r.fecha_envio
         ? new Date(r.fecha_envio).toISOString()
         : '-';
@@ -320,7 +328,7 @@ export class ReminderService {
         : '-';
       const persona = r.cita?.persona;
       const nombrePaciente = persona
-        ? `${persona.primer_nombre ?? ''} ${persona.segundo_nombre ?? ''} ${persona.primer_apellido ?? ''} ${persona.segundo_apellido ?? ''}`.trim()
+        ? [persona.primer_nombre, persona.segundo_nombre, persona.primer_apellido, persona.segundo_apellido].filter(Boolean).join(' ')
         : '-';
 
       const line = [

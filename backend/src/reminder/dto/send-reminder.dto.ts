@@ -5,7 +5,6 @@ import { CanalRecordatorio } from '@prisma/client';
 export class SendReminderDto {
   @ApiProperty({ description: 'ID de la cita', example: 1 })
   @IsInt()
-  @IsNotEmpty()
   id_cita: number;
 
   @ApiProperty({
