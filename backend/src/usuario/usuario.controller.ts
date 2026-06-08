@@ -2,6 +2,8 @@ import { Controller, UseGuards, Get, Post, Put, Patch, Body, Param, ParseIntPipe
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiUnauthorizedResponse, ApiOkResponse, ApiNotFoundResponse, ApiBadRequestResponse, ApiParam, ApiQuery, ApiCreatedResponse, ApiConflictResponse, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
 import { UsuarioService } from './usuario.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 
 import type { Request } from 'express';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -21,12 +23,13 @@ type AuthRequest = Request & {
 
 @ApiTags('Usuarios')
 @Controller('usuario')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class UsuarioController {
   constructor(private usuarioService: UsuarioService) {}
 
+  @Privileges(9)
   @Get('profile/:id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener perfil de usuario', description: 'Obtiene los datos del perfil de un usuario autenticado' })
@@ -90,6 +93,7 @@ export class UsuarioController {
     };
   }
 
+  @Privileges(6)
   @Get('all')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar usuarios', description: 'Obtiene un listado paginado de todos los usuarios' })
@@ -111,6 +115,7 @@ export class UsuarioController {
     return this.usuarioService.getAllUsers(pageNum, limitNum);
   }
 
+  @Privileges(6)
   @Get('stats')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -127,6 +132,7 @@ export class UsuarioController {
     };
   }
 
+  @Privileges(7)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -150,6 +156,7 @@ export class UsuarioController {
     };
   }
 
+  @Privileges(8)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -175,6 +182,7 @@ export class UsuarioController {
     };
   }
 
+  @Privileges(8)
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
