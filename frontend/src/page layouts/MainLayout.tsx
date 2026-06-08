@@ -11,22 +11,23 @@ interface MainLayoutProps {
 
 const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   dashboard: { title: 'Dashboard', breadcrumbs: ['Inicio', 'Dashboard'] },
-  agenda: { title: 'Agenda', breadcrumbs: ['Inicio', 'Agenda'] },
-  patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
+  'mi-perfil': { title: 'Mi Perfil', breadcrumbs: ['Inicio', 'Perfil'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
-  'patients-odontogram': { title: 'Odontograma de Paciente', breadcrumbs: ['Pacientes', 'Odontograma'] },
-  'patients-records': { title: 'Historia Clínica', breadcrumbs: ['Pacientes', 'Historia Clínica'] },
-  'patients-consent': { title: 'Consentimientos', breadcrumbs: ['Pacientes', 'Consentimientos'] },
-  treatments: { title: 'Tratamientos', breadcrumbs: ['Gestión', 'Tratamientos'] },
-  billing: { title: 'Facturación / Caja', breadcrumbs: ['Gestión', 'Facturación'] },
-  'billing-income': { title: 'Gestión de Ingresos', breadcrumbs: ['Gestión', 'Facturación', 'Ingresos'] },
-  'billing-expense': { title: 'Gestión de Egresos', breadcrumbs: ['Gestión', 'Facturación', 'Egresos'] },
-  'billing-list': { title: 'Lista de Ingresos / Egresos', breadcrumbs: ['Gestión', 'Facturación', 'Listado'] },
-  'billing-closures': { title: 'Cierres de Caja', breadcrumbs: ['Gestión', 'Facturación', 'Cierres'] },
-  inventory: { title: 'Inventario', breadcrumbs: ['Gestión', 'Inventario'] },
-  stats: { title: 'Estadísticas', breadcrumbs: ['Reportes', 'Estadísticas'] },
+  'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
+  odontogram: { title: 'Odontograma', breadcrumbs: ['Pacientes', 'Odontograma'] },
+  'consentimientos-lista': { title: 'Consentimientos Informados', breadcrumbs: ['Pacientes', 'Consentimientos'] },
+  citas: { title: 'Control de Citas', breadcrumbs: ['Agenda', 'Citas'] },
+  recordatorios: { title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios'] },
+  billing: { title: 'Gestión Financiera', breadcrumbs: ['Finanzas'] },
+  'billing-income': { title: 'Gestión de Ingresos', breadcrumbs: ['Finanzas', 'Ingresos'] },
+  'billing-expense': { title: 'Gestión de Egresos', breadcrumbs: ['Finanzas', 'Egresos'] },
+  'billing-closures': { title: 'Cierres de Caja', breadcrumbs: ['Finanzas', 'Cierres'] },
+  'billing-list': { title: 'Listado de Ingresos y Egresos', breadcrumbs: ['Reportes', 'Transacciones'] },
+  'estado-resultado': { title: 'Estado de Resultado', breadcrumbs: ['Reportes', 'Estado de Resultado'] },
+  users: { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
+  treatments: { title: 'Catálogo de Tratamientos', breadcrumbs: ['Configuración', 'Tratamientos'] },
+  inventory: { title: 'Control de Inventario', breadcrumbs: ['Configuración', 'Inventario'] },
   settings: { title: 'Configuración', breadcrumbs: ['Inicio', 'Configuración'] },
-  consent: { title: 'Consentimientos', breadcrumbs: ['Pacientes', 'Consentimientos'] },
   design: { title: 'Sistema de Diseño UI Kit', breadcrumbs: ['Inicio', 'Sistema de Diseño'] },
 };
 
@@ -39,22 +40,22 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
 
   const getActiveTab = (pathname: string) => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
-    if (pathname === '/agenda' || pathname === '/appointments') return 'agenda';
-    if (pathname === '/patients') return 'patients';
+    if (pathname === '/mi-perfil') return 'mi-perfil';
+    if (pathname === '/agenda' || pathname === '/appointments') return 'citas';
+    if (pathname === '/recordatorios') return 'recordatorios';
     if (pathname === '/patients/list') return 'patients-list';
-    if (pathname === '/patients/odontogram') return 'patients-odontogram';
-    if (pathname === '/patients/records') return 'patients-records';
-    if (pathname === '/patients/consent') return 'patients-consent';
+    if (pathname === '/patients/odontogram') return 'odontogram';
+    if (pathname === '/patients/records') return 'patient-expediente';
+    if (pathname === '/patients/consent') return 'consentimientos-lista';
     if (pathname === '/treatments') return 'treatments';
-    if (pathname === '/billing') return 'billing';
     if (pathname === '/billing/income') return 'billing-income';
     if (pathname === '/billing/expense') return 'billing-expense';
     if (pathname === '/billing/list') return 'billing-list';
     if (pathname === '/billing/closures') return 'billing-closures';
     if (pathname === '/inventory') return 'inventory';
-    if (pathname === '/stats') return 'stats';
+    if (pathname === '/stats') return 'estado-resultado';
     if (pathname === '/settings') return 'settings';
-    if (pathname === '/consent') return 'consent';
+    if (pathname === '/users') return 'users';
     if (pathname === '/design') return 'design';
     return pathname.substring(1);
   };
@@ -65,22 +66,24 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   const handleNavigate = (tabId: string) => {
     const routeMap: Record<string, string> = {
       dashboard: '/dashboard',
-      agenda: '/agenda',
+      'mi-perfil': '/settings', // Mapped to settings placeholder
+      citas: '/agenda',
+      recordatorios: '/agenda', // Mapped to agenda placeholder
       patients: '/patients/list',
       'patients-list': '/patients/list',
-      'patients-odontogram': '/patients/odontogram',
-      'patients-records': '/patients/records',
-      'patients-consent': '/patients/consent',
+      odontogram: '/patients/odontogram',
+      'patient-expediente': '/patients/records',
+      'consentimientos-lista': '/patients/consent',
       treatments: '/treatments',
       billing: '/billing/income',
       'billing-income': '/billing/income',
       'billing-expense': '/billing/expense',
-      'billing-list': '/billing/list',
       'billing-closures': '/billing/closures',
+      'billing-list': '/billing/list',
+      'estado-resultado': '/stats',
+      users: '/settings', // Mapped to settings placeholder
       inventory: '/inventory',
-      stats: '/stats',
       settings: '/settings',
-      consent: '/patients/consent',
       design: '/design',
     };
     const targetPath = routeMap[tabId] || `/${tabId}`;
