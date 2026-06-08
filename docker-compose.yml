@@ -41,8 +41,13 @@ services:
         condition: service_healthy
     command: >
       sh -c "
+        echo '⚙️  Generando cliente Prisma...' &&
+        npx prisma generate &&
+        echo '🔧 Aplicando migraciones...' &&
         npx prisma migrate deploy &&
+        echo '🌱 Plantando semillas...' &&
         npx prisma db seed &&
+        echo '✅ ¡Entorno listo! 🚀 Iniciando servidor...' &&
         npm run start:dev
       "
 
