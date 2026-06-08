@@ -74,12 +74,7 @@ export class AuthService {
       },
     });
 
-    if (!userExists) {
-      return {
-        success: true,
-        message: 'Si el correo existe, se ha enviado un enlace de recuperación',
-      };
-    }
+    if (!userExists) return;
 
     const resetPayload = {
       sub: userExists.id_usuario,
@@ -97,32 +92,19 @@ export class AuthService {
       subject: 'Recuperación de contraseña - Dental Center',
       html: buildResetPasswordEmail(resetLink),
     })
-
-    return {
-      success: true,
-      data: null,
-      message: 'Si el correo existe, se ha enviado un enlace de recuperación.',
-    };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto){
     const { token, newPassword } = resetPasswordDto;
 
-    let payload: any;
-    try {
-      payload = decodeToken(token);
-    } catch {
-      throw new BadRequestException('Token de recuperación inválido o expirado.');
-    }
+    const payload = decodeToken(token);
 
-    const userId = payload?.sub;
-
-    if (!userId) {
+    if (!payload?.sub) {
       throw new BadRequestException('Token de recuperación inválido o expirado.');
     }
 
     const user = await this.prisma.usuario.findUnique({
-      where: { id_usuario: userId },
+      where: { id_usuario: payload.sub },
     });
 
     if (!user) {
@@ -144,17 +126,11 @@ export class AuthService {
     const hashedPassword = await hashPassword(newPassword); 
 
     await this.prisma.usuario.update({
-      where: { id_usuario: userId },
+      where: { id_usuario: payload.sub },
       data: {
         password: hashedPassword,
       },
     });
-
-    return {
-      success: true,
-      data: null,
-      message: 'Contraseña actualizada correctamente.',
-    };
   }
 
   async refreshToken(refreshToken: string) {

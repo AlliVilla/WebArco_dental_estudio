@@ -71,15 +71,7 @@ export class AuthController {
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
-    return {
-      success: true,
-      data: {
-        access_token: authResponse.access_token,
-        refresh_token: authResponse.refresh_token,
-        user: authResponse.user,
-      },
-      message: 'Inicio de sesión exitoso.',
-    };
+    return { ...authResponse, message: 'Inicio de sesión exitoso.' };
   }
 
   @Post('logout')
@@ -89,11 +81,7 @@ export class AuthController {
     res.clearCookie('auth_token');
     res.clearCookie('refresh_token');
 
-    return {
-      success: true,
-      data : null,
-      message: 'Cierre de Sesión con éxito.'
-    };
+    return { message: 'Cierre de Sesión con éxito.' };
   }
 
   @Post('forgot-password')
@@ -102,11 +90,7 @@ export class AuthController {
   async forgotPassword(@Body() body: ForgotPasswordDto){
     await this.authService.forgotPassword(body);
 
-    return {
-      success: true,
-      data: null,
-      message: 'Si el correo existe, se ha enviado un enlace de recuperación.',
-    };
+    return { message: 'Si el correo existe, se ha enviado un enlace de recuperación.' };
   }
 
   @Put('reset-password')
@@ -115,10 +99,7 @@ export class AuthController {
   async resetPassword(@Body() body: ResetPasswordDto) {
     await this.authService.resetPassword(body);
     
-    return {
-      success: true,
-      message: 'Contraseña actualizada correctamente.',
-    };
+    return { message: 'Contraseña actualizada correctamente.' };
   }
 
   @Post('refresh')
@@ -133,10 +114,6 @@ export class AuthController {
 
     const result = await this.authService.refreshToken(refreshToken);
 
-    return {
-      success: true,
-      data: result,
-      message: 'Token refrescado exitosamente.',
-    };
+    return { ...result, message: 'Token refrescado exitosamente.' };
   }
 }
