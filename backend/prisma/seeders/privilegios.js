@@ -43,7 +43,9 @@ async function insertPrivilegios() {
     { nombre: "RECORDATORIOS_VER" },
     { nombre: "RECORDATORIOS_HISTORIAL" },
 
-    { nombre: "FOOTER_VER" }
+    { nombre: "FOOTER_VER" },
+
+    { nombre: "ROLES_VER" },
   ];
 
   await prisma.privilegio.createMany({

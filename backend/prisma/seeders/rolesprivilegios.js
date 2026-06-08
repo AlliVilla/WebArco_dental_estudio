@@ -16,6 +16,7 @@ async function insertRolesPrivilegios() {
     { id_rol: 1, id_privilegio: 26 },
     { id_rol: 1, id_privilegio: 27 },
     { id_rol: 1, id_privilegio: 28 },
+    {id_rol: 1, id_privilegio: 33},
 
     // ADMIN = TODO
     { id_rol: 2, id_privilegio: 1 },
