@@ -68,6 +68,14 @@ services:
       VITE_API_URL: http://localhost:${BACKEND_PORT:-3030}
     depends_on:
       - backend
+    command: >
+      sh -c "
+        echo '📦 Verificando dependencias...' &&
+        npm install --silent &&
+        echo '🖌️  Iniciando Vite...' &&
+        echo '✅ ¡Frontend listo! 🚀' &&
+        npm run dev -- --host 0.0.0.0
+      "
 
 volumes:
   postgres_data:
