@@ -1,5 +1,5 @@
 const prisma = require("../config/database");
-const {hashPassword} = require("../../utils/bcrypt/hashPassword");
+const {hashPassword} = require("../utils/bcrypt");
 
 async function insertUsuarios() {
   const usuarios = [

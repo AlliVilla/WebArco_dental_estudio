@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,16 +23,25 @@ import {
   ApiNotFoundResponse,
   ApiBadRequestResponse,
   ApiConflictResponse,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { PersonaService } from './persona.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
+import { PrivilegesGuard } from '../guards/privileges.guard';
 
 @ApiTags('Personas')
 @Controller('persona')
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class PersonaController {
   constructor(private personaService: PersonaService) {}
 
+  @Privileges(17)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva persona', description: 'Registra una nueva persona/paciente en el sistema. Valida que el número de identidad y el correo electrónico no estén duplicados.' })
@@ -42,6 +52,7 @@ export class PersonaController {
     return this.personaService.create(createPersonaDto);
   }
 
+  @Privileges(16)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar personas', description: 'Obtiene un listado paginado de personas. Permite buscar por número de identidad, nombre o apellido.' })
@@ -65,6 +76,7 @@ export class PersonaController {
     return this.personaService.findAll(pageNum, limitNum, search);
   }
 
+  @Privileges(19)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener detalle de una persona', description: 'Devuelve la información completa de una persona incluyendo municipio y departamento.' })
@@ -75,6 +87,7 @@ export class PersonaController {
     return this.personaService.findOne(id);
   }
 
+  @Privileges(18)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar una persona', description: 'Actualiza los datos de una persona existente. Valida unicidad de identidad y correo si se modifican.' })
@@ -90,6 +103,7 @@ export class PersonaController {
     return this.personaService.update(id, updatePersonaDto);
   }
 
+  @Privileges(18)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar una persona', description: 'Elimina una persona si no tiene consultas o usuarios asociados. Si tiene registros asociados, devuelve un error.' })
