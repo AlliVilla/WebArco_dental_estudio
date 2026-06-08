@@ -44,25 +44,17 @@ export class ConsentimientoService {
     return partes.join(' ');
   }
 
-  /**
-   * Construye el where de Prisma para filtrar por estado de firmas.
-   * Los valores de filtro van en plural para el query, pero el campo calculado
-   * se devuelve en singular ('completo' | 'pendiente' | 'incompleto').
-   *
-   * NOTA: compara contra NULL (no contra empty string) porque firma_paciente
-   * se almacena como null cuando no existe. Si se guardan strings vacíos,
-   * el filtro puede no coincidir; se recomienda sanitizar en create/update.
-   */
   private getEstadoWhere(estado?: string) {
     const base = { consentimiento: true };
+
+    let firmaValues: { firma_paciente: any; firma_doctor_snapshot: any };
     switch (estado) {
       case 'completos':
-        return {
-          ...base,
-          firma_paciente: { not: null },
-          firma_doctor_snapshot: { not: null },
-        };
+      case 'completo':
+        firmaValues = { firma_paciente: { not: null }, firma_doctor_snapshot: { not: null } };
+        break;
       case 'pendientes':
+      case 'pendiente':
         return {
           ...base,
           OR: [
@@ -71,26 +63,41 @@ export class ConsentimientoService {
           ],
         };
       case 'incompletos':
-        return {
-          ...base,
-          firma_paciente: null,
-          firma_doctor_snapshot: null,
-        };
+      case 'incompleto':
+        firmaValues = { firma_paciente: null, firma_doctor_snapshot: null };
+        break;
       default:
         return base;
     }
+    return { ...base, ...firmaValues };
   }
 
   async create(data: CreateConsentimientoDto) {
+    const [personaExiste, doctorExiste] = await Promise.all([
+      this.prisma.persona.findUnique({ where: { id_persona: data.id_paciente }, select: { id_persona: true } }),
+      this.prisma.usuario.findUnique({ where: { id_usuario: data.id_doctor }, select: { id_usuario: true } }),
+    ]);
+    if (!personaExiste) {
+      throw new NotFoundException(`Paciente con ID ${data.id_paciente} no encontrado`);
+    }
+    if (!doctorExiste) {
+      throw new NotFoundException(`Doctor con ID ${data.id_doctor} no encontrado`);
+    }
+
+    const fecha = new Date(data.fecha);
+    if (isNaN(fecha.getTime())) {
+      throw new BadRequestException('Fecha inválida');
+    }
+
     const consulta = await this.prisma.consulta.create({
       data: {
         id_persona: data.id_paciente,
         id_usuario: data.id_doctor,
-        fecha_inicio: new Date(data.fecha),
+        fecha_inicio: fecha,
         tratamiento: data.tipo_tratamiento,
-        diagnostico: data.diagnostico ?? null,  // Fix #9: acepta diagnóstico en POST
-        firma_paciente: data.firma_paciente ?? null,
-        firma_doctor_snapshot: data.firma_doctor ?? null,  // Fix #3: snapshot histórico
+        diagnostico: data.diagnostico ?? null,
+        firma_paciente: data.firma_paciente || null,
+        firma_doctor_snapshot: data.firma_doctor || null,
         consentimiento: true,
       },
       include: {
@@ -134,7 +141,9 @@ export class ConsentimientoService {
         OR: [
           { numero_identidad: { contains: paciente, mode: 'insensitive' } },
           { primer_nombre: { contains: paciente, mode: 'insensitive' } },
+          { segundo_nombre: { contains: paciente, mode: 'insensitive' } },
           { primer_apellido: { contains: paciente, mode: 'insensitive' } },
+          { segundo_apellido: { contains: paciente, mode: 'insensitive' } },
         ],
       };
     }
@@ -274,19 +283,18 @@ export class ConsentimientoService {
       throw new ConflictException('La firma del doctor ya existe y no puede sobreescribirse');
     }
 
-    const updateData: any = {};
-    if (data.firma_paciente) updateData.firma_paciente = data.firma_paciente;
-    if (data.firma_doctor) updateData.firma_doctor_snapshot = data.firma_doctor;
-
     await this.prisma.consulta.update({
       where: { id_consulta: idConsulta },
-      data: updateData,
+      data: {
+        ...(data.firma_paciente && { firma_paciente: data.firma_paciente || null }),
+        ...(data.firma_doctor && { firma_doctor_snapshot: data.firma_doctor || null }),
+      },
     });
 
     return this.findOne(idConsulta);
   }
 
-  async imprimirConsentimiento(idConsulta: number) {
+  async imprimir(idConsulta: number) {
     const data = await this.findOne(idConsulta);
 
     const nombreDoctor = this.nombresCompletos(data.doctor.persona);

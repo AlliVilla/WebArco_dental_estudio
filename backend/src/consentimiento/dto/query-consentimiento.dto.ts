@@ -14,12 +14,12 @@ export class QueryConsentimientoDto {
   tratamiento?: string;
 
   @ApiPropertyOptional({
-    description: 'Estado de las firmas del consentimiento. Los valores retornados por la API son en singular (completo/pendiente/incompleto); este filtro los acepta en plural.',
-    enum: ['completos', 'pendientes', 'incompletos', 'todos'],
+    description: 'Estado de las firmas del consentimiento. Acepta tanto singular como plural (ej: pendiente o pendientes).',
+    enum: ['completos', 'completo', 'pendientes', 'pendiente', 'incompletos', 'incompleto', 'todos'],
     example: 'pendientes',
   })
   @IsOptional()
-  @IsIn(['completos', 'pendientes', 'incompletos', 'todos'])
+  @IsIn(['completos', 'completo', 'pendientes', 'pendiente', 'incompletos', 'incompleto', 'todos'])
   estado?: string;
 
   @ApiPropertyOptional({ description: 'ID del doctor para filtrar', example: 1 })

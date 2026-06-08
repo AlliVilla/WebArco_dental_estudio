@@ -8,7 +8,7 @@ import { UpdateSignaturesDto } from './dto/update-signatures.dto';
 @ApiTags('Consentimientos')
 @Controller('consents')
 export class ConsentimientoController {
-  constructor(private readonly consentimientoService: ConsentimientoService) { }
+  constructor(private readonly consentimientoService: ConsentimientoService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -52,7 +52,7 @@ export class ConsentimientoController {
   @ApiOkResponse({ description: 'Datos para impresión devueltos exitosamente' })
   @ApiNotFoundResponse({ description: 'Consentimiento no encontrado' })
   imprimir(@Param('id', ParseIntPipe) id: number) {
-    return this.consentimientoService.imprimirConsentimiento(id);
+    return this.consentimientoService.imprimir(id);
   }
 
   @Patch(':id/signatures')
