@@ -11,7 +11,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
-  UseInterceptors,
+  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import {
@@ -25,20 +25,27 @@ import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiNoContentResponse,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CitaService } from './cita.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { QueryCalendarDto, QueryPatientHistoryDto } from './dto/query-citas.dto';
-import { ResponseInterceptor } from '../common/interceptors/response.interceptor';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 
 @ApiTags('Citas (Appointments)')
 @Controller('appointments')
-@UseInterceptors(ResponseInterceptor)
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class CitaController {
   constructor(private readonly citaService: CitaService) {}
 
+  @Privileges(27)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -57,6 +64,7 @@ export class CitaController {
     return this.citaService.create(createCitaDto);
   }
 
+  @Privileges(26)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -97,6 +105,7 @@ export class CitaController {
     );
   }
 
+  @Privileges(26)
   @Get('patient/:patientId/history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -161,6 +170,7 @@ export class CitaController {
     });
   }
 
+  @Privileges(26)
   @Get(':id/status-history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -179,6 +189,7 @@ export class CitaController {
     return this.citaService.getStatusHistory(id);
   }
 
+  @Privileges(29)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -197,6 +208,7 @@ export class CitaController {
     return this.citaService.findOne(id);
   }
 
+  @Privileges(28)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -224,6 +236,7 @@ export class CitaController {
     return this.citaService.update(id, updateCitaDto);
   }
 
+  @Privileges(28)
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -248,6 +261,7 @@ export class CitaController {
     return this.citaService.changeStatus(id, changeStatusDto);
   }
 
+  @Privileges(44)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({

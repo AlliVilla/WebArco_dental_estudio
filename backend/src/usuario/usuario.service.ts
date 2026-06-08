@@ -147,7 +147,7 @@ export class UsuarioService {
     ]);
 
     return {
-      data: usuarios.map((usuario) => this.removePassword(usuario)),
+      usuarios: usuarios.map((usuario) => this.removePassword(usuario)),
       total,
       page,
       limit,
@@ -695,7 +695,7 @@ export class UsuarioService {
     }
   }
 
-  private handlePrismaUniqueError(error: unknown): never | void {
+  private handlePrismaUniqueError(error: unknown): void {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'

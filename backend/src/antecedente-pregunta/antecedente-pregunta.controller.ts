@@ -8,6 +8,7 @@ import {
   ParseArrayPipe,
   ParseIntPipe,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,16 +19,25 @@ import {
   ApiOkResponse,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AntecedentePreguntaService } from './antecedente-pregunta.service';
 import { CreatePreguntaDto } from './dto/create-pregunta.dto';
 import { RespuestaItemDto } from './dto/save-respuestas.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 
 @ApiTags('Antecedentes')
 @Controller()
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class AntecedentePreguntaController {
   constructor(private readonly service: AntecedentePreguntaService) {}
 
+  @Privileges(37)
   @Get('antecedente-pregunta')
   @ApiOperation({
     summary: 'Listar preguntas de antecedentes',
@@ -44,6 +54,7 @@ Cada pregunta contiene:
     return this.service.findAll();
   }
 
+  @Privileges(38)
   @Post('antecedente-pregunta')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -58,6 +69,7 @@ La pregunta se insertará con el orden_num especificado y aparecerá en el lista
     return this.service.create(dto);
   }
 
+  @Privileges(37)
   @Get('consulta/:id/antecedentes')
   @ApiOperation({
     summary: 'Obtener respuestas de antecedentes por consulta',
@@ -72,6 +84,7 @@ Incluye los datos de cada pregunta asociada (texto, orden, si requiere explicaci
     return this.service.findRespuestasByConsulta(id);
   }
 
+  @Privileges(39)
   @Post('consulta/:id/antecedentes')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

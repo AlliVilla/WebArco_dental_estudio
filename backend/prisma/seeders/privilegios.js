@@ -42,8 +42,26 @@ async function insertPrivilegios() {
 
     { nombre: "RECORDATORIOS_VER" },
     { nombre: "RECORDATORIOS_HISTORIAL" },
+    { nombre: "RECORDATORIOS_RESPONDER" },
 
-    { nombre: "FOOTER_VER" }
+    { nombre: "FOOTER_VER" },
+
+    { nombre: "ROL_VER" },
+    { nombre: "ROL_CREAR" },
+    { nombre: "ROL_EDITAR" },
+
+    { nombre: "PRIVILEGIO_VER" },
+
+    { nombre: "ANTECEDENTES_VER" },
+    { nombre: "ANTECEDENTES_CREAR" },
+    { nombre: "ANTECEDENTES_EDITAR" },
+
+    { nombre: "CONSULTAS_VER" },
+    { nombre: "CONSULTAS_CREAR" },
+    { nombre: "CONSULTAS_EDITAR" },
+    { nombre: "CONSULTAS_ELIMINAR" },
+
+    { nombre: "CITAS_ELIMINAR" },
   ];
 
   await prisma.privilegio.createMany({

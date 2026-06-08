@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +18,8 @@ import {
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ExpedienteClinicoService } from './expediente-clinico.service';
 import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
@@ -28,14 +31,21 @@ import {
   ConsultaResponseDto,
   ActualizarFirmasResponseDto,
 } from './dto/expediente-responses.dto';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 
 @ApiTags('Expediente Clínico')
 @Controller('clinical-history')
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class ExpedienteClinicoController {
   constructor(
     private readonly expedienteClinicoService: ExpedienteClinicoService,
   ) {}
 
+  @Privileges(20)
   @Get(':patientId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -62,6 +72,7 @@ export class ExpedienteClinicoController {
     return this.expedienteClinicoService.obtenerExpediente(patientId);
   }
 
+  @Privileges(20)
   @Get(':patientId/pending-signatures')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -88,6 +99,7 @@ export class ExpedienteClinicoController {
     return this.expedienteClinicoService.obtenerFirmasPendientes(patientId);
   }
 
+  @Privileges(21)
   @Post(':patientId/visits')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -116,6 +128,7 @@ export class ExpedienteClinicoController {
     return this.expedienteClinicoService.registrarVisita(patientId, registrarVisitaDto);
   }
 
+  @Privileges(20)
   @Get(':patientId/visits/:visitId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -149,6 +162,7 @@ export class ExpedienteClinicoController {
     return this.expedienteClinicoService.obtenerDetalleVisita(patientId, visitId);
   }
 
+  @Privileges(21)
   @Patch(':patientId/visits/:visitId/signatures')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

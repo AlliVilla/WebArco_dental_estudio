@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
   Res,
 } from '@nestjs/common';
 import {
@@ -20,6 +21,8 @@ import {
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ReminderService } from './reminder.service';
@@ -27,12 +30,19 @@ import { SendReminderDto } from './dto/send-reminder.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { QueryReminderHistoryDto } from './dto/query-reminder.dto';
 import { CanalRecordatorio, EstadoRespuesta } from '@prisma/client';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 
 @ApiTags('Recordatorios (Reminders)')
 @Controller('reminders')
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class ReminderController {
   constructor(private readonly reminderService: ReminderService) {}
 
+  @Privileges(30)
   @Get('queue')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -45,6 +55,7 @@ export class ReminderController {
     return this.reminderService.getQueue();
   }
 
+  @Privileges(30)
   @Get('history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -87,6 +98,7 @@ export class ReminderController {
     return this.reminderService.getHistory(query);
   }
 
+  @Privileges(30)
   @Get('stats')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -99,6 +111,7 @@ export class ReminderController {
     return this.reminderService.getStats();
   }
 
+  @Privileges(30)
   @Post('send')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -113,6 +126,7 @@ export class ReminderController {
     return this.reminderService.send(dto);
   }
 
+  @Privileges(45)
   @Patch(':id/response')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -135,6 +149,7 @@ export class ReminderController {
     return this.reminderService.registerResponse(id, dto.respuesta, dto.cambiado_por);
   }
 
+  @Privileges(30)
   @Get('export')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

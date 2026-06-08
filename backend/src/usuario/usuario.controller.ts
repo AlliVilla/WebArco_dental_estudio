@@ -60,10 +60,7 @@ export class UsuarioController {
       updateProfileDto,
     );
 
-    return {
-      profile,
-      message: 'Perfil actualizado correctamente.',
-    };
+    return { ...profile, message: 'Perfil actualizado correctamente.' };
   }
 
   @Put('profile/change-password')
@@ -137,10 +134,7 @@ export class UsuarioController {
   async getStats() {
     const stats = await this.usuarioService.getStats();
 
-    return {
-      stats,
-      message: 'Estadísticas obtenidas correctamente.',
-    };
+    return { ...stats, message: 'Estadísticas obtenidas correctamente.' };
   }
 
   @Privileges(7)
@@ -161,10 +155,7 @@ export class UsuarioController {
   async create(@Body() createUsuarioDto: CreateUsuarioDto) {
     const usuario = await this.usuarioService.create(createUsuarioDto);
 
-    return {
-      usuario,
-      message: 'Usuario creado correctamente.',
-    };
+    return { ...usuario, message: 'Usuario creado correctamente.' };
   }
 
   @Privileges(8)
@@ -187,10 +178,7 @@ export class UsuarioController {
   ) {
     const usuario = await this.usuarioService.update(id, updateUsuarioDto);
 
-    return {
-      usuario,
-      message: 'Usuario actualizado correctamente.',
-    };
+    return { ...usuario, message: 'Usuario actualizado correctamente.' };
   }
 
   @Privileges(8)
@@ -209,9 +197,6 @@ export class UsuarioController {
   ) {
     const usuario = await this.usuarioService.updateStatus(id, updateStatusDto);
 
-    return {
-      usuario,
-      message: 'Estado del usuario actualizado correctamente.',
-    };
+    return { ...usuario, message: 'Estado del usuario actualizado correctamente.' };
   }
 }
