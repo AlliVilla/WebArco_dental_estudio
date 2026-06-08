@@ -93,7 +93,7 @@ export class CreateUsuarioDto {
   @ApiProperty({ example: 'Temporal123' })
   @IsString()
   @MinLength(8)
-  passwordTemporal: string;
+  password_temporal: string;
 
   @ApiPropertyOptional({ example: 'firma-base64-o-url' })
   @IsOptional()

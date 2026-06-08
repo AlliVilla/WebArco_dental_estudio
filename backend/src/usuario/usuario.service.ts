@@ -11,6 +11,14 @@ import { UpdateProfileDto } from './dto/perfil/update-profile.dto';
 import { ChangePasswordDto } from './dto/perfil/change-password.dto';
 import { getPasswordRuleErrors } from '../utils/password/password-rules';
 
+type UsuarioFilters = {
+  nombre?: string;
+  correo?: string;
+  rol?: string;
+};
+
+type PrismaExecutor = PrismaService | Prisma.TransactionClient;
+
 @Injectable()
 export class UsuarioService {
   constructor(private prisma: PrismaService) {}
@@ -18,7 +26,7 @@ export class UsuarioService {
   async validateByLogin(token: string) {
     try {
       const payload = verifyToken(token);
-      
+
       const usuario = await this.prisma.usuario.findUnique({
         where: { id_usuario: payload.sub },
         include: {
@@ -80,23 +88,66 @@ export class UsuarioService {
     return usuario;
   }
 
-  async getAllUsers(page: number = 1, limit: number = 10) {
+  async getAllUsers( page: number = 1, limit: number = 10, filters: UsuarioFilters = {}) {
     const skip = (page - 1) * limit;
+    const where: Prisma.UsuarioWhereInput = {};
+    const personaWhere: Prisma.PersonaWhereInput = {};
+
+    const nombre = filters.nombre?.trim();
+    const correo = filters.correo?.trim();
+    const rol = filters.rol?.trim();
+
+    if (nombre) {
+      personaWhere.OR = [
+        { primer_nombre: { contains: nombre, mode: 'insensitive' } },
+        { segundo_nombre: { contains: nombre, mode: 'insensitive' } },
+        { primer_apellido: { contains: nombre, mode: 'insensitive' } },
+        { segundo_apellido: { contains: nombre, mode: 'insensitive' } },
+      ];
+    }
+
+    if (correo) {
+      personaWhere.correo_electronico = {
+        contains: correo,
+        mode: 'insensitive',
+      };
+    }
+
+    if (Object.keys(personaWhere).length > 0) {
+      where.persona = {
+        is: personaWhere,
+      };
+    }
+
+    if (rol) {
+      where.rol = {
+        is: {
+          nombre: {
+            equals: rol,
+            mode: 'insensitive',
+          },
+        },
+      };
+    }
 
     const [usuarios, total] = await Promise.all([
       this.prisma.usuario.findMany({
+        where,
         skip,
         take: limit,
         include: {
           persona: true,
           rol: true,
         },
+        orderBy: {
+          id_usuario: 'asc',
+        },
       }),
-      this.prisma.usuario.count(),
+      this.prisma.usuario.count({ where }),
     ]);
 
     return {
-      data: usuarios,
+      data: usuarios.map((usuario) => this.removePassword(usuario)),
       total,
       page,
       limit,
@@ -104,7 +155,7 @@ export class UsuarioService {
     };
   }
 
-    async getStats() {
+  async getStats() {
     const [total, doctores, especialistas] = await Promise.all([
       this.prisma.usuario.count(),
       this.prisma.usuario.count({
@@ -112,7 +163,7 @@ export class UsuarioService {
           rol: {
             is: {
               nombre: {
-                contains: 'Doctor',
+                equals: 'Doctor',
                 mode: 'insensitive',
               },
             },
@@ -124,7 +175,7 @@ export class UsuarioService {
           rol: {
             is: {
               nombre: {
-                contains: 'Especialista',
+                equals: 'Especialista',
                 mode: 'insensitive',
               },
             },
@@ -140,7 +191,7 @@ export class UsuarioService {
     };
   }
 
-    async updateAuthenticatedProfile(
+  async updateAuthenticatedProfile(
     id_usuario: number,
     updateProfileDto: UpdateProfileDto,
   ) {
@@ -289,64 +340,82 @@ export class UsuarioService {
   }
 
   async create(createUsuarioDto: CreateUsuarioDto) {
-    await this.validateRolExists(createUsuarioDto.id_rol);
-
-    await this.validateMunicipioDepartamento(
-      createUsuarioDto.id_departamento,
-      createUsuarioDto.id_municipio,
-    );
-
-    await this.validateUniqueUsername(createUsuarioDto.username);
-
-    await this.validateUniquePersonaFields({
-      numero_identidad: createUsuarioDto.numero_identidad,
-      correo_electronico: createUsuarioDto.correo_electronico,
-      telefono: createUsuarioDto.telefono,
-    });
-
     const fechaNacimiento = this.parseFechaNacimiento(
       createUsuarioDto.fecha_nacimiento,
     );
 
-    const hashedPassword = await hashPassword(createUsuarioDto.passwordTemporal);
+    const hashedPassword = await hashPassword(
+      createUsuarioDto.password_temporal,
+    );
 
-    const usuario = await this.prisma.usuario.create({
-      data: {
-        username: createUsuarioDto.username,
-        password: hashedPassword,
-        firma: createUsuarioDto.firma ?? null,
-        activo: true,
-        must_change_password: true,
+    try {
+      const usuario = await this.prisma.$transaction(async (tx) => {
+        await this.validateRolExists(createUsuarioDto.id_rol, tx);
 
-        rol: {
-          connect: {
-            id_rol: createUsuarioDto.id_rol,
-          },
-        },
+        await this.validateMunicipioDepartamento(
+          createUsuarioDto.id_departamento,
+          createUsuarioDto.id_municipio,
+          tx,
+        );
 
-        persona: {
-          create: {
+        await this.validateUniqueUsername(
+          createUsuarioDto.username,
+          undefined,
+          tx,
+        );
+
+        await this.validateUniquePersonaFields(
+          {
             numero_identidad: createUsuarioDto.numero_identidad,
-            primer_nombre: createUsuarioDto.primer_nombre,
-            segundo_nombre: createUsuarioDto.segundo_nombre ?? null,
-            primer_apellido: createUsuarioDto.primer_apellido,
-            segundo_apellido: createUsuarioDto.segundo_apellido ?? null,
-            fecha_nacimiento: fechaNacimiento,
+            correo_electronico: createUsuarioDto.correo_electronico,
             telefono: createUsuarioDto.telefono,
-            correo_electronico: createUsuarioDto.correo_electronico ?? null,
-            id_municipio: createUsuarioDto.id_municipio,
-            direccion_linea: createUsuarioDto.direccion_linea ?? null,
-            sexo: createUsuarioDto.sexo,
           },
-        },
-      },
-      include: {
-        persona: true,
-        rol: true,
-      },
-    });
+          undefined,
+          tx,
+        );
 
-    return this.removePassword(usuario);
+        return tx.usuario.create({
+          data: {
+            username: createUsuarioDto.username,
+            password: hashedPassword,
+            firma: createUsuarioDto.firma ?? null,
+            activo: true,
+            must_change_password: true,
+
+            rol: {
+              connect: {
+                id_rol: createUsuarioDto.id_rol,
+              },
+            },
+
+            persona: {
+              create: {
+                numero_identidad: createUsuarioDto.numero_identidad,
+                primer_nombre: createUsuarioDto.primer_nombre,
+                segundo_nombre: createUsuarioDto.segundo_nombre ?? null,
+                primer_apellido: createUsuarioDto.primer_apellido,
+                segundo_apellido: createUsuarioDto.segundo_apellido ?? null,
+                fecha_nacimiento: fechaNacimiento,
+                telefono: createUsuarioDto.telefono,
+                correo_electronico: createUsuarioDto.correo_electronico ?? null,
+                id_municipio: createUsuarioDto.id_municipio,
+                direccion_linea: createUsuarioDto.direccion_linea ?? null,
+                sexo: createUsuarioDto.sexo,
+              },
+            },
+          },
+          include: {
+            persona: true,
+            rol: true,
+          },
+        });
+      });
+
+      return this.removePassword(usuario);
+    } catch (error) {
+      this.handlePrismaUniqueError(error);
+      throw error;
+    }
   }
 
   async update(id: number, updateUsuarioDto: UpdateUsuarioDto) {
@@ -506,8 +575,8 @@ export class UsuarioService {
     return usuario;
   }
 
-    private async validateRolExists(id_rol: number) {
-    const rol = await this.prisma.rol.findUnique({
+  private async validateRolExists( id_rol: number, prismaClient: PrismaExecutor = this.prisma ) {
+    const rol = await prismaClient.rol.findUnique({
       where: { id_rol },
     });
 
@@ -521,8 +590,9 @@ export class UsuarioService {
   private async validateMunicipioDepartamento(
     id_departamento: number,
     id_municipio: number,
+    prismaClient: PrismaExecutor = this.prisma,
   ) {
-    const departamento = await this.prisma.departamento.findUnique({
+    const departamento = await prismaClient.departamento.findUnique({
       where: { id_departamento },
     });
 
@@ -532,7 +602,7 @@ export class UsuarioService {
       );
     }
 
-    const municipio = await this.prisma.municipio.findFirst({
+    const municipio = await prismaClient.municipio.findFirst({
       where: {
         id_municipio,
         id_departamento,
@@ -548,8 +618,12 @@ export class UsuarioService {
     return municipio;
   }
 
-  private async validateUniqueUsername(username: string, ignoreUserId?: number) {
-    const existingUsuario = await this.prisma.usuario.findUnique({
+  private async validateUniqueUsername(
+    username: string,
+    ignoreUserId?: number,
+    prismaClient: PrismaExecutor = this.prisma,
+  ) {
+    const existingUsuario = await prismaClient.usuario.findUnique({
       where: { username },
     });
 
@@ -567,9 +641,10 @@ export class UsuarioService {
       telefono?: string;
     },
     ignorePersonaId?: number,
+    prismaClient: PrismaExecutor = this.prisma,
   ) {
     if (fields.numero_identidad) {
-      const existingPersonaByIdentity = await this.prisma.persona.findUnique({
+      const existingPersonaByIdentity = await prismaClient.persona.findUnique({
         where: {
           numero_identidad: fields.numero_identidad,
         },
@@ -586,7 +661,7 @@ export class UsuarioService {
     }
 
     if (fields.correo_electronico) {
-      const existingPersonaByEmail = await this.prisma.persona.findUnique({
+      const existingPersonaByEmail = await prismaClient.persona.findUnique({
         where: {
           correo_electronico: fields.correo_electronico,
         },
@@ -603,7 +678,7 @@ export class UsuarioService {
     }
 
     if (fields.telefono) {
-      const existingPersonaByPhone = await this.prisma.persona.findFirst({
+      const existingPersonaByPhone = await prismaClient.persona.findFirst({
         where: {
           telefono: fields.telefono,
         },
@@ -620,6 +695,21 @@ export class UsuarioService {
     }
   }
 
+  private handlePrismaUniqueError(error: unknown): never | void {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      const target = Array.isArray(error.meta?.target)
+        ? error.meta.target.join(', ')
+        : 'campo único';
+
+      throw new ConflictException(
+        `Ya existe un registro con el mismo valor para: ${target}`,
+      );
+    }
+  }
+
   private parseFechaNacimiento(fecha: string) {
     const parsedDate = new Date(fecha);
 
@@ -632,67 +722,67 @@ export class UsuarioService {
     return parsedDate;
   }
 
-    private mapProfile(usuario: any) {
-        return {
-        id_usuario: usuario.id_usuario,
-        username: usuario.username,
-        email: usuario.persona?.correo_electronico ?? null,
-        nombre: this.buildNombreCompleto(usuario.persona),
-        rol: usuario.rol?.nombre ?? null,
-        };
+  private mapProfile(usuario: any) {
+    return {
+      id_usuario: usuario.id_usuario,
+      username: usuario.username,
+      email: usuario.persona?.correo_electronico ?? null,
+      nombre: this.buildNombreCompleto(usuario.persona),
+      rol: usuario.rol?.nombre ?? null,
+    };
+  }
+
+  private buildNombreCompleto(persona: any) {
+    return [
+      persona?.primer_nombre,
+      persona?.segundo_nombre,
+      persona?.primer_apellido,
+      persona?.segundo_apellido,
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  private splitNombreCompleto(nombreCompleto: string) {
+    const partes = nombreCompleto.trim().split(/\s+/);
+
+    if (partes.length < 2) {
+      throw new UnprocessableEntityException({
+        message: 'El nombre completo no pudo ser validado.',
+        errors: [
+          {
+            rule: 'full_name',
+            message: 'Debe ingresar al menos un nombre y un apellido.',
+          },
+        ],
+      });
     }
 
-    private buildNombreCompleto(persona: any) {
-        return [
-        persona?.primer_nombre,
-        persona?.segundo_nombre,
-        persona?.primer_apellido,
-        persona?.segundo_apellido,
-        ]
-        .filter(Boolean)
-        .join(' ');
-    }
-
-    private splitNombreCompleto(nombreCompleto: string) {
-        const partes = nombreCompleto.trim().split(/\s+/);
-
-        if (partes.length < 2) {
-        throw new UnprocessableEntityException({
-            message: 'El nombre completo no pudo ser validado.',
-            errors: [
-            {
-                rule: 'full_name',
-                message: 'Debe ingresar al menos un nombre y un apellido.',
-            },
-            ],
-        });
-        }
-
-        if (partes.length === 2) {
-        return {
-            primer_nombre: partes[0],
-            segundo_nombre: null,
-            primer_apellido: partes[1],
-            segundo_apellido: null,
-        };
-        }
-
-        if (partes.length === 3) {
-        return {
-            primer_nombre: partes[0],
-            segundo_nombre: null,
-            primer_apellido: partes[1],
-            segundo_apellido: partes[2],
-        };
-        }
-
-        return {
+    if (partes.length === 2) {
+      return {
         primer_nombre: partes[0],
-        segundo_nombre: partes.slice(1, -2).join(' '),
-        primer_apellido: partes[partes.length - 2],
-        segundo_apellido: partes[partes.length - 1],
-        };
+        segundo_nombre: null,
+        primer_apellido: partes[1],
+        segundo_apellido: null,
+      };
     }
+
+    if (partes.length === 3) {
+      return {
+        primer_nombre: partes[0],
+        segundo_nombre: null,
+        primer_apellido: partes[1],
+        segundo_apellido: partes[2],
+      };
+    }
+
+    return {
+      primer_nombre: partes[0],
+      segundo_nombre: partes.slice(1, -2).join(' '),
+      primer_apellido: partes[partes.length - 2],
+      segundo_apellido: partes[partes.length - 1],
+    };
+  }
 
   private removePassword(usuario: any) {
     if (!usuario) return usuario;

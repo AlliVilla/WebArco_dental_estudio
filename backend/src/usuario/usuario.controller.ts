@@ -1,5 +1,6 @@
-import { Controller, UseGuards, Get, Post, Put, Patch, Body, Param, ParseIntPipe, Query, HttpCode, HttpStatus, BadRequestException, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiUnauthorizedResponse, ApiOkResponse, ApiNotFoundResponse, ApiBadRequestResponse, ApiParam, ApiQuery, ApiCreatedResponse, ApiConflictResponse, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
+import { Controller, UseGuards, Get, Post, Put, Patch, Body, Param, ParseIntPipe, Query, HttpCode, HttpStatus, BadRequestException, Req} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiUnauthorizedResponse, ApiOkResponse, ApiNotFoundResponse, ApiBadRequestResponse,
+  ApiParam, ApiQuery, ApiCreatedResponse, ApiConflictResponse, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
 import { UsuarioService } from './usuario.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
@@ -96,14 +97,20 @@ export class UsuarioController {
   @Privileges(6)
   @Get('all')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Listar usuarios', description: 'Obtiene un listado paginado de todos los usuarios' })
-  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1' })
+  @ApiOperation({ summary: 'Listar usuarios', description: 'Obtiene un listado paginado de usuarios y permite filtrar por nombre, correo o rol.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1', })
   @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 10)', example: '10' })
+  @ApiQuery({ name: 'nombre', required: false, description: 'Filtro por nombre o apellido', example: 'Juan' })
+  @ApiQuery({ name: 'correo', required: false, description: 'Filtro por correo electrónico', example: 'juan@gmail.com' })
+  @ApiQuery({ name: 'rol', required: false, description: 'Filtro por nombre del rol', example: 'Doctor' })
   @ApiOkResponse({ description: 'Listado de usuarios con paginación' })
   @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
   async getAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('nombre') nombre?: string,
+    @Query('correo') correo?: string,
+    @Query('rol') rol?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
@@ -112,7 +119,11 @@ export class UsuarioController {
       throw new BadRequestException('page y limit deben ser mayores a 0');
     }
 
-    return this.usuarioService.getAllUsers(pageNum, limitNum);
+    return this.usuarioService.getAllUsers(pageNum, limitNum, {
+      nombre,
+      correo,
+      rol,
+    });
   }
 
   @Privileges(6)
@@ -196,10 +207,7 @@ export class UsuarioController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateStatusDto: UpdateStatusUsuarioDto,
   ) {
-    const usuario = await this.usuarioService.updateStatus(
-      id,
-      updateStatusDto,
-    );
+    const usuario = await this.usuarioService.updateStatus(id, updateStatusDto);
 
     return {
       usuario,
