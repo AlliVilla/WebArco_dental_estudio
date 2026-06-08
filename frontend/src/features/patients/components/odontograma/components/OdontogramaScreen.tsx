@@ -519,16 +519,24 @@ function StateBadge({ state }: { state: ToothState | null }) {
 }
 
 function FieldBadge({ type }: { type: 'Requerido' | 'Opcional' }) {
+  if (type === 'Requerido') {
+    return (
+      <span style={{
+        color: '#E24B4A', fontSize: 14, fontWeight: 700, lineHeight: 1,
+      }}>*</span>
+    );
+  }
   return (
     <span style={{
       fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
-      background: type === 'Requerido' ? '#FEF6E7' : '#F1F3F4',
-      color: type === 'Requerido' ? '#EF9F27' : '#888F94',
+      background: '#F1F3F4',
+      color: '#888F94',
     }}>
       {type}
     </span>
   );
 }
+
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 

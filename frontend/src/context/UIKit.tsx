@@ -5,8 +5,14 @@ import { Eye, EyeOff, ChevronDown, AlertCircle, CheckCircle, Info, AlertTriangle
 
 interface FieldBadgeProps { type: 'required' | 'optional' | 'conditional' }
 export function FieldBadge({ type }: FieldBadgeProps) {
+  if (type === 'required') {
+    return (
+      <span style={{
+        color: '#E24B4A', fontSize: 14, fontWeight: 700, lineHeight: 1,
+      }}>*</span>
+    );
+  }
   const map = {
-    required: { label: 'Requerido', bg: '#FEF2F2', color: '#E24B4A', border: '#FECACA' },
     optional: { label: 'Opcional', bg: '#F8F9FA', color: '#888F94', border: '#D3D7DA' },
     conditional: { label: 'Condicional', bg: '#FFFBEB', color: '#EF9F27', border: '#FDE68A' },
   };
@@ -18,6 +24,7 @@ export function FieldBadge({ type }: FieldBadgeProps) {
     }}>{s.label}</span>
   );
 }
+
 
 type StatusType = 'programada' | 'confirmada' | 'cancelada' | 'atendida' | 'ausente' | 'reprogramada';
 interface StatusBadgeProps { status: StatusType }
