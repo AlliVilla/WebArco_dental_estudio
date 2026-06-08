@@ -1,73 +1,103 @@
-# React + TypeScript + Vite
+# Frontend — WebArco Dental Studio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este directorio contiene la interfaz web del sistema WebArco Dental Studio. Está construido con React 19 + TypeScript + Vite y está pensado para administrar la operación clínica: agenda, pacientes, odontograma, facturación y otras vistas de gestión.
 
-Currently, two official plugins are available:
+## Resumen del frontend
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Qué lleva
+- React 19 + TypeScript
+- Vite como herramienta de desarrollo y build
+- React Router para navegación por pestañas y rutas
+- Axios para consumo de la API del backend
+- Zustand para estado ligero
+- Lucide React para iconografía
+- Un kit de interfaz propio en `src/context/UIKit.tsx`
 
-## React Compiler
+### Qué tiene actualmente
+- Dashboard principal
+- Agenda / citas
+- Módulo de pacientes
+- Odontograma de paciente
+- Consentimientos
+- Gestión de ingresos / caja
+- Pantallas de inventario, estadísticas y configuración
+- Diseño / UI Kit de referencia
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Cómo está compuesto
+- `src/main.tsx`: punto de entrada, inicializa `ThemeProvider` y `BrowserRouter`
+- `src/App.tsx`: definición de rutas principales del sistema
+- `src/page layouts/MainLayout.tsx`: layout base con sidebar, top bar y `Outlet`
+- `src/components/`: componentes globales reutilizables
+- `src/context/`: tema, UIKit y pantallas de diseño
+- `src/features/`: módulos de negocio (appointments, billing, patients, auth, settings, etc.)
+- `src/services/api.ts`: instancia central de Axios con interceptores de token y respuesta
 
-## Expanding the ESLint configuration
+## Estructura principal
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+src/
+├── App.tsx
+├── main.tsx
+├── components/          # Sidebar, TopBar, DataTable, ConfirmModal, etc.
+├── context/             # ThemeProvider, UIKit, DesignSystemScreen
+├── features/            # Módulos por dominio de negocio
+├── hooks/               # Hooks reutilizables
+├── page layouts/        # Layout principal y dashboard
+├── services/            # Axios y conexión con backend
+├── styles/              # Estilos globales y tokens
+└── utils/               # Helpers y formatters
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Cómo ejecutar el frontend
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Desde esta carpeta:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
+```
+
+La app queda disponible normalmente en:
+
+```text
+http://localhost:5173
+```
+
+## Cómo compilar
+
+```bash
+npm run build
+```
+
+## Cómo editarlo
+
+1. Crear o modificar una pantalla en `src/features/<modulo>/components/`.
+2. Si la pantalla necesita rutas, registrarla en `src/App.tsx`.
+3. Si debe aparecer en el menú principal, actualizar `src/components/Sidebar.tsx` y el mapa de rutas de `src/page layouts/MainLayout.tsx`.
+4. Usar `src/services/api.ts` para consumir el backend con el formato `{ success, data, message }`.
+5. Seguir las convenciones de diseño y arquitectura descritas en `guidelines/Guidelines.md`.
+
+## Reglas importantes para nuevas pantallas
+
+- Usar `src/features/<modulo>/components/NuevaPantalla.tsx` para nuevas vistas.
+- Mantener la navegación real con rutas (`react-router-dom`).
+- Reutilizar los componentes del UIKit en `src/context/UIKit.tsx`.
+- Evitar colores arbitrarios; usar la paleta definida en la guía.
+- Preferir `DataTable`, `ConfirmModal`, `FormSection` y `Button` cuando corresponda.
+
+## Archivos clave para tocar
+
+- `src/App.tsx` → rutas principales
+- `src/page layouts/MainLayout.tsx` → layout, título, breadcrumbs y menú
+- `src/components/Sidebar.tsx` → navegación lateral
+- `src/services/api.ts` → conexión con el backend
+- `src/context/UIKit.tsx` → componentes visuales reutilizables
+- `guidelines/Guidelines.md` → reglas de desarrollo del frontend
+
+## Nota de entorno
+
+El proyecto compila correctamente con la configuración actual. Puedes validar cambios con:
+
+```bash
+npm run build
 ```
