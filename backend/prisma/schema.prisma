@@ -113,6 +113,7 @@ model Usuario {
   id_rol     Int
   firma      String? @db.Text
   activo     Boolean @default(true)
+  must_change_password Boolean @default(true) 
 
   persona           Persona            @relation(fields: [id_persona], references: [id_persona])
   rol               Rol                @relation(fields: [id_rol], references: [id_rol])
