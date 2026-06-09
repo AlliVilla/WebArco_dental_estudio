@@ -51,10 +51,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         });
       }
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Error de conexión con el servidor';
+      let message = 'Error de conexión con el servidor';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message: string }).message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       set({ isLoading: false, error: message });
       throw error;
     }
