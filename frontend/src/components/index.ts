@@ -4,3 +4,6 @@ export * from './DataTable';
 export * from './Sidebar';
 export * from './Spinner';
 export * from './TopBar';
+export * from './FormSection';
+export * from './FullWidthField';
+

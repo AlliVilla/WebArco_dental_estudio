@@ -1,9 +1,8 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect } from 'react';
-import { NuevaVisita } from '../../NewVisit';
+import { NuevaVisita } from './NewVisit';
 import {
-  Search,
   Plus,
-  FileText,
   ArrowLeft,
   Paperclip,
   CheckCircle,
@@ -11,21 +10,23 @@ import {
   ChevronRight,
   ChevronDown
 } from 'lucide-react';
+import { DataTable, Column } from '../../../../../components';
+import { Card, Button, useTheme } from '../../../../../context';
 
-// ── Colors matching the Design System ─────────────────────────────────────────
+// ── Colors matching the Design System (using variables for theme compatibility) ──
 const C = {
-  primary: '#0BC5DF',
-  navy: '#203F49',
-  success: '#1D9E75',
-  warning: '#EF9F27',
-  danger: '#E24B4A',
-  gray50: '#F8F9FA',
-  gray100: '#F1F3F4',
-  gray300: '#D3D7DA',
-  gray500: '#888F94',
-  gray700: '#5F656A',
-  white: '#ffffff',
-  primaryBg: '#E6F8FB',
+  primary: 'var(--arco-primary, #0BC5DF)',
+  navy: 'var(--foreground, #203F49)',
+  success: 'var(--arco-success, #1D9E75)',
+  warning: 'var(--arco-warning, #EF9F27)',
+  danger: 'var(--arco-danger, #E24B4A)',
+  gray50: 'var(--background, #F8F9FA)',
+  gray100: 'var(--arco-gray-100, #F1F3F4)',
+  gray300: 'var(--border, #D3D7DA)',
+  gray500: 'var(--muted-foreground, #888F94)',
+  gray700: 'var(--arco-gray-700, #5F656A)',
+  white: 'var(--card, #ffffff)',
+  primaryBg: 'var(--accent, #E6F8FB)',
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ interface ConsultaHistorica {
   firmaDoctor: boolean;
 }
 
-export interface ExpedientePaciente {
+export type ExpedientePaciente = {
   id: number;
   nombre: string;
   primerNombre: string;
@@ -65,7 +66,7 @@ export interface ExpedientePaciente {
   tomaMedicamento: string;
   alergias: string;
   consultas: ConsultaHistorica[];
-}
+};
 
 // ── Mock Clinical History Data ────────────────────────────────────────────────
 export const MOCK_EXPEDIENTES: ExpedientePaciente[] = [
@@ -309,9 +310,9 @@ const getAlertBadges = (patient: ExpedientePaciente) => {
 };
 
 export function ExpedienteScreen() {
+  useTheme();
   const [viewState, setViewState] = useState<'list' | 'detail' | 'new-visit'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [expedientes] = useState<ExpedientePaciente[]>(MOCK_EXPEDIENTES);
 
   // Calcular estadísticas dinámicamente para las tarjetas superiores
@@ -330,6 +331,7 @@ export function ExpedienteScreen() {
   useEffect(() => {
     if (activePatient && activePatient.consultas.length > 0) {
       // Expand the most recent visit by default
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedVisits({ [activePatient.consultas[0].id]: true });
     } else {
       setExpandedVisits({});
@@ -342,12 +344,6 @@ export function ExpedienteScreen() {
       [visitId]: !prev[visitId]
     }));
   };
-
-  // Filter clinical charts list
-  const filteredExpedientes = expedientes.filter(exp =>
-    exp.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    exp.identidad.includes(searchQuery)
-  );
 
   const handleSelectPatient = (id: number) => {
     setSelectedPatientId(id);
@@ -362,6 +358,76 @@ export function ExpedienteScreen() {
     setViewState('detail');
   };
 
+  const columns: Column<ExpedientePaciente>[] = [
+    {
+      key: 'nombre',
+      label: 'Paciente',
+      render: (_, row) => (
+        <span
+          onClick={() => handleSelectPatient(row.id)}
+          style={{ fontWeight: 600, color: 'var(--arco-primary, #0BC5DF)', cursor: 'pointer' }}
+        >
+          {row.nombre}
+        </span>
+      ),
+    },
+    {
+      key: 'identidad',
+      label: 'Identidad',
+    },
+    {
+      key: 'telefono',
+      label: 'Teléfono',
+    },
+    {
+      key: 'ultimaVisita',
+      label: 'Última Visita',
+    },
+    {
+      key: 'totalVisitas',
+      label: 'Visitas',
+      align: 'center',
+      render: (_, row) => (
+        <span style={{ fontWeight: 600, color: 'var(--foreground, #203F49)' }}>
+          {row.totalVisitas}
+        </span>
+      ),
+    },
+    {
+      key: 'firmas',
+      label: 'Firmas',
+      render: (_, row) => {
+        const hasPending = row.consultas.some(c => !c.firmaPaciente || !c.firmaDoctor);
+        if (hasPending) {
+          return (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
+              background: 'rgba(239, 159, 39, 0.12)', color: 'var(--arco-warning, #EF9F27)'
+            }}>
+              Pendientes
+            </span>
+          );
+        }
+        return (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
+            background: '#E8F7F2', color: 'var(--arco-success, #1D9E75)'
+          }}>
+            <CheckCircle size={10} /> Al día
+          </span>
+        );
+      },
+    },
+  ];
+
+  const getRowActions = (row: ExpedientePaciente) => [
+    {
+      icon: <ChevronRight size={16} />,
+      label: 'Ver Expediente',
+      onClick: () => handleSelectPatient(row.id),
+    },
+  ];
+
   return (
     <div style={{ background: '#F8F9FA', minHeight: 'calc(100vh - 110px)', boxSizing: 'border-box' }}>
       
@@ -370,145 +436,68 @@ export function ExpedienteScreen() {
       ══════════════════════════════════════════════════════════════════ */}
       {viewState === 'list' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <h2 style={{ margin: 0, color: C.navy, fontSize: 20, fontWeight: 700 }}>Expedientes Clínicos</h2>
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: C.gray500 }}>
-                Consulta el historial clínico, radiografías y evolución de los pacientes.
-              </p>
-            </div>
-          </div>
-
           {/* Tarjetas de Estadísticas */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {/* Total Visitas */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: 12,
+            <Card style={{
               border: '1.5px solid rgba(11, 197, 223, 0.24)',
               padding: '20px 24px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
             }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#0BC5DF', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-primary, #0BC5DF)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
                 Total Visitas
               </span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: '#203F49', marginTop: 8, lineHeight: 1 }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>
                 {totalVisitas}
               </span>
-            </div>
+            </Card>
 
             {/* Completadas */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: 12,
+            <Card style={{
               border: '1.5px solid rgba(29, 158, 117, 0.24)',
               padding: '20px 24px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
             }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#1D9E75', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-success, #1D9E75)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
                 Completadas
               </span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: '#203F49', marginTop: 8, lineHeight: 1 }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>
                 {completadas}
               </span>
-            </div>
+            </Card>
 
             {/* Firmas Digitales */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: 12,
+            <Card style={{
               border: '1.5px solid rgba(239, 159, 39, 0.24)',
               padding: '20px 24px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
             }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#EF9F27', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-warning, #EF9F27)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
                 Firmas Digitales
               </span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: '#203F49', marginTop: 8, lineHeight: 1 }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>
                 {firmasDigitales}
               </span>
-            </div>
+            </Card>
           </div>
 
-          {/* Search bar & statistics */}
-          <div style={{ display: 'flex', background: '#fff', borderRadius: 12, border: `1px solid ${C.gray300}`, padding: '14px 20px', alignItems: 'center', gap: 16 }}>
-            <div style={{ display: 'flex', flex: 1, alignItems: 'center', gap: 10, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: '#fff' }}>
-              <Search size={16} color={C.gray500} />
-              <input
-                type="text"
-                placeholder="Buscar por nombre o número de identidad..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 24, fontSize: 13, color: C.gray700 }}>
-              <div>Total Expedientes: <strong style={{ color: C.navy }}>{expedientes.length}</strong></div>
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.gray300}`, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: C.gray50, borderBottom: `1px solid ${C.gray300}`, color: C.gray500, fontWeight: 600 }}>
-                  <th style={{ padding: '12px 18px' }}>Paciente</th>
-                  <th style={{ padding: '12px 18px' }}>Identidad</th>
-                  <th style={{ padding: '12px 18px' }}>Teléfono</th>
-                  <th style={{ padding: '12px 18px' }}>Última Visita</th>
-                  <th style={{ padding: '12px 18px' }}>Visitas</th>
-                  <th style={{ padding: '12px 18px' }}>Firmas</th>
-                  <th style={{ padding: '12px 18px', textAlign: 'right' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredExpedientes.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '32px 0', color: C.gray500 }}>
-                      <FileText size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
-                      <div>No se encontraron expedientes con los criterios de búsqueda.</div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredExpedientes.map(exp => (
-                    <tr
-                      key={exp.id}
-                      onClick={() => handleSelectPatient(exp.id)}
-                      style={{ borderBottom: `1px solid ${C.gray100}`, cursor: 'pointer', transition: 'background 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#F8F9FA'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <td style={{ padding: '14px 18px', fontWeight: 600, color: C.navy }}>{exp.nombre}</td>
-                      <td style={{ padding: '14px 18px', color: C.gray700 }}>{exp.identidad}</td>
-                      <td style={{ padding: '14px 18px', color: C.gray700 }}>{exp.telefono}</td>
-                      <td style={{ padding: '14px 18px', color: C.gray700 }}>{exp.ultimaVisita}</td>
-                      <td style={{ padding: '14px 18px', fontWeight: 600, color: C.navy }}>{exp.totalVisitas}</td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
-                          background: '#E8F7F2', color: C.success
-                        }}>
-                          <CheckCircle size={10} /> Al día
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                        <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.primary, display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0 }}>
-                          Ver Expediente <ChevronRight size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<ExpedientePaciente>
+            title="Expedientes Clínicos"
+            description="Consulta el historial clínico, radiografías y evolución de los pacientes."
+            columns={columns}
+            data={expedientes}
+            searchable={true}
+            searchPlaceholder="Buscar por nombre o número de identidad..."
+            searchKeys={['nombre', 'identidad']}
+            getRowKey={(row) => String(row.id)}
+            rowActions={getRowActions}
+          />
         </div>
       )}
 
@@ -519,30 +508,30 @@ export function ExpedienteScreen() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <button
+            <Button
               onClick={() => setViewState('list')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: C.gray500, fontSize: 13, padding: 0 }}
+              variant="ghost"
+              size="sm"
+              style={{ color: C.gray500 }}
             >
               <ArrowLeft size={16} /> Volver a expedientes
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setViewState('new-visit')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: C.primary, color: C.white, border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              variant="primary"
+              size="sm"
             >
               <Plus size={16} /> Registrar Nueva Visita
-            </button>
+            </Button>
           </div>
 
           {/* Patient Profile Section */}
-          <div style={{
-            background: C.white,
-            borderRadius: 16,
-            border: `1px solid ${C.gray300}`,
+          <Card style={{
             padding: 24,
+            borderRadius: 16,
             display: 'flex',
             flexDirection: 'column',
             gap: 20,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.01)'
           }}>
             <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               {/* Avatar Circle */}
@@ -659,7 +648,7 @@ export function ExpedienteScreen() {
                 )}
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Visits Timeline */}
           <div>
@@ -967,4 +956,3 @@ export function ExpedienteScreen() {
     </div>
   );
 }
-export default ExpedienteScreen;

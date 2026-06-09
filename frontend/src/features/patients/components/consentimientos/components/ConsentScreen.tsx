@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Plus, Search, CheckCircle2, AlertTriangle, Download, PenTool, Clock } from 'lucide-react';
-import { Card, Button, Input } from '../../../context';
+import { Card, Button, Input } from '../../../../../context';
 
 interface LocalConsent {
   id: number;

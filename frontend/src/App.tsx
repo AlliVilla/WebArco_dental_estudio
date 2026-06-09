@@ -4,12 +4,11 @@ import { Dashboard } from './page layouts/Dashboard';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
 
 // IMPORTANTE: Tendrás que crear estos componentes en sus respectivas carpetas (features)
-import { PatientsScreen } from './features/patients/components/PatientsScreen';
-import { ExpedienteScreen } from './features/patients/components/expediente';
+import { PatientsScreen, ExpedienteScreen, ConsentScreen } from './features/patients';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
-import { ConsentScreen } from './features/patients/components/ConsentScreen';
+import { UsersScreen } from './features/users';
 import { Card, Alert, DesignSystemScreen } from './context';
 
 function App() {
@@ -80,6 +79,7 @@ function App() {
             </Card>
           </div>
         } />
+        <Route path="/users" element={<UsersScreen />} />
         <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>

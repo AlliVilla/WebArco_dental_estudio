@@ -81,7 +81,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       'billing-closures': '/billing/closures',
       'billing-list': '/billing/list',
       'estado-resultado': '/stats',
-      users: '/settings', // Mapped to settings placeholder
+      users: '/users',
       inventory: '/inventory',
       settings: '/settings',
       design: '/design',
