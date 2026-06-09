@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetInsumosDto } from './dto/get-insumo.dto';
+import { CreateInsumoDto } from './dto/create-insumo.dto';
+import { UpdateInsumoDto } from './dto/update-insumo.dto';
 
 @Injectable()
 export class InsumoService {
@@ -81,5 +83,95 @@ export class InsumoService {
       stock_bajo: Number(result[0].stock_bajo || 0),
       valor_total: Number(result[0].valor_total || 0),
     };
+  }
+
+  async create(createInsumoDto: CreateInsumoDto) {
+    const { id_categoria, id_unidad, nombre, stock_actual, stock_minimo, precio_costo } = createInsumoDto;
+
+    const categoria = await this.prisma.categoriaInsumo.findUnique({ where: { id_categoria } });
+    if (!categoria) {
+      throw new NotFoundException(`La categoría con ID ${id_categoria} no existe`);
+    }
+
+    const unidad = await this.prisma.unidadMedida.findUnique({ where: { id_unidad } });
+    if (!unidad) {
+      throw new NotFoundException(`La unidad de medida con ID ${id_unidad} no existe`);
+    }
+
+    const lastInsumo = await this.prisma.insumo.findFirst({
+      orderBy: { id_insumo: 'desc' },
+    });
+
+    let newCodeNumber = 1;
+    if (lastInsumo && lastInsumo.codigo.startsWith('INS-')) {
+      const parts = lastInsumo.codigo.split('-');
+      if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+        newCodeNumber = parseInt(parts[1], 10) + 1;
+      } else {
+        newCodeNumber = lastInsumo.id_insumo + 1;
+      }
+    } else if (lastInsumo) {
+       newCodeNumber = lastInsumo.id_insumo + 1;
+    }
+    
+    const newCode = `INS-${newCodeNumber.toString().padStart(3, '0')}`;
+
+    const newInsumo = await this.prisma.insumo.create({
+      data: {
+        codigo: newCode,
+        nombre,
+        id_categoria,
+        id_unidad,
+        stock_actual: stock_actual || 0,
+        stock_minimo: stock_minimo || 0,
+        precio_costo,
+      },
+    });
+
+    return newInsumo;
+  }
+
+  async update(id: number, updateInsumoDto: UpdateInsumoDto) {
+    const insumo = await this.prisma.insumo.findUnique({ where: { id_insumo: id } });
+    if (!insumo) {
+      throw new NotFoundException(`El insumo con ID ${id} no existe`);
+    }
+
+    if (updateInsumoDto.id_categoria) {
+      const categoria = await this.prisma.categoriaInsumo.findUnique({ where: { id_categoria: updateInsumoDto.id_categoria } });
+      if (!categoria) throw new NotFoundException(`La categoría con ID ${updateInsumoDto.id_categoria} no existe`);
+    }
+    if (updateInsumoDto.id_unidad) {
+      const unidad = await this.prisma.unidadMedida.findUnique({ where: { id_unidad: updateInsumoDto.id_unidad } });
+      if (!unidad) throw new NotFoundException(`La unidad con ID ${updateInsumoDto.id_unidad} no existe`);
+    }
+
+    const updatedInsumo = await this.prisma.insumo.update({
+      where: { id_insumo: id },
+      data: updateInsumoDto,
+    });
+
+    return { message: 'Insumo actualizado exitosamente', insumo: updatedInsumo };
+  }
+
+  async remove(id: number) {
+    const insumo = await this.prisma.insumo.findUnique({
+      where: { id_insumo: id },
+      include: { movimientos: true },
+    });
+
+    if (!insumo) {
+      throw new NotFoundException(`El insumo con ID ${id} no existe`);
+    }
+
+    if (insumo.movimientos.length > 0) {
+      throw new ConflictException('No se puede eliminar el insumo física ni lógicamente porque tiene movimientos de inventario asociados.');
+    }
+
+    await this.prisma.insumo.delete({
+      where: { id_insumo: id },
+    });
+
+    return { message: 'Insumo eliminado exitosamente' };
   }
 }
