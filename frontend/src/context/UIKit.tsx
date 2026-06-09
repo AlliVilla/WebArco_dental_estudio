@@ -313,11 +313,11 @@ export function Toggle({ checked, onChange, label }: ToggleProps) {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-interface AvatarProps { initials: string; size?: number; color?: string; }
-export function Avatar({ initials, size = 36, color = '#0BC5DF' }: AvatarProps) {
+interface AvatarProps { initials: string; size?: number; color?: string; square?: boolean; }
+export function Avatar({ initials, size = 36, color = '#0BC5DF', square = false }: AvatarProps) {
   return (
     <div style={{
-      width: size, height: size, borderRadius: '50%', background: color,
+      width: size, height: size, borderRadius: square ? 8 : '50%', background: color,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.35, fontWeight: 600, color: '#fff', flexShrink: 0,
     }}>
