@@ -1,7 +1,7 @@
 import {
   Injectable,
   BadRequestException,
-  UnauthorizedException
+  UnauthorizedException,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -87,11 +87,15 @@ export class AuthService {
     const resetToken = generateToken(resetPayload, '15m', secretKey);
 
     const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
-    await this.brevo.sendMail({
-      to: email,
-      subject: 'Recuperación de contraseña - Dental Center',
-      html: buildResetPasswordEmail(resetLink),
-    })
+    try {
+      await this.brevo.sendMail({
+        to: email,
+        subject: 'Recuperación de contraseña - Dental Center',
+        html: buildResetPasswordEmail(resetLink),
+      });
+    } catch {
+      console.error('Error al enviar correo de recuperación');
+    }
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto){
