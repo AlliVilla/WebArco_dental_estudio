@@ -1,22 +1,32 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { User, Key, LogOut, Shield, ChevronRight } from 'lucide-react';
 
 import { FormSection, FullWidthField, ConfirmModal } from '../../../components';
 import { Button, Input, Card, useTheme } from '../../../context';
+import { useAuthStore } from '../../auth/hooks/useAuthStore';
 import profileTooth from '../../../assets/profile-tooth.png';
 
-export interface MiPerfilProps { }
-
-export function MiPerfil(_props: MiPerfilProps) {
+export function MiPerfil() {
   useTheme();
 
+  const user = useAuthStore((s) => s.user);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [username, setUsername] = useState(user?.username ?? '');
+  const [email, setEmail] = useState(user?.persona?.correo ?? '');
+  const [fullName, setFullName] = useState(
+    user ? `${user.persona?.nombre ?? ''} ${user.persona?.apellido ?? ''}`.trim() : ''
+  );
 
-  const handleSave = () => { };
+  const handleSave = () => {
+    const updated = { ...user, username, persona: { ...user?.persona, correo: email, nombre: fullName } };
+    localStorage.setItem('webarco_user', JSON.stringify(updated));
+    useAuthStore.setState({ user: updated });
+  };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setShowLogoutModal(false);
+    await useAuthStore.getState().logout();
   };
 
   return (
@@ -57,14 +67,15 @@ export function MiPerfil(_props: MiPerfilProps) {
               flexShrink: 0,
             }}
           >
-            KA
+            {user?.persona?.nombre?.charAt(0)?.toUpperCase() ?? 'U'}
+            {user?.persona?.apellido?.charAt(0)?.toUpperCase() ?? ''}
           </div>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', margin: '0 0 6px 0' }}>
-              Karlos Alberto Admin
+              {user?.persona?.nombre ?? 'Usuario'} {user?.persona?.apellido ?? ''}
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, color: '#ffffff' }}>
-              <span>@karlos.admin</span>
+              <span>@{user?.username ?? 'usuario'}</span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#ffffff', flexShrink: 0 }} />
               <span
                 style={{
@@ -76,7 +87,7 @@ export function MiPerfil(_props: MiPerfilProps) {
                   fontWeight: 600,
                 }}
               >
-                Administrador
+                {user?.rol?.nombre ?? 'Sin rol'}
               </span>
             </div>
           </div>
@@ -117,10 +128,10 @@ export function MiPerfil(_props: MiPerfilProps) {
             title="Editar Perfil"
             columns={2}
           >
-            <Input label="Username" badge="required" defaultValue="karlos.admin" />
-            <Input label="Correo electrónico" badge="required" defaultValue="karlos@arco.com" />
+            <Input label="Username" badge="required" value={username} onChange={(e) => setUsername(e.target.value)} />
+            <Input label="Correo electrónico" badge="required" value={email} onChange={(e) => setEmail(e.target.value)} />
             <FullWidthField>
-              <Input label="Nombre completo" badge="required" defaultValue="Karlos Alberto Admin" />
+              <Input label="Nombre completo" badge="required" value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </FullWidthField>
             <FullWidthField style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <Button variant="primary" onClick={handleSave} style={{ width: 153 }}>Guardar cambios</Button>
@@ -187,24 +198,21 @@ export function MiPerfil(_props: MiPerfilProps) {
               <ChevronRight size={16} color="#888F94" />
             </button>
 
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                width: '100%',
-                border: '0.5px solid #D3D7DA',
-                borderRadius: 10,
-                padding: '0 16px',
-                height: 66,
-                cursor: 'pointer',
-                background: '#fff',
-                fontFamily: 'inherit',
-                fontSize: 14,
-                textAlign: 'left'
-              }}
-            >
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              width: '100%',
+              border: '0.5px solid #D3D7DA',
+              borderRadius: 10,
+              padding: '0 16px',
+              height: 66,
+              cursor: 'pointer',
+              background: '#fff',
+              fontFamily: 'inherit',
+              fontSize: 14,
+              textAlign: 'left'
+            }}>
               <div style={{
                 width: 36,
                 height: 36,
