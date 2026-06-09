@@ -6,9 +6,12 @@ import {
   HttpStatus,
   Res,
   UseGuards,
+  ParseIntPipe,
+  Put,
   Get,
   Query,
-  ConflictException
+  ConflictException,
+  Param
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +20,7 @@ import {
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
   ApiConflictResponse,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 
 import { RolService } from './rol.service';
@@ -26,6 +30,7 @@ import { CreateRoleDto } from './dto/createRole.dto';
 import { Privileges } from 'src/auth/decorators/privileges.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from 'src/guards/privileges.guard';
+import { UpdateRoleDto } from './dto/updateRole.dto';
 
 @ApiTags('Roles')
 @Controller('rol')
@@ -67,5 +72,18 @@ export class RolController {
     @ApiConflictResponse({description: 'El nombre del rol ya existe'})
     async createRole(@Body() body : CreateRoleDto){
         return this.rolService.createRole(body);
+    }
+
+    @Privileges(36)
+    @Put(':id')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Actualizar Rol',
+        description: 'Actualizar nombre y/o descripción. Validar que el nombre no esté ya en uso por otro rol.'
+    })
+    @ApiOkResponse({description: 'Rol actualizado exitosamente'})
+    @ApiConflictResponse({description: 'El nombre del rol ya existe'})
+    async updateRole(@Param('id', ParseIntPipe) id : number,@Body() body: UpdateRoleDto){
+        return this.rolService.updateRole(id,body);
     }
 }

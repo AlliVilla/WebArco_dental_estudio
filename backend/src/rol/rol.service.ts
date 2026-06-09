@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateRoleDto } from './dto/createRole.dto';
 import { ConflictException} from '@nestjs/common';
+import { UpdateRoleDto } from './dto/updateRole.dto';
 
 @Injectable()
 export class RolService {
@@ -73,5 +74,27 @@ export class RolService {
 
         throw error;
       }
+    }
+
+    async updateRole(id: number,body: UpdateRoleDto){
+       try {
+        const role = await this.prismaService.rol.update({
+          data: body,
+          where: {
+            id_rol: id
+          }
+        });
+
+        return role;
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException('El nombre del rol ya existe');
+        }
+
+        throw error;
+      } 
     }
 }
