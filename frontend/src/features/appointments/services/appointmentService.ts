@@ -1,6 +1,6 @@
 import api from '../../../services/api';
 import { ApiResponse } from '../../../types/api';
-import { Appointment, CreateAppointmentInput, UpdateAppointmentInput, StatusChange, PatientHistoryResponse } from '../types';
+import { Appointment, CreateAppointmentInput, UpdateAppointmentInput, StatusChange, PatientHistoryResponse, PersonaRecord, UsuarioRecord } from '../types';
 
 export const appointmentService = {
   getByCalendar: async (start: string, end: string, id_usuario?: number): Promise<ApiResponse<Appointment[]>> => {
@@ -37,13 +37,13 @@ export const appointmentService = {
     return api.get(`/appointments/patient/${patientId}/history`, { params });
   },
 
-  getPersonas: async (search?: string): Promise<ApiResponse<any[]>> => {
-    const res: ApiResponse<{ data: any[] }> = await api.get('/persona', { params: { search } });
+  getPersonas: async (search?: string): Promise<ApiResponse<PersonaRecord[]>> => {
+    const res: ApiResponse<{ data: PersonaRecord[] }> = await api.get('/persona', { params: { search } });
     return { ...res, data: res.data?.data ?? [] };
   },
 
-  getUsuarios: async (): Promise<ApiResponse<any[]>> => {
-    const res: ApiResponse<{ usuarios: any[] }> = await api.get('/usuario/all');
+  getUsuarios: async (): Promise<ApiResponse<UsuarioRecord[]>> => {
+    const res: ApiResponse<{ usuarios: UsuarioRecord[] }> = await api.get('/usuario/all');
     return { ...res, data: res.data?.usuarios ?? [] };
   },
 };

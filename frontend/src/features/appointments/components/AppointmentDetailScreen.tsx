@@ -1,37 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, User, FileText, History, Edit, Trash2, Check, ArrowLeft, List } from 'lucide-react';
 import { Button, Select, Alert, Card, SectionBlock, FieldBadge, StatusBadge } from '../../../context';
 import { Spinner } from '../../../components';
 import { useNavigate, useParams } from 'react-router-dom';
 import { appointmentService } from '../services/appointmentService';
-import { Appointment, StatusChange as StatusChangeType } from '../types';
+import type { Appointment, StatusChange as StatusChangeType } from '../types';
 import { useAuthStore } from '../../auth/hooks/useAuthStore';
-
-const statusOptions = [
-  { value: 'programada', label: 'Programada' },
-  { value: 'confirmada', label: 'Confirmada' },
-  { value: 'atendida', label: 'Atendida' },
-  { value: 'cancelada', label: 'Cancelada' },
-  { value: 'ausente', label: 'Ausente' },
-  { value: 'reprogramada', label: 'Reprogramada' },
-];
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  return `${days[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`;
-}
-
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-}
+import { formatFullDate, formatTimestamp, getEndTime } from '../utils';
+import { STATUS_OPTIONS } from '../constants';
 
 export function AppointmentDetailScreen() {
   const navigate = useNavigate();
@@ -47,7 +23,7 @@ export function AppointmentDetailScreen() {
   const [showCancelWarning, setShowCancelWarning] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -85,7 +61,8 @@ export function AppointmentDetailScreen() {
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = null;
     };
   }, []);
 
@@ -157,11 +134,7 @@ export function AppointmentDetailScreen() {
     : 'Doctor no asignado';
 
   const startTime = appointment.fecha_inicio.substring(11, 16);
-  const endTime = appointment.fecha_fin?.substring(11, 16) || (() => {
-    const [h, m] = startTime.split(':').map(Number);
-    const end = h * 60 + m + 60;
-    return `${Math.floor(end / 60).toString().padStart(2, '0')}:${(end % 60).toString().padStart(2, '0')}`;
-  })();
+  const endTime = getEndTime(startTime, appointment.fecha_fin);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -256,7 +229,7 @@ export function AppointmentDetailScreen() {
                 }}>
                   <Calendar size={15} style={{ color: '#888F94', flexShrink: 0 }} />
                   <span style={{ fontSize: 14, color: '#203F49' }}>
-                    {formatDate(appointment.fecha_inicio.split('T')[0])}
+                    {formatFullDate(appointment.fecha_inicio.split('T')[0])}
                   </span>
                 </div>
               </div>
@@ -321,8 +294,8 @@ export function AppointmentDetailScreen() {
                 border: '1px solid #D3D7DA', borderRadius: 8,
                 background: '#F8F9FA', padding: '10px 12px',
               }}>
-                <span style={{ fontSize: 14, color: '#203F49', whiteSpace: 'pre-wrap' }}>
-                  {appointment.motivo}
+                <span style={{ fontSize: 14, color: '#203F49', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {appointment.motivo || 'No especificado'}
                 </span>
               </div>
             </div>
@@ -351,7 +324,7 @@ export function AppointmentDetailScreen() {
             <Select
               label="Selector para cambiar estado"
               badge="required"
-              options={statusOptions}
+              options={STATUS_OPTIONS}
               value={newStatus}
               onChange={(v) => {
                 setNewStatus(v as any);
@@ -482,7 +455,7 @@ export function AppointmentDetailScreen() {
             <p style={{ margin: 0, marginBottom: 20, fontSize: 14, color: '#5F656A', lineHeight: 1.5 }}>
               ¿Estás seguro de que deseas eliminar esta cita? Esta acción no se puede deshacer.
               Se eliminará permanentemente la cita de <strong>{patientName}</strong> programada
-              para el {formatDate(appointment.fecha_inicio.split('T')[0])} a las {startTime}.
+              para el {formatFullDate(appointment.fecha_inicio.split('T')[0])} a las {startTime}.
             </p>
 
             <div style={{ display: 'flex', gap: 12 }}>

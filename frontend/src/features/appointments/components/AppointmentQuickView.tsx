@@ -1,17 +1,8 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { Button } from '../../../context';
 import type { Appointment } from '../types';
-
-const statusColors: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  programada: { bg: '#E6F8FB', border: '#B2EDF5', text: '#0BC5DF', label: 'Programada' },
-  confirmada: { bg: '#F5F3FF', border: '#DDD6FE', text: '#8B5CF6', label: 'Confirmada' },
-  atendida: { bg: '#ECFDF5', border: '#A7F3D0', text: '#10B981', label: 'Atendida' },
-  cancelada: { bg: '#FEF2F2', border: '#FECACA', text: '#EF4444', label: 'Cancelada' },
-  ausente: { bg: '#FFF7ED', border: '#FFEDD5', text: '#F97316', label: 'Ausente' },
-  reprogramada: { bg: '#EFF6FF', border: '#BFDBFE', text: '#3B82F6', label: 'Reprogramada' },
-};
+import { STATUS_STYLES } from '../constants';
 
 export interface AppointmentQuickViewProps {
   appointment: Appointment;
@@ -21,17 +12,12 @@ export interface AppointmentQuickViewProps {
 export function AppointmentQuickView({ appointment, onClose }: AppointmentQuickViewProps) {
   const navigate = useNavigate();
 
-  const handleEdit = () => {
-    navigate(`/agenda/${appointment.id_cita}/edit`);
-    onClose();
-  };
-
   const handleDetail = () => {
     navigate(`/agenda/${appointment.id_cita}`);
     onClose();
   };
 
-  const statusStyle = statusColors[appointment.estado];
+  const statusStyle = STATUS_STYLES[appointment.estado];
 
   return (
     <div

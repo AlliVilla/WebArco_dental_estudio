@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button, Select, Input, Card, Alert, SectionBlock, FieldBadge } from '../../../context';
@@ -6,7 +6,8 @@ import { FormSection, FullWidthField } from '../../../components';
 import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { PatientSearchInput } from './PatientSearchInput';
 import { appointmentService } from '../services/appointmentService';
-import { CreateAppointmentInput } from '../types';
+import type { CreateAppointmentInput, UsuarioRecord } from '../types';
+import { TIPO_CITA_OPTIONS } from '../constants';
 
 export function AppointmentFormScreen() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export function AppointmentFormScreen() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [doctors, setDoctors] = useState<{ value: string | number; label: string }[]>([]);
+  const [doctors, setDoctors] = useState<{ value: string; label: string }[]>([]);
 
   const [formData, setFormData] = useState<Partial<CreateAppointmentInput>>({
     id_persona: 0,
@@ -34,9 +35,9 @@ export function AppointmentFormScreen() {
   useEffect(() => {
     appointmentService.getUsuarios().then((res) => {
       if (res.success && res.data) {
-        const mapped = res.data.map((u: any) => ({
-          value: u.id_usuario,
-          label: `Dr(a). ${u.persona?.primer_nombre || ''} ${u.persona?.primer_apellido || ''}`.trim(),
+        const mapped = res.data.map((u: UsuarioRecord) => ({
+          value: String(u.id_usuario),
+          label: `Dr(a). ${u.persona.primer_nombre} ${u.persona.primer_apellido}`.trim(),
         }));
         setDoctors(mapped);
       }
@@ -131,11 +132,6 @@ export function AppointmentFormScreen() {
     }
   };
 
-  const tipoCitaOptions = [
-    { value: 'Consulta general', label: 'Consulta general (1 hora)' },
-    { value: 'Especialidad', label: 'Especialidad (2 horas)' },
-  ];
-
   if (loading) {
     return <div style={{ padding: 40, textAlign: 'center' }}>Cargando datos...</div>;
   }
@@ -185,7 +181,7 @@ export function AppointmentFormScreen() {
                 </div>
                 <Select
                   options={doctors}
-                  value={formData.id_usuario || ''}
+                  value={String(formData.id_usuario || '')}
                   onChange={(val) => {
                     setFormData({ ...formData, id_usuario: Number(val) });
                     if (formErrors.id_usuario) setFormErrors({ ...formErrors, id_usuario: '' });
@@ -231,10 +227,11 @@ export function AppointmentFormScreen() {
                   <FieldBadge type="required" />
                 </div>
                 <Select
-                  options={tipoCitaOptions}
+                  placeholder="Seleccione un tipo de cita"
+                  options={TIPO_CITA_OPTIONS}
                   value={formData.tipo_cita || ''}
                   onChange={(val) => {
-                    setFormData({ ...formData, tipo_cita: String(val) });
+                    setFormData({ ...formData, tipo_cita: val });
                     if (formErrors.tipo_cita) setFormErrors({ ...formErrors, tipo_cita: '' });
                   }}
                   error={formErrors.tipo_cita}

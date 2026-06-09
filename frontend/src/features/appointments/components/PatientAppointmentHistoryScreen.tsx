@@ -1,36 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, User, Search, Eye, Filter, ArrowLeft, Clock } from 'lucide-react';
-import { Button, Select, Alert, Card, SectionBlock, StatusBadge, FieldBadge } from '../../../context';
+import { Button, Select, Alert, Card, SectionBlock, StatusBadge } from '../../../context';
 import { Spinner } from '../../../components';
 import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { useNavigate, useParams } from 'react-router-dom';
 import { appointmentService } from '../services/appointmentService';
-import { Appointment, PatientHistoryResponse, EstadoCita } from '../types';
-
-const statusOptions = [
-  { value: '', label: 'Todas' },
-  { value: 'programada', label: 'Programada' },
-  { value: 'confirmada', label: 'Confirmada' },
-  { value: 'atendida', label: 'Atendida' },
-  { value: 'cancelada', label: 'Cancelada' },
-  { value: 'ausente', label: 'Ausente' },
-  { value: 'reprogramada', label: 'Reprogramada' },
-];
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-function formatLongDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-}
+import type { Appointment } from '../types';
+import { formatShortDate, formatLongDate } from '../utils';
 
 export function PatientAppointmentHistoryScreen() {
   const navigate = useNavigate();
@@ -162,7 +138,15 @@ export function PatientAppointmentHistoryScreen() {
                 <Select
                   label="Filtro por estado"
                   badge="optional"
-                  options={statusOptions}
+                  options={[
+                    { value: '', label: 'Todas' },
+                    { value: 'programada', label: 'Programada' },
+                    { value: 'confirmada', label: 'Confirmada' },
+                    { value: 'atendida', label: 'Atendida' },
+                    { value: 'cancelada', label: 'Cancelada' },
+                    { value: 'ausente', label: 'Ausente' },
+                    { value: 'reprogramada', label: 'Reprogramada' },
+                  ]}
                   value={statusFilter}
                   onChange={(v) => { setStatusFilter(v.toString()); setPage(1); }}
                 />
@@ -279,7 +263,7 @@ export function PatientAppointmentHistoryScreen() {
                     >
                       <td style={{ padding: '16px', color: '#203F49' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ fontWeight: 500 }}>{formatDate(apt.fecha_inicio.split('T')[0])}</span>
+                          <span style={{ fontWeight: 500 }}>{formatShortDate(apt.fecha_inicio.split('T')[0])}</span>
                           <span style={{ fontSize: 11, color: '#888F94' }}>
                             {formatLongDate(apt.fecha_inicio.split('T')[0])}
                           </span>

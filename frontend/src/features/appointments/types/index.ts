@@ -72,3 +72,25 @@ export interface PatientHistoryResponse {
     pages: number;
   };
 }
+
+export interface PersonaRecord {
+  id_persona: number;
+  primer_nombre: string;
+  segundo_nombre?: string;
+  primer_apellido: string;
+  segundo_apellido?: string;
+  numero_identidad: string;
+  telefono: string;
+  correo_electronico?: string;
+}
+
+export interface UsuarioRecord {
+  id_usuario: number;
+  username: string;
+  activo: boolean;
+  persona: PersonaRecord;
+  rol: {
+    id_rol: number;
+    nombre: string;
+  };
+}

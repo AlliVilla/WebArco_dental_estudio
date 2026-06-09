@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, User, CheckCircle2 } from 'lucide-react';
-import { Input, FieldBadge } from '../../../context';
+import { FieldBadge } from '../../../context';
 import { appointmentService } from '../services/appointmentService';
-
-interface Patient {
-  id_persona: number;
-  primer_nombre: string;
-  primer_apellido: string;
-  numero_identidad: string;
-}
+import type { PersonaRecord } from '../types';
 
 interface PatientSearchInputProps {
   value?: number;
@@ -17,12 +11,12 @@ interface PatientSearchInputProps {
   disabled?: boolean;
 }
 
-export const PatientSearchInput: React.FC<PatientSearchInputProps> = ({ value, onChange, error, disabled }) => {
+export function PatientSearchInput({ value, onChange, error, disabled }: PatientSearchInputProps) {
   const [query, setQuery] = useState('');
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<PersonaRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<PersonaRecord | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +63,7 @@ export const PatientSearchInput: React.FC<PatientSearchInputProps> = ({ value, o
     return () => clearTimeout(debounce);
   }, [query]);
 
-  const handleSelect = (patient: Patient) => {
+  const handleSelect = (patient: PersonaRecord) => {
     setSelectedPatient(patient);
     onChange(patient.id_persona);
     setIsOpen(false);
