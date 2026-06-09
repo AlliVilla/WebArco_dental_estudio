@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 
 type NavId =
   | 'dashboard'
-  | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consentimientos-lista'
+  | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consent'
   | 'citas' | 'recordatorios'
   | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
   | 'billing-list' | 'estado-resultado'
@@ -174,7 +174,7 @@ const navGroups: NavGroup[] = [
           { id: 'odontogram', label: 'Odontograma' },
         ],
       },
-      { id: 'consentimientos-lista', label: 'Consentimientos', icon: <IconConsentimiento /> },
+      { id: 'consent', label: 'Consentimientos', icon: <IconConsentimiento /> },
     ],
   },
   {

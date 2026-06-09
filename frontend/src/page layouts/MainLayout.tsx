@@ -15,7 +15,7 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
   'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
   odontogram: { title: 'Odontograma', breadcrumbs: ['Pacientes', 'Odontograma'] },
-  'consentimientos-lista': { title: 'Consentimientos Informados', breadcrumbs: ['Pacientes', 'Consentimientos'] },
+  consent: { title: 'Consentimientos Informados', breadcrumbs: ['Gestión Clínica', 'Consentimientos'] },
   citas: { title: 'Control de Citas', breadcrumbs: ['Agenda', 'Citas'] },
   recordatorios: { title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios'] },
   billing: { title: 'Gestión Financiera', breadcrumbs: ['Gestión', 'Facturación'] },
@@ -46,7 +46,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/patients/list') return 'patients-list';
     if (pathname === '/patients/odontogram') return 'odontogram';
     if (pathname === '/patients/records') return 'patient-expediente';
-    if (pathname === '/patients/consent') return 'consentimientos-lista';
+    if (pathname === '/patients/consent') return 'patient-expediente';
+    if (pathname.startsWith('/consent')) return 'consent';
     if (pathname === '/treatments') return 'treatments';
     if (pathname === '/billing/income') return 'billing-income';
     if (pathname === '/billing/expense') return 'billing-expense';
@@ -67,12 +68,12 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     const routeMap: Record<string, string> = {
       dashboard: '/dashboard',
       citas: '/agenda',
-      recordatorios: '/agenda', // Mapped to agenda placeholder
+      recordatorios: '/agenda',
       patients: '/patients/list',
       'patients-list': '/patients/list',
       odontogram: '/patients/odontogram',
       'patient-expediente': '/patients/records',
-      'consentimientos-lista': '/patients/consent',
+      consent: '/consent/list',
       treatments: '/treatments',
       billing: '/billing/income',
       'billing-income': '/billing/income',

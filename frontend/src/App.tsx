@@ -6,6 +6,7 @@ import { PatientsScreen } from './features/patients/components/PatientsScreen';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
+import { ConsentimientosScreen, CrearConsentimientoScreen } from './features/consent';
 import { Card, Alert, DesignSystemScreen } from './context';
 import { LoginForm } from './features/auth/components/LoginForm';
 import { AuthGuard, GuestGuard } from './routes/index';
@@ -53,6 +54,11 @@ function App() {
         <Route path="/patients/odontogram" element={<OdontogramScreen consultaId={18} />} />
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
+        
+        {/* Consentimientos routes */}
+        <Route path="/consent" element={<Navigate to="/consent/list" replace />} />
+        <Route path="/consent/list" element={<ConsentimientosScreen />} />
+        <Route path="/consent/nuevo" element={<CrearConsentimientoScreen />} />
         <Route path="/treatments" element={
           <div style={{ padding: 20 }}>
             <Card>
@@ -109,7 +115,7 @@ function App() {
           </div>
         } />
         <Route path="/users" element={<UsersScreen />} />
-        <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
+        <Route path="/consent" element={<Navigate to="/consent/list" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>
 
