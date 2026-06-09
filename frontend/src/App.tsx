@@ -10,6 +10,7 @@ import { AppointmentsScreen } from './features/appointments/components/Appointme
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { ConsentScreen } from './features/patients/components/ConsentScreen';
+import { UsersScreen } from './features/users';
 import { Card, Alert, DesignSystemScreen } from './context';
 
 function App() {
@@ -80,6 +81,7 @@ function App() {
             </Card>
           </div>
         } />
+        <Route path="/users" element={<UsersScreen />} />
         <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>
