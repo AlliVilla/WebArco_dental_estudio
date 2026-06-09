@@ -33,6 +33,7 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { UpdateRoleDto } from './dto/update-rol.dto';
+import { AssignPrivilegesRolDto } from './dto/assign-privileges-rol.dto';
 
 @ApiTags('Roles')
 @Controller('rol')
@@ -111,4 +112,21 @@ export class RolController {
       return this.rolService.deleteRole(id);
     }
 
+    @Privileges(36)
+    @Post(':id/privilegios')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+      summary: 'Asignar privilegios a un rol',
+      description:
+        'Reemplaza todos los privilegios del rol por los especificados (borra los anteriores y asigna los nuevos).',
+    })
+    @ApiOkResponse({ description: 'Privilegios reasignados correctamente' })
+    @ApiNotFoundResponse({ description: 'Rol no encontrado' })
+    @ApiConflictResponse({ description: 'Uno o más privilegios no existen' })
+    async assignPrivileges(
+      @Param('id', ParseIntPipe) id: number,
+      @Body() body: AssignPrivilegesRolDto,
+    ) {
+      return this.rolService.replacePrivileges(id, body);
+    }
 }

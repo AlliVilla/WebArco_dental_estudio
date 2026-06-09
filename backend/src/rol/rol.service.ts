@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { CreateRoleDto } from './dto/create-rol.dto';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UpdateRoleDto } from './dto/update-rol.dto';
+import { AssignPrivilegesRolDto } from './dto/assign-privileges-rol.dto';
 
 @Injectable()
 export class RolService {
@@ -37,7 +38,11 @@ export class RolService {
                     id_rol: 'desc',
                 },
                 include: {
-                    privilegios: true,
+                    privilegios: {
+                        include: {
+                            privilegio: true
+                        }
+                    },
                     _count: {
                         select: {
                             usuarios : true
@@ -144,5 +149,42 @@ export class RolService {
     });
 
     return updatedRole;
+  }
+
+  async replacePrivileges(id: number, dto: AssignPrivilegesRolDto) {
+    const role = await this.prismaService.rol.findUnique({
+      where: { id_rol: id },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Rol no encontrado');
+    }
+
+    const privilegios = await this.prismaService.privilegio.findMany({
+      where: {
+        id_privilegio: { in: dto.id_privilegios },
+      },
+    });
+
+    if (privilegios.length !== dto.id_privilegios.length) {
+      throw new ConflictException('Uno o más privilegios no existen');
+    }
+
+    const [, count] = await this.prismaService.$transaction([
+      this.prismaService.rolPrivilegio.deleteMany({
+        where: { id_rol: id },
+      }),
+      this.prismaService.rolPrivilegio.createMany({
+        data: dto.id_privilegios.map((id_privilegio) => ({
+          id_rol: id,
+          id_privilegio,
+        })),
+      }),
+    ]);
+
+    return {
+      message: 'Privilegios reasignados correctamente',
+      count: count.count,
+    };
   }
 }

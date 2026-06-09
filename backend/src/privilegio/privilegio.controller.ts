@@ -1,5 +1,5 @@
 import { Controller, UseGuards, Get, Post, HttpCode, HttpStatus, Body } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiUnauthorizedResponse, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiUnauthorizedResponse, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiConflictResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { PrivilegioService } from './privilegio.service';
@@ -21,6 +21,7 @@ export class PrivilegioController {
         summary: 'Listar Privilegios',
         description: 'Retorna la lista de privilegios del sistema'
     })
+    @ApiOkResponse({ description: 'Lista de privilegios obtenida exitosamente' })
     async findAll() {
         return this.privilegioService.findAll();
     }
@@ -32,6 +33,8 @@ export class PrivilegioController {
         summary: 'Insertar privilegio a un rol',
         description: 'Inserción de un privilegio a un rol en la tabla de rol_privilegio'
     })
+    @ApiCreatedResponse({ description: 'Privilegios asignados correctamente' })
+    @ApiConflictResponse({ description: 'Uno o más privilegios no existen' })
     @HttpCode(HttpStatus.CREATED)
     async insertRolePRivilege(@Body() body: InsertRolePrivilegeDto) {
         return this.privilegioService.insertRolePrivilege(body);
