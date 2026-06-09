@@ -1,10 +1,139 @@
-import { useState } from 'react';
-import { User, Key, LogOut, Shield, ChevronRight } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { User, Key, LogOut, Shield, ChevronRight, Lock, Check, X, AlertCircle } from 'lucide-react';
 
 import { FormSection, FullWidthField, ConfirmModal } from '../../../components';
-import { Button, Input, Card, useTheme } from '../../../context';
+import { Button, Input, Card, useTheme, PasswordInput } from '../../../context';
 import { useAuthStore } from '../../auth/hooks/useAuthStore';
 import profileTooth from '../../../assets/profile-tooth.png';
+
+type Mode = 'view' | 'edit' | 'changePassword';
+
+interface PasswordRules {
+  minLength: boolean;
+  hasLower: boolean;
+  hasUpper: boolean;
+  hasNumber: boolean;
+  hasSymbol: boolean;
+}
+
+function checkRules(pwd: string): PasswordRules {
+  return {
+    minLength: pwd.length >= 8,
+    hasLower: /[a-z]/.test(pwd),
+    hasUpper: /[A-Z]/.test(pwd),
+    hasNumber: /[0-9]/.test(pwd),
+    hasSymbol: /[^A-Za-z0-9]/.test(pwd),
+  };
+}
+
+function allPass(r: PasswordRules): boolean {
+  return Object.values(r).every(Boolean);
+}
+
+const RULES_ITEMS: [keyof PasswordRules, string][] = [
+  ['minLength', 'Mínimo 8 caracteres'],
+  ['hasLower', 'Al menos una minúscula'],
+  ['hasUpper', 'Al menos una mayúscula'],
+  ['hasNumber', 'Al menos un número'],
+  ['hasSymbol', 'Al menos un símbolo'],
+];
+
+interface ToastMsg {
+  id: string;
+  type: 'success' | 'error';
+  message: string;
+}
+
+let toastId = 0;
+
+function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const rules = checkRules(newPwd);
+  const passwordsMatch = confirmPwd.length > 0 && newPwd === confirmPwd;
+  const canSubmit = currentPwd.length > 0 && allPass(rules) && passwordsMatch;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 1200));
+    setLoading(false);
+    onSuccess();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PasswordInput
+        label="Contraseña actual"
+        badge="required"
+        placeholder="Ingresa tu contraseña actual"
+        value={currentPwd}
+        onChange={(e) => setCurrentPwd(e.target.value)}
+      />
+
+      <div>
+        <PasswordInput
+          label="Nueva contraseña"
+          badge="required"
+          placeholder="Mínimo 8 caracteres"
+          value={newPwd}
+          onChange={(e) => setNewPwd(e.target.value)}
+        />
+        <ul style={{
+          listStyle: 'none', margin: '10px 0 0', padding: 0,
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          {RULES_ITEMS.map(([key, label]) => (
+            <li key={key} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              fontSize: 13, color: rules[key] ? '#1D9E75' : '#E24B4A',
+            }}>
+              {rules[key] ? <Check size={14} /> : <X size={14} />}
+              {label}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <PasswordInput
+          label="Confirmar nueva contraseña"
+          badge="required"
+          placeholder="Repite la nueva contraseña"
+          value={confirmPwd}
+          onChange={(e) => setConfirmPwd(e.target.value)}
+        />
+        {confirmPwd.length > 0 && (
+          <p style={{
+            fontSize: 13, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6,
+            color: newPwd === confirmPwd ? '#1D9E75' : '#E24B4A',
+          }}>
+            {newPwd === confirmPwd ? <Check size={14} /> : <X size={14} />}
+            {newPwd === confirmPwd ? 'Las contraseñas coinciden' : 'No coinciden'}
+          </p>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
+        <Button variant="secondary" onClick={onSuccess} style={{ minWidth: 109 }}>
+          Cancelar
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          loading={loading}
+          style={{ minWidth: 170 }}
+        >
+          {loading ? 'Actualizando...' : 'Actualizar contraseña'}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function MiPerfil() {
   useTheme();
@@ -12,22 +141,75 @@ export function MiPerfil() {
   const user = useAuthStore((s) => s.user);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [mode, setMode] = useState<Mode>('view');
   const [username, setUsername] = useState(user?.username ?? '');
   const [email, setEmail] = useState(user?.persona?.correo ?? '');
   const [fullName, setFullName] = useState(
     user ? `${user.persona?.nombre ?? ''} ${user.persona?.apellido ?? ''}`.trim() : ''
   );
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+
+  const addToast = useCallback((type: ToastMsg['type'], message: string) => {
+    const id = String(++toastId);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const handleSave = () => {
     const updated = { ...user, username, persona: { ...user?.persona, correo: email, nombre: fullName } };
     localStorage.setItem('webarco_user', JSON.stringify(updated));
     useAuthStore.setState({ user: updated });
+    addToast('success', 'Perfil actualizado correctamente.');
+    setMode('view');
   };
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
     await useAuthStore.getState().logout();
   };
+
+  const handlePwdChangeSuccess = () => {
+    setMode('view');
+    addToast('success', 'Contraseña actualizada correctamente.');
+  };
+
+  const isEditing = mode === 'edit';
+  const isChangingPwd = mode === 'changePassword';
+
+  const formIcon = isChangingPwd ? (
+    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#E6F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Lock size={16} color="#0BC5DF" />
+    </div>
+  ) : (
+    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#E6F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <User size={16} color="#0BC5DF" />
+    </div>
+  );
+
+  const formTitle = isChangingPwd ? 'Cambiar contraseña' : 'Editar Perfil';
+
+  const formContent = isChangingPwd ? (
+    <ChangePasswordForm onSuccess={handlePwdChangeSuccess} />
+  ) : (
+    <>
+      <Input label="Username" badge="required" value={username} onChange={(e) => setUsername(e.target.value)} disabled={!isEditing} />
+      <Input label="Correo electrónico" badge="required" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!isEditing} />
+      <FullWidthField>
+        <Input label="Nombre completo" badge="required" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={!isEditing} />
+      </FullWidthField>
+      <FullWidthField style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, minHeight: 40 }}>
+        {isEditing ? (
+          <Button variant="primary" onClick={handleSave} style={{ width: 153 }}>Guardar cambios</Button>
+        ) : (
+          <div style={{ width: 153 }} />
+        )}
+      </FullWidthField>
+    </>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: 24, maxWidth: 1150, margin: '0 auto', width: '100%' }}>
@@ -120,22 +302,11 @@ export function MiPerfil() {
           overflow: 'hidden'
         }}>
           <FormSection
-            icon={
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: '#E6F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <User size={16} color="#0BC5DF" />
-              </div>
-            }
-            title="Editar Perfil"
-            columns={2}
+            icon={formIcon}
+            title={formTitle}
+            columns={isChangingPwd ? 1 : 2}
           >
-            <Input label="Username" badge="required" value={username} onChange={(e) => setUsername(e.target.value)} />
-            <Input label="Correo electrónico" badge="required" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <FullWidthField>
-              <Input label="Nombre completo" badge="required" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            </FullWidthField>
-            <FullWidthField style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-              <Button variant="primary" onClick={handleSave} style={{ width: 153 }}>Guardar cambios</Button>
-            </FullWidthField>
+            {formContent}
           </FormSection>
         </div>
 
@@ -147,7 +318,6 @@ export function MiPerfil() {
           flexDirection: 'column',
           gap: 16
         }}>
-          {/* Account Actions Card */}
           <Card style={{
             padding: '26px 16px',
             display: 'flex',
@@ -166,7 +336,9 @@ export function MiPerfil() {
               Acciones de cuenta
             </h3>
 
-            <button style={{
+            <button
+              onClick={() => setMode(isEditing ? 'view' : 'edit')}
+              style={{
               display: 'flex',
               alignItems: 'center',
               gap: 12,
@@ -176,7 +348,7 @@ export function MiPerfil() {
               padding: '0 16px',
               height: 66,
               cursor: 'pointer',
-              background: '#E6F8FB',
+              background: isEditing ? '#0BC5DF' : '#E6F8FB',
               fontFamily: 'inherit',
               fontSize: 14,
               textAlign: 'left'
@@ -185,20 +357,22 @@ export function MiPerfil() {
                 width: 36,
                 height: 36,
                 borderRadius: 8,
-                background: '#0BC5DF',
+                background: isEditing ? '#fff' : '#0BC5DF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: isEditing ? '#0BC5DF' : '#fff',
                 flexShrink: 0
               }}>
                 <User size={16} />
               </div>
-              <span style={{ flex: 1, color: '#203F49' }}>Editar Perfil</span>
-              <ChevronRight size={16} color="#888F94" />
+              <span style={{ flex: 1, color: isEditing ? '#fff' : '#203F49' }}>{isEditing ? 'Cancelar' : 'Editar Perfil'}</span>
+              <ChevronRight size={16} color={isEditing ? '#fff' : '#888F94'} />
             </button>
 
-            <button style={{
+            <button
+              onClick={() => setMode(isChangingPwd ? 'view' : 'changePassword')}
+              style={{
               display: 'flex',
               alignItems: 'center',
               gap: 12,
@@ -208,7 +382,7 @@ export function MiPerfil() {
               padding: '0 16px',
               height: 66,
               cursor: 'pointer',
-              background: '#fff',
+              background: isChangingPwd ? '#0BC5DF' : '#fff',
               fontFamily: 'inherit',
               fontSize: 14,
               textAlign: 'left'
@@ -217,17 +391,17 @@ export function MiPerfil() {
                 width: 36,
                 height: 36,
                 borderRadius: 8,
-                background: '#E6F8FB',
+                background: isChangingPwd ? '#fff' : '#E6F8FB',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#203F49',
+                color: isChangingPwd ? '#0BC5DF' : '#203F49',
                 flexShrink: 0
               }}>
                 <Key size={16} />
               </div>
-              <span style={{ flex: 1, color: '#203F49' }}>Cambiar Contraseña</span>
-              <ChevronRight size={16} color="#888F94" />
+              <span style={{ flex: 1, color: isChangingPwd ? '#fff' : '#203F49' }}>{isChangingPwd ? 'Cancelar' : 'Cambiar Contraseña'}</span>
+              <ChevronRight size={16} color={isChangingPwd ? '#fff' : '#888F94'} />
             </button>
 
             <button
@@ -266,7 +440,6 @@ export function MiPerfil() {
             </button>
           </Card>
 
-          {/* Security Card */}
           <Card style={{
             padding: '20px 16px',
             display: 'flex',
@@ -309,6 +482,32 @@ export function MiPerfil() {
         description="¿Estás seguro de que deseas cerrar sesión? Tendrás que volver a ingresar tus credenciales para acceder."
         confirmLabel="Cerrar Sesión"
       />
+
+      {toasts.length > 0 && (
+        <div style={{ position: 'fixed', top: 80, right: 24, zIndex: 99999, display: 'flex', flexDirection: 'column', gap: 10, pointerEvents: 'none' }}>
+          {toasts.map((t) => {
+            const colors = {
+              success: { bg: '#1D9E75', icon: <Check size={16} /> },
+              error: { bg: '#E24B4A', icon: <AlertCircle size={16} /> },
+            }[t.type];
+            return (
+              <div key={t.id} style={{
+                pointerEvents: 'all', display: 'flex', alignItems: 'center', gap: 10,
+                background: '#fff', border: `1.5px solid ${colors.bg}`, borderRadius: 10,
+                padding: '12px 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                minWidth: 280, maxWidth: 380,
+              }}>
+                <span style={{ color: colors.bg }}>{colors.icon}</span>
+                <span style={{ flex: 1, fontSize: 13, color: '#203F49' }}>{t.message}</span>
+                <button
+                  onClick={() => removeToast(t.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#888F94', fontSize: 16, lineHeight: 1 }}
+                >×</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
     </div>
   );
