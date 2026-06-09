@@ -18,6 +18,7 @@ import { ReminderModule } from './reminder/reminder.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConsentimientoModule } from './consentimiento/consentimiento.module';
 import { InsumoModule } from './insumo/insumo.module';
+import { InventarioModule } from './inventario/inventario.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { InsumoModule } from './insumo/insumo.module';
     ExpedienteClinicoModule,
     ReminderModule,
     InsumoModule,
+    InventarioModule,
   ],
   controllers: [AppController],
   providers: [AppService],
