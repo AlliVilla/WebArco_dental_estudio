@@ -13,6 +13,8 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   dashboard: { title: 'Dashboard', breadcrumbs: ['Inicio', 'Dashboard'] },
   'mi-perfil': { title: 'Mi Perfil', breadcrumbs: ['Inicio', 'Perfil'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
+  'patient-new': { title: 'Nuevo Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Nuevo paciente'] },
+  'patient-edit': { title: 'Editar Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Editar paciente'] },
   'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
   odontogram: { title: 'Odontograma', breadcrumbs: ['Pacientes', 'Odontograma'] },
   'consentimientos-lista': { title: 'Consentimientos Informados', breadcrumbs: ['Pacientes', 'Consentimientos'] },
@@ -44,6 +46,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/agenda' || pathname === '/appointments') return 'citas';
     if (pathname === '/recordatorios') return 'recordatorios';
     if (pathname === '/patients/list') return 'patients-list';
+    if (pathname === '/patients/new') return 'patient-new';
+    if (pathname.startsWith('/patients/edit/')) return 'patient-edit';
     if (pathname === '/patients/odontogram') return 'odontogram';
     if (pathname === '/patients/records') return 'patient-expediente';
     if (pathname === '/patients/consent') return 'consentimientos-lista';
