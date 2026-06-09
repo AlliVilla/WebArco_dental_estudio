@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetInsumosDto } from './dto/get-insumo.dto';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
@@ -12,46 +13,46 @@ export class InsumoService {
     const { search, id_categoria, stock_status, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
-    let whereSql = '1=1';
+    const searchFilter = search
+      ? Prisma.sql`AND (i.nombre ILIKE ${'%' + search + '%'} OR i.codigo ILIKE ${'%' + search + '%'})`
+      : Prisma.empty;
 
-    if (search) {
-      const searchStr = `%${search}%`;
-      whereSql += ` AND (i.nombre ILIKE '${searchStr}' OR i.codigo ILIKE '${searchStr}')`;
-    }
+    const categoriaFilter = id_categoria
+      ? Prisma.sql`AND i.id_categoria = ${id_categoria}`
+      : Prisma.empty;
 
-    if (id_categoria) {
-      whereSql += ` AND i.id_categoria = ${id_categoria}`;
-    }
-
-    if (stock_status === 'agotado') {
-      whereSql += ` AND i.stock_actual = 0`;
-    } else if (stock_status === 'bajo') {
-      whereSql += ` AND i.stock_actual > 0 AND i.stock_actual <= i.stock_minimo`;
-    } else if (stock_status === 'normal') {
-      whereSql += ` AND i.stock_actual > i.stock_minimo`;
-    }
-
-    const rawQuery = `
-      SELECT 
-        i.id_insumo, i.codigo, i.nombre, i.stock_actual, i.stock_minimo, i.precio_costo,
-        c.nombre as categoria_nombre, u.nombre as unidad_nombre
-      FROM insumo i
-      INNER JOIN categoria_insumo c ON i.id_categoria = c.id_categoria
-      INNER JOIN unidad_medida u ON i.id_unidad = u.id_unidad
-      WHERE ${whereSql}
-      ORDER BY i.nombre ASC
-      LIMIT ${limit} OFFSET ${skip}
-    `;
-
-    const countQuery = `
-      SELECT COUNT(*)::int as total
-      FROM insumo i
-      WHERE ${whereSql}
-    `;
+    const stockFilter =
+      stock_status === 'agotado'
+        ? Prisma.sql`AND i.stock_actual = 0`
+        : stock_status === 'bajo'
+          ? Prisma.sql`AND i.stock_actual > 0 AND i.stock_actual <= i.stock_minimo`
+          : stock_status === 'normal'
+            ? Prisma.sql`AND i.stock_actual > i.stock_minimo`
+            : Prisma.empty;
 
     const [items, totalResult] = await Promise.all([
-      this.prisma.$queryRawUnsafe<any[]>(rawQuery),
-      this.prisma.$queryRawUnsafe<any[]>(countQuery),
+      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        SELECT
+          i.id_insumo, i.codigo, i.nombre, i.stock_actual, i.stock_minimo, i.precio_costo,
+          c.nombre as categoria_nombre, u.nombre as unidad_nombre
+        FROM insumo i
+        INNER JOIN categoria_insumo c ON i.id_categoria = c.id_categoria
+        INNER JOIN unidad_medida u ON i.id_unidad = u.id_unidad
+        WHERE 1=1
+        ${searchFilter}
+        ${categoriaFilter}
+        ${stockFilter}
+        ORDER BY i.nombre ASC
+        LIMIT ${limit} OFFSET ${skip}
+      `),
+      this.prisma.$queryRaw<any[]>(Prisma.sql`
+        SELECT COUNT(*)::int as total
+        FROM insumo i
+        WHERE 1=1
+        ${searchFilter}
+        ${categoriaFilter}
+        ${stockFilter}
+      `),
     ]);
 
     const total = totalResult[0].total;

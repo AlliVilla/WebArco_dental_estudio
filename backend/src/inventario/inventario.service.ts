@@ -53,7 +53,7 @@ export class InventarioService {
       return { movimiento, insumo: insumoActualizado };
     });
 
-    return { message: 'Movimiento registrado exitosamente', data: resultado };
+    return { message: 'Movimiento registrado exitosamente', ...resultado };
   }
 
   async findAll(query: GetMovimientosDto) {
