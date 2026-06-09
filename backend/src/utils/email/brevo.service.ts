@@ -41,6 +41,11 @@ export class BrevoService {
       textContent: text || html.replace(/<[^>]+>/g, ''),
     };
 
+    if (!apiKey) {
+      this.logger.error('BREVO_API_KEY no está configurada en las variables de entorno.');
+      return;
+    }
+
     try {
       const response = await axios.post('https://api.brevo.com/v3/smtp/email', data, {
         headers: {
@@ -54,7 +59,6 @@ export class BrevoService {
       this.logger.error(
         `Error de Brevo API: ${JSON.stringify(error.response?.data || error.message)}`,
       );
-      throw error;
     }
   }
 }

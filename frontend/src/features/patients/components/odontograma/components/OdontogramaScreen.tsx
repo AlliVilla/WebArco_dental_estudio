@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
-import { MOCK_EXPEDIENTES } from '../../expediente';
+import { MOCK_EXPEDIENTES } from '../../expediente/components/ExpedienteScreen';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -212,7 +212,7 @@ function ToothCrown({ shape, w, h, state, isSelected }: CrownProps) {
 
   // ---- crown silhouette by tooth type ----
   let crown: React.ReactNode;
-  let detail: React.ReactNode = null;
+  let detail: React.ReactNode;
 
   if (shape === 'central_incisor' || shape === 'lateral_incisor') {
     // Slightly trapezoidal — wider at buccal edge (top)
@@ -571,6 +571,7 @@ export function OdontogramScreen({
     if (!isEmbedded) {
       const patient = MOCK_EXPEDIENTES.find(p => p.id === selectedPatientId);
       if (patient) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDentition(patient.edad < 12 ? 'child' : 'adult');
       }
     }
@@ -583,7 +584,12 @@ export function OdontogramScreen({
     history: HistoryEntry[];
     modifiedTeethList: number[];
   }>>(() => {
-    const map: Record<number, any> = {};
+    const map: Record<number, {
+      adultTeeth: Record<number, ToothData>;
+      primaryTeeth: Record<number, ToothData>;
+      history: HistoryEntry[];
+      modifiedTeethList: number[];
+    }> = {};
     MOCK_EXPEDIENTES.forEach(p => {
       if (p.id === 1) {
         map[p.id] = {

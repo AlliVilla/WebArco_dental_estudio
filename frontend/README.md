@@ -79,10 +79,11 @@ npm run build
 
 ## Reglas importantes para nuevas pantallas
 
-- Usar `src/features/<modulo>/components/NuevaPantalla.tsx` para nuevas vistas.
+- Usar `src/features/<modulo>/components/NuevaPantalla.tsx` para nuevas vistas. Para **sub-módulos complejos**, agrúpalos en subcarpetas estructuradas dentro de `components/` de un feature con la estructura: `<sub-modulo-complejo>/components/` (vistas), `services/` (servicios), `types/` (tipos), e `index.ts` (barrel export).
 - Mantener la navegación real con rutas (`react-router-dom`).
 - Reutilizar los componentes del UIKit en `src/context/UIKit.tsx`.
-- Evitar colores arbitrarios; usar la paleta definida en la guía.
+- Evitar colores arbitrarios o hexadecimales fijos en inline styles; priorizar **variables CSS del tema** (`var(--background)`, `var(--foreground)`, `var(--card)`, `var(--border)`, etc.) para garantizar la compatibilidad con el modo oscuro (Dark Mode). Llama a `useTheme()` en los componentes principales si es necesario.
+- Los tipos/modelos de datos genéricos pasados a `DataTable<T>` deben definirse utilizando alias de tipo (`type`) en lugar de interfaces (`interface`) para satisfacer la restricción `Record<string, unknown>` de TypeScript.
 - Preferir `DataTable`, `ConfirmModal`, `FormSection` y `Button` cuando corresponda.
 
 ## Archivos clave para tocar

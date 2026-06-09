@@ -1,13 +1,13 @@
 import { Plus, Eye, FileText } from "lucide-react";
 import { DataTable } from "../../../components";
 
-interface Patient {
+type Patient = {
   id: string;
   codigo: string;
   nombre: string;
   telefono: string;
   ultimaVisita: string;
-}
+};
 
 const mockPatients: Patient[] = [
   {
@@ -120,7 +120,7 @@ export function PatientsScreen({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <DataTable<any>
+      <DataTable<Patient>
         title="Listado de Pacientes"
         description="Gestiona y busca la información de los pacientes de la clínica"
         columns={columns}

@@ -16,6 +16,14 @@ Debes generar código React + TypeScript siguiendo ESTRICTAMENTE las siguientes 
 - Usa function declarations: export function NombrePantalla() { ... }
 - Exporta la interfaz de props junto al componente (PascalCase: NombrePantallaProps)
 - Cada feature tiene su barrel export en index.ts
+- **Sub-módulos complejos:** Se agrupan en subcarpetas dentro de `components/` de un feature. Deben tener la siguiente estructura limpia y anidada (ej: `odontograma` o `expediente`):
+  ```text
+  src/features/<modulo>/components/<sub-modulo-complejo>/
+  ├── components/           # Vistas/componentes internos (ej. OdontogramaScreen.tsx)
+  ├── services/             # Servicios específicos del sub-módulo (opcional)
+  ├── types/                # Tipos específicos del sub-módulo (opcional)
+  └── index.ts              # Barrel export (export * from './components/...')
+  ```
 
 ─────────────────────────────────────────
  ORDEN DE IMPORTS (respetar siempre)
@@ -48,6 +56,8 @@ Debes generar código React + TypeScript siguiendo ESTRICTAMENTE las siguientes 
  REGLAS DE ESTILO
 ─────────────────────────────────────────
 - Inline styles son la norma en componentes (no crear CSS por componente)
+- **Tema y Dark Mode:** Utilizar siempre variables CSS del tema (`var(--background)`, `var(--foreground)`, `var(--card)`, `var(--border)`, `var(--arco-primary)`) en lugar de colores hexadecimales fijos, para garantizar la compatibilidad automática con el modo oscuro.
+- Llamar a `useTheme()` al inicio de los componentes principales para reaccionar a los cambios de tema.
 - Border-radius: 8px inputs | 10px botones/dropdowns | 12px cards | 14px form sections | 16px DataTable
 - Font sizes: 11px labels uppercase | 13px body/celdas | 14px inputs/subtítulos | 16px títulos sección | 18px títulos de página
 - Font weights: 400 normal | 500 medium | 600 semibold
@@ -57,12 +67,13 @@ Debes generar código React + TypeScript siguiendo ESTRICTAMENTE las siguientes 
 ─────────────────────────────────────────
  COMPONENTES — Reglas de uso
 ─────────────────────────────────────────
-SIEMPRE usar DataTable cuando la pantalla muestra una lista/tabla
-SIEMPRE usar ConfirmModal para acciones destructivas (eliminar, cancelar)
-SIEMPRE usar FormSection + FullWidthField para formularios
-Button de UIKit (src/context) en formularios e interfaces → variantes: primary | secondary | ghost | danger | tamaños: sm | md | lg
-Iconos de lucide-react únicamente → size={16} en botones, size={18} en secciones, size={20} en headers
-Estado UI con useState | Datos derivados con useMemo | Persistencia con useLocalStorage
+- SIEMPRE usar DataTable cuando la pantalla muestra una lista/tabla.
+- **Tipado de DataTable:** Los tipos/modelos de datos genéricos pasados a `DataTable<T>` deben definirse utilizando alias de tipo (`type`) en lugar de interfaces (`interface`), para satisfacer la restricción `Record<string, unknown>` (ya que las interfaces de TypeScript carecen de una firma de índice de cadena implícita).
+- SIEMPRE usar ConfirmModal para acciones destructivas (eliminar, cancelar)
+- SIEMPRE usar FormSection + FullWidthField para formularios
+- Button de UIKit (src/context) en formularios e interfaces → variantes: primary | secondary | ghost | danger | tamaños: sm | md | lg
+- Iconos de lucide-react únicamente → size={16} en botones, size={18} en secciones, size={20} en headers
+- Estado UI con useState | Datos derivados con useMemo | Persistencia con useLocalStorage
 
 ─────────────────────────────────────────
  NAVEGACIÓN
@@ -273,15 +284,20 @@ Definidos en `src/styles/theme.css`. Usa **siempre** estos valores en componente
 | `--arco-gray-700`    | `#5F656A` | Texto terciario                     |
 | `--arco-gray-900`    | `#203F49` | Texto principal (= --arco-navy)     |
 
-### Hardcoded Values (Estilos Inline)
+### Hardcoded Values y Variables CSS (Estilos Inline)
 
-Cuando uses inline styles en componentes, usa **directamente los valores hex** de arriba. **NO inventes colores nuevos**.
+Cuando uses inline styles en componentes, prefiere **siempre las variables CSS del tema** (ej. `var(--background)`, `var(--foreground)`, `var(--card)`, `var(--border)`, `var(--arco-primary)`) en lugar de colores hexadecimales fijos. Esto garantiza la compatibilidad automática con el modo oscuro (Dark Mode).
+
+Si requieres colores fijos de marca para elementos que no cambian con el tema, usa **exclusivamente los valores hex** de la paleta anterior. **NO inventes colores nuevos**.
 
 ```tsx
-// ✅ Correcto — usando colores de la paleta
+// ✅ Correcto (Compatible con Dark Mode)
+style={{ color: 'var(--foreground)', background: 'var(--background)', border: '1px solid var(--border)' }}
+
+// ✅ Correcto (Usando colores fijos de la paleta autorizada)
 style={{ color: '#203F49', background: '#F8F9FA', border: '1px solid #D3D7DA' }}
 
-// ❌ Incorrecto — color inventado
+// ❌ Incorrecto (Color inventado)
 style={{ color: '#333', background: '#eee' }}
 ```
 
@@ -601,6 +617,7 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 ## 12. Reglas de Estilo CSS
 
 * **Inline styles** son la norma para componentes del UIKit y componentes reutilizables (están en JSX inline).
+* **Tema y Dark Mode**: Utiliza siempre variables CSS del tema (`var(--background)`, `var(--foreground)`, `var(--card)`, `var(--border)`, `var(--arco-primary)`) en lugar de colores hexadecimales fijos en los inline styles. Esto garantiza la compatibilidad automática con el modo oscuro. Llama a `useTheme()` al inicio de los componentes principales para reaccionar a los cambios de tema.
 * **CSS files** (`theme.css`, `globals.css`) solo para tokens globales y reset.
 * **NO crear clases CSS por componente** a menos que el componente sea verdaderamente global.
 * **Border-radius estándar**: `8px` para inputs, `10px` para botones y dropdowns, `12px` para cards, `14px` para form sections, `16px` para DataTable.
@@ -616,6 +633,15 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 * Usa **function declarations** (`export function MyComponent()`) en lugar de `const MyComponent = () =>` para componentes.
 * Exporta tipos e interfaces junto al componente. No crear archivos `.d.ts` para tipos de props.
 * Usa **genéricos** (`<T>`) cuando el componente maneja datos dinámicos (ver `DataTable<T>`).
+* **Tipado de DataTable**: Los tipos/modelos de datos genéricos pasados a `DataTable<T>` deben definirse utilizando alias de tipo (`type`) en lugar de interfaces (`interface`) para satisfacer la restricción `Record<string, unknown>` (las interfaces carecen de firma de índice implícita en TypeScript).
+* **Sub-módulos complejos**: Se agrupan en subcarpetas dentro de `components/` de un feature. Deben tener la siguiente estructura limpia y anidada (ej: `odontograma` o `expediente`):
+  ```text
+  src/features/<modulo>/components/<sub-modulo-complejo>/
+  ├── components/           # Vistas/componentes internos (ej. OdontogramaScreen.tsx)
+  ├── services/             # Servicios específicos del sub-módulo (opcional)
+  ├── types/                # Tipos específicos del sub-módulo (opcional)
+  └── index.ts              # Barrel export (export * from './components/...')
+  ```
 * Cada feature debe tener su barrel export `index.ts`.
 
 ### Imports
