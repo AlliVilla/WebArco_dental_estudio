@@ -67,20 +67,21 @@ Cada endpoint de la API está protegido por privilegios. Los privilegios se defi
 | 29 | CITAS_DETALLE | Citas |
 | 30 | RECORDATORIOS_VER | Recordatorios |
 | 31 | RECORDATORIOS_HISTORIAL | Recordatorios |
-| 45 | RECORDATORIOS_RESPONDER | Recordatorios |
-| 32 | FOOTER_VER | Footer |
-| 33 | ROL_VER | Roles |
-| 34 | ROL_CREAR | Roles |
-| 35 | ROL_EDITAR | Roles |
-| 36 | PRIVILEGIO_VER | Privilegios |
-| 37 | ANTECEDENTES_VER | Antecedentes |
-| 38 | ANTECEDENTES_CREAR | Antecedentes |
-| 39 | ANTECEDENTES_EDITAR | Antecedentes |
-| 40 | CONSULTAS_VER | Consultas |
-| 41 | CONSULTAS_CREAR | Consultas |
-| 42 | CONSULTAS_EDITAR | Consultas |
-| 43 | CONSULTAS_ELIMINAR | Consultas |
-| 44 | CITAS_ELIMINAR | Citas |
+| 32 | RECORDATORIOS_RESPONDER | Recordatorios |
+| 33 | FOOTER_VER | Footer |
+| 34 | ROL_VER | Roles |
+| 35 | ROL_CREAR | Roles |
+| 36 | ROL_EDITAR | Roles |
+| 37 | PRIVILEGIO_VER | Privilegios |
+| 38 | PRIVILEGIO_CREAR | Privilegios |
+| 39 | ANTECEDENTES_VER | Antecedentes |
+| 40 | ANTECEDENTES_CREAR | Antecedentes |
+| 41 | ANTECEDENTES_EDITAR | Antecedentes |
+| 42 | CONSULTAS_VER | Consultas |
+| 43 | CONSULTAS_CREAR | Consultas |
+| 44 | CONSULTAS_EDITAR | Consultas |
+| 45 | CONSULTAS_ELIMINAR | Consultas |
+| 46 | CITAS_ELIMINAR | Citas |
 
 ### Reglas
 - Los IDs de privilegios son inmutables. No reasignar IDs existentes.
