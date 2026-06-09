@@ -128,7 +128,7 @@ export class InsumoService {
       },
     });
 
-    return newInsumo;
+    return { message: 'Insumo creado exitosamente', insumo: newInsumo };
   }
 
   async update(id: number, updateInsumoDto: UpdateInsumoDto) {

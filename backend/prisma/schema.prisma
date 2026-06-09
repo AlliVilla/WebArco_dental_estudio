@@ -270,15 +270,19 @@ enum TipoMovimiento {
 model CategoriaInsumo {
   id_categoria Int      @id @default(autoincrement())
   nombre       String   @unique @db.VarChar(100)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
   insumos      Insumo[]
 
   @@map("categoria_insumo")
 }
 
 model UnidadMedida {
-  id_unidad Int      @id @default(autoincrement())
-  nombre    String   @unique @db.VarChar(100)
-  insumos   Insumo[]
+  id_unidad  Int      @id @default(autoincrement())
+  nombre     String   @unique @db.VarChar(100)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  insumos    Insumo[]
 
   @@map("unidad_medida")
 }
@@ -293,11 +297,15 @@ model Insumo {
   stock_minimo Int                    @default(0)
   precio_costo Decimal                @db.Decimal(10, 2)
   activo       Boolean                @default(true)
+  created_at   DateTime               @default(now())
+  updated_at   DateTime               @updatedAt
 
   categoria    CategoriaInsumo        @relation(fields: [id_categoria], references: [id_categoria])
   unidad       UnidadMedida           @relation(fields: [id_unidad], references: [id_unidad])
   movimientos  MovimientoInventario[]
 
+  @@index([id_categoria])
+  @@index([id_unidad])
   @@map("insumo")
 }
 
@@ -309,6 +317,8 @@ model MovimientoInventario {
   fecha         DateTime       @default(now()) @db.Timestamp()
   id_usuario    Int
   observaciones String?        @db.Text
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
 
   insumo        Insumo         @relation(fields: [id_insumo], references: [id_insumo])
   usuario       Usuario        @relation(fields: [id_usuario], references: [id_usuario])
