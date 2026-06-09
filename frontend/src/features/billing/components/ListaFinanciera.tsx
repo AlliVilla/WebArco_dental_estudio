@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { FileSpreadsheet, FileText, Info, RefreshCcw, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Calendar, FileSpreadsheet, FileText, Info, RefreshCcw, X } from 'lucide-react';
 
 import { DataTable } from '../../../components';
 import type { Column } from '../../../components';
@@ -127,6 +127,96 @@ function parseFilterDate(fecha: string) {
 
   const [day, month, year] = fecha.split('/');
   return `${year}-${month}-${day}`;
+}
+
+function formatFilterDate(fecha: string) {
+  if (!fecha) return '';
+
+  const [year, month, day] = fecha.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function DateFilterField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const pickerValue = parseFilterDate(value);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>{label}</label>
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        border: '1px solid #D3D7DA',
+        borderRadius: 8,
+        background: '#F8F9FA',
+        padding: '0 10px 0 12px',
+        height: 42,
+      }}>
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="dd/mm/yyyy"
+          inputMode="numeric"
+          maxLength={10}
+          style={{
+            flex: 1,
+            border: 'none',
+            background: 'transparent',
+            outline: 'none',
+            color: '#203F49',
+            fontSize: 14,
+            minWidth: 0,
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => pickerRef.current?.showPicker()}
+          aria-label={`Seleccionar ${label.toLowerCase()}`}
+          style={{
+            width: 28,
+            height: 28,
+            border: 'none',
+            background: 'transparent',
+            color: '#203F49',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          <Calendar size={16} />
+        </button>
+        <input
+          ref={pickerRef}
+          type="date"
+          value={pickerValue}
+          onChange={(event) => onChange(formatFilterDate(event.target.value))}
+          tabIndex={-1}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            opacity: 0,
+            pointerEvents: 'none',
+            right: 12,
+            bottom: 0,
+          }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function MoneyText({ monto, tipo }: { monto: number; tipo: TransactionKind }) {
@@ -370,23 +460,15 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
           gap: 14,
           marginBottom: 18,
         }}>
-          <Input
+          <DateFilterField
             label="Rango de fechas"
-            placeholder="dd/mm/yyyy"
-            inputMode="numeric"
-            maxLength={10}
             value={fechaDesde}
-            onChange={(event) => setFechaDesde(event.target.value)}
-            aria-label="Rango de fechas"
+            onChange={setFechaDesde}
           />
-          <Input
+          <DateFilterField
             label="Hasta"
-            placeholder="dd/mm/yyyy"
-            inputMode="numeric"
-            maxLength={10}
             value={fechaHasta}
-            onChange={(event) => setFechaHasta(event.target.value)}
-            aria-label="Hasta"
+            onChange={setFechaHasta}
           />
           {tipoActivo === 'ingreso' ? (
             <>
@@ -398,7 +480,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
                 aria-label="Paciente"
               />
               <Select
-                label="Método de pago"
+                label="Método de Pago"
                 value={metodoPago}
                 onChange={setMetodoPago}
                 placeholder="Todos"

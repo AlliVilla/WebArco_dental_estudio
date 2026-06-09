@@ -247,6 +247,7 @@ interface SelectProps {
 
 export function Select({ label, badge, options, value, onChange, placeholder, disabled, error }: SelectProps) {
   const [focused, setFocused] = React.useState(false);
+  const hasEmptyOption = options.some((option) => option.value === '');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {(label || badge) && (
@@ -271,7 +272,7 @@ export function Select({ label, badge, options, value, onChange, placeholder, di
             boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
           }}
         >
-          {placeholder && <option value="" disabled>{placeholder}</option>}
+          {placeholder && !hasEmptyOption && <option value="" disabled>{placeholder}</option>}
           {options.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
