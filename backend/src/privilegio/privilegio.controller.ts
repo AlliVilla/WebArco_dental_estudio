@@ -1,10 +1,10 @@
-import { Controller, UseGuards, Get, Post, HttpCode, HttpStatus, Param, ParseIntPipe, Body } from '@nestjs/common';
+import { Controller, UseGuards, Get, Post, HttpCode, HttpStatus, Body } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiUnauthorizedResponse, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { PrivilegioService } from './privilegio.service';
-import { InsertRolePrivilegeDto } from './dto/insertRolePrivilege.dto';
-import { Privileges } from 'src/auth/decorators/privileges.decorator';
+import { InsertRolePrivilegeDto } from './dto/insert-role-privilege.dto';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 
 @ApiTags('Privilegios')
 @Controller('privilegio')

@@ -4,13 +4,12 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  Res,
   UseGuards,
   ParseIntPipe,
   Put,
   Get,
   Query,
-  ConflictException,
+  BadRequestException,
   Param,
   Delete
 } from '@nestjs/common';
@@ -18,24 +17,28 @@ import {
   ApiTags,
   ApiOperation,
   ApiCreatedResponse,
+  ApiBearerAuth,
   ApiUnauthorizedResponse,
   ApiNotFoundResponse,
+  ApiBadRequestResponse,
   ApiConflictResponse,
   ApiOkResponse,
 } from '@nestjs/swagger';
 
 import { RolService } from './rol.service';
 
-import { CreateRoleDto } from './dto/createRole.dto';
+import { CreateRoleDto } from './dto/create-rol.dto';
 
-import { Privileges } from 'src/auth/decorators/privileges.decorator';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { PrivilegesGuard } from 'src/guards/privileges.guard';
-import { UpdateRoleDto } from './dto/updateRole.dto';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { UpdateRoleDto } from './dto/update-rol.dto';
 
 @ApiTags('Roles')
 @Controller('rol')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class RolController {
     constructor (private rolService: RolService) {}
 
@@ -46,7 +49,8 @@ export class RolController {
         summary: 'Listar todos los roles',
         description: 'Retornar lista de roles activos con nombre, descripción, conteo de usuarios activos y privilegios asignados'
     })
-    @ApiConflictResponse({description: 'page y limit deben ser mayores a 0'})
+    @ApiOkResponse({ description: 'Lista de roles obtenida exitosamente' })
+    @ApiBadRequestResponse({description: 'page y limit deben ser mayores a 0'})
     async findAll(
         @Query('page') page?: string,
         @Query('limit') limit?: string,
@@ -56,7 +60,7 @@ export class RolController {
         const limitNumber = limit ? parseInt(limit) : 10;
 
         if(pageNumber < 1 || limitNumber < 1){
-            throw new ConflictException("page y limit deben ser mayores a 0");
+            throw new BadRequestException("page y limit deben ser mayores a 0");
         }
 
         return this.rolService.findAll(pageNumber,limitNumber,search);
@@ -88,6 +92,7 @@ export class RolController {
         return this.rolService.updateRole(id,body);
     }
 
+    @Privileges(36)
     @Delete(':id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({

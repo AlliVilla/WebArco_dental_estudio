@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { CreateRoleDto } from './dto/createRole.dto';
-import { ConflictException, NotFoundException} from '@nestjs/common';
-import { UpdateRoleDto } from './dto/updateRole.dto';
+import { CreateRoleDto } from './dto/create-rol.dto';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { UpdateRoleDto } from './dto/update-rol.dto';
 
 @Injectable()
 export class RolService {
@@ -15,15 +15,13 @@ export class RolService {
         search?: string
     ){
         const skip = (page - 1) * limit;
-        let where : any = { 
+        let where : any = {
           activo : true
-
-         };
+        };
         if(search) {
-            const searchLower = search.toLowerCase();
             where = {
                 nombre: {
-                    contains: searchLower,
+                    contains: search,
                     mode: 'insensitive',
                 },
                 activo: true
@@ -96,6 +94,13 @@ export class RolService {
           error.code === 'P2002'
         ) {
           throw new ConflictException('El nombre del rol ya existe');
+        }
+
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2025'
+        ) {
+          throw new NotFoundException('Rol no encontrado');
         }
 
         throw error;

@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { InsertRolePrivilegeDto } from './dto/insertRolePrivilege.dto';
+import { InsertRolePrivilegeDto } from './dto/insert-role-privilege.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
