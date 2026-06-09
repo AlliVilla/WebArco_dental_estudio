@@ -18,7 +18,6 @@ function checkRules(pwd: string) {
 function allPass(r: ReturnType<typeof checkRules>) {
   return Object.values(r).every(Boolean);
 }
-
 function PasswordChecklist({ pwd }: { pwd: string }) {
   const r = checkRules(pwd);
   const items: [keyof ReturnType<typeof checkRules>, string][] = [
@@ -47,7 +46,7 @@ function PasswordChecklist({ pwd }: { pwd: string }) {
             alignItems: "center",
             gap: 8,
             fontSize: "0.875rem",
-            color: r[key] ? "#1aaf5d" : "#d14343",
+            color: r[key] ? "#1ec3dd" : "#d14343", // ← cian cuando pasa, rojo cuando no
           }}
         >
           <span style={{ fontWeight: 700 }}>{r[key] ? "✓" : "✕"}</span> {label}
@@ -56,7 +55,6 @@ function PasswordChecklist({ pwd }: { pwd: string }) {
     </ul>
   );
 }
-
 export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
@@ -67,7 +65,7 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-
+  const [hoverBack, setHoverBack] = useState(false);
   const rules = checkRules(newPwd);
 
   const handleForgot = async (e: React.FormEvent) => {
@@ -163,7 +161,7 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          borderBottom: "4px solid #1ec3dd",
+          position: "relative",
         }}
       >
         <img
@@ -173,6 +171,19 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
             height: 110,
             objectFit: "contain",
             filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "8rem",
+            height: "3px",
+            borderRadius: "9999px",
+            background:
+              "linear-gradient(90deg, transparent, #1ec3dd, transparent)",
           }}
         />
       </div>
@@ -358,15 +369,19 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
         <button
           type="button"
           onClick={onBack}
+          onMouseEnter={() => setHoverBack(true)}
+          onMouseLeave={() => setHoverBack(false)}
           style={{
             marginTop: "1.5rem",
             width: "100%",
             background: "none",
             border: "none",
-            color: "#5a6671",
+            color: hoverBack ? "#1ec3dd" : "#5a6671",
             fontSize: "0.95rem",
             cursor: "pointer",
             fontWeight: 600,
+            textDecoration: hoverBack ? "underline" : "none",
+            transition: "color 0.2s",
           }}
         >
           ← Volver al inicio

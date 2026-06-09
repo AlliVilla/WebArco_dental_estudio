@@ -10,7 +10,7 @@ export const LoginForm: React.FC = () => {
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
-
+  const [hoverForgot, setHoverForgot] = useState(false);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -87,6 +87,7 @@ export const LoginForm: React.FC = () => {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
+                position: "relative",
               }}
             >
               <img
@@ -96,6 +97,19 @@ export const LoginForm: React.FC = () => {
                   height: 120,
                   objectFit: "contain",
                   filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: "8rem",
+                  height: "3px",
+                  borderRadius: "9999px",
+                  background:
+                    "linear-gradient(90deg, transparent, #1ec3dd, transparent)",
                 }}
               />
             </div>
@@ -199,13 +213,17 @@ export const LoginForm: React.FC = () => {
                       setShowForgot(true);
                       clearError();
                     }}
+                    onMouseEnter={() => setHoverForgot(true)}
+                    onMouseLeave={() => setHoverForgot(false)}
                     style={{
                       background: "none",
                       border: "none",
                       cursor: "pointer",
-                      color: "#5a6671",
-                      fontSize: "0.95rem",
                       padding: 0,
+                      color: hoverForgot ? "#1ec3dd" : "#5a6671",
+                      fontSize: "0.95rem",
+                      textDecoration: hoverForgot ? "underline" : "none",
+                      transition: "color 0.2s",
                     }}
                   >
                     ¿Olvidaste tu contraseña?
