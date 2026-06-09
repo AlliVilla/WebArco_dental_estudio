@@ -1,5 +1,3 @@
-import { User } from '../../auth/types';
-
 export type EstadoCita = 'programada' | 'confirmada' | 'atendida' | 'cancelada' | 'ausente' | 'reprogramada';
 
 export interface CitaPersona {
@@ -42,11 +40,11 @@ export interface StatusChange {
   estado_nuevo: EstadoCita;
   fecha_cambio: string;
   cambiado_por: number;
-  usuario?: { 
-    id_usuario: number; 
-    username: string; 
-    persona?: { 
-      primer_nombre: string; 
+  usuario?: {
+    id_usuario: number;
+    username: string;
+    persona?: {
+      primer_nombre: string;
       primer_apellido: string;
     };
   };
@@ -64,3 +62,13 @@ export interface CreateAppointmentInput {
 }
 
 export interface UpdateAppointmentInput extends Partial<CreateAppointmentInput> {}
+
+export interface PatientHistoryResponse {
+  data: Appointment[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}

@@ -1,57 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, User, FileText, History, Edit, Trash2, Check, ArrowLeft, List } from 'lucide-react';
 import { Button, Select, Alert, Card, SectionBlock, FieldBadge, StatusBadge } from '../../../context';
+import { Spinner } from '../../../components';
 import { useNavigate, useParams } from 'react-router-dom';
-
-interface StatusChange {
-  from: string;
-  to: string;
-  timestamp: string;
-  changedBy: string;
-}
-
-interface AppointmentDetail {
-  id: string;
-  patientName: string;
-  patientPhone: string;
-  doctorName: string;
-  date: string;
-  startTime: string;
-  duration: number;
-  appointmentType: 'normal' | 'especial';
-  motivo: string;
-  status: 'programada' | 'confirmada' | 'cancelada' | 'atendida' | 'ausente' | 'reprogramada';
-  notes?: string;
-  statusHistory: StatusChange[];
-}
-
-const mockAppointment: AppointmentDetail = {
-  id: '1',
-  patientName: 'María González',
-  patientPhone: '9876-5432',
-  doctorName: 'Dra. Karla Arita',
-  date: '2026-06-05',
-  startTime: '09:00',
-  duration: 1,
-  appointmentType: 'normal',
-  motivo: 'Limpieza dental y revisión general',
-  status: 'confirmada',
-  notes: 'Paciente prefiere anestesia local adicional',
-  statusHistory: [
-    {
-      from: '',
-      to: 'programada',
-      timestamp: '2026-06-01T10:30:00',
-      changedBy: 'Dr. Carlos Méndez',
-    },
-    {
-      from: 'programada',
-      to: 'confirmada',
-      timestamp: '2026-06-02T14:15:00',
-      changedBy: 'Dra. Karla Arita',
-    },
-  ],
-};
+import { appointmentService } from '../services/appointmentService';
+import { Appointment, StatusChange as StatusChangeType } from '../types';
+import { useAuthStore } from '../../auth/hooks/useAuthStore';
 
 const statusOptions = [
   { value: 'programada', label: 'Programada' },
@@ -66,7 +20,6 @@ function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
   return `${days[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`;
 }
 
@@ -77,24 +30,90 @@ function formatTimestamp(timestamp: string): string {
   const year = date.getFullYear();
   const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
-
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 export function AppointmentDetailScreen() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const currentUser = useAuthStore((s) => s.user);
 
-  const [appointment, setAppointment] = useState<AppointmentDetail>(mockAppointment);
-  const [newStatus, setNewStatus] = useState(appointment.status);
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusChangeType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [newStatus, setNewStatus] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelWarning, setShowCancelWarning] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const hasStatusChanged = newStatus !== appointment.status;
+  useEffect(() => {
+    if (!id) return;
 
-  const handleSaveStatusChange = () => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [apptRes, histRes] = await Promise.all([
+          appointmentService.getById(Number(id)),
+          appointmentService.getStatusHistory(Number(id)),
+        ]);
+
+        if (cancelled) return;
+
+        if (apptRes.success && apptRes.data) {
+          setAppointment(apptRes.data);
+          setNewStatus(apptRes.data.estado);
+        } else {
+          setError(apptRes.message || 'Error al cargar la cita');
+        }
+
+        if (histRes.success) {
+          setStatusHistory(histRes.data);
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err?.message || 'Error al cargar la cita');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>;
+  }
+
+  if (error && !appointment) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <Alert variant="error" message={error} />
+        <Button variant="ghost" onClick={() => navigate('/agenda')} style={{ marginTop: 16 }}>
+          <ArrowLeft size={16} /> Volver a Agenda
+        </Button>
+      </div>
+    );
+  }
+
+  if (!appointment) return null;
+
+  const hasStatusChanged = newStatus !== appointment.estado;
+
+  const clearMessages = () => {
+    setSuccessMessage('');
+    setInfoMessage('');
+  };
+
+  const handleSaveStatusChange = async () => {
     if (!hasStatusChanged) return;
 
     if (newStatus === 'cancelada' && !showCancelWarning) {
@@ -102,40 +121,46 @@ export function AppointmentDetailScreen() {
       return;
     }
 
-    const newChange: StatusChange = {
-      from: appointment.status,
-      to: newStatus,
-      timestamp: new Date().toISOString(),
-      changedBy: 'Dra. Karla Arita',
-    };
+    try {
+      const res = await appointmentService.changeStatus(Number(id!), newStatus, currentUser?.id_usuario || appointment.id_usuario);
+      if (res.success && res.data) {
+        setAppointment(res.data);
+        setNewStatus(res.data.estado);
+        setSuccessMessage('Estado actualizado correctamente.');
+        setInfoMessage('El estado fue actualizado. El historial refleja el cambio con fecha y hora.');
+        setShowCancelWarning(false);
 
-    setAppointment((prev) => ({
-      ...prev,
-      status: newStatus as any,
-      statusHistory: [...prev.statusHistory, newChange],
-    }));
+        const histRes = await appointmentService.getStatusHistory(Number(id!));
+        if (histRes.success) setStatusHistory(histRes.data);
 
-    setSuccessMessage('Estado actualizado correctamente.');
-    setInfoMessage('El estado fue actualizado. El historial refleja el cambio con fecha y hora.');
-    setShowCancelWarning(false);
-
-    setTimeout(() => {
-      setSuccessMessage('');
-      setInfoMessage('');
-    }, 5000);
+        timerRef.current = setTimeout(clearMessages, 5000);
+      } else {
+        setError(res.message || 'Error al actualizar el estado');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error al actualizar el estado');
+    }
   };
 
-  const handleDelete = () => {
-    console.log('Cita eliminada:', appointment.id);
-    navigate('/agenda');
+  const handleDelete = async () => {
+    try {
+      await appointmentService.delete(Number(id!));
+      navigate('/agenda');
+    } catch (err: any) {
+      setError(err?.message || 'Error al eliminar la cita');
+    }
   };
 
-  const endTime = (() => {
-    const [hours, minutes] = appointment.startTime.split(':').map(Number);
-    const endMinutes = hours * 60 + minutes + appointment.duration * 60;
-    const endHours = Math.floor(endMinutes / 60);
-    const endMins = endMinutes % 60;
-    return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+  const patientName = `${appointment.persona?.primer_nombre || ''} ${appointment.persona?.primer_apellido || ''}`.trim() || 'Sin nombre';
+  const doctorName = appointment.doctor
+    ? `${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
+    : 'Doctor no asignado';
+
+  const startTime = appointment.fecha_inicio.substring(11, 16);
+  const endTime = appointment.fecha_fin?.substring(11, 16) || (() => {
+    const [h, m] = startTime.split(':').map(Number);
+    const end = h * 60 + m + 60;
+    return `${Math.floor(end / 60).toString().padStart(2, '0')}:${(end % 60).toString().padStart(2, '0')}`;
   })();
 
   return (
@@ -147,8 +172,9 @@ export function AppointmentDetailScreen() {
         </Button>
       </div>
 
-      {successMessage && <Alert variant="success" message={successMessage} onClose={() => setSuccessMessage('')} />}
-      {infoMessage && <Alert variant="info" message={infoMessage} onClose={() => setInfoMessage('')} />}
+      {successMessage && <Alert variant="success" message={successMessage} onClose={clearMessages} />}
+      {infoMessage && <Alert variant="info" message={infoMessage} onClose={clearMessages} />}
+      {error && <Alert variant="error" message={error} onClose={() => setError('')} />}
       {showCancelWarning && (
         <Alert
           variant="warning"
@@ -193,11 +219,9 @@ export function AppointmentDetailScreen() {
                 }}>
                   <User size={15} style={{ color: '#888F94', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: '#203F49' }}>
-                      {appointment.patientName}
-                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#203F49' }}>{patientName}</div>
                     <div style={{ fontSize: 12, color: '#888F94', marginTop: 2 }}>
-                      Tel: {appointment.patientPhone}
+                      Tel: {appointment.persona?.telefono || 'N/A'}
                     </div>
                   </div>
                 </div>
@@ -214,9 +238,7 @@ export function AppointmentDetailScreen() {
                   background: '#F8F9FA', padding: '10px 12px',
                 }}>
                   <User size={15} style={{ color: '#888F94', flexShrink: 0 }} />
-                  <span style={{ fontSize: 14, color: '#203F49' }}>
-                    {appointment.doctorName}
-                  </span>
+                  <span style={{ fontSize: 14, color: '#203F49' }}>{doctorName}</span>
                 </div>
               </div>
             </div>
@@ -234,7 +256,7 @@ export function AppointmentDetailScreen() {
                 }}>
                   <Calendar size={15} style={{ color: '#888F94', flexShrink: 0 }} />
                   <span style={{ fontSize: 14, color: '#203F49' }}>
-                    {formatDate(appointment.date)}
+                    {formatDate(appointment.fecha_inicio.split('T')[0])}
                   </span>
                 </div>
               </div>
@@ -251,7 +273,7 @@ export function AppointmentDetailScreen() {
                 }}>
                   <Clock size={15} style={{ color: '#888F94', flexShrink: 0 }} />
                   <span style={{ fontSize: 14, color: '#203F49' }}>
-                    {appointment.startTime} - {endTime}
+                    {startTime} - {endTime}
                   </span>
                 </div>
               </div>
@@ -270,7 +292,7 @@ export function AppointmentDetailScreen() {
                 }}>
                   <FileText size={15} style={{ color: '#888F94', flexShrink: 0 }} />
                   <span style={{ fontSize: 14, color: '#203F49' }}>
-                    {appointment.appointmentType === 'normal' ? 'Normal (1 hora)' : 'Especial (2 horas)'}
+                    {appointment.tipo_cita || 'General'}
                   </span>
                 </div>
               </div>
@@ -285,7 +307,7 @@ export function AppointmentDetailScreen() {
                   border: '1px solid #D3D7DA', borderRadius: 8,
                   background: '#F8F9FA', padding: '10px 12px',
                 }}>
-                  <StatusBadge status={appointment.status} />
+                  <StatusBadge status={appointment.estado} />
                 </div>
               </div>
             </div>
@@ -305,7 +327,7 @@ export function AppointmentDetailScreen() {
               </div>
             </div>
 
-            {appointment.notes && (
+            {appointment.notas && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Notas adicionales</label>
@@ -316,7 +338,7 @@ export function AppointmentDetailScreen() {
                   background: '#F8F9FA', padding: '10px 12px',
                 }}>
                   <span style={{ fontSize: 14, color: '#888F94', whiteSpace: 'pre-wrap' }}>
-                    {appointment.notes}
+                    {appointment.notas}
                   </span>
                 </div>
               </div>
@@ -331,7 +353,10 @@ export function AppointmentDetailScreen() {
               badge="required"
               options={statusOptions}
               value={newStatus}
-              onChange={(v) => setNewStatus(v as any)}
+              onChange={(v) => {
+                setNewStatus(v as any);
+                setShowCancelWarning(false);
+              }}
             />
 
             {hasStatusChanged && (
@@ -342,7 +367,7 @@ export function AppointmentDetailScreen() {
               }}>
                 <History size={15} style={{ color: '#EF9F27', flexShrink: 0 }} />
                 <span style={{ fontSize: 13, color: '#EF9F27' }}>
-                  Cambio pendiente: <strong>{appointment.status}</strong> → <strong>{newStatus}</strong>
+                  Cambio pendiente: <strong>{appointment.estado}</strong> → <strong>{newStatus}</strong>
                 </span>
               </div>
             )}
@@ -360,7 +385,7 @@ export function AppointmentDetailScreen() {
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    setNewStatus(appointment.status);
+                    setNewStatus(appointment.estado);
                     setShowCancelWarning(false);
                   }}
                 >
@@ -377,7 +402,7 @@ export function AppointmentDetailScreen() {
             <FieldBadge type="optional" />
           </div>
 
-          {appointment.statusHistory.length === 0 ? (
+          {statusHistory.length === 0 ? (
             <div style={{
               padding: 16, textAlign: 'center',
               color: '#888F94', fontSize: 13,
@@ -386,9 +411,9 @@ export function AppointmentDetailScreen() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {appointment.statusHistory.map((change, idx) => (
+              {statusHistory.map((change, idx) => (
                 <div
-                  key={idx}
+                  key={change.id_historial || idx}
                   style={{
                     background: '#fff', border: '1px solid #D3D7DA',
                     borderRadius: 8, padding: 12,
@@ -406,18 +431,18 @@ export function AppointmentDetailScreen() {
 
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, color: '#203F49', marginBottom: 4 }}>
-                      {change.from ? (
+                      {change.estado_anterior ? (
                         <>
-                          Estado cambiado de <StatusBadge status={change.from as any} /> a <StatusBadge status={change.to as any} />
+                          Estado cambiado de <StatusBadge status={change.estado_anterior} /> a <StatusBadge status={change.estado_nuevo} />
                         </>
                       ) : (
                         <>
-                          Cita creada con estado <StatusBadge status={change.to as any} />
+                          Cita creada con estado <StatusBadge status={change.estado_nuevo} />
                         </>
                       )}
                     </div>
                     <div style={{ fontSize: 11, color: '#888F94' }}>
-                      {formatTimestamp(change.timestamp)} · Por {change.changedBy}
+                      {formatTimestamp(change.fecha_cambio)} · Por {change.usuario?.persona?.primer_nombre || `Usuario ${change.cambiado_por}`}
                     </div>
                   </div>
                 </div>
@@ -456,8 +481,8 @@ export function AppointmentDetailScreen() {
 
             <p style={{ margin: 0, marginBottom: 20, fontSize: 14, color: '#5F656A', lineHeight: 1.5 }}>
               ¿Estás seguro de que deseas eliminar esta cita? Esta acción no se puede deshacer.
-              Se eliminará permanentemente la cita de <strong>{appointment.patientName}</strong> programada
-              para el {formatDate(appointment.date)} a las {appointment.startTime}.
+              Se eliminará permanentemente la cita de <strong>{patientName}</strong> programada
+              para el {formatDate(appointment.fecha_inicio.split('T')[0])} a las {startTime}.
             </p>
 
             <div style={{ display: 'flex', gap: 12 }}>

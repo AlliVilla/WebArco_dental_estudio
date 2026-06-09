@@ -3,7 +3,7 @@ import { MainLayout } from "./page layouts/MainLayout";
 import { Dashboard } from "./page layouts/Dashboard";
 import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
 import { PatientsScreen } from "./features/patients/components/PatientsScreen";
-import { AppointmentsScreen } from "./features/appointments/components/AppointmentsScreen";
+import { AppointmentsScreen, AppointmentFormScreen, AppointmentDetailScreen, PatientAppointmentHistoryScreen } from './features/appointments';
 import { GestionIngresos } from "./features/billing/components/GestionIngresos";
 import { ConsentScreen } from "./features/patients/components/consentimientos/components/ConsentScreen";
 import { ExpedienteScreen } from "./features/patients/components/expediente/components/ExpedienteScreen";
@@ -45,6 +45,10 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/agenda" element={<AppointmentsScreen />} />
+        <Route path="/agenda/new" element={<AppointmentFormScreen />} />
+        <Route path="/agenda/:id" element={<AppointmentDetailScreen />} />
+        <Route path="/agenda/:id/history" element={<PatientAppointmentHistoryScreen />} />
+        <Route path="/agenda/:id/edit" element={<AppointmentFormScreen />} />
         {/* Patients sub-routes */}
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />

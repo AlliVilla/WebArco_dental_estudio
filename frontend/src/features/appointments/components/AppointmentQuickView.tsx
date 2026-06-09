@@ -114,7 +114,7 @@ export function AppointmentQuickView({ appointment, onClose }: AppointmentQuickV
             <span style={{ fontSize: 13, color: '#888F94', display: 'block', marginBottom: 4 }}>
               Tratamiento
             </span>
-            <span style={{ fontSize: 15, color: '#203F49' }}>
+            <span style={{ fontSize: 15, color: '#203F49', wordBreak: 'break-word' }}>
               {appointment.motivo || appointment.tipo_cita || 'General'}
             </span>
           </div>

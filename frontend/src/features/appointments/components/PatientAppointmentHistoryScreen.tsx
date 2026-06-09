@@ -1,109 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, User, Search, Eye, Filter, ArrowLeft, Clock } from 'lucide-react';
 import { Button, Select, Alert, Card, SectionBlock, StatusBadge, FieldBadge } from '../../../context';
+import { Spinner } from '../../../components';
 import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { useNavigate, useParams } from 'react-router-dom';
-
-interface AppointmentHistoryRecord {
-  id: string;
-  date: string;
-  startTime: string;
-  doctorName: string;
-  motivo: string;
-  status: 'programada' | 'confirmada' | 'cancelada' | 'atendida' | 'ausente' | 'reprogramada';
-}
-
-const mockPatientInfo = {
-  id: '1',
-  name: 'María González',
-  phone: '9876-5432',
-};
-
-const mockAppointmentHistory: AppointmentHistoryRecord[] = [
-  {
-    id: '1',
-    date: '2026-06-15',
-    startTime: '11:00',
-    doctorName: 'Dr. López',
-    motivo: 'Extracción molar',
-    status: 'programada',
-  },
-  {
-    id: '2',
-    date: '2026-06-02',
-    startTime: '09:00',
-    doctorName: 'Dr. Ramírez',
-    motivo: 'Limpieza dental',
-    status: 'atendida',
-  },
-  {
-    id: '3',
-    date: '2026-05-01',
-    startTime: '10:30',
-    doctorName: 'Dr. Ramírez',
-    motivo: 'Revisión general',
-    status: 'cancelada',
-  },
-  {
-    id: '4',
-    date: '2026-04-12',
-    startTime: '14:00',
-    doctorName: 'Dra. Karla Arita',
-    motivo: 'Ortodoncia - ajuste de brackets',
-    status: 'atendida',
-  },
-  {
-    id: '5',
-    date: '2026-03-20',
-    startTime: '09:30',
-    doctorName: 'Dr. López',
-    motivo: 'Endodoncia',
-    status: 'atendida',
-  },
-  {
-    id: '6',
-    date: '2026-02-28',
-    startTime: '15:00',
-    doctorName: 'Dr. Ramírez',
-    motivo: 'Consulta de urgencia',
-    status: 'atendida',
-  },
-  {
-    id: '7',
-    date: '2026-01-18',
-    startTime: '11:30',
-    doctorName: 'Dra. Karla Arita',
-    motivo: 'Primera consulta',
-    status: 'atendida',
-  },
-  {
-    id: '8',
-    date: '2026-06-20',
-    startTime: '16:00',
-    doctorName: 'Dra. Karla Arita',
-    motivo: 'Control post-operatorio',
-    status: 'confirmada',
-  },
-  {
-    id: '9',
-    date: '2026-05-10',
-    startTime: '10:00',
-    doctorName: 'Dr. López',
-    motivo: 'Blanqueamiento dental',
-    status: 'ausente',
-  },
-  {
-    id: '10',
-    date: '2026-04-05',
-    startTime: '13:00',
-    doctorName: 'Dr. Ramírez',
-    motivo: 'Implante dental',
-    status: 'reprogramada',
-  },
-];
+import { appointmentService } from '../services/appointmentService';
+import { Appointment, PatientHistoryResponse, EstadoCita } from '../types';
 
 const statusOptions = [
-  { value: 'todas', label: 'Todas' },
+  { value: '', label: 'Todas' },
   { value: 'programada', label: 'Programada' },
   { value: 'confirmada', label: 'Confirmada' },
   { value: 'atendida', label: 'Atendida' },
@@ -129,47 +34,80 @@ function formatLongDate(dateStr: string): string {
 
 export function PatientAppointmentHistoryScreen() {
   const navigate = useNavigate();
-  const { id } = useParams(); // Using :id from /agenda/:id/history
+  const { id } = useParams();
 
-  const [statusFilter, setStatusFilter] = useState('todas');
+  const [patientId, setPatientId] = useState<number | null>(null);
+  const [patientName, setPatientName] = useState('');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, pages: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const filteredAppointments = useMemo(() => {
-    let filtered = [...mockAppointmentHistory];
-
-    // Filtro por estado
-    if (statusFilter !== 'todas') {
-      filtered = filtered.filter((apt) => apt.status === statusFilter);
-    }
-
-    // Filtro por rango de fechas
-    if (dateFrom) {
-      filtered = filtered.filter((apt) => apt.date >= dateFrom);
-    }
-    if (dateTo) {
-      filtered = filtered.filter((apt) => apt.date <= dateTo);
-    }
-
-    // Ordenar cronológicamente descendente (más reciente primero)
-    filtered.sort((a, b) => {
-      if (a.date === b.date) {
-        return b.startTime.localeCompare(a.startTime);
+  const fetchAppointmentPatient = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await appointmentService.getById(Number(id));
+      if (res.success && res.data) {
+        setPatientId(res.data.id_persona);
+        const name = `${res.data.persona?.primer_nombre || ''} ${res.data.persona?.primer_apellido || ''}`.trim();
+        setPatientName(name || `Paciente #${res.data.id_persona}`);
+      } else {
+        setError('No se pudo obtener la información del paciente');
       }
-      return b.date.localeCompare(a.date);
-    });
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar datos del paciente');
+    }
+  }, [id]);
 
-    return filtered;
-  }, [statusFilter, dateFrom, dateTo]);
+  useEffect(() => {
+    fetchAppointmentPatient();
+  }, [fetchAppointmentPatient]);
 
-  const hasActiveFilters = statusFilter !== 'todas' || dateFrom || dateTo;
+  const fetchHistory = useCallback(async () => {
+    if (!patientId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const params: Record<string, unknown> = {
+        page,
+        limit: pagination.limit,
+      };
+      if (statusFilter) params.estado = statusFilter;
+      if (dateFrom) params.start = dateFrom;
+      if (dateTo) params.end = `${dateTo}T23:59:59`;
+
+      const res = await appointmentService.getPatientHistory(patientId, params);
+      if (res.success && res.data) {
+        setAppointments(res.data.data);
+        setPagination(res.data.pagination);
+      } else {
+        setError(res.message || 'Error al cargar el historial');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar el historial');
+    } finally {
+      setLoading(false);
+    }
+  }, [patientId, page, statusFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   const clearFilters = () => {
-    setStatusFilter('todas');
+    setStatusFilter('');
     setDateFrom('');
     setDateTo('');
+    setPage(1);
   };
+
+  const hasActiveFilters = statusFilter || dateFrom || dateTo;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -180,15 +118,12 @@ export function PatientAppointmentHistoryScreen() {
         </Button>
       </div>
 
-      <Alert
-        variant="info"
-        message="Mostrando el historial completo de citas del paciente en orden cronológico descendente."
-      />
+      {error && <Alert variant="error" message={error} onClose={() => setError('')} />}
 
-      {filteredAppointments.length === 0 && hasActiveFilters && (
+      {appointments.length === 0 && !loading && !error && (
         <Alert
-          variant="warning"
-          message="No se encontraron citas con los filtros seleccionados."
+          variant="info"
+          message="No se encontraron citas en el historial de este paciente."
         />
       )}
 
@@ -204,7 +139,7 @@ export function PatientAppointmentHistoryScreen() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                 <User size={14} style={{ color: '#888F94' }} />
                 <span style={{ fontSize: 13, color: '#888F94' }}>
-                  Paciente: <strong style={{ color: '#203F49' }}>{mockPatientInfo.name}</strong>
+                  Paciente: <strong style={{ color: '#203F49' }}>{patientName || 'Cargando...'}</strong>
                 </span>
               </div>
             </div>
@@ -229,29 +164,26 @@ export function PatientAppointmentHistoryScreen() {
                   badge="optional"
                   options={statusOptions}
                   value={statusFilter}
-                  onChange={setStatusFilter}
+                  onChange={(v) => { setStatusFilter(v.toString()); setPage(1); }}
                 />
 
                 <DatePickerCalendar
                   label="Fecha desde"
                   badge="optional"
                   value={dateFrom}
-                  onChange={setDateFrom}
+                  onChange={(d) => { setDateFrom(d); setPage(1); }}
                 />
 
                 <DatePickerCalendar
                   label="Fecha hasta"
                   badge="optional"
                   value={dateTo}
-                  onChange={setDateTo}
+                  onChange={(d) => { setDateTo(d); setPage(1); }}
                 />
               </div>
 
               {hasActiveFilters && (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: '#888F94' }}>
-                    {filteredAppointments.length} cita{filteredAppointments.length !== 1 ? 's' : ''} encontrada{filteredAppointments.length !== 1 ? 's' : ''}
-                  </span>
                   <Button variant="ghost" size="sm" onClick={clearFilters}>
                     Limpiar filtros
                   </Button>
@@ -261,134 +193,138 @@ export function PatientAppointmentHistoryScreen() {
           </SectionBlock>
         )}
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%', borderCollapse: 'separate', borderSpacing: 0,
-            fontSize: 14,
-          }}>
-            <thead>
-              <tr style={{ background: '#F8F9FA' }}>
-                <th style={{
-                  padding: '12px 16px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600, color: '#888F94',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '1px solid #D3D7DA',
-                  borderTopLeftRadius: 8,
-                }}>
-                  Fecha
-                </th>
-                <th style={{
-                  padding: '12px 16px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600, color: '#888F94',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '1px solid #D3D7DA',
-                }}>
-                  Hora
-                </th>
-                <th style={{
-                  padding: '12px 16px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600, color: '#888F94',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '1px solid #D3D7DA',
-                }}>
-                  Doctor
-                </th>
-                <th style={{
-                  padding: '12px 16px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600, color: '#888F94',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '1px solid #D3D7DA',
-                }}>
-                  Motivo
-                </th>
-                <th style={{
-                  padding: '12px 16px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600, color: '#888F94',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '1px solid #D3D7DA',
-                }}>
-                  Estado
-                </th>
-                <th style={{
-                  padding: '12px 16px', textAlign: 'right',
-                  fontSize: 12, fontWeight: 600, color: '#888F94',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  borderBottom: '1px solid #D3D7DA',
-                  borderTopRightRadius: 8,
-                }}>
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAppointments.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{
-                    padding: 48, textAlign: 'center',
-                    color: '#888F94', fontSize: 14,
+        {loading ? (
+          <div style={{ padding: 48, textAlign: 'center' }}><Spinner /></div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%', borderCollapse: 'separate', borderSpacing: 0,
+              fontSize: 14,
+            }}>
+              <thead>
+                <tr style={{ background: '#F8F9FA' }}>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'left',
+                    fontSize: 12, fontWeight: 600, color: '#888F94',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid #D3D7DA',
+                    borderTopLeftRadius: 8,
                   }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                      <Search size={32} style={{ color: '#D3D7DA' }} />
-                      <span>No hay citas registradas</span>
-                    </div>
-                  </td>
+                    Fecha
+                  </th>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'left',
+                    fontSize: 12, fontWeight: 600, color: '#888F94',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid #D3D7DA',
+                  }}>
+                    Hora
+                  </th>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'left',
+                    fontSize: 12, fontWeight: 600, color: '#888F94',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid #D3D7DA',
+                  }}>
+                    Doctor
+                  </th>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'left',
+                    fontSize: 12, fontWeight: 600, color: '#888F94',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid #D3D7DA',
+                  }}>
+                    Motivo
+                  </th>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'left',
+                    fontSize: 12, fontWeight: 600, color: '#888F94',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid #D3D7DA',
+                  }}>
+                    Estado
+                  </th>
+                  <th style={{
+                    padding: '12px 16px', textAlign: 'right',
+                    fontSize: 12, fontWeight: 600, color: '#888F94',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '1px solid #D3D7DA',
+                    borderTopRightRadius: 8,
+                  }}>
+                    Acciones
+                  </th>
                 </tr>
-              ) : (
-                filteredAppointments.map((apt, idx) => (
-                  <tr
-                    key={apt.id}
-                    style={{
-                      background: '#fff',
-                      borderBottom: idx < filteredAppointments.length - 1 ? '1px solid #F1F3F4' : 'none',
-                    }}
-                  >
-                    <td style={{ padding: '16px', color: '#203F49' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontWeight: 500 }}>{formatDate(apt.date)}</span>
-                        <span style={{ fontSize: 11, color: '#888F94' }}>
-                          {formatLongDate(apt.date)}
-                        </span>
+              </thead>
+              <tbody>
+                {appointments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{
+                      padding: 48, textAlign: 'center',
+                      color: '#888F94', fontSize: 14,
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                        <Search size={32} style={{ color: '#D3D7DA' }} />
+                        <span>No hay citas registradas</span>
                       </div>
-                    </td>
-                    <td style={{ padding: '16px', color: '#203F49' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Clock size={14} style={{ color: '#888F94' }} />
-                        {apt.startTime}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px', color: '#203F49' }}>
-                      {apt.doctorName}
-                    </td>
-                    <td style={{ padding: '16px', color: '#5F656A', maxWidth: 300 }}>
-                      <div style={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {apt.motivo}
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px' }}>
-                      <StatusBadge status={apt.status} />
-                    </td>
-                    <td style={{ padding: '16px', textAlign: 'right' }}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/agenda/${apt.id}`)}
-                      >
-                        <Eye size={14} />
-                        Ver detalle
-                      </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  appointments.map((apt, idx) => (
+                    <tr
+                      key={apt.id_cita}
+                      style={{
+                        background: '#fff',
+                        borderBottom: idx < appointments.length - 1 ? '1px solid #F1F3F4' : 'none',
+                      }}
+                    >
+                      <td style={{ padding: '16px', color: '#203F49' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ fontWeight: 500 }}>{formatDate(apt.fecha_inicio.split('T')[0])}</span>
+                          <span style={{ fontSize: 11, color: '#888F94' }}>
+                            {formatLongDate(apt.fecha_inicio.split('T')[0])}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', color: '#203F49' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Clock size={14} style={{ color: '#888F94' }} />
+                          {apt.fecha_inicio.substring(11, 16)}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px', color: '#203F49' }}>
+                        {apt.doctor ? `${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}` : 'N/A'}
+                      </td>
+                      <td style={{ padding: '16px', color: '#5F656A', maxWidth: 300 }}>
+                        <div style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {apt.motivo || apt.tipo_cita || 'General'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <StatusBadge status={apt.estado} />
+                      </td>
+                      <td style={{ padding: '16px', textAlign: 'right' }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => navigate(`/agenda/${apt.id_cita}`)}
+                        >
+                          <Eye size={14} />
+                          Ver detalle
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {filteredAppointments.length > 0 && (
+        {appointments.length > 0 && (
           <div style={{
             marginTop: 16, paddingTop: 16,
             borderTop: '1px solid #F1F3F4',
@@ -396,27 +332,33 @@ export function PatientAppointmentHistoryScreen() {
             alignItems: 'center', fontSize: 13, color: '#888F94',
           }}>
             <span>
-              Total: <strong style={{ color: '#203F49' }}>{filteredAppointments.length}</strong> cita{filteredAppointments.length !== 1 ? 's' : ''}
+              Total: <strong style={{ color: '#203F49' }}>{pagination.total}</strong> cita{pagination.total !== 1 ? 's' : ''}
+              {pagination.pages > 1 && ` (pág. ${pagination.page} de ${pagination.pages})`}
             </span>
-            {hasActiveFilters && (
-              <span style={{ fontSize: 12 }}>
-                Filtros activos
-              </span>
+
+            {pagination.pages > 1 && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page >= pagination.pages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Siguiente
+                </Button>
+              </div>
             )}
           </div>
         )}
       </Card>
-
-      <div style={{
-        background: '#E6F8FB', border: '1px solid #0BC5DF',
-        borderRadius: 12, padding: 16,
-      }}>
-        <div style={{ fontSize: 12, color: '#0899B0', lineHeight: 1.6 }}>
-          <strong>Nota:</strong> Este historial muestra todas las citas del paciente {mockPatientInfo.name}.
-          Las citas están ordenadas de más reciente a más antigua. Usa los filtros para buscar citas específicas
-          por estado o rango de fechas.
-        </div>
-      </div>
     </div>
   );
 }

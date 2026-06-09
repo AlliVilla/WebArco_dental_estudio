@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Calendar, User, FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Calendar, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button, Select, Input, Card, Alert, SectionBlock, FieldBadge } from '../../../context';
 import { FormSection, FullWidthField } from '../../../components';
 import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { PatientSearchInput } from './PatientSearchInput';
 import { appointmentService } from '../services/appointmentService';
-import { CreateAppointmentInput, EstadoCita } from '../types';
+import { CreateAppointmentInput } from '../types';
 
 export function AppointmentFormScreen() {
   const navigate = useNavigate();
@@ -16,62 +16,65 @@ export function AppointmentFormScreen() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [doctors, setDoctors] = useState<{ value: string | number, label: string }[]>([]);
+  const [doctors, setDoctors] = useState<{ value: string | number; label: string }[]>([]);
 
   const [formData, setFormData] = useState<Partial<CreateAppointmentInput>>({
     id_persona: 0,
     id_usuario: 0,
     fecha_inicio: '',
-    fecha_fin: '',
     tipo_cita: '',
     motivo: '',
     notas: '',
     estado: 'programada',
   });
 
-  // Basic form validation errors
+  const [timeStr, setTimeStr] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const docList = [
-          { value: 1, label: 'Dra. Karla Arita' },
-          { value: 2, label: 'Dr. Carlos Méndez' },
-          { value: 3, label: 'Dra. Ana Sánchez' },
-        ];
-        setDoctors(docList);
-        
-        if (!isEditing && !formData.id_usuario) {
-          setFormData(prev => ({ ...prev, id_usuario: 1 }));
-        }
+    appointmentService.getUsuarios().then((res) => {
+      if (res.success && res.data) {
+        const mapped = res.data.map((u: any) => ({
+          value: u.id_usuario,
+          label: `Dr(a). ${u.persona?.primer_nombre || ''} ${u.persona?.primer_apellido || ''}`.trim(),
+        }));
+        setDoctors(mapped);
+      }
+    });
+  }, []);
 
-        if (isEditing) {
-          // Fake wait
-          await new Promise(r => setTimeout(r, 400));
+  useEffect(() => {
+    if (!id) return;
+
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await appointmentService.getById(Number(id));
+        if (!cancelled && res.success && res.data) {
+          const apt = res.data;
           setFormData({
-            id_persona: 1,
-            id_usuario: 1,
-            fecha_inicio: '2026-06-03',
-            fecha_fin: '',
-            tipo_cita: 'Consulta general',
-            motivo: 'Revisión periódica',
-            notas: 'Paciente no tolera anestesia',
-            estado: 'programada',
+            id_persona: apt.id_persona,
+            id_usuario: apt.id_usuario,
+            fecha_inicio: apt.fecha_inicio.split('T')[0],
+            tipo_cita: apt.tipo_cita || '',
+            motivo: apt.motivo || '',
+            notas: apt.notas || '',
+            estado: apt.estado,
           });
-          setTimeStr('09:00');
+          setTimeStr(apt.fecha_inicio.substring(11, 16));
+        } else if (!cancelled) {
+          setError(res.message || 'Error al cargar la cita');
         }
       } catch (err: any) {
-        setError('Error al cargar datos. ' + (err.message || ''));
+        if (!cancelled) setError(err?.message || 'Error al cargar la cita');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-
-    loadInitialData();
-  }, [id, isEditing]);
-
-  const [timeStr, setTimeStr] = useState('');
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -97,11 +100,32 @@ export function AppointmentFormScreen() {
     setError('');
 
     try {
-      // Fake save delay
-      await new Promise(r => setTimeout(r, 600));
+      const fechaInicio = `${formData.fecha_inicio}T${timeStr}:00`;
+      const startDate = new Date(fechaInicio);
+      const durationHours = formData.tipo_cita === 'Especialidad' ? 2 : 1;
+      const endDate = new Date(startDate.getTime() + durationHours * 60 * 60 * 1000);
+      const pad2 = (n: number) => n.toString().padStart(2, '0');
+      const fechaFin = `${endDate.getFullYear()}-${pad2(endDate.getMonth() + 1)}-${pad2(endDate.getDate())}T${pad2(endDate.getHours())}:${pad2(endDate.getMinutes())}:00`;
+
+      const payload: CreateAppointmentInput = {
+        id_persona: formData.id_persona!,
+        id_usuario: formData.id_usuario!,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        tipo_cita: formData.tipo_cita,
+        motivo: formData.motivo,
+        notas: formData.notas || undefined,
+        estado: formData.estado,
+      };
+
+      if (isEditing) {
+        await appointmentService.update(Number(id), payload);
+      } else {
+        await appointmentService.create(payload);
+      }
       navigate('/agenda');
     } catch (err: any) {
-      setError(err.message || 'Ocurrió un error al guardar la cita.');
+      setError(err?.message || 'Ocurrió un error al guardar la cita.');
     } finally {
       setSaving(false);
     }
@@ -143,13 +167,12 @@ export function AppointmentFormScreen() {
         {error && <div style={{ marginBottom: 24 }}><Alert variant="error" message={error} onClose={() => setError('')} /></div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
           <SectionBlock title="Participantes">
             <FormSection>
               <PatientSearchInput
                 value={formData.id_persona}
-                onChange={(id) => {
-                  setFormData({ ...formData, id_persona: id });
+                onChange={(patientId) => {
+                  setFormData({ ...formData, id_persona: patientId });
                   if (formErrors.id_persona) setFormErrors({ ...formErrors, id_persona: '' });
                 }}
                 error={formErrors.id_persona}
