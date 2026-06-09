@@ -51,7 +51,7 @@ async function insertPrivilegios() {
     { nombre: "ROL_EDITAR" },
 
     { nombre: "PRIVILEGIO_VER" },
-    { nombre: "PRIVILEGIO_CREAR"},
+    { nombre: "PRIVILEGIO_CREAR" },
 
     { nombre: "ANTECEDENTES_VER" },
     { nombre: "ANTECEDENTES_CREAR" },
@@ -63,6 +63,14 @@ async function insertPrivilegios() {
     { nombre: "CONSULTAS_ELIMINAR" },
 
     { nombre: "CITAS_ELIMINAR" },
+
+    { nombre: "INSUMO_VER" },
+    { nombre: "INSUMO_CREAR" },
+    { nombre: "INSUMO_EDITAR" },
+    { nombre: "INSUMO_ELIMINAR" },
+    { nombre: "INVENTARIO_MOVIMIENTO_CREAR" },
+    { nombre: "INVENTARIO_MOVIMIENTO_VER" },
+    { nombre: "INSUMO_STATS" },
   ];
 
   await prisma.privilegio.createMany({

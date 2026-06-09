@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetInsumosDto } from './dto/get-insumo.dto';
@@ -38,7 +38,7 @@ export class InsumoService {
         FROM insumo i
         INNER JOIN categoria_insumo c ON i.id_categoria = c.id_categoria
         INNER JOIN unidad_medida u ON i.id_unidad = u.id_unidad
-        WHERE 1=1
+        WHERE i.activo = true
         ${searchFilter}
         ${categoriaFilter}
         ${stockFilter}
@@ -48,7 +48,7 @@ export class InsumoService {
       this.prisma.$queryRaw<any[]>(Prisma.sql`
         SELECT COUNT(*)::int as total
         FROM insumo i
-        WHERE 1=1
+        WHERE i.activo = true
         ${searchFilter}
         ${categoriaFilter}
         ${stockFilter}
@@ -67,17 +67,16 @@ export class InsumoService {
   }
 
   async getStats() {
-    const statsQuery = `
-      SELECT 
+    const result = await this.prisma.$queryRaw<any[]>(Prisma.sql`
+      SELECT
         COUNT(*) as total_productos,
         SUM(CASE WHEN stock_actual = 0 THEN 1 ELSE 0 END) as agotados,
         SUM(CASE WHEN stock_actual > 0 AND stock_actual <= stock_minimo THEN 1 ELSE 0 END) as stock_bajo,
         SUM(stock_actual * precio_costo) as valor_total
       FROM insumo
-    `;
+      WHERE activo = true
+    `);
 
-    const result = await this.prisma.$queryRawUnsafe<any[]>(statsQuery);
-    
     return {
       total_productos: Number(result[0].total_productos || 0),
       agotados: Number(result[0].agotados || 0),
@@ -156,21 +155,15 @@ export class InsumoService {
   }
 
   async remove(id: number) {
-    const insumo = await this.prisma.insumo.findUnique({
-      where: { id_insumo: id },
-      include: { movimientos: true },
-    });
+    const insumo = await this.prisma.insumo.findUnique({ where: { id_insumo: id } });
 
-    if (!insumo) {
+    if (!insumo || !insumo.activo) {
       throw new NotFoundException(`El insumo con ID ${id} no existe`);
     }
 
-    if (insumo.movimientos.length > 0) {
-      throw new ConflictException('No se puede eliminar el insumo física ni lógicamente porque tiene movimientos de inventario asociados.');
-    }
-
-    await this.prisma.insumo.delete({
+    await this.prisma.insumo.update({
       where: { id_insumo: id },
+      data: { activo: false },
     });
 
     return { message: 'Insumo eliminado exitosamente' };

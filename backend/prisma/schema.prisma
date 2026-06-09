@@ -292,6 +292,7 @@ model Insumo {
   stock_actual Int                    @default(0)
   stock_minimo Int                    @default(0)
   precio_costo Decimal                @db.Decimal(10, 2)
+  activo       Boolean                @default(true)
 
   categoria    CategoriaInsumo        @relation(fields: [id_categoria], references: [id_categoria])
   unidad       UnidadMedida           @relation(fields: [id_unidad], references: [id_unidad])
