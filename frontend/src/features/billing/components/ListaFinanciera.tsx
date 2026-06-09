@@ -382,7 +382,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1180 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
