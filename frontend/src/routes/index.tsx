@@ -1,48 +1,41 @@
-import React from "react";
 import { Navigate } from "react-router-dom";
+import { Spinner } from "../components";
 import { useAuthStore } from "../features/auth/hooks/useAuthStore";
 
-interface GuardProps {
+export interface GuardProps {
   children: React.ReactNode;
 }
 
-const Spinner = () => (
-  <div
-    style={{
-      display: "flex",
-      minHeight: "100vh",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
+function CenteredSpinner() {
+  return (
     <div
       style={{
-        width: 40,
-        height: 40,
-        border: "3px solid var(--border-color)",
-        borderTopColor: "var(--primary)",
-        borderRadius: "50%",
-        animation: "spinSlow 1s linear infinite",
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
       }}
-    />
-  </div>
-);
+    >
+      <Spinner size={40} />
+    </div>
+  );
+}
 
 /** Solo entra si está autenticado, si no → /login */
-export const AuthGuard: React.FC<GuardProps> = ({ children }) => {
+export function AuthGuard({ children }: GuardProps) {
   const { isAuthenticated, isLoading } = useAuthStore();
-  if (isLoading) return <Spinner />;
+  if (isLoading) return <CenteredSpinner />;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
-};
+}
 
 /** Solo entra si NO está autenticado, si ya lo está → /dashboard */
-export const GuestGuard: React.FC<GuardProps> = ({ children }) => {
+export function GuestGuard({ children }: GuardProps) {
   const { isAuthenticated } = useAuthStore();
   return !isAuthenticated ? (
     <>{children}</>
   ) : (
     <Navigate to="/dashboard" replace />
   );
-};
+}
 
 export default AuthGuard;

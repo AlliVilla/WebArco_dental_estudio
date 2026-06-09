@@ -1,44 +1,33 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button, Input, PasswordInput, Alert } from "../../../context";
 import { useAuthStore } from "../hooks/useAuthStore";
-import { Eye, EyeOff } from "lucide-react";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import heroBg from "../../../assets/hero.png";
 
-export const LoginForm: React.FC = () => {
+export interface LoginFormProps {
+  onSuccess?: () => void;
+}
+
+export function LoginForm({ onSuccess }: LoginFormProps) {
+  const navigate = useNavigate();
   const { login, error, isLoading, clearError } = useAuthStore();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [hoverForgot, setHoverForgot] = useState(false);
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!username || !password) return;
     try {
       await login(username, password);
+      onSuccess?.();
+      navigate("/dashboard");
     } catch {
-      /* manejado en store */
+      /* error manejado en store */
     }
-  };
-
-  // Estilos compartidos
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: "0.95rem",
-    color: "#4a4a4a",
-    marginBottom: "0.5rem",
-    fontWeight: 400,
-  };
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "0.95rem 1.1rem",
-    background: "#f1f3f5",
-    border: "none",
-    borderRadius: "0.85rem",
-    fontSize: "1rem",
-    color: "#1f2d3d",
-    outline: "none",
-  };
+  }
 
   return (
     <div
@@ -47,22 +36,14 @@ export const LoginForm: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "1rem",
+        padding: 16,
         backgroundImage: `url(${heroBg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        position: "relative",
       }}
     >
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "100%",
-          maxWidth: 460,
-        }}
-      >
+      <div style={{ width: "100%", maxWidth: 440 }}>
         {showForgot ? (
           <ForgotPasswordForm
             onBack={() => {
@@ -73,13 +54,13 @@ export const LoginForm: React.FC = () => {
         ) : (
           <div
             style={{
-              background: "#ffffff",
-              borderRadius: "1.75rem",
-              boxShadow: "0 25px 70px rgba(0,0,0,0.3)",
+              background: "#FFFFFF",
+              borderRadius: 12,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
               overflow: "hidden",
             }}
           >
-            {/* Header con degradado teal + logo */}
+            {/* Header con logo */}
             <div
               style={{
                 background: "linear-gradient(135deg, #0d6b7a 0%, #15a3ba 100%)",
@@ -94,7 +75,7 @@ export const LoginForm: React.FC = () => {
                 src="/arco_logo.png"
                 alt="ARCO Dental Studio"
                 style={{
-                  height: 120,
+                  height: 110,
                   objectFit: "contain",
                   filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))",
                 }}
@@ -115,98 +96,55 @@ export const LoginForm: React.FC = () => {
             </div>
 
             {/* Cuerpo */}
-            <div style={{ padding: "2rem 2.25rem 2.5rem" }}>
+            <div style={{ padding: 32 }}>
               <h1
                 style={{
                   textAlign: "center",
-                  fontSize: "2.1rem",
-                  fontWeight: 800,
-                  color: "#1f2d3d",
-                  margin: "0 0 2rem",
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#203F49",
+                  margin: "0 0 24px",
                 }}
               >
-                Login
+                Iniciar sesión
               </h1>
 
               {error && (
-                <div
-                  style={{
-                    background: "#fdecea",
-                    color: "#c0392b",
-                    fontSize: "0.9rem",
-                    padding: "0.75rem 1rem",
-                    borderRadius: "0.75rem",
-                    marginBottom: "1.25rem",
-                    border: "1px solid #f5c6cb",
-                  }}
-                >
-                  {error}
+                <div style={{ marginBottom: 16 }}>
+                  <Alert variant="error" message={error} onClose={clearError} />
                 </div>
               )}
 
-              <form onSubmit={handleSubmit}>
-                {/* Email / Usuario */}
-                <div style={{ marginBottom: "1.5rem" }}>
-                  <label style={labelStyle} htmlFor="login-user">
-                    Email
-                  </label>
-                  <input
-                    id="login-user"
-                    type="text"
-                    required
-                    style={inputStyle}
-                    placeholder="tu@email.com"
-                    value={username}
-                    onChange={(e) => {
-                      clearError();
-                      setUsername(e.target.value);
-                    }}
-                    autoComplete="username"
-                  />
-                </div>
+              <form
+                onSubmit={handleSubmit}
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
+                <Input
+                  label="Usuario"
+                  type="text"
+                  placeholder="ej. maria.admin"
+                  value={username}
+                  onChange={(e) => {
+                    clearError();
+                    setUsername(e.target.value);
+                  }}
+                  autoComplete="username"
+                  required
+                />
 
-                {/* Contraseña */}
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={labelStyle} htmlFor="login-pwd">
-                    Contraseña
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      id="login-pwd"
-                      type={showPwd ? "text" : "password"}
-                      required
-                      style={{ ...inputStyle, paddingRight: "3rem" }}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => {
-                        clearError();
-                        setPassword(e.target.value);
-                      }}
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPwd(!showPwd)}
-                      style={{
-                        position: "absolute",
-                        right: "1rem",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#8a9199",
-                        display: "flex",
-                        padding: 0,
-                      }}
-                    >
-                      {showPwd ? <Eye size={16} /> : <EyeOff size={16} />}
-                    </button>
-                  </div>
-                </div>
+                <PasswordInput
+                  label="Contraseña"
+                  placeholder="Ingresa tu contraseña"
+                  value={password}
+                  onChange={(e) => {
+                    clearError();
+                    setPassword(e.target.value);
+                  }}
+                  autoComplete="current-password"
+                  required
+                />
 
-                {/* Olvidaste contraseña */}
-                <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
+                <div style={{ textAlign: "center", marginTop: 4 }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -220,37 +158,26 @@ export const LoginForm: React.FC = () => {
                       border: "none",
                       cursor: "pointer",
                       padding: 0,
-                      color: hoverForgot ? "#1ec3dd" : "#5a6671",
-                      fontSize: "0.95rem",
+                      color: hoverForgot ? "#0899B0" : "#5F656A",
+                      fontSize: 13,
+                      fontWeight: 500,
                       textDecoration: hoverForgot ? "underline" : "none",
-                      transition: "color 0.2s",
+                      transition: "color 0.15s",
                     }}
                   >
                     ¿Olvidaste tu contraseña?
                   </button>
                 </div>
 
-                {/* Botón */}
-                <button
+                <Button
                   type="submit"
-                  disabled={isLoading}
-                  style={{
-                    width: "100%",
-                    padding: "1rem",
-                    border: "none",
-                    borderRadius: "1rem",
-                    background: "#1ec3dd",
-                    color: "#fff",
-                    fontSize: "1.05rem",
-                    fontWeight: 700,
-                    cursor: isLoading ? "default" : "pointer",
-                    opacity: isLoading ? 0.7 : 1,
-                    boxShadow: "0 8px 20px rgba(30,195,221,0.35)",
-                    transition: "opacity 0.2s",
-                  }}
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
                 >
                   {isLoading ? "Validando..." : "Iniciar sesión"}
-                </button>
+                </Button>
               </form>
             </div>
           </div>
@@ -258,6 +185,6 @@ export const LoginForm: React.FC = () => {
       </div>
     </div>
   );
-};
+}
 
 export default LoginForm;

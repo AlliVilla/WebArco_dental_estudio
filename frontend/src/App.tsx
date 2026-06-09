@@ -2,16 +2,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./page layouts/MainLayout";
 import { Dashboard } from "./page layouts/Dashboard";
 import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
-import { LoginForm } from "./features/auth/components/LoginForm";
-import { AuthGuard, GuestGuard } from "./routes/index";
-
-// IMPORTANTE: Tendrás que crear estos componentes en sus respectivas carpetas (features)
 import { PatientsScreen } from "./features/patients/components/PatientsScreen";
 import { AppointmentsScreen } from "./features/appointments/components/AppointmentsScreen";
 import { GestionIngresos } from "./features/billing/components/GestionIngresos";
 import { ConsentScreen } from "./features/patients/components/ConsentScreen";
 import { Card, Alert, DesignSystemScreen } from "./context";
-
+import { LoginForm } from "./features/auth/components/LoginForm";
+import { AuthGuard, GuestGuard } from "./routes/index";
 function App() {
   return (
     <Routes>
