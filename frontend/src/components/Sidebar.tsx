@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 // ── Nav data (SVG paths wired from Figma import) ──────────────────────────────
 
 type NavId =
-  | 'dashboard' | 'mi-perfil'
+  | 'dashboard'
   | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consentimientos-lista'
   | 'citas' | 'recordatorios'
   | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
@@ -159,7 +159,6 @@ const navGroups: NavGroup[] = [
     title: 'Principal',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <IconDashboard /> },
-      { id: 'mi-perfil', label: 'Mi Perfil', icon: <IconUser /> },
     ],
   },
   {

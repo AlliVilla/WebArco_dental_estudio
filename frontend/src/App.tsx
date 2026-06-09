@@ -13,7 +13,7 @@ import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage'
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { UsersScreen } from './features/users';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
-
+import { MiPerfil } from './features/users/components/MiPerfil';
 function App() {
   return (
     <Routes>
@@ -45,6 +45,7 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/agenda" element={<AppointmentsScreen />} />
+        <Route path="/mi-perfil" element={<MiPerfil />} />
 
         {/* Patients sub-routes */}
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
