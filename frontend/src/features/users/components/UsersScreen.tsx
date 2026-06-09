@@ -315,13 +315,13 @@ export function UsersScreen() {
   }, [fetchUsers]);
 
   // Handle server-side param changes from DataTable
-  const handleServerParamsChange = (params: {
+  const handleServerParamsChange = useCallback((params: {
     page: number;
     search: string;
     filters: Record<string, string>;
   }) => {
     setServerParams(params);
-  };
+  }, []);
 
   // Open creation or edit form
   const handleOpenForm = (user?: Usuario) => {

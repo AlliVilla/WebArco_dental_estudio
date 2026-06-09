@@ -554,101 +554,89 @@ export function DataTable<T extends Record<string, unknown>>({
                 )}
               </tr>
             </thead>
-            <tbody>
-              {pagedData.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length + (rowActions ? 1 : 0)}
+            <tbody>{pagedData.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length + (rowActions ? 1 : 0)}
+                  style={{
+                    padding: "48px 16px",
+                    textAlign: "center",
+                    fontSize: 12,
+                    color: "#A0AEC0",
+                  }}
+                >
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              pagedData.map((row, idx) => {
+                const key = getRowKey ? getRowKey(row, idx) : String(idx);
+                const actions = rowActions?.(row) ?? [];
+                return (
+                  <tr
+                    key={key}
                     style={{
-                      padding: "48px 16px",
-                      textAlign: "center",
-                      fontSize: 12,
-                      color: "#A0AEC0",
+                      background: "#fff",
+                      height: 46,
+                      transition: "background-color 0.2s",
                     }}
-                  >
-                    {emptyMessage}
-                  </td>
-                </tr>
-              ) : (
-                pagedData.map((row, idx) => {
-                  const key = getRowKey ? getRowKey(row, idx) : String(idx);
-                  const actions = rowActions?.(row) ?? [];
-                  return (
-                    <tr
-                      key={key}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#F9FAFB";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "#fff";
+                    }}
+                  >{columns.map((col) => (
+                    <td
+                      key={col.key}
                       style={{
-                        background: "#fff",
-                        height: 46,
-                        transition: "background-color 0.2s",
+                        padding: "11px 14px",
+                        fontSize: 12,
+                        color: "#475467",
+                        textAlign: (col.align ??
+                          "left") as React.CSSProperties["textAlign"],
+                        whiteSpace: "nowrap",
+                        borderBottom: "1px solid #D3D7DA",
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#F9FAFB";
+                    >{col.render
+                      ? col.render(row[col.key], row)
+                      : String(row[col.key] ?? "")}</td>
+                  ))}{rowActions && (
+                    <td
+                      style={{
+                        padding: "8px 14px",
+                        textAlign: "center",
+                        borderBottom: "1px solid #F0F2F5",
                       }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#fff";
+                    ><div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
-                    >
-                      {columns.map((col) => (
-                        <td
-                          key={col.key}
-                          style={{
-                            padding: "11px 14px",
-                            fontSize: 12,
-                            color: "#475467",
-                            textAlign: (col.align ??
-                              "left") as React.CSSProperties["textAlign"],
-                            whiteSpace: "nowrap",
-                            borderBottom: "1px solid #D3D7DA",
-                          }}
-                        >
-                          {col.render
-                            ? col.render(row[col.key], row)
-                            : String(row[col.key] ?? "")}
-                        </td>
-                      ))}
-                      {rowActions && (
-                        <td
-                          style={{
-                            padding: "8px 14px",
-                            textAlign: "center",
-                            borderBottom: "1px solid #F0F2F5",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 8,
-                              justifyContent: "center",
-                              alignItems: "center",
-                            }}
-                          >
-                            {actions.map((action, ai) => (
-                              <button
-                                key={ai}
-                                title={action.label}
-                                onClick={() => action.onClick(row)}
-                                style={{
-                                  background: "transparent",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: action.danger ? "#F04438" : "#667085",
-                                  padding: 2,
-                                  transition: "color 0.2s",
-                                }}
-                              >
-                                {action.icon}
-                              </button>
-                            ))}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}            </tbody>
+                    >{actions.map((action, ai) => (
+                      <button
+                        key={ai}
+                        title={action.label}
+                        onClick={() => action.onClick(row)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: action.danger ? "#F04438" : "#667085",
+                          padding: 2,
+                          transition: "color 0.2s",
+                        }}
+                      >{action.icon}</button>
+                    ))}</div></td>
+                  )}</tr>
+                );
+              })
+            )}</tbody>
             {footer}
           </table>
         </div>
@@ -657,11 +645,11 @@ export function DataTable<T extends Record<string, unknown>>({
       {/* 4. Paginación */}
       {!hidePagination && (
         <Pagination
-        page={safePage}
-        totalPages={totalPages}
-        total={totalCount}
-        pageSize={pageSize}        onPage={setPage}
-      />
+          page={safePage}
+          totalPages={totalPages}
+          total={totalCount}
+          pageSize={pageSize} onPage={setPage}
+        />
       )}
     </div>
   );
