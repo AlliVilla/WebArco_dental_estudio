@@ -11,7 +11,8 @@ import {
   Get,
   Query,
   ConflictException,
-  Param
+  Param,
+  Delete
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -43,7 +44,7 @@ export class RolController {
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Listar todos los roles',
-        description: 'Retornar lista de roles con nombre, descripción, conteo de usuarios activos y privilegios asignados'
+        description: 'Retornar lista de roles activos con nombre, descripción, conteo de usuarios activos y privilegios asignados'
     })
     @ApiConflictResponse({description: 'page y limit deben ser mayores a 0'})
     async findAll(
@@ -86,4 +87,23 @@ export class RolController {
     async updateRole(@Param('id', ParseIntPipe) id : number,@Body() body: UpdateRoleDto){
         return this.rolService.updateRole(id,body);
     }
+
+    @Delete(':id')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+      summary: 'Eliminar Rol',
+      description:
+        'Realiza un borrado lógico del rol. Si existen usuarios activos asociados, se retorna un error 409 con el detalle.',
+    })
+    @ApiOkResponse({ description: 'Rol eliminado (desactivado) correctamente' })
+    @ApiNotFoundResponse({ description: 'Rol no encontrado' })
+    @ApiConflictResponse({
+      description: 'El rol tiene usuarios activos asociados',
+    })
+    async deleteRole(
+      @Param('id', ParseIntPipe) id: number,
+    ) {
+      return this.rolService.deleteRole(id);
+    }
+
 }
