@@ -48,7 +48,7 @@ interface PatientsScreenProps {
   onViewProfile?: () => void;
   onCreatePatient?: () => void;
   onEditPatient?: (id: number) => void;
-  onViewPatient?: (code: string) => void;
+  onViewPatient?: (id: number) => void;
 }
 
 export function PatientsScreen({
@@ -64,6 +64,8 @@ export function PatientsScreen({
   const [searchPhone, setSearchPhone] = useState("");
   const [searchCode, setSearchCode] = useState("");
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
+  const [selectedMedicalPatient, setSelectedMedicalPatient] =
+    useState<Patient | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -169,9 +171,9 @@ export function PatientsScreen({
     if (!onEditPatient) navigate(`/patients/edit/${id}`);
   };
 
-  const handleViewPatient = (code: string) => {
-    onViewPatient?.(code);
-    if (!onViewPatient) onViewProfile?.();
+  const handleViewPatient = (patient: Patient) => {
+    onViewPatient?.(patient.id);
+    setSelectedMedicalPatient(patient);
   };
 
   return (
@@ -390,9 +392,10 @@ export function PatientsScreen({
                 >
                   {patient.code}
                 </span>
-                <span style={{ color: "var(--arco-navy)", fontSize: 13 }}>
-                  {patient.fullName}
-                </span>
+                <PatientNameButton
+                  name={patient.fullName}
+                  onClick={() => navigate(`/patients/profile/${patient.id}`)}
+                />
                 <span style={{ color: "var(--arco-gray-700)", fontSize: 13 }}>
                   {patient.phone}
                 </span>
@@ -415,7 +418,7 @@ export function PatientsScreen({
                   </ActionIconButton>
                   <ActionIconButton
                     title="Ver información médica"
-                    onClick={() => handleViewPatient(patient.code)}
+                    onClick={() => handleViewPatient(patient)}
                   >
                     <FileText size={15} />
                   </ActionIconButton>
@@ -425,6 +428,171 @@ export function PatientsScreen({
           )}
         </div>
       </Card>
+
+      {selectedMedicalPatient ? (
+        <MedicalInfoModal
+          patient={selectedMedicalPatient}
+          onClose={() => setSelectedMedicalPatient(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function MedicalInfoModal({
+  onClose,
+  patient,
+}: {
+  onClose: () => void;
+  patient: Patient;
+}) {
+  return (
+    <div
+      style={{
+        alignItems: "center",
+        background: "rgba(32, 63, 73, 0.28)",
+        bottom: 0,
+        display: "flex",
+        justifyContent: "center",
+        left: 0,
+        padding: 24,
+        position: "fixed",
+        right: 0,
+        top: 0,
+        zIndex: 50,
+      }}
+    >
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid var(--arco-gray-300)",
+          borderRadius: 12,
+          boxShadow: "0 24px 70px rgba(32, 63, 73, 0.18)",
+          maxWidth: 720,
+          padding: 20,
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            alignItems: "flex-start",
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 18,
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                color: "var(--arco-navy)",
+                fontSize: 18,
+                fontWeight: 700,
+                margin: 0,
+              }}
+            >
+              Información médica
+            </h3>
+            <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "4px 0 0" }}>
+              {patient.fullName} · {patient.code}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              alignItems: "center",
+              background: "#FFFFFF",
+              border: "1px solid var(--arco-gray-300)",
+              borderRadius: 6,
+              color: "var(--arco-gray-500)",
+              cursor: "pointer",
+              display: "flex",
+              height: 32,
+              justifyContent: "center",
+              width: 32,
+            }}
+            type="button"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 14 }}>
+          <MedicalBlock
+            items={["Diabetes", "Hipertensión"]}
+            title="Enfermedades sistémicas"
+            tone="warning"
+          />
+          <MedicalBlock
+            items={["Penicilina", "Ibuprofeno"]}
+            title="Alergias a medicamentos"
+            tone="danger"
+          />
+          <MedicalBlock
+            items={["Reacción moderada a lidocaína con epinefrina en procedimiento de 2023. Utilizar anestesia sin vasoconstrictor."]}
+            title="Historial de anestesia"
+            tone="warning"
+          />
+          <MedicalBlock
+            items={["No hay medicamentos actuales registrados."]}
+            title="Medicamentos actuales"
+            tone="neutral"
+          />
+        </div>
+
+        <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "16px 0 0" }}>
+          Nota: estos datos médicos se muestran como vista clínica rápida. Cuando el backend exponga antecedentes médicos por paciente, esta tarjeta puede leerlos desde la API.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MedicalBlock({
+  items,
+  title,
+  tone,
+}: {
+  items: string[];
+  title: string;
+  tone: "danger" | "neutral" | "warning";
+}) {
+  const colorMap = {
+    danger: { bg: "#FEF2F2", border: "#FECACA", text: "#B91C1C" },
+    neutral: { bg: "#F8F9FA", border: "#D3D7DA", text: "#5F656A" },
+    warning: { bg: "#FFFBEB", border: "#FDE68A", text: "#B7791F" },
+  };
+  const colors = colorMap[tone];
+
+  return (
+    <div
+      style={{
+        background: colors.bg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 8,
+        padding: 14,
+      }}
+    >
+      <div style={{ color: "#203F49", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+        {title}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {items.map((item) => (
+          <span
+            key={item}
+            style={{
+              background: "#FFFFFF",
+              border: `1px solid ${colors.border}`,
+              borderRadius: 999,
+              color: colors.text,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "5px 10px",
+            }}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -465,6 +633,41 @@ function ActionIconButton({
       }}
     >
       {children}
+    </button>
+  );
+}
+
+function PatientNameButton({
+  name,
+  onClick,
+}: {
+  name: string;
+  onClick: () => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      type="button"
+      style={{
+        background: "transparent",
+        border: "none",
+        color: isHovered ? "#0899B0" : "#0BC5DF",
+        cursor: "pointer",
+        fontSize: 13,
+        fontWeight: 600,
+        padding: 0,
+        textAlign: "left",
+        textDecoration: isHovered ? "underline" : "none",
+        textUnderlineOffset: 3,
+        transition: "color 0.15s ease",
+      }}
+      title="Abrir perfil del paciente"
+    >
+      {name}
     </button>
   );
 }

@@ -4,6 +4,7 @@ import { Dashboard } from './page layouts/Dashboard';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
 import { PatientsScreen } from './features/patients/components/PatientsScreen';
 import { PatientFormScreen } from './features/patients/components/PatientFormScreen';
+import { PatientProfileScreen } from './features/patients/components/PatientProfileScreen';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
@@ -52,6 +53,7 @@ function App() {
         <Route path="/patients/list" element={<PatientsScreen />} />
         <Route path="/patients/new" element={<PatientFormScreen />} />
         <Route path="/patients/edit/:id" element={<PatientFormScreen />} />
+        <Route path="/patients/profile/:id" element={<PatientProfileScreen />} />
         <Route path="/patients/odontogram" element={<OdontogramScreen consultaId={18} />} />
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
