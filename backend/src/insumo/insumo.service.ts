@@ -1,9 +1,35 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetInsumosDto } from './dto/get-insumo.dto';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
+
+export interface InsumoRow {
+  id_insumo: number;
+  codigo: string;
+  nombre: string;
+  stock_actual: number;
+  stock_minimo: number;
+  precio_costo: number;
+  categoria_nombre: string;
+  unidad_nombre: string;
+}
+
+export interface CountRow {
+  total: number;
+}
+
+export interface StatsRow {
+  total_productos: bigint;
+  agotados: bigint;
+  stock_bajo: bigint;
+  valor_total: number;
+}
+
+export interface NextIdRow {
+  next_id: bigint;
+}
 
 @Injectable()
 export class InsumoService {
@@ -31,7 +57,7 @@ export class InsumoService {
             : Prisma.empty;
 
     const [items, totalResult] = await Promise.all([
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+      this.prisma.$queryRaw<InsumoRow[]>(Prisma.sql`
         SELECT
           i.id_insumo, i.codigo, i.nombre, i.stock_actual, i.stock_minimo, i.precio_costo,
           c.nombre as categoria_nombre, u.nombre as unidad_nombre
@@ -45,7 +71,7 @@ export class InsumoService {
         ORDER BY i.nombre ASC
         LIMIT ${limit} OFFSET ${skip}
       `),
-      this.prisma.$queryRaw<any[]>(Prisma.sql`
+      this.prisma.$queryRaw<CountRow[]>(Prisma.sql`
         SELECT COUNT(*)::int as total
         FROM insumo i
         WHERE i.activo = true
@@ -57,17 +83,11 @@ export class InsumoService {
 
     const total = totalResult[0].total;
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getStats() {
-    const result = await this.prisma.$queryRaw<any[]>(Prisma.sql`
+    const result = await this.prisma.$queryRaw<StatsRow[]>(Prisma.sql`
       SELECT
         COUNT(*) as total_productos,
         SUM(CASE WHEN stock_actual = 0 THEN 1 ELSE 0 END) as agotados,
@@ -98,37 +118,33 @@ export class InsumoService {
       throw new NotFoundException(`La unidad de medida con ID ${id_unidad} no existe`);
     }
 
-    const lastInsumo = await this.prisma.insumo.findFirst({
-      orderBy: { id_insumo: 'desc' },
-    });
+    const nextResult = await this.prisma.$queryRaw<NextIdRow[]>(
+      Prisma.sql`SELECT nextval(pg_get_serial_sequence('insumo', 'id_insumo')) as next_id`
+    );
+    const nextId = Number(nextResult[0].next_id);
+    const codigo = `INS-${String(nextId).padStart(3, '0')}`;
 
-    let newCodeNumber = 1;
-    if (lastInsumo && lastInsumo.codigo.startsWith('INS-')) {
-      const parts = lastInsumo.codigo.split('-');
-      if (parts.length === 2 && !isNaN(Number(parts[1]))) {
-        newCodeNumber = parseInt(parts[1], 10) + 1;
-      } else {
-        newCodeNumber = lastInsumo.id_insumo + 1;
+    try {
+      const newInsumo = await this.prisma.insumo.create({
+        data: {
+          id_insumo: nextId,
+          codigo,
+          nombre,
+          id_categoria,
+          id_unidad,
+          stock_actual: stock_actual ?? 0,
+          stock_minimo: stock_minimo ?? 0,
+          precio_costo,
+        },
+      });
+
+      return { message: 'Insumo creado exitosamente', insumo: newInsumo };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(`Ya existe un insumo con el código ${codigo}`);
       }
-    } else if (lastInsumo) {
-       newCodeNumber = lastInsumo.id_insumo + 1;
+      throw error;
     }
-    
-    const newCode = `INS-${newCodeNumber.toString().padStart(3, '0')}`;
-
-    const newInsumo = await this.prisma.insumo.create({
-      data: {
-        codigo: newCode,
-        nombre,
-        id_categoria,
-        id_unidad,
-        stock_actual: stock_actual || 0,
-        stock_minimo: stock_minimo || 0,
-        precio_costo,
-      },
-    });
-
-    return { message: 'Insumo creado exitosamente', insumo: newInsumo };
   }
 
   async update(id: number, updateInsumoDto: UpdateInsumoDto) {
@@ -137,11 +153,11 @@ export class InsumoService {
       throw new NotFoundException(`El insumo con ID ${id} no existe`);
     }
 
-    if (updateInsumoDto.id_categoria) {
+    if (updateInsumoDto.id_categoria !== undefined) {
       const categoria = await this.prisma.categoriaInsumo.findUnique({ where: { id_categoria: updateInsumoDto.id_categoria } });
       if (!categoria) throw new NotFoundException(`La categoría con ID ${updateInsumoDto.id_categoria} no existe`);
     }
-    if (updateInsumoDto.id_unidad) {
+    if (updateInsumoDto.id_unidad !== undefined) {
       const unidad = await this.prisma.unidadMedida.findUnique({ where: { id_unidad: updateInsumoDto.id_unidad } });
       if (!unidad) throw new NotFoundException(`La unidad con ID ${updateInsumoDto.id_unidad} no existe`);
     }

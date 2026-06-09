@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMovimientoDto, TipoMovimiento } from './dto/create-movimiento.dto';
 import { GetMovimientosDto } from './dto/get-movimientos.dto';
@@ -10,25 +11,20 @@ export class InventarioService {
   async create(createMovimientoDto: CreateMovimientoDto, userId: number) {
     const { id_insumo, tipo, cantidad, observaciones } = createMovimientoDto;
 
-    // Verificar que el insumo exista
-    const insumo = await this.prisma.insumo.findUnique({
-      where: { id_insumo },
-    });
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const insumo = await tx.insumo.findUnique({ where: { id_insumo } });
 
-    if (!insumo) {
-      throw new NotFoundException(`El insumo con ID ${id_insumo} no existe`);
-    }
+      if (!insumo) {
+        throw new NotFoundException(`El insumo con ID ${id_insumo} no existe`);
+      }
 
-    if (tipo === TipoMovimiento.Salida && cantidad > insumo.stock_actual) {
-      throw new BadRequestException(
-        `Stock insuficiente. El insumo tiene ${insumo.stock_actual} en stock, y se intentan sacar ${cantidad}.`
-      );
-    }
+      if (tipo === TipoMovimiento.Salida && cantidad > insumo.stock_actual) {
+        throw new BadRequestException(
+          `Stock insuficiente. El insumo tiene ${insumo.stock_actual} en stock, y se intentan sacar ${cantidad}.`
+        );
+      }
 
-    // Ejecutar actualización de stock y creación de movimiento en una transacción
-    const resultado = await this.prisma.$transaction(async (prisma) => {
-      // 1. Crear el movimiento
-      const movimiento = await prisma.movimientoInventario.create({
+      const movimiento = await tx.movimientoInventario.create({
         data: {
           id_insumo,
           tipo,
@@ -38,20 +34,15 @@ export class InventarioService {
         },
       });
 
-      // 2. Actualizar el stock_actual del insumo
       const incremento = tipo === TipoMovimiento.Entrada ? cantidad : -cantidad;
-      
-      const insumoActualizado = await prisma.insumo.update({
+
+      const insumoActualizado = await tx.insumo.update({
         where: { id_insumo },
-        data: {
-          stock_actual: {
-            increment: incremento,
-          },
-        },
+        data: { stock_actual: { increment: incremento } },
       });
 
       return { movimiento, insumo: insumoActualizado };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     return { message: 'Movimiento registrado exitosamente', ...resultado };
   }
@@ -60,7 +51,7 @@ export class InventarioService {
     const { id_insumo, tipo, fecha_inicio, fecha_fin, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.MovimientoInventarioWhereInput = {};
 
     if (id_insumo) {
       where.id_insumo = id_insumo;
@@ -85,27 +76,21 @@ export class InventarioService {
         where,
         skip,
         take: limit,
-        orderBy: {
-          fecha: 'desc',
-        },
+        orderBy: { fecha: 'desc' },
         include: {
-          insumo: {
-            select: { nombre: true, codigo: true }
-          },
+          insumo: { select: { nombre: true, codigo: true } },
           usuario: {
-            select: { username: true, id_usuario: true, persona: { select: { primer_nombre: true, primer_apellido: true } } }
-          }
-        }
+            select: {
+              username: true,
+              id_usuario: true,
+              persona: { select: { primer_nombre: true, primer_apellido: true } },
+            },
+          },
+        },
       }),
       this.prisma.movimientoInventario.count({ where }),
     ]);
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 }

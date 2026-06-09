@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { InventarioService } from './inventario.service';
 import { CreateMovimientoDto } from './dto/create-movimiento.dto';
 import { GetMovimientosDto } from './dto/get-movimientos.dto';
@@ -6,6 +7,10 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiUnauthorizedResponse, ApiOkRes
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
+
+interface RequestWithUser extends Request {
+  user: { id_usuario: number; id_rol: number };
+}
 
 @ApiTags('Movimientos de Inventario')
 @Controller('inventario/movimiento')
@@ -19,7 +24,7 @@ export class InventarioController {
   @Post()
   @ApiOperation({ summary: 'Registrar un movimiento (entrada o salida) y actualizar stock' })
   @ApiCreatedResponse({ description: 'Movimiento de inventario registrado exitosamente.' })
-  create(@Body() createMovimientoDto: CreateMovimientoDto, @Req() req: any) {
+  create(@Body() createMovimientoDto: CreateMovimientoDto, @Req() req: RequestWithUser) {
     const userId = req.user.id_usuario;
     return this.inventarioService.create(createMovimientoDto, userId);
   }
