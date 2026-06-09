@@ -49,6 +49,8 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   getRowKey?: (row: T, index: number) => string;
   style?: React.CSSProperties;
   emptyMessage?: string;
+  footer?: React.ReactNode;
+  hidePagination?: boolean;
   isServerSide?: boolean;
   totalRecords?: number;
   onServerParamsChange?: (params: {
@@ -315,6 +317,8 @@ export function DataTable<T extends Record<string, unknown>>({
   getRowKey,
   style,
   emptyMessage = "No hay registros disponibles.",
+  footer,
+  hidePagination = false,
   isServerSide = false,
   totalRecords = 0,
   onServerParamsChange,
@@ -644,20 +648,21 @@ export function DataTable<T extends Record<string, unknown>>({
                     </tr>
                   );
                 })
-              )}
-            </tbody>
+              )}            </tbody>
+            {footer}
           </table>
         </div>
       </div>
 
       {/* 4. Paginación */}
-      <Pagination
+      {!hidePagination && (
+        <Pagination
         page={safePage}
         totalPages={totalPages}
         total={totalCount}
-        pageSize={pageSize}
-        onPage={setPage}
+        pageSize={pageSize}        onPage={setPage}
       />
+      )}
     </div>
   );
 }
