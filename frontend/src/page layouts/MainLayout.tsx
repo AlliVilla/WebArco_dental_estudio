@@ -25,6 +25,8 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'billing-list': { title: 'Lista Financiera', breadcrumbs: ['Gestión', 'Facturación', 'Listado'] },
   'estado-resultado': { title: 'Estado de Resultado', breadcrumbs: ['Reportes', 'Estado de Resultado'] },
   users: { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
+  'users-list': { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
+  'roles-management': { title: 'Gestión de Roles', breadcrumbs: ['Configuración', 'Usuarios', 'Roles'] },
   treatments: { title: 'Catálogo de Tratamientos', breadcrumbs: ['Configuración', 'Tratamientos'] },
   inventory: { title: 'Control de Inventario', breadcrumbs: ['Configuración', 'Inventario'] },
   settings: { title: 'Configuración', breadcrumbs: ['Inicio', 'Configuración'] },
@@ -55,7 +57,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/inventory') return 'inventory';
     if (pathname === '/stats') return 'estado-resultado';
     if (pathname === '/settings') return 'settings';
-    if (pathname === '/users') return 'users';
+    if (pathname === '/users') return 'users-list';
+    if (pathname === '/users/roles') return 'roles-management';
     if (pathname === '/design') return 'design';
     return pathname.substring(1);
   };
@@ -81,6 +84,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       'billing-list': '/billing/list',
       'estado-resultado': '/stats',
       users: '/users',
+      'users-list': '/users',
+      'roles-management': '/users/roles',
       inventory: '/inventory',
       settings: '/settings',
       design: '/design',

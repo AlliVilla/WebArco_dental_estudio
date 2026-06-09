@@ -19,7 +19,22 @@ export function MiPerfil() {
   );
 
   const handleSave = () => {
-    const updated = { ...user, username, persona: { ...user?.persona, correo: email, nombre: fullName } };
+    if (!user) {
+      return;
+    }
+
+    const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+    const updated = {
+      ...user,
+      username,
+      persona: {
+        nombre: nameParts[0] || user.persona?.nombre || '',
+        apellido: nameParts.slice(1).join(' ') || user.persona?.apellido || '',
+        telefono: user.persona?.telefono,
+        correo: email,
+      },
+    };
+
     localStorage.setItem('webarco_user', JSON.stringify(updated));
     useAuthStore.setState({ user: updated });
   };
