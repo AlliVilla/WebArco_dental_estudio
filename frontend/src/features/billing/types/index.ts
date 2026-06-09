@@ -24,20 +24,20 @@ export interface CreatePaymentInput {
   firma_paciente?: string;
 }
 
-export type TransactionKind = 'income' | 'expense';
+export type TransactionKind = 'ingreso' | 'egreso';
 
 export type IncomePaymentMethod = 'Tarjeta' | 'Efectivo' | 'Transferencia';
 
-export type ExpenseCategory = 'Insumos' | 'Equipos' | 'N\u00f3mina' | 'Servicios';
+export type ExpenseCategory = 'Insumos' | 'Equipos' | 'Nómina' | 'Servicios';
 
 export interface FinancialRecord extends Record<string, unknown> {
-  id: string;
-  type: TransactionKind;
-  date: string;
-  patient?: string;
-  concept: string;
-  amount: number;
-  paymentMethod?: IncomePaymentMethod;
-  category?: ExpenseCategory;
-  responsible?: string;
+  id_registro: string;
+  tipo: TransactionKind;
+  fecha: string;
+  paciente?: string;
+  concepto: string;
+  monto: number;
+  metodoPago?: IncomePaymentMethod;
+  categoria?: ExpenseCategory;
+  responsable?: string;
 }

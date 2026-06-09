@@ -13,94 +13,94 @@ export interface ListaFinancieraProps {
 
 const financialRecords: FinancialRecord[] = [
   {
-    id: 'income-1',
-    type: 'income',
-    date: '03/06/2026',
-    patient: 'Mar\u00eda Gonz\u00e1lez',
-    concept: 'Limpieza dental',
-    amount: 1200,
-    paymentMethod: 'Tarjeta',
+    id_registro: 'income-1',
+    tipo: 'ingreso',
+    fecha: '2026-06-03',
+    paciente: 'María González',
+    concepto: 'Limpieza dental',
+    monto: 1200,
+    metodoPago: 'Tarjeta',
   },
   {
-    id: 'income-2',
-    type: 'income',
-    date: '02/06/2026',
-    patient: 'Juan P\u00e9rez',
-    concept: 'Ortodoncia - Consulta',
-    amount: 2500,
-    paymentMethod: 'Efectivo',
+    id_registro: 'income-2',
+    tipo: 'ingreso',
+    fecha: '2026-06-02',
+    paciente: 'Juan Pérez',
+    concepto: 'Ortodoncia - Consulta',
+    monto: 2500,
+    metodoPago: 'Efectivo',
   },
   {
-    id: 'income-3',
-    type: 'income',
-    date: '01/06/2026',
-    patient: 'Ana Rodr\u00edguez',
-    concept: 'Endodoncia',
-    amount: 3800,
-    paymentMethod: 'Transferencia',
+    id_registro: 'income-3',
+    tipo: 'ingreso',
+    fecha: '2026-06-01',
+    paciente: 'Ana Rodríguez',
+    concepto: 'Endodoncia',
+    monto: 3800,
+    metodoPago: 'Transferencia',
   },
   {
-    id: 'income-4',
-    type: 'income',
-    date: '01/06/2026',
-    patient: 'Carlos M\u00e9ndez',
-    concept: 'Extracci\u00f3n',
-    amount: 800,
-    paymentMethod: 'Efectivo',
+    id_registro: 'income-4',
+    tipo: 'ingreso',
+    fecha: '2026-06-01',
+    paciente: 'Carlos Méndez',
+    concepto: 'Extracción',
+    monto: 800,
+    metodoPago: 'Efectivo',
   },
   {
-    id: 'income-5',
-    type: 'income',
-    date: '31/05/2026',
-    patient: 'Sof\u00eda Torres',
-    concept: 'Implante dental - Anticipo',
-    amount: 5000,
-    paymentMethod: 'Transferencia',
+    id_registro: 'income-5',
+    tipo: 'ingreso',
+    fecha: '2026-05-31',
+    paciente: 'Sofía Torres',
+    concepto: 'Implante dental - Anticipo',
+    monto: 5000,
+    metodoPago: 'Transferencia',
   },
   {
-    id: 'expense-1',
-    type: 'expense',
-    date: '03/06/2026',
-    concept: 'Compra de guantes l\u00e1tex x500',
-    amount: 450,
-    category: 'Insumos',
-    responsible: 'Dr. Karla Arita',
+    id_registro: 'expense-1',
+    tipo: 'egreso',
+    fecha: '2026-06-03',
+    concepto: 'Compra de guantes látex x500',
+    monto: 450,
+    categoria: 'Insumos',
+    responsable: 'Dr. Karla Arita',
   },
   {
-    id: 'expense-2',
-    type: 'expense',
-    date: '02/06/2026',
-    concept: 'Mantenimiento autoclave',
-    amount: 1200,
-    category: 'Equipos',
-    responsible: 'Dr. Karla Arita',
+    id_registro: 'expense-2',
+    tipo: 'egreso',
+    fecha: '2026-06-02',
+    concepto: 'Mantenimiento autoclave',
+    monto: 1200,
+    categoria: 'Equipos',
+    responsable: 'Dr. Karla Arita',
   },
   {
-    id: 'expense-3',
-    type: 'expense',
-    date: '01/06/2026',
-    concept: 'Pago n\u00f3mina asistente',
-    amount: 8500,
-    category: 'N\u00f3mina',
-    responsible: 'Dr. Karla Arita',
+    id_registro: 'expense-3',
+    tipo: 'egreso',
+    fecha: '2026-06-01',
+    concepto: 'Pago nómina asistente',
+    monto: 8500,
+    categoria: 'Nómina',
+    responsable: 'Dr. Karla Arita',
   },
   {
-    id: 'expense-4',
-    type: 'expense',
-    date: '01/06/2026',
-    concept: 'Resinas dentales x10',
-    amount: 2300,
-    category: 'Insumos',
-    responsible: 'Dr. Karla Arita',
+    id_registro: 'expense-4',
+    tipo: 'egreso',
+    fecha: '2026-06-01',
+    concepto: 'Resinas dentales x10',
+    monto: 2300,
+    categoria: 'Insumos',
+    responsable: 'Dr. Karla Arita',
   },
   {
-    id: 'expense-5',
-    type: 'expense',
-    date: '31/05/2026',
-    concept: 'Servicio de limpieza',
-    amount: 800,
-    category: 'Servicios',
-    responsible: 'Dr. Karla Arita',
+    id_registro: 'expense-5',
+    tipo: 'egreso',
+    fecha: '2026-05-31',
+    concepto: 'Servicio de limpieza',
+    monto: 800,
+    categoria: 'Servicios',
+    responsable: 'Dr. Karla Arita',
   },
 ];
 
@@ -117,14 +117,26 @@ const tabStyles = {
   },
 };
 
-function MoneyText({ amount, type }: { amount: number; type: TransactionKind }) {
+function formatTableDate(fecha: string) {
+  const [year, month, day] = fecha.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function parseFilterDate(fecha: string) {
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) return '';
+
+  const [day, month, year] = fecha.split('/');
+  return `${year}-${month}-${day}`;
+}
+
+function MoneyText({ monto, tipo }: { monto: number; tipo: TransactionKind }) {
   return (
     <span style={{
-      color: type === 'income' ? '#1D9E75' : '#E24B4A',
+      color: tipo === 'ingreso' ? '#1D9E75' : '#E24B4A',
       fontSize: 13,
       fontWeight: 600,
     }}>
-      {formatCurrency(amount)}
+      {formatCurrency(monto)}
     </span>
   );
 }
@@ -151,9 +163,9 @@ function MethodBadge({ label }: { label: string }) {
 function CategoryBadge({ label }: { label: string }) {
   const badgeStyles: Record<string, { background: string; color: string }> = {
     Insumos: { background: '#E6F8FB', color: '#0899B0' },
-    Equipos: { background: '#F1F3F4', color: '#203F49' },
-    'N\u00f3mina': { background: '#F1F3F4', color: '#EF9F27' },
-    Servicios: { background: '#F1F3F4', color: '#1D9E75' },
+    Equipos: { background: '#E8EDFF', color: '#4F6FB5' },
+    Nómina: { background: '#FDE9BA', color: '#A76B00' },
+    Servicios: { background: '#DDF4EA', color: '#3B8F6A' },
   };
   const style = badgeStyles[label] ?? { background: '#F1F3F4', color: '#5F656A' };
 
@@ -176,94 +188,103 @@ function CategoryBadge({ label }: { label: string }) {
 }
 
 export function ListaFinanciera({ records = financialRecords }: ListaFinancieraProps) {
-  const [activeType, setActiveType] = useState<TransactionKind>('income');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [patientSearch, setPatientSearch] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [expenseCategory, setExpenseCategory] = useState('');
+  const [tipoActivo, setTipoActivo] = useState<TransactionKind>('ingreso');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [busquedaPaciente, setBusquedaPaciente] = useState('');
+  const [metodoPago, setMetodoPago] = useState('');
+  const [categoriaEgreso, setCategoriaEgreso] = useState('');
 
   const clearFilters = () => {
-    setFromDate('');
-    setToDate('');
-    setPatientSearch('');
-    setPaymentMethod('');
-    setExpenseCategory('');
+    setFechaDesde('');
+    setFechaHasta('');
+    setBusquedaPaciente('');
+    setMetodoPago('');
+    setCategoriaEgreso('');
   };
 
   const filteredRecords = useMemo(() => {
+    const fechaDesdeIso = parseFilterDate(fechaDesde);
+    const fechaHastaIso = parseFilterDate(fechaHasta);
+
     return records.filter((record) => {
-      if (record.type !== activeType) return false;
-
-      const [day, month, year] = record.date.split('/');
-      const sortableDate = `${year}-${month}-${day}`;
-
-      if (fromDate && sortableDate < fromDate) return false;
-      if (toDate && sortableDate > toDate) return false;
+      if (record.tipo !== tipoActivo) return false;
+      if (fechaDesdeIso && record.fecha < fechaDesdeIso) return false;
+      if (fechaHastaIso && record.fecha > fechaHastaIso) return false;
       if (
-        activeType === 'income' &&
-        patientSearch &&
-        !String(record.patient ?? '').toLowerCase().includes(patientSearch.toLowerCase())
+        tipoActivo === 'ingreso' &&
+        busquedaPaciente &&
+        !String(record.paciente ?? '').toLowerCase().includes(busquedaPaciente.toLowerCase())
       ) {
         return false;
       }
-      if (activeType === 'income' && paymentMethod && record.paymentMethod !== paymentMethod) return false;
-      if (activeType === 'expense' && expenseCategory && record.category !== expenseCategory) return false;
+      if (tipoActivo === 'ingreso' && metodoPago && record.metodoPago !== metodoPago) return false;
+      if (tipoActivo === 'egreso' && categoriaEgreso && record.categoria !== categoriaEgreso) return false;
 
       return true;
     });
-  }, [activeType, expenseCategory, fromDate, patientSearch, paymentMethod, records, toDate]);
+  }, [busquedaPaciente, categoriaEgreso, fechaDesde, fechaHasta, metodoPago, records, tipoActivo]);
 
   const total = useMemo(
-    () => filteredRecords.reduce((sum, record) => sum + record.amount, 0),
+    () => filteredRecords.reduce((sum, record) => sum + record.monto, 0),
     [filteredRecords],
   );
 
   const incomeColumns: Column<FinancialRecord>[] = [
-    { key: 'date', label: 'Fecha', width: 150 },
-    { key: 'patient', label: 'Paciente' },
-    { key: 'concept', label: 'Concepto' },
     {
-      key: 'amount',
+      key: 'fecha',
+      label: 'Fecha',
+      width: 150,
+      render: (_value, record) => formatTableDate(record.fecha),
+    },
+    { key: 'paciente', label: 'Paciente' },
+    { key: 'concepto', label: 'Concepto' },
+    {
+      key: 'monto',
       label: 'Monto',
-      render: (_value, record) => <MoneyText amount={record.amount} type="income" />,
+      render: (_value, record) => <MoneyText monto={record.monto} tipo="ingreso" />,
     },
     {
-      key: 'paymentMethod',
-      label: 'M\u00e9todo',
-      render: (_value, record) => <MethodBadge label={record.paymentMethod ?? 'Sin m\u00e9todo'} />,
+      key: 'metodoPago',
+      label: 'Método',
+      render: (_value, record) => <MethodBadge label={record.metodoPago ?? 'Sin método'} />,
     },
   ];
 
   const expenseColumns: Column<FinancialRecord>[] = [
-    { key: 'date', label: 'Fecha', width: 150 },
-    { key: 'concept', label: 'Concepto' },
     {
-      key: 'category',
-      label: 'Categor\u00eda',
-      render: (_value, record) => <CategoryBadge label={record.category ?? 'Sin categor\u00eda'} />,
+      key: 'fecha',
+      label: 'Fecha',
+      width: 150,
+      render: (_value, record) => formatTableDate(record.fecha),
+    },
+    { key: 'concepto', label: 'Concepto' },
+    {
+      key: 'categoria',
+      label: 'Categoría',
+      render: (_value, record) => <CategoryBadge label={record.categoria ?? 'Sin categoría'} />,
     },
     {
-      key: 'amount',
+      key: 'monto',
       label: 'Monto',
-      render: (_value, record) => <MoneyText amount={record.amount} type="expense" />,
+      render: (_value, record) => <MoneyText monto={record.monto} tipo="egreso" />,
     },
-    { key: 'responsible', label: 'Responsable' },
+    { key: 'responsable', label: 'Responsable' },
   ];
 
-  const columns = activeType === 'income' ? incomeColumns : expenseColumns;
+  const columns = tipoActivo === 'ingreso' ? incomeColumns : expenseColumns;
 
   const footer = (
     <tfoot>
-      <tr style={{ background: activeType === 'income' ? '#E6F8FB' : '#F1F3F4' }}>
+      <tr style={{ background: tipoActivo === 'ingreso' ? '#E6F8FB' : '#F1F3F4' }}>
         <td
           colSpan={3}
           style={{ padding: '12px 8px', color: '#203F49', fontSize: 13, fontWeight: 600 }}
         >
-          {activeType === 'income' ? 'Total del periodo filtrado:' : 'Total del periodo:'}
+          {tipoActivo === 'ingreso' ? 'Total del periodo filtrado:' : 'Total del periodo:'}
         </td>
         <td style={{ padding: '12px 8px' }}>
-          <MoneyText amount={total} type={activeType} />
+          <MoneyText monto={total} tipo={tipoActivo} />
         </td>
         <td />
       </tr>
@@ -284,7 +305,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
         fontSize: 13,
       }}>
         <Info size={16} style={{ color: '#0BC5DF', flexShrink: 0 }} />
-        Mostrando registros de {activeType === 'income' ? 'ingresos' : 'egresos'} del periodo seleccionado
+        Mostrando registros de {tipoActivo === 'ingreso' ? 'ingresos' : 'egresos'} del periodo seleccionado
       </div>
 
       <div style={{
@@ -299,11 +320,11 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
         <button
           type="button"
           onClick={() => {
-            setActiveType('income');
+            setTipoActivo('ingreso');
             clearFilters();
           }}
           style={{
-            ...tabStyles[activeType === 'income' ? 'active' : 'inactive'],
+            ...tabStyles[tipoActivo === 'ingreso' ? 'active' : 'inactive'],
             minWidth: 112,
             height: 28,
             borderRadius: 8,
@@ -320,11 +341,11 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
         <button
           type="button"
           onClick={() => {
-            setActiveType('expense');
+            setTipoActivo('egreso');
             clearFilters();
           }}
           style={{
-            ...tabStyles[activeType === 'expense' ? 'active' : 'inactive'],
+            ...tabStyles[tipoActivo === 'egreso' ? 'active' : 'inactive'],
             minWidth: 112,
             height: 28,
             borderRadius: 8,
@@ -343,7 +364,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
       <Card style={{ padding: 24, borderRadius: 14 }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: activeType === 'income'
+          gridTemplateColumns: tipoActivo === 'ingreso'
             ? '1fr 1fr 1fr 1fr'
             : '1fr 1fr 1fr',
           gap: 14,
@@ -351,31 +372,35 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
         }}>
           <Input
             label="Rango de fechas"
-            type="date"
-            value={fromDate}
-            onChange={(event) => setFromDate(event.target.value)}
+            placeholder="dd/mm/yyyy"
+            inputMode="numeric"
+            maxLength={10}
+            value={fechaDesde}
+            onChange={(event) => setFechaDesde(event.target.value)}
             aria-label="Rango de fechas"
           />
           <Input
             label="Hasta"
-            type="date"
-            value={toDate}
-            onChange={(event) => setToDate(event.target.value)}
+            placeholder="dd/mm/yyyy"
+            inputMode="numeric"
+            maxLength={10}
+            value={fechaHasta}
+            onChange={(event) => setFechaHasta(event.target.value)}
             aria-label="Hasta"
           />
-          {activeType === 'income' ? (
+          {tipoActivo === 'ingreso' ? (
             <>
               <Input
                 label="Paciente"
                 placeholder="Buscar paciente..."
-                value={patientSearch}
-                onChange={(event) => setPatientSearch(event.target.value)}
+                value={busquedaPaciente}
+                onChange={(event) => setBusquedaPaciente(event.target.value)}
                 aria-label="Paciente"
               />
               <Select
-                label="M\u00e9todo de pago"
-                value={paymentMethod}
-                onChange={setPaymentMethod}
+                label="Método de pago"
+                value={metodoPago}
+                onChange={setMetodoPago}
                 placeholder="Todos"
                 options={[
                   { value: '', label: 'Todos' },
@@ -387,15 +412,15 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
             </>
           ) : (
             <Select
-              label="Categor\u00eda"
-              value={expenseCategory}
-              onChange={setExpenseCategory}
+              label="Categoría"
+              value={categoriaEgreso}
+              onChange={setCategoriaEgreso}
               placeholder="Todas"
               options={[
                 { value: '', label: 'Todas' },
                 { value: 'Insumos', label: 'Insumos' },
                 { value: 'Equipos', label: 'Equipos' },
-                { value: 'N\u00f3mina', label: 'N\u00f3mina' },
+                { value: 'Nómina', label: 'Nómina' },
                 { value: 'Servicios', label: 'Servicios' },
               ]}
             />
@@ -428,7 +453,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
           pageSize={20}
           hidePagination
           footer={footer}
-          getRowKey={(row) => row.id}
+          getRowKey={(row) => row.id_registro}
           emptyMessage="No hay registros financieros para este periodo."
           style={{ borderRadius: 8 }}
         />
