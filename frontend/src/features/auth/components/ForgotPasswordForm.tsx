@@ -318,7 +318,7 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
                     padding: 0,
                   }}
                 >
-                  {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPwd ? <Eye size={16} /> : <EyeOff size={16} />}
                 </button>
               </div>
               {newPwd.length > 0 && <PasswordChecklist pwd={newPwd} />}
