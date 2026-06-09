@@ -12,7 +12,7 @@ type NavId =
   | 'citas' | 'recordatorios'
   | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
   | 'billing-list' | 'estado-resultado'
-  | 'settings' | 'users' | 'treatments' | 'inventory'
+  | 'settings' | 'users' | 'users-list' | 'roles-management' | 'treatments' | 'inventory'
   | 'records' | 'registro-pacientes';
 
 interface NavItem {
@@ -100,14 +100,6 @@ function IconEstadisticas() {
   );
 }
 
-function IconUser() {
-  return (
-    <svg className="block" fill="none" viewBox="0 0 17 17" width={17} height={17}>
-      <circle cx="8.5" cy="5.66667" r="2.83333" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-      <path d="M2.83333 15.5833C2.83333 12.4538 5.37048 9.91667 8.5 9.91667C11.6295 9.91667 14.1667 12.4538 14.1667 15.5833" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-    </svg>
-  );
-}
 function IconUsers() {
   return (
     <svg className="block" fill="none" viewBox="0 0 17 17" width={17} height={17}>
@@ -209,7 +201,15 @@ const navGroups: NavGroup[] = [
   {
     title: 'Configuración',
     items: [
-      { id: 'users', label: 'Usuarios', icon: <IconUsers /> },
+      {
+        id: 'users',
+        label: 'Usuarios',
+        icon: <IconUsers />,
+        subItems: [
+          { id: 'users-list', label: 'Gesti\u00f3n de Usuarios' },
+          { id: 'roles-management', label: 'Gesti\u00f3n de Roles' },
+        ],
+      },
       { id: 'treatments', label: 'Tratamientos', icon: <IconTratamientos /> },
       { id: 'inventory', label: 'Inventario', icon: <IconInventario /> },
     ],

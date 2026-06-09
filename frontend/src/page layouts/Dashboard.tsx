@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Users, Calendar, TrendingUp, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 import { Card, StatusBadge, Avatar, Alert } from '../context';
