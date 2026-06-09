@@ -10,7 +10,7 @@ import { useAuthStore } from '../features/auth/hooks/useAuthStore';
 type NavId =
   | 'dashboard'
   | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consentimientos-lista'
-  | 'citas' | 'recordatorios'
+  | 'citas' | 'recordatorios' | 'reminders-historial'
   | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
   | 'billing-list' | 'estado-resultado'
   | 'settings' | 'users' | 'users-list' | 'roles-management' | 'treatments' | 'inventory'
@@ -174,7 +174,12 @@ const navGroups: NavGroup[] = [
     title: 'Agenda',
     items: [
       { id: 'citas', label: 'Citas', badge: 3, icon: <IconAgenda /> },
-      { id: 'recordatorios', label: 'Recordatorios', icon: <IconBell /> },
+      { id: 'recordatorios', label: 'Recordatorios', icon: <IconBell /> ,
+        subItems: [
+          { id: 'recordatorios',           label: 'Cola de envío'          },
+          { id: 'reminders-historial', label: 'Historial de confirmaciones' },
+        ],
+      },
     ],
   },
   {
