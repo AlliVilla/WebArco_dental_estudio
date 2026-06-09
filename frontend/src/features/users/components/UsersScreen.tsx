@@ -19,9 +19,10 @@ import {
   Toggle,
   useTheme,
 } from '../../../context';
+import { roleService } from '../services/roleService';
 import { userService } from '../services/userService';
 import { formatIdentity } from '../../../utils/formatters';
-import type { Usuario, CreateUsuarioInput, UpdateUsuarioInput, UserStats } from '../types';
+import type { RoleSummary, Usuario, CreateUsuarioInput, UpdateUsuarioInput, UserStats } from '../types';
 
 
 // Honduras Departments and Municipios static database mapping
@@ -225,6 +226,7 @@ export function UsersScreen() {
 
   // Data state
   const [users, setUsers] = useState<Usuario[]>([]);
+  const [roles, setRoles] = useState<RoleSummary[]>([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -268,6 +270,11 @@ export function UsersScreen() {
   const [idRol, setIdRol] = useState('4'); // Default to Doctor
   const [passwordTemporal, setPasswordTemporal] = useState('');
 
+  const getDefaultRoleId = useCallback(() => {
+    const doctorRole = roles.find((role) => role.nombre.toLowerCase() === 'doctor');
+    return String(doctorRole?.id_rol ?? roles[0]?.id_rol ?? 4);
+  }, [roles]);
+
   // Fetch stats on mount and whenever lists change
   const fetchStats = useCallback(async () => {
     try {
@@ -284,6 +291,21 @@ export function UsersScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStats();
   }, [fetchStats]);
+
+  const fetchRoles = useCallback(async () => {
+    try {
+      const response = await roleService.getAll();
+      if (response.success) {
+        setRoles(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchRoles();
+  }, [fetchRoles]);
 
   // Fetch users whenever parameters change
   const fetchUsers = useCallback(async () => {
@@ -366,7 +388,7 @@ export function UsersScreen() {
       setIdMunicipio('110'); // Tegucigalpa by default
       setDireccionLinea('');
       setUsername('');
-      setIdRol('4'); // Doctor
+      setIdRol(getDefaultRoleId());
       setPasswordTemporal('');
     }
     setIsFormOpen(true);
@@ -589,20 +611,20 @@ export function UsersScreen() {
     }
   ];
 
-  const roleOptions = [
+  const roleOptions = useMemo(() => ([
     { value: 'all', label: 'Todos los roles' },
-    { value: 'Administrador', label: 'Administrador' },
-    { value: 'Doctor', label: 'Doctor' },
-    { value: 'Especialista', label: 'Especialista' },
-    { value: 'Contador', label: 'Contador' },
-  ];
+    ...roles.map((role) => ({
+      value: role.nombre,
+      label: role.nombre,
+    })),
+  ]), [roles]);
 
-  const formRoleOptions = [
-    { value: '2', label: 'Administrador' },
-    { value: '4', label: 'Doctor' },
-    { value: '1', label: 'Especialista' },
-    { value: '3', label: 'Contador' },
-  ];
+  const formRoleOptions = useMemo(() => (
+    roles.map((role) => ({
+      value: String(role.id_rol),
+      label: role.nombre,
+    }))
+  ), [roles]);
 
   const sexOptions = [
     { value: 'M', label: 'Masculino' },
