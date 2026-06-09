@@ -37,7 +37,7 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 export class AntecedentePreguntaController {
   constructor(private readonly service: AntecedentePreguntaService) {}
 
-  @Privileges(37)
+  @Privileges(39)
   @Get('antecedente-pregunta')
   @ApiOperation({
     summary: 'Listar preguntas de antecedentes',
@@ -54,7 +54,7 @@ Cada pregunta contiene:
     return this.service.findAll();
   }
 
-  @Privileges(38)
+  @Privileges(40)
   @Post('antecedente-pregunta')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -69,7 +69,7 @@ La pregunta se insertará con el orden_num especificado y aparecerá en el lista
     return this.service.create(dto);
   }
 
-  @Privileges(37)
+  @Privileges(39)
   @Get('consulta/:id/antecedentes')
   @ApiOperation({
     summary: 'Obtener respuestas de antecedentes por consulta',
@@ -84,7 +84,7 @@ Incluye los datos de cada pregunta asociada (texto, orden, si requiere explicaci
     return this.service.findRespuestasByConsulta(id);
   }
 
-  @Privileges(39)
+  @Privileges(41)
   @Post('consulta/:id/antecedentes')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

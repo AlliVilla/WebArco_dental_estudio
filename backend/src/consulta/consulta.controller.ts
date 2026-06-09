@@ -40,7 +40,7 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 export class ConsultaController {
   constructor(private readonly consultaService: ConsultaService) {}
 
-  @Privileges(41)
+  @Privileges(43)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva consulta', description: 'Registra una nueva consulta odontológica asociada a un paciente y un doctor.' })
@@ -50,7 +50,7 @@ export class ConsultaController {
     return this.consultaService.create(createConsultaDto);
   }
 
-  @Privileges(40)
+  @Privileges(42)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar consultas', description: 'Obtiene un listado paginado de consultas. Permite filtrar por paciente y doctor.' })
@@ -80,7 +80,7 @@ export class ConsultaController {
     return this.consultaService.findAll(pageNum, limitNum, filters);
   }
 
-  @Privileges(40)
+  @Privileges(42)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener detalle de una consulta', description: 'Devuelve el detalle completo de una consulta incluyendo paciente, doctor, antecedentes, odontogramas y pagos.' })
@@ -91,7 +91,7 @@ export class ConsultaController {
     return this.consultaService.findOne(id);
   }
 
-  @Privileges(42)
+  @Privileges(44)
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar una consulta', description: 'Actualiza parcial o totalmente los datos de una consulta (diagnóstico, tratamiento, etc.).' })
@@ -106,7 +106,7 @@ export class ConsultaController {
     return this.consultaService.update(id, updateConsultaDto);
   }
 
-  @Privileges(43)
+  @Privileges(45)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar una consulta', description: 'Elimina la consulta si no tiene registros asociados (antecedentes, odontogramas o pagos).' })
