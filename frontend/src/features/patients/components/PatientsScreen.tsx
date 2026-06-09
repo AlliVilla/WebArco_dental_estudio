@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,11 +11,13 @@ import {
   User,
   X,
 } from "lucide-react";
+import { DataTable } from "../../../components";
+import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
 import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
 
-type Patient = {
+type Patient = Record<string, unknown> & {
   id: number;
   code: string;
   fullName: string;
@@ -202,8 +203,42 @@ export function PatientsScreen({
     setSelectedMedicalPatient(patient);
   };
 
+  const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
+    setCurrentPage(page);
+  }, []);
+
+  const columns: Column<Patient>[] = [
+    {
+      key: "code",
+      label: "Código del paciente",
+      width: 160,
+      render: (_value, patient) => (
+        <span style={{ color: "var(--arco-primary)", fontSize: 13, fontWeight: 500 }}>
+          {patient.code}
+        </span>
+      ),
+    },
+    {
+      key: "fullName",
+      label: "Nombre completo",
+      render: (_value, patient) => (
+        <PatientNameButton
+          name={patient.fullName}
+          onClick={() => navigate(`/patients/profile/${patient.id}`)}
+        />
+      ),
+    },
+    { key: "phone", label: "Teléfono", width: 160 },
+    {
+      key: "lastVisit",
+      label: "Fecha última visita",
+      width: 170,
+      render: (_value, patient) => formatDate(patient.lastVisit),
+    },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
       {error ? <Alert variant="error" message={error} onClose={() => setError("")} /> : null}
 
       <Card>
@@ -232,7 +267,7 @@ export function PatientsScreen({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
             marginBottom: 20,
           }}
@@ -271,12 +306,12 @@ export function PatientsScreen({
           />
         </div>
 
-        <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <Button
             variant="primary"
             onClick={handleSearch}
             disabled={!hasAnyFilter || isLoading}
-            style={{ flex: 1 }}
+            style={{ flex: "1 1 220px" }}
           >
             <Search size={16} />
             {isLoading && hasSearched ? "Buscando..." : "Buscar paciente"}
@@ -297,187 +332,38 @@ export function PatientsScreen({
         </div>
       </Card>
 
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <h3
-            style={{
-              color: "var(--arco-navy)",
-              fontSize: 15,
-              fontWeight: 600,
-              margin: "0 0 4px",
-            }}
-          >
-            {hasSearched ? "Resultados de búsqueda" : "Listado de pacientes"}
-          </h3>
-          <p
-            style={{
-              color: "var(--arco-gray-500)",
-              fontSize: 12,
-              margin: 0,
-            }}
-          >
-            {hasSearched
-              ? searchResults.length === 0
-                ? "No se encontraron pacientes con los criterios especificados"
-                : `Se encontraron ${searchResults.length} paciente${
-                    searchResults.length !== 1 ? "s" : ""
-                  }`
-              : isLoading
-                ? "Cargando pacientes registrados..."
-                : `${hasSearched ? "Página de resultados" : "Página"} ${pagination.page} de ${pagination.pages} · ${pagination.total} pacientes registrados`}
-          </p>
-        </div>
-
-        <div
-          style={{
-            border: "1px solid var(--arco-gray-300)",
-            borderRadius: 8,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              background: "var(--arco-gray-50)",
-              borderBottom: "1px solid var(--arco-gray-300)",
-              display: "grid",
-              gridTemplateColumns: "140px 1fr 160px 140px 90px",
-              padding: "10px 16px",
-            }}
-          >
-            {[
-              "Código del paciente",
-              "Nombre completo",
-              "Teléfono",
-              "Fecha última visita",
-              "Acciones",
-            ].map((heading) => (
-              <span
-                key={heading}
-                style={{
-                  color: "var(--arco-gray-500)",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.06em",
-                  textAlign: heading === "Acciones" ? "center" : "left",
-                  textTransform: "uppercase",
-                }}
-              >
-                {heading}
-              </span>
-            ))}
-          </div>
-
-          {isLoading ? (
-            <div
-              style={{
-                color: "var(--arco-gray-500)",
-                fontSize: 13,
-                padding: "28px 16px",
-                textAlign: "center",
-              }}
-            >
-              Cargando pacientes...
-            </div>
-          ) : searchResults.length === 0 ? (
-            <div
-              style={{
-                color: "var(--arco-gray-500)",
-                fontSize: 13,
-                padding: "28px 16px",
-                textAlign: "center",
-              }}
-            >
-              No hay pacientes para mostrar.
-            </div>
-          ) : (
-            searchResults.map((patient, index) => (
-              <div
-                key={patient.id}
-                style={{
-                  alignItems: "center",
-                  background:
-                    index % 2 === 0 ? "#FFFFFF" : "var(--arco-gray-50)",
-                  borderBottom:
-                    index < searchResults.length - 1
-                      ? "1px solid var(--arco-gray-100)"
-                      : "none",
-                  display: "grid",
-                  gridTemplateColumns: "140px 1fr 160px 140px 90px",
-                  minHeight: 50,
-                  padding: "12px 16px",
-                }}
-              >
-                <span
-                  style={{
-                    color: "var(--arco-primary)",
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
-                >
-                  {patient.code}
-                </span>
-                <PatientNameButton
-                  name={patient.fullName}
-                  onClick={() => navigate(`/patients/profile/${patient.id}`)}
-                />
-                <span style={{ color: "var(--arco-gray-700)", fontSize: 13 }}>
-                  {patient.phone}
-                </span>
-                <span style={{ color: "var(--arco-gray-700)", fontSize: 13 }}>
-                  {formatDate(patient.lastVisit)}
-                </span>
-                <div
-                  style={{
-                    alignItems: "center",
-                    display: "flex",
-                    gap: 8,
-                    justifyContent: "center",
-                  }}
-                >
-                  <ActionIconButton
-                    title="Editar paciente"
-                    onClick={() => handleEditPatient(patient.id)}
-                  >
-                    <Pencil size={15} />
-                  </ActionIconButton>
-                  <ActionIconButton
-                    title="Ver información médica"
-                    onClick={() => handleViewPatient(patient)}
-                  >
-                    <FileText size={15} />
-                  </ActionIconButton>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {pagination.pages > 1 ? (
-          <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginTop: 16 }}>
-            <span style={{ color: "var(--arco-gray-500)", fontSize: 12 }}>
-              Mostrando {searchResults.length} de {pagination.total} pacientes
-            </span>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button
-                disabled={isLoading || currentPage <= 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                variant="secondary"
-              >
-                Anterior
-              </Button>
-              <Button
-                disabled={isLoading || currentPage >= pagination.pages}
-                onClick={() => setCurrentPage((page) => Math.min(pagination.pages, page + 1))}
-                variant="secondary"
-              >
-                Siguiente
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Card>
+      <DataTable<Patient>
+        key={activeSearchQuery || "all-patients"}
+        columns={columns}
+        data={isLoading ? [] : searchResults}
+        description={
+          isLoading
+            ? "Cargando pacientes registrados..."
+            : hasSearched
+              ? `${pagination.total} resultado${pagination.total === 1 ? "" : "s"} encontrados`
+              : `Total de ${pagination.total} pacientes registrados`
+        }
+        emptyMessage={isLoading ? "Cargando pacientes..." : "No hay pacientes para mostrar."}
+        getRowKey={(patient) => String(patient.id)}
+        isServerSide
+        onServerParamsChange={handleTableParamsChange}
+        pageSize={DEFAULT_PAGE_SIZE}
+        rowActions={(patient) => [
+          {
+            icon: <Pencil size={14} />,
+            label: "Editar paciente",
+            onClick: () => handleEditPatient(patient.id),
+          },
+          {
+            icon: <FileText size={14} />,
+            label: "Ver información médica",
+            onClick: () => handleViewPatient(patient),
+          },
+        ]}
+        searchable={false}
+        title={hasSearched ? "Resultados de búsqueda" : "Listado de pacientes"}
+        totalRecords={pagination.total}
+      />
 
       {selectedMedicalPatient ? (
         <MedicalInfoModal
@@ -585,46 +471,6 @@ function MedicalInfoModal({
         </p>
       </div>
     </div>
-  );
-}
-
-function ActionIconButton({
-  children,
-  onClick,
-  title,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  title: string;
-}) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      title={title}
-      type="button"
-      style={{
-        alignItems: "center",
-        background: isHovered ? "var(--arco-primary-light)" : "#FFFFFF",
-        border: `1px solid ${
-          isHovered ? "var(--arco-primary)" : "var(--arco-gray-300)"
-        }`,
-        borderRadius: 6,
-        color: isHovered ? "var(--arco-primary)" : "var(--arco-gray-500)",
-        cursor: "pointer",
-        display: "flex",
-        height: 32,
-        justifyContent: "center",
-        padding: 0,
-        transition: "all 0.15s ease",
-        width: 32,
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

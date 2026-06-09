@@ -218,7 +218,7 @@ export function PatientFormScreen() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 980 }}>
+    <div style={{ alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
       {saveStatus !== "idle" ? (
         <Alert
           message={message}
@@ -248,7 +248,7 @@ export function PatientFormScreen() {
           />
         </div>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 16 }}>
           <Input
             badge="required"
             label="Primer nombre"
@@ -265,7 +265,7 @@ export function PatientFormScreen() {
           />
         </div>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr", marginBottom: 16 }}>
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 16 }}>
           <Input
             badge="required"
             label="Primer apellido"
@@ -282,7 +282,7 @@ export function PatientFormScreen() {
           />
         </div>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr 120px", marginBottom: 16 }}>
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 16 }}>
           <Input
             badge="required"
             icon={<IdCard size={15} />}
@@ -302,7 +302,7 @@ export function PatientFormScreen() {
           <Input badge="required" disabled hint="Calculada" label="Edad" placeholder="-" readOnly value={age} />
         </div>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr 1fr", marginBottom: 16 }}>
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 16 }}>
           <Select
             badge="required"
             label="Sexo"
@@ -333,7 +333,7 @@ export function PatientFormScreen() {
           />
         </div>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
           <Input
             badge="required"
             icon={<Phone size={15} />}
@@ -425,7 +425,7 @@ export function PatientFormScreen() {
           title="Información odontológica inicial"
         />
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "240px 1fr", alignItems: "start" }}>
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", alignItems: "start" }}>
           <Input
             badge="optional"
             hint="Si viene de otra clínica"
@@ -447,7 +447,7 @@ export function PatientFormScreen() {
       </Card>
 
       <Card style={{ padding: "16px 20px" }}>
-        <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <Button disabled={isSaving} onClick={() => navigate("/patients/list")} variant="secondary">
             <X size={16} />
             Cancelar
