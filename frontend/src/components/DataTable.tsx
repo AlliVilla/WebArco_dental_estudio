@@ -49,7 +49,6 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   getRowKey?: (row: T, index: number) => string;
   style?: React.CSSProperties;
   emptyMessage?: string;
-  // 🌟 Nuevas Props para Paginación/Búsqueda del lado del Servidor (Backend)
   isServerSide?: boolean;
   totalRecords?: number;
   onServerParamsChange?: (params: {
@@ -93,43 +92,45 @@ function FilterDropdown({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 8,
-          height: 36,
-          padding: "0 13px",
-          borderRadius: 10,
-          background: "#F8F9FA",
-          border: "1px solid transparent",
-          fontSize: 14,
-          color: value ? "#203F49" : "#888F94",
+          gap: 12,
+          height: 40,
+          padding: "0 16px",
+          borderRadius: 8,
+          background: "#fff",
+          border: "1px solid #E4E7EC",
+          fontSize: 12,
+          color: value ? "#203F49" : "#6C757D",
           cursor: "pointer",
-          minWidth: 160,
-          fontWeight: 500,
+          minWidth: 180,
+          fontWeight: 400,
         }}
       >
         <span>{selected ? selected.label : placeholder}</span>
-        <ChevronDown size={16} style={{ color: "#888F94", opacity: 0.5 }} />
+        <ChevronDown size={16} style={{ color: "#8A9499" }} />
       </button>
       {open && (
         <div
           style={{
             position: "absolute",
-            top: "calc(100% + 4px)",
+            top: "calc(100% + 6px)",
             left: 0,
-            zIndex: 20,
+            zIndex: 30,
             background: "#fff",
-            border: "1px solid #D3D7DA",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            border: "1px solid #E2E8F0",
+            borderRadius: 12,
+            boxShadow:
+              "0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)",
             minWidth: "100%",
             overflow: "hidden",
           }}
         >
           <div
             style={{
-              padding: "8px 13px",
-              fontSize: 13,
-              color: "#888F94",
+              padding: "10px 16px",
+              fontSize: 12,
+              color: "#8A9499",
               cursor: "pointer",
+              background: "#F8F9FA",
             }}
             onClick={() => {
               onChange("");
@@ -146,11 +147,11 @@ function FilterDropdown({
                 setOpen(false);
               }}
               style={{
-                padding: "8px 13px",
-                fontSize: 13,
+                padding: "10px 16px",
+                fontSize: 12,
                 color: "#203F49",
                 cursor: "pointer",
-                background: value === opt.value ? "#E6F8FB" : "transparent",
+                background: value === opt.value ? "#EBFBFC" : "transparent",
                 fontWeight: value === opt.value ? 500 : 400,
               }}
             >
@@ -203,21 +204,23 @@ function Pagination({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "12px 16px",
-        borderTop: "1px solid #D3D7DA",
+        padding: "20px 8px 10px 8px",
+        marginTop: 8,
       }}
     >
-      <span style={{ fontSize: 13, color: "#888F94" }}>
-        {total === 0 ? "Sin resultados" : `${from}–${to} de ${total}`}
+      <span style={{ fontSize: 12, color: "#667085", fontWeight: 400 }}>
+        {total === 0
+          ? "Sin resultados"
+          : `Mostrando ${from}–${to} de ${total} registros`}
       </span>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <button
           disabled={page === 1}
           onClick={() => onPage(page - 1)}
           style={{
             width: 32,
             height: 32,
-            border: "1px solid #D3D7DA",
+            border: "1px solid #E2E8F0",
             borderRadius: 6,
             background: "#fff",
             cursor: page === 1 ? "not-allowed" : "pointer",
@@ -225,9 +228,10 @@ function Pagination({
             alignItems: "center",
             justifyContent: "center",
             opacity: page === 1 ? 0.4 : 1,
+            transition: "all 0.2s",
           }}
         >
-          <ChevronLeft size={14} color="#203F49" />
+          <ChevronLeft size={16} color="#4A5568" />
         </button>
 
         {pages.map((p, i) =>
@@ -237,8 +241,8 @@ function Pagination({
               style={{
                 width: 32,
                 textAlign: "center",
-                fontSize: 13,
-                color: "#888F94",
+                fontSize: 12,
+                color: "#667085",
               }}
             >
               …
@@ -251,13 +255,14 @@ function Pagination({
                 width: 32,
                 height: 32,
                 border: "1px solid",
-                borderColor: page === p ? "#0BC5DF" : "#D3D7DA",
+                borderColor: page === p ? "#22C7E8" : "#E2E8F0",
                 borderRadius: 6,
                 cursor: "pointer",
-                background: page === p ? "#0BC5DF" : "#fff",
-                color: page === p ? "#fff" : "#203F49",
-                fontSize: 13,
+                background: page === p ? "#22C7E8" : "#fff",
+                color: page === p ? "#fff" : "#4A5568",
+                fontSize: 12,
                 fontWeight: page === p ? 600 : 400,
+                transition: "all 0.2s",
               }}
             >
               {p}
@@ -271,7 +276,7 @@ function Pagination({
           style={{
             width: 32,
             height: 32,
-            border: "1px solid #D3D7DA",
+            border: "1px solid #E2E8F0",
             borderRadius: 6,
             background: "#fff",
             cursor:
@@ -282,9 +287,10 @@ function Pagination({
             alignItems: "center",
             justifyContent: "center",
             opacity: page === totalPages || totalPages === 0 ? 0.4 : 1,
+            transition: "all 0.2s",
           }}
         >
-          <ChevronRight size={14} color="#203F49" />
+          <ChevronRight size={16} color="#4A5568" />
         </button>
       </div>
     </div>
@@ -308,7 +314,7 @@ export function DataTable<T extends Record<string, unknown>>({
   rowActions,
   getRowKey,
   style,
-  emptyMessage = "No hay registros.",
+  emptyMessage = "No hay registros disponibles.",
   isServerSide = false,
   totalRecords = 0,
   onServerParamsChange,
@@ -317,17 +323,14 @@ export function DataTable<T extends Record<string, unknown>>({
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
-  // Notificar cambios al backend si es Server Side
   useEffect(() => {
     if (isServerSide && onServerParamsChange) {
       onServerParamsChange({ page, search, filters: filterValues });
     }
   }, [page, search, filterValues, isServerSide, onServerParamsChange]);
 
-  // Lógica de filtrado en cliente (solo se activa si isServerSide === false)
   const filteredData = useMemo(() => {
     if (isServerSide) return data;
-
     let rows = data;
 
     if (search) {
@@ -350,12 +353,10 @@ export function DataTable<T extends Record<string, unknown>>({
     return rows;
   }, [data, search, filterValues, filters, searchKeys, isServerSide]);
 
-  // Determinar totales basándose en el modo de paginación
   const totalCount = isServerSide ? totalRecords : filteredData.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.min(page, totalPages);
 
-  // Segmentar los datos en cliente solo si no vienen ya paginados por el servidor
   const pagedData = useMemo(() => {
     if (isServerSide) return data;
     return filteredData.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -374,30 +375,33 @@ export function DataTable<T extends Record<string, unknown>>({
   return (
     <div
       style={{
-        background: "#fff",
-        border: "1px solid #D3D7DA",
-        borderRadius: 16,
-        overflow: "hidden",
+        background: "#FFFFFF",
+        width: "100%",
+        borderRadius: 12,
+        border: "1px solid #E4E7EC",
+        padding: "24px",
+        boxSizing: "border-box",
+        boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
         ...style,
       }}
     >
-      {/* Card header */}
+      {/* 1. Header principal */}
       {(title || primaryAction) && (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "20px 24px",
+            padding: "0 0 18px 0",
           }}
         >
           {title && (
             <div>
-              <div style={{ fontSize: 16, fontWeight: 500, color: "#203F49" }}>
+              <div style={{ fontSize: 19, fontWeight: 600, color: "#202734" }}>
                 {title}
               </div>
               {description && (
-                <div style={{ fontSize: 14, color: "#888F94", marginTop: 2 }}>
+                <div style={{ fontSize: 13, color: "#667085", marginTop: 4 }}>
                   {description}
                 </div>
               )}
@@ -406,9 +410,19 @@ export function DataTable<T extends Record<string, unknown>>({
           {primaryAction && (
             <Button
               variant="primary"
-              size="sm"
               onClick={primaryAction.onClick}
-              style={{ gap: 8, borderRadius: 10 }}
+              style={{
+                gap: 8,
+                borderRadius: 8,
+                backgroundColor: "#22C7E8",
+                borderColor: "#22C7E8",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 12,
+                padding: "8px 20px",
+                height: 38,
+                boxShadow: "none",
+              }}
             >
               {primaryAction.icon}
               {primaryAction.label}
@@ -417,27 +431,27 @@ export function DataTable<T extends Record<string, unknown>>({
         </div>
       )}
 
-      {/* Filters row */}
+      {/* 2. Barra de Filtros y Acciones Secundarias */}
       {(searchable || filters.length > 0 || secondaryActions.length > 0) && (
         <div
           style={{
-            padding: "0 24px 16px",
+            padding: "0 0 14px 0",
             display: "flex",
-            gap: 8,
+            gap: 20,
             alignItems: "center",
             flexWrap: "wrap",
           }}
         >
           {searchable && (
-            <div style={{ position: "relative", flex: "0 0 266px" }}>
+            <div style={{ position: "relative", flex: "0 0 230px" }}>
               <Search
-                size={14}
+                size={15}
                 style={{
                   position: "absolute",
-                  left: 13,
+                  left: 12,
                   top: "50%",
                   transform: "translateY(-50%)",
-                  color: "#888F94",
+                  color: "#98A2B3",
                   pointerEvents: "none",
                 }}
               />
@@ -446,20 +460,21 @@ export function DataTable<T extends Record<string, unknown>>({
                 onChange={(e) => handleSearch(e.target.value)}
                 placeholder={searchPlaceholder}
                 style={{
-                  width: "100%",
-                  height: 36,
+                  width: "35vh",
+                  height: 40,
                   paddingLeft: 36,
-                  paddingRight: 12,
-                  border: "none",
-                  borderRadius: 10,
-                  background: "#F8F9FA",
-                  fontSize: 14,
-                  color: "#203F49",
+                  paddingRight: 16,
+                  border: "1px solid #E4E7EC",
+                  borderRadius: 8,
+                  background: "#F5F7FA",
+                  fontSize: 12,
+                  color: "#1A202C",
                   outline: "none",
                 }}
               />
             </div>
           )}
+
           {filters.map((f) => (
             <FilterDropdown
               key={f.key}
@@ -469,15 +484,26 @@ export function DataTable<T extends Record<string, unknown>>({
               onChange={(v) => handleFilter(f.key, v)}
             />
           ))}
+
           {secondaryActions.length > 0 && (
-            <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            <div style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
               {secondaryActions.map((a, i) => (
                 <Button
                   key={i}
                   variant="secondary"
-                  size="sm"
                   onClick={a.onClick}
-                  style={{ gap: 6, borderRadius: 10, height: 32 }}
+                  style={{
+                    gap: 8,
+                    borderRadius: 8,
+                    height: 40,
+                    border: "1px solid #D0D5DD",
+                    background: "#fff",
+                    color: "#344054",
+                    fontSize: 13,
+                    padding: "0 20px",
+                    fontWeight: 500,
+                    boxShadow: "none",
+                  }}
                 >
                   {a.icon}
                   {a.label}
@@ -488,139 +514,165 @@ export function DataTable<T extends Record<string, unknown>>({
         </div>
       )}
 
-      {/* Table */}
-      <div style={{ borderTop: "1px solid #D3D7DA", overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr
-              style={{
-                background: "#F8F9FA",
-                borderBottom: "1px solid #D3D7DA",
-              }}
-            >
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  style={{
-                    padding: "10px 8px",
-                    textAlign: (col.align ??
-                      "left") as React.CSSProperties["textAlign"],
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#888F94",
-                    letterSpacing: "0.66px",
-                    textTransform: "uppercase",
-                    whiteSpace: "nowrap",
-                    width: col.width,
-                  }}
-                >
-                  {col.label}
-                </th>
-              ))}
-              {rowActions && (
-                <th
-                  style={{
-                    padding: "10px 8px",
-                    textAlign: "center",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#888F94",
-                    letterSpacing: "0.66px",
-                    textTransform: "uppercase",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Acciones
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {pagedData.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={columns.length + (rowActions ? 1 : 0)}
-                  style={{
-                    padding: "32px 16px",
-                    textAlign: "center",
-                    fontSize: 13,
-                    color: "#888F94",
-                  }}
-                >
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              pagedData.map((row, idx) => {
-                const key = getRowKey ? getRowKey(row, idx) : String(idx);
-                const actions = rowActions?.(row) ?? [];
-                return (
-                  <tr
-                    key={key}
+      {/* 3. El contenedor nativo de la Tabla */}
+      <div
+        style={{
+          border: "1px solid #D3D7DA",
+          borderRadius: 8,
+          overflow: "hidden",
+          background: "#FFFFFF",
+          boxShadow: "none",
+        }}
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "separate",
+              borderSpacing: 0,
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#F7F8FA" }}>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
                     style={{
-                      borderBottom: "1px solid #F1F3F4",
-                      background: idx % 2 === 0 ? "#fff" : "#FAFBFB",
+                      padding: "10px 14px",
+                      textAlign: (col.align ??
+                        "left") as React.CSSProperties["textAlign"],
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#4F5B62",
+                      whiteSpace: "nowrap",
+                      width: col.width,
+                      borderBottom: "1px solid #D3D7DA",
+                      height: 45,
                     }}
                   >
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        style={{
-                          padding: "13px 8px",
-                          fontSize: 13,
-                          color: "#203F49",
-                          textAlign: (col.align ??
-                            "left") as React.CSSProperties["textAlign"],
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {col.render
-                          ? col.render(row[col.key], row)
-                          : String(row[col.key] ?? "")}
-                      </td>
-                    ))}
-                    {rowActions && (
-                      <td style={{ padding: "8px", textAlign: "center" }}>
-                        <div
+                    {col.label}
+                  </th>
+                ))}
+                {rowActions && (
+                  <th
+                    style={{
+                      padding: "10px 14px",
+                      textAlign: "center",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#4F5B62",
+                      whiteSpace: "nowrap",
+                      width: 100,
+                      borderBottom: "1px solid #D3D7DA",
+                      height: 42,
+                    }}
+                  >
+                    Acciones
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {pagedData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length + (rowActions ? 1 : 0)}
+                    style={{
+                      padding: "48px 16px",
+                      textAlign: "center",
+                      fontSize: 12,
+                      color: "#A0AEC0",
+                    }}
+                  >
+                    {emptyMessage}
+                  </td>
+                </tr>
+              ) : (
+                pagedData.map((row, idx) => {
+                  const key = getRowKey ? getRowKey(row, idx) : String(idx);
+                  const actions = rowActions?.(row) ?? [];
+                  return (
+                    <tr
+                      key={key}
+                      style={{
+                        background: "#fff",
+                        height: 46,
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#F9FAFB";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fff";
+                      }}
+                    >
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
                           style={{
-                            display: "flex",
-                            gap: 4,
-                            justifyContent: "center",
+                            padding: "11px 14px",
+                            fontSize: 12,
+                            color: "#475467",
+                            textAlign: (col.align ??
+                              "left") as React.CSSProperties["textAlign"],
+                            whiteSpace: "nowrap",
+                            borderBottom: "1px solid #D3D7DA",
                           }}
                         >
-                          {actions.map((action, ai) => (
-                            <button
-                              key={ai}
-                              title={action.label}
-                              onClick={() => action.onClick(row)}
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 10,
-                                border: "none",
-                                background: "transparent",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: action.danger ? "#E24B4A" : "#203F49",
-                              }}
-                            >
-                              {action.icon}
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                          {col.render
+                            ? col.render(row[col.key], row)
+                            : String(row[col.key] ?? "")}
+                        </td>
+                      ))}
+                      {rowActions && (
+                        <td
+                          style={{
+                            padding: "8px 14px",
+                            textAlign: "center",
+                            borderBottom: "1px solid #F0F2F5",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            {actions.map((action, ai) => (
+                              <button
+                                key={ai}
+                                title={action.label}
+                                onClick={() => action.onClick(row)}
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: action.danger ? "#F04438" : "#667085",
+                                  padding: 2,
+                                  transition: "color 0.2s",
+                                }}
+                              >
+                                {action.icon}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Pagination */}
+      {/* 4. Paginación */}
       <Pagination
         page={safePage}
         totalPages={totalPages}
@@ -630,68 +682,4 @@ export function DataTable<T extends Record<string, unknown>>({
       />
     </div>
   );
-}
-
-// ── FormSection ───────────────────────────────────────────────────────────────
-
-export interface FormSectionProps {
-  icon?: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-  columns?: 1 | 2 | 3;
-}
-
-export function FormSection({
-  icon,
-  title,
-  children,
-  style,
-  columns = 2,
-}: FormSectionProps) {
-  return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #D3D7DA",
-        borderRadius: 14,
-        padding: 25,
-        ...style,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 20,
-        }}
-      >
-        {icon && (
-          <span style={{ color: "#0BC5DF", display: "flex", flexShrink: 0 }}>
-            {icon}
-          </span>
-        )}
-        <span style={{ fontSize: 16, fontWeight: 600, color: "#203F49" }}>
-          {title}
-        </span>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gap: 16,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ── FullWidthField helper ─────────────────────────────────────────────────────
-
-export function FullWidthField({ children }: { children: React.ReactNode }) {
-  return <div style={{ gridColumn: "1 / -1" }}>{children}</div>;
 }
