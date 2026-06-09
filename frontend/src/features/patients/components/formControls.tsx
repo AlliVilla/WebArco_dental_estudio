@@ -30,7 +30,7 @@ export function Textarea({
       {label || badge ? (
         <div style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           {label ? (
-            <label style={{ color: 'var(--arco-navy, #203F49)', fontSize: 13, fontWeight: 500 }}>
+            <label style={{ color: 'var(--foreground, #203F49)', fontSize: 13, fontWeight: 500 }}>
               {label}
             </label>
           ) : null}
@@ -46,11 +46,11 @@ export function Textarea({
         rows={rows}
         value={value}
         style={{
-          background: disabled ? 'var(--arco-gray-100)' : '#FFFFFF',
-          border: `1px solid ${focused ? 'var(--arco-primary)' : 'var(--arco-gray-300)'}`,
+          background: disabled ? 'var(--secondary, #F1F3F4)' : 'var(--card, #FFFFFF)',
+          border: `1px solid ${focused ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
           borderRadius: 8,
           boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
-          color: 'var(--arco-navy)',
+          color: 'var(--foreground, #203F49)',
           fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 14,
           minHeight: rows * 38,
@@ -61,7 +61,7 @@ export function Textarea({
           width: '100%',
         }}
       />
-      {hint ? <span style={{ color: 'var(--arco-gray-500, #888F94)', fontSize: 11 }}>{hint}</span> : null}
+      {hint ? <span style={{ color: 'var(--muted-foreground, #888F94)', fontSize: 11 }}>{hint}</span> : null}
     </div>
   );
 }
@@ -88,7 +88,7 @@ export function CheckboxGroup({
       {label || badge ? (
         <div style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           {label ? (
-            <label style={{ color: 'var(--arco-navy, #203F49)', fontSize: 13, fontWeight: 500 }}>
+            <label style={{ color: 'var(--foreground, #203F49)', fontSize: 13, fontWeight: 500 }}>
               {label}
             </label>
           ) : null}
@@ -97,8 +97,8 @@ export function CheckboxGroup({
       ) : null}
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid var(--arco-primary)',
+          background: 'var(--card, #FFFFFF)',
+          border: '1px solid var(--border, #D3D7DA)',
           borderRadius: 8,
           display: 'flex',
           flexWrap: 'wrap',
@@ -109,7 +109,7 @@ export function CheckboxGroup({
         {options.map((option) => {
           const checked = selected.includes(option.id);
           return (
-            <label
+            <div
               key={option.id}
               onClick={() => toggle(option.id)}
               style={{
@@ -123,8 +123,8 @@ export function CheckboxGroup({
               <span
                 style={{
                   alignItems: 'center',
-                  background: checked ? 'var(--arco-primary)' : '#FFFFFF',
-                  border: `2px solid ${checked ? 'var(--arco-primary)' : 'var(--arco-gray-300)'}`,
+                  background: checked ? 'var(--arco-primary, #0BC5DF)' : 'var(--card, #FFFFFF)',
+                  border: `2px solid ${checked ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
                   borderRadius: 4,
                   display: 'flex',
                   flexShrink: 0,
@@ -136,8 +136,8 @@ export function CheckboxGroup({
               >
                 {checked ? <Check color="#FFFFFF" size={11} strokeWidth={3} /> : null}
               </span>
-              <span style={{ color: '#203F49', fontSize: 13 }}>{option.label}</span>
-            </label>
+              <span style={{ color: 'var(--foreground, #203F49)', fontSize: 13 }}>{option.label}</span>
+            </div>
           );
         })}
       </div>
@@ -163,7 +163,7 @@ export function RadioGroup({
       {label || badge ? (
         <div style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           {label ? (
-            <label style={{ color: 'var(--arco-navy, #203F49)', fontSize: 13, fontWeight: 500 }}>
+            <label style={{ color: 'var(--foreground, #203F49)', fontSize: 13, fontWeight: 500 }}>
               {label}
             </label>
           ) : null}
@@ -172,8 +172,8 @@ export function RadioGroup({
       ) : null}
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid var(--arco-gray-300)',
+          background: 'var(--card, #FFFFFF)',
+          border: '1px solid var(--border, #D3D7DA)',
           borderRadius: 8,
           display: 'flex',
           gap: 16,
@@ -183,7 +183,7 @@ export function RadioGroup({
         {options.map((option) => {
           const checked = value === option.value;
           return (
-            <label
+            <div
               key={option.value}
               onClick={() => onChange(option.value)}
               style={{
@@ -197,8 +197,8 @@ export function RadioGroup({
               <span
                 style={{
                   alignItems: 'center',
-                  background: '#FFFFFF',
-                  border: `2px solid ${checked ? 'var(--arco-primary)' : 'var(--arco-gray-300)'}`,
+                  background: 'var(--card, #FFFFFF)',
+                  border: `2px solid ${checked ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
                   borderRadius: '50%',
                   display: 'flex',
                   flexShrink: 0,
@@ -211,7 +211,7 @@ export function RadioGroup({
                 {checked ? (
                   <span
                     style={{
-                      background: 'var(--arco-primary)',
+                      background: 'var(--arco-primary, #0BC5DF)',
                       borderRadius: '50%',
                       height: 8,
                       width: 8,
@@ -219,8 +219,8 @@ export function RadioGroup({
                   />
                 ) : null}
               </span>
-              <span style={{ color: '#203F49', fontSize: 13 }}>{option.label}</span>
-            </label>
+              <span style={{ color: 'var(--foreground, #203F49)', fontSize: 13 }}>{option.label}</span>
+            </div>
           );
         })}
       </div>

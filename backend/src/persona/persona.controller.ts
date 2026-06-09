@@ -70,6 +70,10 @@ export class PersonaController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('nombre') nombre?: string,
+    @Query('identidad') identidad?: string,
+    @Query('telefono') telefono?: string,
+    @Query('codigo') codigo?: string,
     @Query('includeConsulta', ParseBoolPipe) includeConsulta?: boolean
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
@@ -79,7 +83,12 @@ export class PersonaController {
       throw new BadRequestException('page y limit deben ser mayores a 0');
     }
 
-    return this.personaService.findAll(pageNum, limitNum, search,includeConsulta);
+    return this.personaService.findAll(
+      pageNum,
+      limitNum,
+      { search, nombre, identidad, telefono, codigo },
+      includeConsulta
+    );
   }
 
   @Privileges(19)

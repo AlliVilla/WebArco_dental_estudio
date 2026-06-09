@@ -237,14 +237,14 @@ export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: Sidebar
   }, [logout]);
 
   const fullName = user
-    ? [user.persona?.primer_nombre, user.persona?.primer_apellido]
+    ? [user.persona?.nombre, user.persona?.apellido]
         .filter(Boolean).join(' ') || 'Usuario'
     : 'Usuario';
   const roleName = user?.rol?.nombre ?? 'Sin rol';
   const initials = (() => {
     if (!user?.persona) return 'U';
-    const n = (user.persona.primer_nombre ?? '')?.charAt(0)?.toUpperCase();
-    const a = (user.persona.primer_apellido ?? '')?.charAt(0)?.toUpperCase();
+    const n = (user.persona.nombre ?? '')?.charAt(0)?.toUpperCase();
+    const a = (user.persona.apellido ?? '')?.charAt(0)?.toUpperCase();
     return (n || 'U') + (a || '');
   })();
 

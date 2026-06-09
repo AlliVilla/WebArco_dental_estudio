@@ -34,6 +34,11 @@ type PatientPayload = {
   id_municipio: number;
   direccion_linea?: string;
   sexo: "M" | "F";
+  enfermedades?: string;
+  otras_enfermedades?: string;
+  medicamentos?: string;
+  alergias?: string;
+  reaccion_anestesia?: string;
 };
 
 type PersonaDetail = {
@@ -49,6 +54,11 @@ type PersonaDetail = {
   id_municipio: number;
   direccion_linea?: string | null;
   sexo: "M" | "F";
+  enfermedades?: string | null;
+  otras_enfermedades?: string | null;
+  medicamentos?: string | null;
+  alergias?: string | null;
+  reaccion_anestesia?: string | null;
   municipio?: {
     id_municipio: number;
     id_departamento: number;
@@ -149,6 +159,19 @@ export function PatientFormScreen() {
         setMunicipio(String(persona.id_municipio ?? ""));
         setPhone(persona.telefono ?? "");
         setEmail(persona.correo_electronico ?? "");
+
+        const enfermedadesStr = persona.enfermedades;
+        let enfermedadesList = [];
+        try {
+          if (enfermedadesStr) enfermedadesList = JSON.parse(enfermedadesStr);
+        } catch {
+          // If it was stored as plain text by accident, handle it
+        }
+        setEnfermedades(enfermedadesList);
+        setOtrasDescription(persona.otras_enfermedades ?? "");
+        setMedicamentos(persona.medicamentos ?? "");
+        setAlergias(persona.alergias ?? "");
+        setAnestesiaReaction(persona.reaccion_anestesia ?? "no");
       })
       .catch((error: { message?: string }) => {
         if (ignore) return;
@@ -198,6 +221,11 @@ export function PatientFormScreen() {
       correo_electronico: email.trim() || undefined,
       id_municipio: Number(municipio),
       sexo: sex,
+      enfermedades: JSON.stringify(enfermedades),
+      otras_enfermedades: otrasDescription.trim() || undefined,
+      medicamentos: medicamentos.trim() || undefined,
+      alergias: alergias.trim() || undefined,
+      reaccion_anestesia: anestesiaReaction || undefined,
     };
 
     try {
@@ -401,28 +429,7 @@ export function PatientFormScreen() {
         </FullWidthField>
       </FormSection>
 
-      <FormSection columns={2} icon={<ClipboardList size={18} />} title="Información odontológica inicial">
-        <SectionDescription>Historial previo y motivo de la primera consulta</SectionDescription>
-        <Input
-          badge="optional"
-          hint="Si viene de otra clínica"
-          icon={<Calendar size={15} />}
-          label="Fecha de última visita previa"
-          onChange={(event) => setLastVisitDate(event.target.value)}
-          type="date"
-          value={lastVisitDate}
-        />
-        <FullWidthField>
-          <Textarea
-            badge="optional"
-            label="Motivo de consulta inicial"
-            onChange={setMotivoConsulta}
-            placeholder="Describe el motivo principal de la primera visita del paciente..."
-            rows={4}
-            value={motivoConsulta}
-          />
-        </FullWidthField>
-      </FormSection>
+
 
       <Card style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>

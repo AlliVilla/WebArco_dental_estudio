@@ -14,7 +14,7 @@ import {
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
-import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
+import { DEFAULT_PAGE_SIZE, PATIENT_SYSTEMIC_DISEASES } from "../../../config/constants";
 import api from "../../../services/api";
 import { formatDate } from "../../../utils/formatters";
 
@@ -35,6 +35,11 @@ type PersonaApi = {
   primer_apellido: string;
   segundo_apellido?: string | null;
   telefono: string;
+  enfermedades?: string | null;
+  otras_enfermedades?: string | null;
+  medicamentos?: string | null;
+  alergias?: string | null;
+  reaccion_anestesia?: string | null;
 };
 
 type PersonasListResponse = {
@@ -77,6 +82,11 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
     identity: persona.numero_identidad,
     phone: persona.telefono,
     lastVisit: null,
+    enfermedades: persona.enfermedades || null,
+    otras_enfermedades: persona.otras_enfermedades || null,
+    medicamentos: persona.medicamentos || null,
+    alergias: persona.alergias || null,
+    reaccion_anestesia: persona.reaccion_anestesia || null,
   };
 };
 
@@ -111,26 +121,18 @@ export function PatientsScreen({
 
   useEffect(() => {
     let ignore = false;
+    setIsLoading(true);
+    setError("");
 
-  const loadPatients = useCallback(async (page: number, search = "") => {
-    try {
-      setIsLoading(true);
-      setError("");
-      const response = await api.get<PersonasListResponse>("/persona", {
-        params: { page, limit: DEFAULT_PAGE_SIZE, search: search || undefined, includeConsulta: false },
-      });
-      const personas = response.data?.data ?? [];
-      const patients = personas.map(mapPersonaToPatient);
-      setAllPatients(patients);
-      setSearchResults(hasSearched ? filterPatients(patients) : patients);
-      setPagination(response.data?.pagination ?? {
-        total: patients.length,
-        page,
+    api.get<PersonasListResponse>("/persona", {
+      params: {
+        page: currentPage,
         limit: DEFAULT_PAGE_SIZE,
         nombre: activeFilters.nombre || undefined,
         identidad: activeFilters.identidad || undefined,
         telefono: activeFilters.telefono || undefined,
         codigo: activeFilters.codigo || undefined,
+        includeConsulta: false,
       },
     })
       .then((response) => {
@@ -378,6 +380,22 @@ function MedicalInfoModal({
   onClose: () => void;
   patient: Patient;
 }) {
+  const enfermedadesStr = patient.enfermedades as string | null;
+  let enfermedadesList: string[] = [];
+  try {
+    if (enfermedadesStr) {
+      enfermedadesList = JSON.parse(enfermedadesStr);
+    }
+  } catch {
+    // Fail-safe
+  }
+  const otrasEnfermedades = patient.otras_enfermedades as string | null;
+  const medicamentos = patient.medicamentos as string | null;
+  const alergias = patient.alergias as string | null;
+  const reaccionAnestesia = patient.reaccion_anestesia as string | null;
+
+  const hasMedicalInfo = enfermedadesList.length > 0 || otrasEnfermedades || medicamentos || alergias || reaccionAnestesia;
+
   return (
     <div
       style={{
@@ -448,22 +466,78 @@ function MedicalInfoModal({
           </button>
         </div>
 
-        <div
-          style={{
-            background: "var(--arco-gray-50)",
-            border: "1px solid var(--arco-gray-300)",
-            borderRadius: 8,
-            color: "var(--arco-gray-500)",
-            fontSize: 13,
-            padding: "24px 16px",
-            textAlign: "center",
-          }}
-        >
-          Sin información médica registrada para este paciente.
-        </div>
+        {hasMedicalInfo ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "60vh", overflowY: "auto", paddingRight: 4 }}>
+            {enfermedadesList.length > 0 && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 6 }}>Enfermedades sistémicas:</strong>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {enfermedadesList.map((disease) => {
+                    const matched = PATIENT_SYSTEMIC_DISEASES.find(d => d.id === disease);
+                    return (
+                      <span key={disease} style={{ background: "var(--arco-primary-light)", color: "var(--arco-primary)", fontSize: 12, fontWeight: 500, padding: "4px 10px", borderRadius: 20 }}>
+                        {matched?.label || disease}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {otrasEnfermedades && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Otras enfermedades:</strong>
+                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
+                  {otrasEnfermedades}
+                </p>
+              </div>
+            )}
+
+            {medicamentos && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Medicamentos actuales:</strong>
+                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
+                  {medicamentos}
+                </p>
+              </div>
+            )}
+
+            {alergias && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Alergias a medicamentos:</strong>
+                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
+                  {alergias}
+                </p>
+              </div>
+            )}
+
+            {reaccionAnestesia && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Historial de anestesia:</strong>
+                <span style={{ display: "inline-block", fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: reaccionAnestesia === "si" ? "var(--arco-danger-soft)" : "var(--arco-success-soft)", color: reaccionAnestesia === "si" ? "var(--arco-danger)" : "var(--arco-success)" }}>
+                  {reaccionAnestesia === "si" ? "Sí, ha tenido reacciones a la anestesia" : "No ha tenido reacciones a la anestesia"}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            style={{
+              background: "var(--arco-gray-50)",
+              border: "1px solid var(--arco-gray-300)",
+              borderRadius: 8,
+              color: "var(--arco-gray-500)",
+              fontSize: 13,
+              padding: "24px 16px",
+              textAlign: "center",
+            }}
+          >
+            Sin información médica registrada para este paciente.
+          </div>
+        )}
 
         <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "16px 0 0" }}>
-          Los antecedentes médicos se registran por consulta. Cuando existan datos asociados, esta vista rápida podrá mostrarlos desde la API.
+          Los antecedentes médicos iniciales se guardan en el perfil del paciente.
         </p>
       </div>
     </div>
