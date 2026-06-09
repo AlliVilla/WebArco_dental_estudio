@@ -410,19 +410,8 @@ export function DataTable<T extends Record<string, unknown>>({
           {primaryAction && (
             <Button
               variant="primary"
+              size="sm"
               onClick={primaryAction.onClick}
-              style={{
-                gap: 8,
-                borderRadius: 8,
-                backgroundColor: "#22C7E8",
-                borderColor: "#22C7E8",
-                color: "#fff",
-                fontWeight: 600,
-                fontSize: 12,
-                padding: "8px 20px",
-                height: 38,
-                boxShadow: "none",
-              }}
             >
               {primaryAction.icon}
               {primaryAction.label}
@@ -491,19 +480,8 @@ export function DataTable<T extends Record<string, unknown>>({
                 <Button
                   key={i}
                   variant="secondary"
+                  size="sm"
                   onClick={a.onClick}
-                  style={{
-                    gap: 8,
-                    borderRadius: 8,
-                    height: 40,
-                    border: "1px solid #D0D5DD",
-                    background: "#fff",
-                    color: "#344054",
-                    fontSize: 13,
-                    padding: "0 20px",
-                    fontWeight: 500,
-                    boxShadow: "none",
-                  }}
                 >
                   {a.icon}
                   {a.label}
