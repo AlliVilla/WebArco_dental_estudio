@@ -1,17 +1,19 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { MainLayout } from './page layouts/MainLayout';
-import { Dashboard } from './page layouts/Dashboard';
-import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
-import { PatientsScreen } from './features/patients/components/PatientsScreen';
-import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
-import { GestionIngresos } from './features/billing/components/GestionIngresos';
-import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
-import { Card, Alert, DesignSystemScreen } from './context';
-import { LoginForm } from './features/auth/components/LoginForm';
-import { AuthGuard, GuestGuard } from './routes/index';
-import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
+import { Routes, Route, Navigate } from "react-router-dom";
+import { MainLayout } from "./page layouts/MainLayout";
+import { Dashboard } from "./page layouts/Dashboard";
+import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
+import { PatientsScreen } from "./features/patients/components/PatientsScreen";
+import { AppointmentsScreen, AppointmentFormScreen, AppointmentDetailScreen, PatientAppointmentHistoryScreen } from './features/appointments';
+import { GestionIngresos } from "./features/billing/components/GestionIngresos";
+import { ConsentScreen } from "./features/patients/components/consentimientos/components/ConsentScreen";
+import { ExpedienteScreen } from "./features/patients/components/expediente/components/ExpedienteScreen";
+import { Card, Alert, DesignSystemScreen } from "./context";
+import { LoginForm } from "./features/auth/components/LoginForm";
+import { AuthGuard, GuestGuard } from "./routes/index";
+import { ResetPasswordPage } from "./features/auth/components/ResetPasswordPage";
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { UsersScreen } from './features/users';
+
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { MiPerfil } from './features/users/components/MiPerfil';
 function App() {
@@ -45,6 +47,10 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/agenda" element={<AppointmentsScreen />} />
+        <Route path="/agenda/new" element={<AppointmentFormScreen />} />
+        <Route path="/agenda/:id" element={<AppointmentDetailScreen />} />
+        <Route path="/agenda/:id/history" element={<PatientAppointmentHistoryScreen />} />
+        <Route path="/agenda/:id/edit" element={<AppointmentFormScreen />} />
         <Route path="/mi-perfil" element={<MiPerfil />} />
 
         {/* Patients sub-routes */}
@@ -61,7 +67,7 @@ function App() {
             </Card>
           </div>
         } />
-
+        
         {/* Billing sub-routes */}
         <Route path="/billing" element={<Navigate to="/billing/income" replace />} />
         <Route path="/billing/income" element={<GestionIngresos />} />

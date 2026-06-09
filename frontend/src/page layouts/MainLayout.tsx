@@ -12,6 +12,11 @@ interface MainLayoutProps {
 const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   dashboard: { title: 'Dashboard', breadcrumbs: ['Inicio', 'Dashboard'] },
   'mi-perfil': { title: 'Mi Perfil', breadcrumbs: ['Inicio', 'Perfil'] },
+  agenda: { title: 'Agenda', breadcrumbs: ['Inicio', 'Agenda'] },
+  'agenda-new': { title: 'Nueva Cita', breadcrumbs: ['Agenda', 'Nueva Cita'] },
+  'agenda-detail': { title: 'Detalle de Cita', breadcrumbs: ['Agenda', 'Detalle'] },
+  'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
+  patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
   'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
   odontogram: { title: 'Odontograma', breadcrumbs: ['Pacientes', 'Odontograma'] },
@@ -41,8 +46,12 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   const getActiveTab = (pathname: string) => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
     if (pathname === '/mi-perfil') return 'mi-perfil';
-    if (pathname === '/agenda' || pathname === '/appointments') return 'citas';
     if (pathname === '/recordatorios') return 'recordatorios';
+    if (pathname === '/agenda/new') return 'agenda-new';
+    if (pathname.startsWith('/agenda/') && pathname.endsWith('/edit')) return 'agenda-edit';
+    if (pathname.startsWith('/agenda/') && pathname !== '/agenda/new') return 'agenda-detail';
+    if (pathname === '/agenda' || pathname === '/appointments') return 'citas'; // keep sidebar active
+    if (pathname === '/patients') return 'patients';
     if (pathname === '/patients/list') return 'patients-list';
     if (pathname === '/patients/odontogram') return 'odontogram';
     if (pathname === '/patients/records') return 'patient-expediente';
