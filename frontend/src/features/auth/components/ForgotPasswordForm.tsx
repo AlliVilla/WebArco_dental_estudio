@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import { Button, Input, PasswordInput, Alert } from "../../../context";
 import { authService } from "../services/authService";
 
 export interface ForgotPasswordFormProps {
-  onBack: () => void;
+  onBack?: () => void;
+  initialStep?: 1 | 2;
+  initialToken?: string;
 }
 
 interface PasswordRules {
@@ -68,10 +71,15 @@ function PasswordChecklist({ pwd }: { pwd: string }) {
   );
 }
 
-export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
-  const [step, setStep] = useState<1 | 2>(1);
+export function ForgotPasswordForm({
+  onBack,
+  initialStep = 1,
+  initialToken = "",
+}: ForgotPasswordFormProps) {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<1 | 2>(initialStep);
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(initialToken);
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,6 +88,12 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
   const [hoverBack, setHoverBack] = useState(false);
 
   const rules = checkRules(newPwd);
+  const tokenFromUrl = initialToken.length > 0;
+
+  function handleBack() {
+    if (onBack) onBack();
+    else navigate("/login");
+  }
 
   async function handleForgot(e: React.FormEvent) {
     e.preventDefault();
@@ -89,15 +103,15 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
     try {
       await authService.forgotPassword(email);
       setSuccessMsg(
-        "Si el correo existe, te enviamos un enlace con el token. Revisa tu bandeja de entrada."
+        "Si el correo existe, te enviamos un enlace. Revisa tu bandeja de entrada."
       );
       setStep(2);
     } catch (err: unknown) {
-      const message =
+      setError(
         err instanceof Error
           ? err.message
-          : "No se pudo enviar el enlace. Intenta de nuevo.";
-      setError(message);
+          : "No se pudo enviar el enlace. Intenta de nuevo."
+      );
     } finally {
       setLoading(false);
     }
@@ -118,16 +132,14 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
     setLoading(true);
     try {
       await authService.resetPassword({ token, newPassword: newPwd });
-      setSuccessMsg(
-        "Contraseña actualizada. Redirigiendo al inicio de sesión..."
-      );
-      setTimeout(onBack, 2000);
+      setSuccessMsg("Contraseña actualizada. Redirigiendo...");
+      setTimeout(handleBack, 2000);
     } catch (err: unknown) {
-      const message =
+      setError(
         err instanceof Error
           ? err.message
-          : "Token inválido o expirado. Solicita un nuevo enlace.";
-      setError(message);
+          : "Token inválido o expirado. Solicita un nuevo enlace."
+      );
     } finally {
       setLoading(false);
     }
@@ -199,7 +211,9 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
           }}
         >
           {step === 1
-            ? "Ingresa tu correo registrado para recibir el token."
+            ? "Ingresa tu correo registrado para recibir el enlace."
+            : tokenFromUrl
+            ? "Define tu nueva contraseña para continuar."
             : "Pega el token que recibiste por correo y define tu nueva contraseña."}
         </p>
 
@@ -242,14 +256,17 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
             onSubmit={handleReset}
             style={{ display: "flex", flexDirection: "column", gap: 16 }}
           >
-            <Input
-              label="Token del correo"
-              type="text"
-              placeholder="Pega aquí el token recibido"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              required
-            />
+            {/* Token — solo visible si NO viene de la URL */}
+            {!tokenFromUrl && (
+              <Input
+                label="Token del correo"
+                type="text"
+                placeholder="Pega aquí el token recibido"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                required
+              />
+            )}
 
             <div>
               <PasswordInput
@@ -309,7 +326,7 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
         <div style={{ textAlign: "center", marginTop: 20 }}>
           <button
             type="button"
-            onClick={onBack}
+            onClick={handleBack}
             onMouseEnter={() => setHoverBack(true)}
             onMouseLeave={() => setHoverBack(false)}
             style={{

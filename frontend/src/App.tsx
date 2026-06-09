@@ -9,6 +9,8 @@ import { ConsentScreen } from "./features/patients/components/ConsentScreen";
 import { Card, Alert, DesignSystemScreen } from "./context";
 import { LoginForm } from "./features/auth/components/LoginForm";
 import { AuthGuard, GuestGuard } from "./routes/index";
+import { ResetPasswordPage } from "./features/auth/components/ResetPasswordPage";
+
 function App() {
   return (
     <Routes>
@@ -21,7 +23,14 @@ function App() {
           </GuestGuard>
         }
       />
-
+      <Route
+        path="/reset-password"
+        element={
+          <GuestGuard>
+            <ResetPasswordPage />
+          </GuestGuard>
+        }
+      />
       {/* Rutas protegidas */}
       <Route
         element={
