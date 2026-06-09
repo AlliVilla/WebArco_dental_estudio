@@ -82,7 +82,10 @@ export class AuthService {
       email: userExists.persona?.correo_electronico ?? undefined,
       id_rol: userExists.id_rol,
     };
-    const secretKey = (process.env.JWT_SECRET || 'your-secret-key') + userExists.password;
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET no está configurado');
+    }
+    const secretKey = process.env.JWT_SECRET + userExists.password;
     
     const resetToken = generateToken(resetPayload, '15m', secretKey);
 
@@ -115,7 +118,10 @@ export class AuthService {
       throw new BadRequestException('Token de recuperación inválido o expirado.');
     }
 
-    const secretKey = (process.env.JWT_SECRET || 'your-secret-key') + user.password;
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET no está configurado');
+    }
+    const secretKey = process.env.JWT_SECRET + user.password;
     try {
       verifyResetToken(token, secretKey);
     } catch {

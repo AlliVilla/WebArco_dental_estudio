@@ -8,8 +8,10 @@ export interface TokenPayload {
 }
 
 export function verifyToken(token: string): TokenPayload {
-
-  const secret = process.env.JWT_SECRET || 'your-secret-key';
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET no está configurado');
+  }
+  const secret = process.env.JWT_SECRET;
   const options: VerifyOptions = {};
 
   return verify(token, secret, options) as unknown as TokenPayload;
@@ -23,7 +25,10 @@ export function decodeToken(token: string): TokenPayload {
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-  const secret = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key';
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET no está configurado');
+  }
+  const secret = process.env.JWT_REFRESH_SECRET;
   const options: VerifyOptions = {};
 
   return verify(token, secret, options) as unknown as TokenPayload;

@@ -434,29 +434,27 @@ export function ForgotPasswordForm({
           </>
         )}
 
-        {!tokenFromUrl && (
-          <div style={{ textAlign: "center", marginTop: 20 }}>
-            <button
-              type="button"
-              onClick={handleBack}
-              onMouseEnter={() => setHoverBack(true)}
-              onMouseLeave={() => setHoverBack(false)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-                color: hoverBack ? "#0899B0" : "#5F656A",
-                fontSize: 13,
-                fontWeight: 500,
-                textDecoration: hoverBack ? "underline" : "none",
-                transition: "color 0.15s",
-              }}
-            >
-              ← Volver al inicio de sesión
-            </button>
-          </div>
-        )}
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <button
+            type="button"
+            onClick={handleBack}
+            onMouseEnter={() => setHoverBack(true)}
+            onMouseLeave={() => setHoverBack(false)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              color: hoverBack ? "#0899B0" : "#5F656A",
+              fontSize: 13,
+              fontWeight: 500,
+              textDecoration: hoverBack ? "underline" : "none",
+              transition: "color 0.15s",
+            }}
+          >
+            {tokenFromUrl ? "← Solicitar nuevo enlace" : "← Volver al inicio de sesión"}
+          </button>
+        </div>
       </div>
     </div>
   );

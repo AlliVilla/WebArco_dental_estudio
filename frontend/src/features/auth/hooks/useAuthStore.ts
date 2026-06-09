@@ -50,11 +50,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           error: response.message || 'Error al iniciar sesión',
         });
       }
-    } catch (error: any) {
-      set({
-        isLoading: false,
-        error: error.message || 'Error de conexión con el servidor',
-      });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Error de conexión con el servidor';
+      set({ isLoading: false, error: message });
       throw error;
     }
   },
