@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -34,48 +34,116 @@ type PersonaDetail = {
 
 type TabKey = "appointments" | "financial";
 
-const appointmentRows = [
-  { day: "27", month: "MAY", title: "Procedimiento", subtitle: "Dra. Karla Arita - 10:00 AM", status: "Atendida" },
-  { day: "14", month: "APR", title: "Procedimiento", subtitle: "Dra. Karla Arita - 09:30 AM", status: "Atendida" },
-  { day: "19", month: "MAR", title: "Consulta inicial", subtitle: "Dra. Karla Arita - 11:00 AM", status: "Atendida" },
-  { day: "15", month: "JUN", title: "Revisión", subtitle: "Dra. Karla Arita - 10:00 AM", status: "Programada" },
-];
+type AppointmentHistoryItem = {
+  id_cita: number;
+  fecha_inicio: string;
+  tipo_cita?: string | null;
+  motivo?: string | null;
+  estado: string;
+  doctor?: {
+    username?: string;
+    persona?: {
+      primer_nombre?: string | null;
+      primer_apellido?: string | null;
+    } | null;
+  } | null;
+};
 
-const financialRows = [
-  { date: "27 de may de 26", concept: "Relleno composite premolar", amount: 1800, status: "Pagado" },
-  { date: "14 de abr de 26", concept: "Extracción molar #38", amount: 2400, status: "Pagado" },
-  { date: "19 de mar de 26", concept: "Consulta inicial y radiografía", amount: 800, status: "Pagado" },
-  { date: "09 de jun de 26", concept: "Limpieza dental programada", amount: 1200, status: "Pendiente" },
-  { date: "09 de jun de 26", concept: "Blanqueamiento (plan)", amount: 2200, status: "Pendiente" },
-];
+type AppointmentHistoryResponse = {
+  data: AppointmentHistoryItem[];
+};
+
+type ConsultaListItem = {
+  id_consulta: number;
+  fecha_inicio: string;
+  motivo?: string | null;
+  diagnostico?: string | null;
+  tratamiento?: string | null;
+};
+
+type ConsultaListResponse = {
+  data: ConsultaListItem[];
+};
+
+type PagoPaciente = {
+  id_pago: number;
+  fecha: string;
+  abono: string | number;
+  observacion?: string | null;
+};
+
+type ConsultaDetail = ConsultaListItem & {
+  pagos?: PagoPaciente[];
+};
+
+type FinancialRow = {
+  id: string;
+  date: string;
+  concept: string;
+  amount: number;
+  status: "Pagado";
+};
 
 export function PatientProfileScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const patientId = Number(id);
+  const parsedPatientId = id ? Number(id) : null;
+  const patientId = parsedPatientId && Number.isFinite(parsedPatientId) ? parsedPatientId : null;
   const [patient, setPatient] = useState<PersonaDetail | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentHistoryItem[]>([]);
+  const [financialRows, setFinancialRows] = useState<FinancialRow[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(Boolean(patientId));
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!patientId) return;
-    void loadPatient();
-  }, [patientId]);
-
-  const loadPatient = async () => {
+  const loadPatient = useCallback(async (currentPatientId: number) => {
     try {
       setIsLoading(true);
       setError("");
-      const response = await api.get<PersonaDetail>(`/persona/${patientId}`);
-      setPatient(response.data);
+      const [patientResponse, appointmentsResponse, consultasResponse] = await Promise.all([
+        api.get<PersonaDetail>(`/persona/${currentPatientId}`),
+        api.get<AppointmentHistoryResponse>(`/appointments/patient/${currentPatientId}/history`, {
+          params: { page: 1, limit: 10 },
+        }),
+        api.get<ConsultaListResponse>("/consulta", {
+          params: { page: 1, limit: 10, id_persona: currentPatientId },
+        }),
+      ]);
+
+      setPatient(patientResponse.data);
+      setAppointments(appointmentsResponse.data?.data ?? []);
+
+      const consultas = consultasResponse.data?.data ?? [];
+      const consultaDetails = await Promise.all(
+        consultas.map((consulta) => api.get<ConsultaDetail>(`/consulta/${consulta.id_consulta}`)),
+      );
+      const pagos: FinancialRow[] = consultaDetails.flatMap((response) => {
+        const consulta = response.data;
+        return (consulta.pagos ?? []).map((pago) => ({
+          id: `${consulta.id_consulta}-${pago.id_pago}`,
+          date: pago.fecha,
+          concept: pago.observacion || consulta.motivo || consulta.tratamiento || "Pago de consulta",
+          amount: Number(pago.abono),
+          status: "Pagado",
+        }));
+      });
+
+      setFinancialRows(pagos);
     } catch (requestError) {
       const apiError = requestError as { message?: string };
       setError(apiError.message ?? "No se pudo cargar el perfil del paciente.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (patientId) {
+      queueMicrotask(() => {
+        loadPatient(patientId).catch(() => undefined);
+      });
+    }
+  }, [loadPatient, patientId]);
 
   const fullName = useMemo(() => {
     if (!patient) return "";
@@ -99,6 +167,11 @@ export function PatientProfileScreen() {
   const location = patient?.municipio
     ? `${patient.municipio.nombre}, ${patient.municipio.departamento?.nombre ?? ""}`.replace(/,\s*$/, "")
     : "Sin ubicación";
+  const lastVisit = appointments[0]?.fecha_inicio ? formatDisplayDate(appointments[0].fecha_inicio) : "Sin visitas registradas";
+
+  if (!patientId) {
+    return <Alert variant="error" message="ID de paciente inválido." />;
+  }
 
   if (isLoading) {
     return <Alert variant="info" message="Cargando perfil del paciente..." />;
@@ -155,30 +228,16 @@ export function PatientProfileScreen() {
                 <span>{location}</span>
               </div>
               <p style={{ color: "#5F656A", fontSize: 13, margin: "14px 0 0" }}>
-                Última visita: 27 de mayo de 2026
+                Última visita: {lastVisit}
               </p>
               <div style={{ marginTop: 16 }}>
                 <div style={{ alignItems: "center", color: "#B7791F", display: "flex", fontSize: 12, fontWeight: 700, gap: 6, marginBottom: 8 }}>
                   <AlertTriangle size={14} />
-                  ALERTAS MÉDICAS ACTIVAS
+                  ALERTAS MÉDICAS
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {["Diabetes", "Hipertensión", "Alergia: Penicilina", "Alergia: Ibuprofeno", "Reacción a anestesia"].map((tag) => (
-                    <span
-                      key={tag}
-                      style={{
-                        background: tag.includes("Alergia") ? "#FEF2F2" : "#FFFBEB",
-                        borderRadius: 999,
-                        color: tag.includes("Alergia") ? "#B91C1C" : "#B7791F",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: "5px 10px",
-                      }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                <span style={{ color: "#888F94", fontSize: 12 }}>
+                  Sin alertas médicas registradas para este paciente.
+                </span>
               </div>
             </div>
           </div>
@@ -204,20 +263,20 @@ export function PatientProfileScreen() {
 
           <div
             style={{
-              background: "#FFFBEB",
-              border: "1px solid #FDE68A",
+              background: "#F8F9FA",
+              border: "1px solid #D3D7DA",
               borderRadius: 8,
-              color: "#92400E",
+              color: "#5F656A",
               gridColumn: "1 / -1",
               padding: "12px 16px",
             }}
           >
             <div style={{ alignItems: "center", display: "flex", gap: 8, fontSize: 13, fontWeight: 700 }}>
               <AlertTriangle size={15} />
-              Este paciente tiene alertas médicas activas. Revisa alergias y enfermedades antes de iniciar cualquier tratamiento.
+              Sin alertas médicas activas registradas.
             </div>
             <p style={{ fontSize: 12, margin: "6px 0 0 24px" }}>
-              Reacción moderada a lidocaína con epinefrina en procedimiento de 2023. Utilizar anestesia sin vasoconstrictor.
+              Los antecedentes médicos se registran por consulta. Cuando existan respuestas asociadas, aparecerán en el expediente clínico.
             </p>
           </div>
         </div>
@@ -229,7 +288,7 @@ export function PatientProfileScreen() {
           <ProfileTab active={activeTab === "financial"} icon={<DollarSign size={16} />} label="Financiero" onClick={() => setActiveTab("financial")} />
         </div>
 
-        {activeTab === "appointments" ? <AppointmentsTab /> : <FinancialTab />}
+        {activeTab === "appointments" ? <AppointmentsTab appointments={appointments} /> : <FinancialTab rows={financialRows} />}
       </Card>
     </div>
   );
@@ -270,39 +329,56 @@ function ProfileTab({
   );
 }
 
-function AppointmentsTab() {
+function AppointmentsTab({ appointments }: { appointments: AppointmentHistoryItem[] }) {
+  if (appointments.length === 0) {
+    return <EmptyState message="Este paciente no tiene citas registradas." />;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {appointmentRows.map((appointment) => (
-        <div
-          key={`${appointment.day}-${appointment.title}`}
-          style={{
-            alignItems: "center",
-            border: "1px solid #D3D7DA",
-            borderRadius: 8,
-            display: "grid",
-            gridTemplateColumns: "52px 1fr auto",
-            padding: "12px 16px",
-          }}
-        >
-          <div style={{ alignItems: "center", background: "#F8F9FA", borderRadius: 8, display: "flex", flexDirection: "column", height: 44, justifyContent: "center", width: 44 }}>
-            <strong style={{ color: "#203F49", fontSize: 14 }}>{appointment.day}</strong>
-            <span style={{ color: "#888F94", fontSize: 10, fontWeight: 700 }}>{appointment.month}</span>
+      {appointments.map((appointment) => {
+        const date = new Date(appointment.fecha_inicio);
+        const doctorName = formatDoctorName(appointment);
+        return (
+          <div
+            key={appointment.id_cita}
+            style={{
+              alignItems: "center",
+              border: "1px solid #D3D7DA",
+              borderRadius: 8,
+              display: "grid",
+              gridTemplateColumns: "52px 1fr auto",
+              padding: "12px 16px",
+            }}
+          >
+            <div style={{ alignItems: "center", background: "#F8F9FA", borderRadius: 8, display: "flex", flexDirection: "column", height: 44, justifyContent: "center", width: 44 }}>
+              <strong style={{ color: "#203F49", fontSize: 14 }}>{date.getDate().toString().padStart(2, "0")}</strong>
+              <span style={{ color: "#888F94", fontSize: 10, fontWeight: 700 }}>{date.toLocaleDateString("es-HN", { month: "short" }).toUpperCase()}</span>
+            </div>
+            <div>
+              <div style={{ color: "#203F49", fontSize: 14, fontWeight: 700 }}>{appointment.tipo_cita || appointment.motivo || "Cita dental"}</div>
+              <div style={{ color: "#888F94", fontSize: 12 }}>
+                {doctorName} - {date.toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </div>
+            <StatusPill status={appointment.estado} />
           </div>
-          <div>
-            <div style={{ color: "#203F49", fontSize: 14, fontWeight: 700 }}>{appointment.title}</div>
-            <div style={{ color: "#888F94", fontSize: 12 }}>{appointment.subtitle}</div>
-          </div>
-          <StatusPill status={appointment.status} />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function FinancialTab() {
-  const totalPaid = financialRows.filter((row) => row.status === "Pagado").reduce((sum, row) => sum + row.amount, 0);
-  const totalPending = financialRows.filter((row) => row.status === "Pendiente").reduce((sum, row) => sum + row.amount, 0);
+function FinancialTab({ rows }: { rows: FinancialRow[] }) {
+  const totals = rows.reduce(
+    (summary, row) => ({
+      paid: summary.paid + (row.status === "Pagado" ? row.amount : 0),
+      pending: summary.pending,
+    }),
+    { paid: 0, pending: 0 },
+  );
+  const totalPaid = totals.paid;
+  const totalPending = totals.pending;
   const totalBilled = totalPaid + totalPending;
 
   return (
@@ -330,9 +406,11 @@ function FinancialTab() {
             <span key={heading} style={{ color: "#888F94", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{heading}</span>
           ))}
         </div>
-        {financialRows.map((row, index) => (
+        {rows.length === 0 ? (
+          <EmptyState message="No hay pagos registrados para este paciente." />
+        ) : rows.map((row, index) => (
           <div
-            key={`${row.date}-${row.concept}`}
+            key={row.id}
             style={{
               background: index % 2 === 0 ? "#FFFFFF" : "#F8F9FA",
               display: "grid",
@@ -347,6 +425,14 @@ function FinancialTab() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div style={{ color: "#888F94", fontSize: 13, padding: "28px 16px", textAlign: "center" }}>
+      {message}
     </div>
   );
 }
@@ -367,8 +453,9 @@ function FinanceSummary({ label, tone, value }: { label: string; tone: "neutral"
 }
 
 function StatusPill({ status }: { status: string }) {
-  const isSuccess = status === "Atendida" || status === "Pagado";
-  const isPending = status === "Pendiente";
+  const normalizedStatus = status.toLowerCase();
+  const isSuccess = ["atendida", "pagado", "completada", "completed"].includes(normalizedStatus);
+  const isPending = ["pendiente", "programada", "pending", "scheduled"].includes(normalizedStatus);
   const bg = isSuccess ? "#ECFDF5" : isPending ? "#FFFBEB" : "#E6F8FB";
   const color = isSuccess ? "#1D9E75" : isPending ? "#B7791F" : "#0BC5DF";
 
@@ -386,6 +473,20 @@ function calculateAge(dateValue: string) {
   const monthDiff = today.getMonth() - birth.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1;
   return age;
+}
+
+function formatDisplayDate(dateValue: string) {
+  return new Date(dateValue).toLocaleDateString("es-HN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatDoctorName(appointment: AppointmentHistoryItem) {
+  const persona = appointment.doctor?.persona;
+  const fullName = [persona?.primer_nombre, persona?.primer_apellido].filter(Boolean).join(" ");
+  return fullName || appointment.doctor?.username || "Doctor no asignado";
 }
 
 export default PatientProfileScreen;

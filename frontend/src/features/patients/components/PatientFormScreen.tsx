@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Calendar,
@@ -13,10 +12,14 @@ import {
   User,
   X,
 } from "lucide-react";
-import { Alert, Button, Card, FieldBadge, Input, Select } from "../../../context";
+import { Alert, Button, Card, Input, Select } from "../../../context";
+import {
+  PATIENT_DEPARTMENTS,
+  PATIENT_MUNICIPALITIES,
+  PATIENT_SYSTEMIC_DISEASES,
+} from "../../../config/constants";
 import api from "../../../services/api";
-
-type BadgeType = "required" | "optional" | "conditional";
+import { CheckboxGroup, RadioGroup, SectionHeader, Textarea } from "./formControls";
 
 type PatientPayload = {
   numero_identidad: string;
@@ -54,355 +57,12 @@ type PersonaDetail = {
   };
 };
 
-const DEPARTAMENTOS = [
-  { value: "2", label: "Choluteca" },
-  { value: "6", label: "Cortés" },
-  { value: "8", label: "Francisco Morazán" },
-  { value: "10", label: "Intibucá" },
-  { value: "15", label: "Olancho" },
-  { value: "16", label: "Santa Bárbara" },
-];
-
-const MUNICIPIOS: Record<string, { value: string; label: string }[]> = {
-  "2": [
-    { value: "9", label: "Choluteca" },
-    { value: "14", label: "El Triunfo" },
-    { value: "23", label: "San Marcos de Colón" },
-  ],
-  "6": [
-    { value: "79", label: "San Pedro Sula" },
-    { value: "80", label: "Choloma" },
-    { value: "89", label: "Villanueva" },
-    { value: "90", label: "La Lima" },
-  ],
-  "8": [
-    { value: "110", label: "Tegucigalpa" },
-    { value: "118", label: "Lepaterique" },
-    { value: "132", label: "Santa Lucía" },
-    { value: "135", label: "Valle de Ángeles" },
-  ],
-  "10": [
-    { value: "144", label: "La Esperanza" },
-    { value: "149", label: "Intibucá" },
-    { value: "150", label: "Jesús de Otoro" },
-  ],
-  "15": [
-    { value: "228", label: "Juticalpa" },
-    { value: "230", label: "Catacamas" },
-    { value: "250", label: "Patuca" },
-  ],
-  "16": [
-    { value: "251", label: "Santa Bárbara" },
-    { value: "262", label: "Las Vegas" },
-    { value: "278", label: "Trinidad" },
-  ],
-};
-
-const ENFERMEDADES = [
-  { id: "diabetes", label: "Diabetes" },
-  { id: "hipertension", label: "Hipertensión" },
-  { id: "cardiopatias", label: "Cardiopatías" },
-  { id: "epoc", label: "EPOC" },
-  { id: "hepatitis", label: "Hepatitis" },
-  { id: "cancer", label: "Cáncer" },
-  { id: "osteoporosis", label: "Osteoporosis" },
-  { id: "renal", label: "Enfermedad renal" },
-  { id: "inmunologica", label: "Enfermedad hepática" },
-  { id: "otras", label: "Otras" },
-];
-
-function SectionHeader({
-  icon,
-  subtitle,
-  title,
-}: {
-  icon: ReactNode;
-  subtitle?: string;
-  title: string;
-}) {
-  return (
-    <div style={{ alignItems: "center", display: "flex", gap: 10, marginBottom: 20 }}>
-      <div
-        style={{
-          alignItems: "center",
-          background: "rgba(11,197,223,0.1)",
-          borderRadius: 8,
-          color: "var(--arco-primary)",
-          display: "flex",
-          flexShrink: 0,
-          height: 36,
-          justifyContent: "center",
-          width: 36,
-        }}
-      >
-        {icon}
-      </div>
-      <div>
-        <h3
-          style={{
-            color: "var(--arco-navy)",
-            fontSize: 15,
-            fontWeight: 600,
-            margin: 0,
-          }}
-        >
-          {title}
-        </h3>
-        {subtitle ? (
-          <p
-            style={{
-              color: "var(--arco-gray-500)",
-              fontSize: 12,
-              margin: "2px 0 0",
-            }}
-          >
-            {subtitle}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function Textarea({
-  badge,
-  disabled,
-  hint,
-  label,
-  onChange,
-  placeholder,
-  rows = 3,
-  value,
-}: {
-  badge?: BadgeType;
-  disabled?: boolean;
-  hint?: string;
-  label?: string;
-  onChange?: (value: string) => void;
-  placeholder?: string;
-  rows?: number;
-  value?: string;
-}) {
-  const [focused, setFocused] = useState(false);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {label || badge ? (
-        <div style={{ alignItems: "center", display: "flex", gap: 6 }}>
-          {label ? (
-            <label style={{ color: "var(--arco-navy)", fontSize: 13, fontWeight: 500 }}>
-              {label}
-            </label>
-          ) : null}
-          {badge ? <FieldBadge type={badge} /> : null}
-        </div>
-      ) : null}
-      <textarea
-        disabled={disabled}
-        onBlur={() => setFocused(false)}
-        onChange={(event) => onChange?.(event.target.value)}
-        onFocus={() => setFocused(true)}
-        placeholder={placeholder}
-        rows={rows}
-        value={value}
-        style={{
-          background: disabled ? "#F1F3F4" : "#FFFFFF",
-          border: `1px solid ${focused ? "#0BC5DF" : "#D3D7DA"}`,
-          borderRadius: 8,
-          boxShadow: focused ? "0 0 0 3px rgba(11,197,223,0.12)" : "none",
-          color: "#203F49",
-          fontFamily: "Inter, system-ui, sans-serif",
-          fontSize: 14,
-          minHeight: rows * 38,
-          outline: "none",
-          padding: "10px 12px",
-          resize: "vertical",
-          transition: "border-color 0.15s, box-shadow 0.15s",
-          width: "100%",
-        }}
-      />
-      {hint ? <span style={{ color: "var(--arco-gray-500)", fontSize: 11 }}>{hint}</span> : null}
-    </div>
-  );
-}
-
-function CheckboxGroup({
-  badge,
-  label,
-  onChange,
-  options,
-  selected,
-}: {
-  badge?: BadgeType;
-  label?: string;
-  onChange: (ids: string[]) => void;
-  options: { id: string; label: string }[];
-  selected: string[];
-}) {
-  const toggle = (id: string) => {
-    onChange(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {label || badge ? (
-        <div style={{ alignItems: "center", display: "flex", gap: 6 }}>
-          {label ? (
-            <label style={{ color: "var(--arco-navy)", fontSize: 13, fontWeight: 500 }}>
-              {label}
-            </label>
-          ) : null}
-          {badge ? <FieldBadge type={badge} /> : null}
-        </div>
-      ) : null}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #0BC5DF",
-          borderRadius: 8,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "10px 24px",
-          padding: "10px 14px",
-        }}
-      >
-        {options.map((option) => {
-          const checked = selected.includes(option.id);
-          return (
-            <label
-              key={option.id}
-              onClick={() => toggle(option.id)}
-              style={{
-                alignItems: "center",
-                cursor: "pointer",
-                display: "flex",
-                gap: 7,
-                userSelect: "none",
-              }}
-            >
-              <span
-                style={{
-                  alignItems: "center",
-                  background: checked ? "#0BC5DF" : "#FFFFFF",
-                  border: `2px solid ${checked ? "#0BC5DF" : "#D3D7DA"}`,
-                  borderRadius: 4,
-                  display: "flex",
-                  flexShrink: 0,
-                  height: 16,
-                  justifyContent: "center",
-                  transition: "all 0.15s",
-                  width: 16,
-                }}
-              >
-                {checked ? (
-                  <svg fill="none" height="7" viewBox="0 0 9 7" width="9">
-                    <path
-                      d="M1 3.5L3.5 6L8 1"
-                      stroke="white"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.5"
-                    />
-                  </svg>
-                ) : null}
-              </span>
-              <span style={{ color: "#203F49", fontSize: 13 }}>{option.label}</span>
-            </label>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RadioGroup({
-  badge,
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  badge?: BadgeType;
-  label?: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  value: string;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {label || badge ? (
-        <div style={{ alignItems: "center", display: "flex", gap: 6 }}>
-          {label ? (
-            <label style={{ color: "var(--arco-navy)", fontSize: 13, fontWeight: 500 }}>
-              {label}
-            </label>
-          ) : null}
-          {badge ? <FieldBadge type={badge} /> : null}
-        </div>
-      ) : null}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #D3D7DA",
-          borderRadius: 8,
-          display: "flex",
-          gap: 16,
-          padding: "10px 14px",
-        }}
-      >
-        {options.map((option) => {
-          const checked = value === option.value;
-          return (
-            <label
-              key={option.value}
-              onClick={() => onChange(option.value)}
-              style={{
-                alignItems: "center",
-                cursor: "pointer",
-                display: "flex",
-                gap: 7,
-                userSelect: "none",
-              }}
-            >
-              <span
-                style={{
-                  alignItems: "center",
-                  background: "#FFFFFF",
-                  border: `2px solid ${checked ? "#0BC5DF" : "#D3D7DA"}`,
-                  borderRadius: "50%",
-                  display: "flex",
-                  flexShrink: 0,
-                  height: 16,
-                  justifyContent: "center",
-                  transition: "all 0.15s",
-                  width: 16,
-                }}
-              >
-                {checked ? (
-                  <span
-                    style={{
-                      background: "#0BC5DF",
-                      borderRadius: "50%",
-                      height: 8,
-                      width: 8,
-                    }}
-                  />
-                ) : null}
-              </span>
-              <span style={{ color: "#203F49", fontSize: 13 }}>{option.label}</span>
-            </label>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function PatientFormScreen() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const patientId = id ? Number(id) : null;
-  const isEditMode = Boolean(patientId);
+  const parsedPatientId = id ? Number(id) : null;
+  const patientId = parsedPatientId && Number.isFinite(parsedPatientId) ? parsedPatientId : null;
+  const isEditMode = patientId !== null;
 
   const [firstName, setFirstName] = useState("");
   const [secondName, setSecondName] = useState("");
@@ -410,8 +70,7 @@ export function PatientFormScreen() {
   const [secondLastName, setSecondLastName] = useState("");
   const [identityNumber, setIdentityNumber] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [age, setAge] = useState("");
-  const [sex, setSex] = useState("");
+  const [sex, setSex] = useState<"M" | "F" | "">("");
   const [departamento, setDepartamento] = useState("");
   const [municipio, setMunicipio] = useState("");
   const [phone, setPhone] = useState("");
@@ -428,15 +87,13 @@ export function PatientFormScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPatient, setIsLoadingPatient] = useState(false);
 
-  const generatedCode = useMemo(() => `PAC-${String(Math.floor(Math.random() * 900) + 100).padStart(6, "0")}`, []);
-  const autoCode = isEditMode && patientId ? `PAC-${String(patientId).padStart(6, "0")}` : generatedCode;
-  const municipioOptions = departamento ? MUNICIPIOS[departamento] ?? [] : [];
+  const displayCode = isEditMode && patientId ? `PAC-${String(patientId).padStart(6, "0")}` : "Se generará al guardar";
+  const municipioOptions = departamento ? PATIENT_MUNICIPALITIES[departamento] ?? [] : [];
   const otrasChecked = enfermedades.includes("otras");
 
-  useEffect(() => {
+  const age = useMemo(() => {
     if (!birthDate) {
-      setAge("");
-      return;
+      return "";
     }
 
     const today = new Date();
@@ -448,35 +105,29 @@ export function PatientFormScreen() {
       years -= 1;
     }
 
-    setAge(years >= 0 ? String(years) : "");
+    return years >= 0 ? String(years) : "";
   }, [birthDate]);
-
-  useEffect(() => {
-    if (patientId) {
-      void loadPatient(patientId);
-    }
-  }, [patientId]);
 
   const handleDepartamentoChange = (value: string) => {
     setDepartamento(value);
     setMunicipio("");
   };
 
-  const getDepartamentoFromPersona = (persona: PersonaDetail) => {
+  const getDepartamentoFromPersona = useCallback((persona: PersonaDetail) => {
     const departamentoId =
       persona.municipio?.id_departamento ??
       persona.municipio?.departamento?.id_departamento;
 
     if (departamentoId) return String(departamentoId);
 
-    const match = Object.entries(MUNICIPIOS).find(([, municipios]) =>
+    const match = Object.entries(PATIENT_MUNICIPALITIES).find(([, municipios]) =>
       municipios.some((option) => Number(option.value) === persona.id_municipio),
     );
 
     return match?.[0] ?? "";
-  };
+  }, []);
 
-  const loadPatient = async (currentPatientId: number) => {
+  const loadPatient = useCallback(async (currentPatientId: number) => {
     try {
       setIsLoadingPatient(true);
       setSaveStatus("idle");
@@ -501,7 +152,15 @@ export function PatientFormScreen() {
     } finally {
       setIsLoadingPatient(false);
     }
-  };
+  }, [getDepartamentoFromPersona]);
+
+  useEffect(() => {
+    if (patientId) {
+      queueMicrotask(() => {
+        loadPatient(patientId).catch(() => undefined);
+      });
+    }
+  }, [loadPatient, patientId]);
 
   const handleSave = async () => {
     const identityDigits = identityNumber.replace(/\D/g, "");
@@ -510,13 +169,19 @@ export function PatientFormScreen() {
       firstLastName &&
       identityDigits.length === 13 &&
       birthDate &&
-      sex &&
+      (sex === "M" || sex === "F") &&
       municipio &&
       phone;
 
     if (!requiredFilled) {
       setSaveStatus("error");
       setMessage("Completa los campos requeridos. La identidad debe tener 13 dígitos.");
+      return;
+    }
+
+    if (sex !== "M" && sex !== "F") {
+      setSaveStatus("error");
+      setMessage("Selecciona el sexo del paciente.");
       return;
     }
 
@@ -530,7 +195,7 @@ export function PatientFormScreen() {
       telefono: phone.trim(),
       correo_electronico: email.trim() || undefined,
       id_municipio: Number(municipio),
-      sexo: sex as "M" | "F",
+      sexo: sex,
     };
 
     try {
@@ -542,7 +207,7 @@ export function PatientFormScreen() {
       }
       setSaveStatus("success");
       setMessage(isEditMode ? "Paciente actualizado correctamente." : "Paciente guardado correctamente.");
-      setTimeout(() => navigate("/patients/list"), 900);
+      navigate("/patients/list");
     } catch (error) {
       const apiError = error as { message?: string };
       setSaveStatus("error");
@@ -579,7 +244,7 @@ export function PatientFormScreen() {
             icon={<Hash size={15} />}
             label="Código del paciente"
             readOnly
-            value={autoCode}
+            value={displayCode}
           />
         </div>
 
@@ -641,7 +306,7 @@ export function PatientFormScreen() {
           <Select
             badge="required"
             label="Sexo"
-            onChange={setSex}
+            onChange={(value) => setSex(value === "M" || value === "F" ? value : "")}
             options={[
               { value: "M", label: "Masculino" },
               { value: "F", label: "Femenino" },
@@ -653,7 +318,7 @@ export function PatientFormScreen() {
             badge="required"
             label="Departamento"
             onChange={handleDepartamentoChange}
-            options={DEPARTAMENTOS}
+            options={PATIENT_DEPARTMENTS}
             placeholder="Selecciona..."
             value={departamento}
           />
@@ -701,7 +366,7 @@ export function PatientFormScreen() {
             badge="optional"
             label="Enfermedades sistémicas"
             onChange={setEnfermedades}
-            options={ENFERMEDADES}
+            options={PATIENT_SYSTEMIC_DISEASES}
             selected={enfermedades}
           />
           {otrasChecked ? (

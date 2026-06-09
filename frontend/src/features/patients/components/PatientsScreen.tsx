@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Alert, Button, Card, Input } from "../../../context";
+import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
 
 type Patient = {
@@ -51,8 +52,27 @@ interface PatientsScreenProps {
   onViewPatient?: (id: number) => void;
 }
 
+const mapPersonaToPatient = (persona: PersonaApi): Patient => {
+  const fullName = [
+    persona.primer_nombre,
+    persona.segundo_nombre,
+    persona.primer_apellido,
+    persona.segundo_apellido,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    id: persona.id_persona,
+    code: `PAC-${String(persona.id_persona).padStart(6, "0")}`,
+    fullName,
+    identity: persona.numero_identidad,
+    phone: persona.telefono,
+    lastVisit: null,
+  };
+};
+
 export function PatientsScreen({
-  onViewProfile,
   onCreatePatient,
   onEditPatient,
   onViewPatient,
@@ -67,6 +87,14 @@ export function PatientsScreen({
   const [selectedMedicalPatient, setSelectedMedicalPatient] =
     useState<Patient | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: DEFAULT_PAGE_SIZE,
+    pages: 1,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -74,58 +102,11 @@ export function PatientsScreen({
     searchName || searchIdentity || searchPhone || searchCode,
   );
 
-  useEffect(() => {
-    void loadPatients();
-  }, []);
-
-  const mapPersonaToPatient = (persona: PersonaApi): Patient => {
-    const fullName = [
-      persona.primer_nombre,
-      persona.segundo_nombre,
-      persona.primer_apellido,
-      persona.segundo_apellido,
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    return {
-      id: persona.id_persona,
-      code: `PAC-${String(persona.id_persona).padStart(6, "0")}`,
-      fullName,
-      identity: persona.numero_identidad,
-      phone: persona.telefono,
-      lastVisit: null,
-    };
-  };
-
-  const loadPatients = async () => {
-    try {
-      setIsLoading(true);
-      setError("");
-      const response = await api.get<PersonasListResponse>("/persona", {
-        params: { page: 1, limit: 100 },
-      });
-      const personas = response.data?.data ?? [];
-      const patients = personas.map(mapPersonaToPatient);
-      setAllPatients(patients);
-      setSearchResults(patients);
-    } catch (requestError) {
-      const apiError = requestError as { message?: string };
-      setError(apiError.message ?? "No se pudieron cargar los pacientes.");
-      setAllPatients([]);
-      setSearchResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSearch = () => {
-    if (!hasAnyFilter) return;
-
+  const filterPatients = useCallback((patients: Patient[]) => {
     const identityQuery = searchIdentity.replace(/\D/g, "");
     const phoneQuery = searchPhone.replace(/\D/g, "");
 
-    const filtered = allPatients.filter((patient) => {
+    return patients.filter((patient) => {
       const matchName =
         !searchName ||
         patient.fullName.toLowerCase().includes(searchName.toLowerCase());
@@ -142,9 +123,52 @@ export function PatientsScreen({
 
       return matchName && matchIdentity && matchPhone && matchCode;
     });
+  }, [searchCode, searchIdentity, searchName, searchPhone]);
 
-    setSearchResults(filtered);
+  const getBackendSearchQuery = useCallback(() =>
+    searchName.trim() ||
+    searchIdentity.replace(/\D/g, "") ||
+    searchPhone.replace(/\D/g, "") ||
+    searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""), [searchCode, searchIdentity, searchName, searchPhone]);
+
+  const loadPatients = useCallback(async (page: number, search = "") => {
+    try {
+      setIsLoading(true);
+      setError("");
+      const response = await api.get<PersonasListResponse>("/persona", {
+        params: { page, limit: DEFAULT_PAGE_SIZE, search: search || undefined },
+      });
+      const personas = response.data?.data ?? [];
+      const patients = personas.map(mapPersonaToPatient);
+      setAllPatients(patients);
+      setSearchResults(hasSearched ? filterPatients(patients) : patients);
+      setPagination(response.data?.pagination ?? {
+        total: patients.length,
+        page,
+        limit: DEFAULT_PAGE_SIZE,
+        pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
+      });
+    } catch (requestError) {
+      const apiError = requestError as { message?: string };
+      setError(apiError.message ?? "No se pudieron cargar los pacientes.");
+      setAllPatients([]);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filterPatients, hasSearched]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      loadPatients(currentPage, activeSearchQuery).catch(() => undefined);
+    });
+  }, [activeSearchQuery, currentPage, loadPatients]);
+
+  const handleSearch = () => {
+    if (!hasAnyFilter) return;
     setHasSearched(true);
+    setActiveSearchQuery(getBackendSearchQuery());
+    setCurrentPage(1);
   };
 
   const handleClear = () => {
@@ -154,6 +178,8 @@ export function PatientsScreen({
     setSearchCode("");
     setSearchResults(allPatients);
     setHasSearched(false);
+    setActiveSearchQuery("");
+    setCurrentPage(1);
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -253,7 +279,7 @@ export function PatientsScreen({
             style={{ flex: 1 }}
           >
             <Search size={16} />
-            Buscar paciente
+            {isLoading && hasSearched ? "Buscando..." : "Buscar paciente"}
           </Button>
           <Button variant="secondary" onClick={handleClear} disabled={isLoading}>
             <X size={16} />
@@ -298,7 +324,7 @@ export function PatientsScreen({
                   }`
               : isLoading
                 ? "Cargando pacientes registrados..."
-                : `Total de ${searchResults.length} pacientes registrados`}
+                : `${hasSearched ? "Página de resultados" : "Página"} ${pagination.page} de ${pagination.pages} · ${pagination.total} pacientes registrados`}
           </p>
         </div>
 
@@ -427,6 +453,30 @@ export function PatientsScreen({
             ))
           )}
         </div>
+
+        {pagination.pages > 1 ? (
+          <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+            <span style={{ color: "var(--arco-gray-500)", fontSize: 12 }}>
+              Mostrando {searchResults.length} de {pagination.total} pacientes
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button
+                disabled={isLoading || currentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                variant="secondary"
+              >
+                Anterior
+              </Button>
+              <Button
+                disabled={isLoading || currentPage >= pagination.pages}
+                onClick={() => setCurrentPage((page) => Math.min(pagination.pages, page + 1))}
+                variant="secondary"
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Card>
 
       {selectedMedicalPatient ? (
@@ -516,82 +566,23 @@ function MedicalInfoModal({
           </button>
         </div>
 
-        <div style={{ display: "grid", gap: 14 }}>
-          <MedicalBlock
-            items={["Diabetes", "Hipertensión"]}
-            title="Enfermedades sistémicas"
-            tone="warning"
-          />
-          <MedicalBlock
-            items={["Penicilina", "Ibuprofeno"]}
-            title="Alergias a medicamentos"
-            tone="danger"
-          />
-          <MedicalBlock
-            items={["Reacción moderada a lidocaína con epinefrina en procedimiento de 2023. Utilizar anestesia sin vasoconstrictor."]}
-            title="Historial de anestesia"
-            tone="warning"
-          />
-          <MedicalBlock
-            items={["No hay medicamentos actuales registrados."]}
-            title="Medicamentos actuales"
-            tone="neutral"
-          />
+        <div
+          style={{
+            background: "var(--arco-gray-50)",
+            border: "1px solid var(--arco-gray-300)",
+            borderRadius: 8,
+            color: "var(--arco-gray-500)",
+            fontSize: 13,
+            padding: "24px 16px",
+            textAlign: "center",
+          }}
+        >
+          Sin información médica registrada para este paciente.
         </div>
 
         <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "16px 0 0" }}>
-          Nota: estos datos médicos se muestran como vista clínica rápida. Cuando el backend exponga antecedentes médicos por paciente, esta tarjeta puede leerlos desde la API.
+          Los antecedentes médicos se registran por consulta. Cuando existan datos asociados, esta vista rápida podrá mostrarlos desde la API.
         </p>
-      </div>
-    </div>
-  );
-}
-
-function MedicalBlock({
-  items,
-  title,
-  tone,
-}: {
-  items: string[];
-  title: string;
-  tone: "danger" | "neutral" | "warning";
-}) {
-  const colorMap = {
-    danger: { bg: "#FEF2F2", border: "#FECACA", text: "#B91C1C" },
-    neutral: { bg: "#F8F9FA", border: "#D3D7DA", text: "#5F656A" },
-    warning: { bg: "#FFFBEB", border: "#FDE68A", text: "#B7791F" },
-  };
-  const colors = colorMap[tone];
-
-  return (
-    <div
-      style={{
-        background: colors.bg,
-        border: `1px solid ${colors.border}`,
-        borderRadius: 8,
-        padding: 14,
-      }}
-    >
-      <div style={{ color: "#203F49", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-        {title}
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {items.map((item) => (
-          <span
-            key={item}
-            style={{
-              background: "#FFFFFF",
-              border: `1px solid ${colors.border}`,
-              borderRadius: 999,
-              color: colors.text,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "5px 10px",
-            }}
-          >
-            {item}
-          </span>
-        ))}
       </div>
     </div>
   );
