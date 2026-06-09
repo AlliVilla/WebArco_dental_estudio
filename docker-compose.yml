@@ -41,9 +41,40 @@ services:
         condition: service_healthy
     command: >
       sh -c "
+        echo '⚙️  Generando cliente Prisma...' &&
+        npx prisma generate &&
+        echo '🔧 Aplicando migraciones...' &&
         npx prisma migrate deploy &&
+        echo '🌱 Plantando semillas...' &&
         npx prisma db seed &&
+        echo '✅ ¡Entorno listo! 🚀 Iniciando servidor...' &&
         npm run start:dev
+      "
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: dental_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+    environment:
+      VITE_API_URL: http://localhost:${BACKEND_PORT:-3030}
+    depends_on:
+      - backend
+    command: >
+      sh -c "
+        echo '📦 Verificando dependencias...' &&
+        npm install --silent &&
+        echo '🖌️  Iniciando Vite...' &&
+        echo '✅ ¡Frontend listo! 🚀' &&
+        npm run dev -- --host 0.0.0.0
       "
 
 volumes:

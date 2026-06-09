@@ -14,7 +14,9 @@ import { AntecedentePreguntaModule } from './antecedente-pregunta/antecedente-pr
 import { AuthModule } from './auth/auth.module';
 import { CitaModule } from './cita/cita.module';
 import { ExpedienteClinicoModule } from './expediente-clinico/expediente-clinico.module';
+import { ReminderModule } from './reminder/reminder.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ConsentimientoModule } from './consentimiento/consentimiento.module';
 
 @Module({
   imports: [
@@ -29,9 +31,11 @@ import { PrismaModule } from './prisma/prisma.module';
     OdontogramaModule,
     PagoPacienteModule,
     AntecedentePreguntaModule,
+    ConsentimientoModule,
     AuthModule,
     CitaModule,
     ExpedienteClinicoModule,
+    ReminderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

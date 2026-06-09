@@ -10,8 +10,13 @@ export interface TokenPayload {
 export function generateToken(
   payload: TokenPayload,
   expiresIn: string | number = '24h',
+  secretKey?: string
 ): string {
-  const secret = process.env.JWT_SECRET || 'your-secret-key';
+  let secret = secretKey
+  
+  if(!secret){
+    secret = process.env.JWT_SECRET || 'your-secret-key';
+  }
 
   return sign(payload, secret, { expiresIn } as SignOptions);
 }

@@ -21,6 +21,8 @@ import {
 
 import { RolService } from './rol.service';
 
+import { CreateRoleDto } from './dto/createRole.dto';
+
 import { Privileges } from 'src/auth/decorators/privileges.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from 'src/guards/privileges.guard';
@@ -31,7 +33,7 @@ import { PrivilegesGuard } from 'src/guards/privileges.guard';
 export class RolController {
     constructor (private rolService: RolService) {}
 
-    @Privileges(33)
+    @Privileges(34)
     @Get()
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
@@ -54,13 +56,15 @@ export class RolController {
         return this.rolService.findAll(pageNumber,limitNumber,search);
     }
 
-    @Privileges(34)
+    @Privileges(35)
     @Post()
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({
         summary: 'Crear rol',
         description: 'Crear nuevo rol con nombre (único, requerido, máx. 100 chars) y descripción (opcional). DTO con class-validator.'
     })
+    @ApiCreatedResponse({description: 'Rol creado exitosamente'})
+    @ApiConflictResponse({description: 'El nombre del rol ya existe'})
     async createRole(@Body() body : CreateRoleDto){
         return this.rolService.createRole(body);
     }

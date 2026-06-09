@@ -10,6 +10,7 @@ datasource db {
 model Rol {
   id_rol      Int             @id @default(autoincrement())
   nombre      String          @unique @db.VarChar(100)
+  descripcion String?         @db.Text
   privilegios RolPrivilegio[]
   usuarios    Usuario[]
 
@@ -71,6 +72,19 @@ enum Sexo {
   F
 }
 
+enum CanalRecordatorio {
+  WhatsApp
+  SMS
+  Correo
+}
+
+enum EstadoRespuesta {
+  pendiente
+  confirmado
+  cancelado
+  sin_respuesta
+}
+
 model Persona {
   id_persona         Int      @id @default(autoincrement())
   numero_identidad   String   @unique @db.Char(13)
@@ -100,6 +114,7 @@ model Usuario {
   id_rol     Int
   firma      String? @db.Text
   activo     Boolean @default(true)
+  must_change_password Boolean @default(true) 
 
   persona           Persona            @relation(fields: [id_persona], references: [id_persona])
   rol               Rol                @relation(fields: [id_rol], references: [id_rol])
@@ -150,8 +165,24 @@ model Cita {
   doctor           Usuario           @relation(fields: [id_usuario], references: [id_usuario])
   consulta         Consulta?
   historial_estados EstadoHistorial[]
+  recordatorios    Recordatorio[]
 
   @@map("cita")
+}
+
+model Recordatorio {
+  id               Int               @id @default(autoincrement())
+  id_cita          Int
+  cita             Cita              @relation(fields: [id_cita], references: [id_cita])
+  canal            CanalRecordatorio
+  estado_respuesta EstadoRespuesta   @default(pendiente)
+  fecha_envio      DateTime          @default(now())
+  fecha_respuesta  DateTime?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  @@index([id_cita])
+  @@map("recordatorio")
 }
 
 model Consulta {
@@ -165,8 +196,9 @@ model Consulta {
   tratamiento    String?   @db.Text
   motivo         String?   @db.Text
   notas          String?   @db.Text
-  firma_paciente String?   @db.Text
-  consentimiento Boolean   @default(false)
+  firma_paciente        String?   @db.Text
+  firma_doctor_snapshot String?   @db.Text
+  consentimiento        Boolean   @default(false)
 
   cita         Cita?                  @relation(fields: [id_cita], references: [id_cita])
   persona      Persona                @relation(fields: [id_persona], references: [id_persona])

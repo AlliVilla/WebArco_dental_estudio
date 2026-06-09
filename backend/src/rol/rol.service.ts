@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { CreateRoleDto } from './dto/createRole.dto';
+import { ConflictException} from '@nestjs/common';
 
 @Injectable()
 export class RolService {
@@ -51,5 +54,24 @@ export class RolService {
             pages: Math.ceil(total / limit),
           },
         };
+    }
+
+    async createRole(body: CreateRoleDto) {
+      try {
+        const role = await this.prismaService.rol.create({
+          data: body,
+        });
+
+        return role;
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException('El nombre del rol ya existe');
+        }
+
+        throw error;
+      }
     }
 }

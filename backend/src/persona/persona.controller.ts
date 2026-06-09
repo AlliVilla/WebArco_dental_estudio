@@ -30,8 +30,8 @@ import { PersonaService } from './persona.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { Privileges } from 'src/auth/decorators/privileges.decorator';
-import { PrivilegesGuard } from 'src/guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
+import { PrivilegesGuard } from '../guards/privileges.guard';
 
 @ApiTags('Personas')
 @Controller('persona')
