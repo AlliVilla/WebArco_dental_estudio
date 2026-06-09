@@ -5,14 +5,14 @@ import { OdontogramScreen } from './features/patients/components/odontograma/com
 import { PatientsScreen } from './features/patients/components/PatientsScreen';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
-import { ConsentScreen } from './features/patients/components/ConsentScreen';
+import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { Card, Alert, DesignSystemScreen } from './context';
 import { LoginForm } from './features/auth/components/LoginForm';
 import { AuthGuard, GuestGuard } from './routes/index';
 import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { UsersScreen } from './features/users';
-import { ExpedienteScreen } from './features/expediente/components/ExpedienteScreen';
+import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 
 function App() {
   return (
