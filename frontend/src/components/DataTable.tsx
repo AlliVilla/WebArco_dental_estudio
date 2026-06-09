@@ -49,6 +49,8 @@ export interface DataTableProps<T extends Record<string, unknown>> {
     getRowKey?: (row: T, index: number) => string;
     style?: React.CSSProperties;
     emptyMessage?: string;
+    footer?: React.ReactNode;
+    hidePagination?: boolean;
 }
 
 // ── FilterDropdown ────────────────────────────────────────────────────────────
@@ -226,6 +228,8 @@ export function DataTable<T extends Record<string, unknown>>({
     getRowKey,
     style,
     emptyMessage = 'No hay registros.',
+    footer,
+    hidePagination = false,
 }: DataTableProps<T>) {
     const [search, setSearch] = useState('');
     const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -418,17 +422,20 @@ export function DataTable<T extends Record<string, unknown>>({
                             })
                         )}
                     </tbody>
+                    {footer}
                 </table>
             </div>
 
             {/* Pagination */}
-            <Pagination
-                page={safePage}
-                totalPages={totalPages}
-                total={filtered.length}
-                pageSize={pageSize}
-                onPage={setPage}
-            />
+            {!hidePagination && (
+                <Pagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    total={filtered.length}
+                    pageSize={pageSize}
+                    onPage={setPage}
+                />
+            )}
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { OdontogramScreen } from './features/patients/components/odontograma/com
 import { PatientsScreen } from './features/patients/components/PatientsScreen';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
+import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { ConsentScreen } from './features/patients/components/ConsentScreen';
 import { Card, Alert, DesignSystemScreen } from './context';
 
@@ -51,14 +52,7 @@ function App() {
             </Card>
           </div>
         } />
-        <Route path="/billing/list" element={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <Card>
-              <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Lista de Ingreso / Egreso</h3>
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Muestra el flujo de caja unificado y reporte diario de transacciones.</p>
-            </Card>
-          </div>
-        } />
+        <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route path="/billing/closures" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <Card>
