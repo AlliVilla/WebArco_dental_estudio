@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuthStore } from "../hooks/useAuthStore";
-import { KeyRound, User as UserIcon, Lock, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import heroBg from "../../../assets/hero.png";
 
@@ -21,6 +21,25 @@ export const LoginForm: React.FC = () => {
     }
   };
 
+  // Estilos compartidos
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "0.95rem",
+    color: "#4a4a4a",
+    marginBottom: "0.5rem",
+    fontWeight: 400,
+  };
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "0.95rem 1.1rem",
+    background: "#f1f3f5",
+    border: "none",
+    borderRadius: "0.85rem",
+    fontSize: "1rem",
+    color: "#1f2d3d",
+    outline: "none",
+  };
+
   return (
     <div
       style={{
@@ -32,25 +51,16 @@ export const LoginForm: React.FC = () => {
         backgroundImage: `url(${heroBg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
         position: "relative",
       }}
     >
-      {/* Overlay */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          backdropFilter: "blur(2px)",
-        }}
-      />
-
       <div
         style={{
           position: "relative",
           zIndex: 1,
           width: "100%",
-          maxWidth: 440,
+          maxWidth: 460,
         }}
       >
         {showForgot ? (
@@ -62,227 +72,166 @@ export const LoginForm: React.FC = () => {
           />
         ) : (
           <div
-            className="glass-card animate-slide"
-            style={{ overflow: "hidden" }}
+            style={{
+              background: "#ffffff",
+              borderRadius: "1.75rem",
+              boxShadow: "0 25px 70px rgba(0,0,0,0.3)",
+              overflow: "hidden",
+            }}
           >
-            {/* Header */}
+            {/* Header con degradado teal + logo */}
             <div
               style={{
-                background:
-                  "linear-gradient(135deg, hsl(var(--hue-primary), 85%, 35%), hsl(var(--hue-primary), 85%, 45%))",
-                padding: "2rem",
+                background: "linear-gradient(135deg, #0d6b7a 0%, #15a3ba 100%)",
+                padding: "2.5rem 2rem 2rem",
                 display: "flex",
-                flexDirection: "column",
+                justifyContent: "center",
                 alignItems: "center",
-                gap: "0.75rem",
               }}
             >
-              <div
+              <img
+                src="/arco_logo.png"
+                alt="ARCO Dental Studio"
                 style={{
-                  background: "rgba(255,255,255,0.15)",
-                  borderRadius: "50%",
-                  padding: "0.85rem",
-                  display: "flex",
+                  height: 120,
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))",
                 }}
-              >
-                <KeyRound size={28} color="#fff" />
-              </div>
-              {/* Si tenés logo: <img src="/arco_logo.png" alt="ARCO" style={{ height: 48 }} /> */}
-              <h1
-                style={{
-                  color: "#fff",
-                  fontSize: "1.4rem",
-                  fontWeight: 800,
-                  margin: 0,
-                }}
-              >
-                ARCO{" "}
-                <span style={{ fontWeight: 400, opacity: 0.85 }}>
-                  Dental Studio
-                </span>
-              </h1>
-              <p
-                style={{
-                  color: "rgba(255,255,255,0.75)",
-                  fontSize: "0.8rem",
-                  margin: 0,
-                }}
-              >
-                Sistema de Gestión Clínica
-              </p>
+              />
             </div>
 
-            {/* Form */}
-            <div style={{ padding: "2rem" }}>
-              <h2
+            {/* Cuerpo */}
+            <div style={{ padding: "2rem 2.25rem 2.5rem" }}>
+              <h1
                 style={{
-                  fontSize: "1.25rem",
-                  fontWeight: 700,
-                  marginBottom: "0.25rem",
+                  textAlign: "center",
+                  fontSize: "2.1rem",
+                  fontWeight: 800,
+                  color: "#1f2d3d",
+                  margin: "0 0 2rem",
                 }}
               >
-                Bienvenido
-              </h2>
-              <p
-                style={{
-                  color: "var(--text-muted)",
-                  fontSize: "0.85rem",
-                  marginBottom: "1.5rem",
-                }}
-              >
-                Ingresa tus credenciales para continuar
-              </p>
+                Login
+              </h1>
 
               {error && (
                 <div
-                  className="badge badge-danger"
                   style={{
-                    width: "100%",
-                    padding: "0.65rem 1rem",
-                    borderRadius: "var(--radius-sm)",
-                    marginBottom: "1rem",
-                    display: "block",
-                    textTransform: "none",
-                    letterSpacing: "normal",
-                    lineHeight: 1.4,
+                    background: "#fdecea",
+                    color: "#c0392b",
+                    fontSize: "0.9rem",
+                    padding: "0.75rem 1rem",
+                    borderRadius: "0.75rem",
+                    marginBottom: "1.25rem",
+                    border: "1px solid #f5c6cb",
                   }}
                 >
                   {error}
                 </div>
               )}
 
-              <form
-                onSubmit={handleSubmit}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1rem",
-                }}
-              >
-                <div className="form-group">
-                  <label
-                    className="form-label"
-                    htmlFor="login-user"
-                    style={{ display: "flex", alignItems: "center", gap: 6 }}
-                  >
-                    <UserIcon size={13} /> Usuario
+              <form onSubmit={handleSubmit}>
+                {/* Email / Usuario */}
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <label style={labelStyle} htmlFor="login-user">
+                    Email
                   </label>
                   <input
                     id="login-user"
                     type="text"
                     required
-                    className="form-input"
-                    placeholder="ej. maria.admin"
+                    style={inputStyle}
+                    placeholder="tu@email.com"
                     value={username}
-                    autoComplete="username"
                     onChange={(e) => {
                       clearError();
                       setUsername(e.target.value);
                     }}
+                    autoComplete="username"
                   />
                 </div>
 
-                <div className="form-group">
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "0.4rem",
-                    }}
-                  >
-                    <label
-                      className="form-label"
-                      htmlFor="login-pwd"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        marginBottom: 0,
-                      }}
-                    >
-                      <Lock size={13} /> Contraseña
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForgot(true);
-                        clearError();
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--primary)",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                        padding: 0,
-                      }}
-                    >
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  </div>
+                {/* Contraseña */}
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={labelStyle} htmlFor="login-pwd">
+                    Contraseña
+                  </label>
                   <div style={{ position: "relative" }}>
                     <input
                       id="login-pwd"
                       type={showPwd ? "text" : "password"}
                       required
-                      className="form-input"
-                      style={{ paddingRight: "2.8rem" }}
+                      style={{ ...inputStyle, paddingRight: "3rem" }}
                       placeholder="••••••••"
                       value={password}
-                      autoComplete="current-password"
                       onChange={(e) => {
                         clearError();
                         setPassword(e.target.value);
                       }}
+                      autoComplete="current-password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPwd(!showPwd)}
                       style={{
                         position: "absolute",
-                        right: 12,
+                        right: "1rem",
                         top: "50%",
                         transform: "translateY(-50%)",
                         background: "none",
                         border: "none",
                         cursor: "pointer",
-                        color: "var(--text-muted)",
+                        color: "#8a9199",
                         display: "flex",
                         padding: 0,
                       }}
                     >
-                      {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
 
+                {/* Olvidaste contraseña */}
+                <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgot(true);
+                      clearError();
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "#5a6671",
+                      fontSize: "0.95rem",
+                      padding: 0,
+                    }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
+
+                {/* Botón */}
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  disabled={isLoading}
                   style={{
                     width: "100%",
-                    padding: "0.9rem",
-                    marginTop: "0.5rem",
+                    padding: "1rem",
+                    border: "none",
+                    borderRadius: "1rem",
+                    background: "#1ec3dd",
+                    color: "#fff",
+                    fontSize: "1.05rem",
+                    fontWeight: 700,
+                    cursor: isLoading ? "default" : "pointer",
+                    opacity: isLoading ? 0.7 : 1,
+                    boxShadow: "0 8px 20px rgba(30,195,221,0.35)",
+                    transition: "opacity 0.2s",
                   }}
-                  disabled={isLoading}
                 >
-                  {isLoading ? (
-                    <div
-                      style={{
-                        width: 20,
-                        height: 20,
-                        border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "#fff",
-                        borderRadius: "50%",
-                        animation: "spinSlow 1s linear infinite",
-                        margin: "0 auto",
-                      }}
-                    />
-                  ) : (
-                    "Ingresar al Sistema"
-                  )}
+                  {isLoading ? "Validando..." : "Iniciar sesión"}
                 </button>
               </form>
             </div>

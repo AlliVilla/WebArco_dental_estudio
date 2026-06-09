@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { authService } from "../services/authService";
+import { Eye, EyeOff } from "lucide-react";
 
 interface Props {
   onBack: () => void;
@@ -31,10 +32,11 @@ function PasswordChecklist({ pwd }: { pwd: string }) {
     <ul
       style={{
         listStyle: "none",
-        marginTop: 8,
+        margin: "0.75rem 0 0",
+        padding: 0,
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 6,
       }}
     >
       {items.map(([key, label]) => (
@@ -44,11 +46,11 @@ function PasswordChecklist({ pwd }: { pwd: string }) {
             display: "flex",
             alignItems: "center",
             gap: 8,
-            fontSize: "0.8rem",
-            color: r[key] ? "var(--success)" : "var(--danger)",
+            fontSize: "0.875rem",
+            color: r[key] ? "#1aaf5d" : "#d14343",
           }}
         >
-          {r[key] ? "✓" : "✗"} {label}
+          <span style={{ fontWeight: 700 }}>{r[key] ? "✓" : "✕"}</span> {label}
         </li>
       ))}
     </ul>
@@ -72,14 +74,17 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccessMsg("");
     try {
       await authService.forgotPassword(email);
       setSuccessMsg(
         "Si el correo existe, recibirás un enlace de recuperación."
       );
       setStep(2);
-    } catch {
-      setError("Ocurrió un error. Intenta de nuevo.");
+    } catch (err: any) {
+      setError(
+        err?.message || "No se pudo enviar el enlace. Intenta de nuevo."
+      );
     } finally {
       setLoading(false);
     }
@@ -88,6 +93,7 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     if (!allPass(rules)) {
       setError("La contraseña no cumple todos los requisitos.");
       return;
@@ -99,217 +105,275 @@ export const ForgotPasswordForm: React.FC<Props> = ({ onBack }) => {
     setLoading(true);
     try {
       await authService.resetPassword({ token, newPassword: newPwd });
-      setSuccessMsg("¡Contraseña actualizada! Redirigiendo...");
+      setSuccessMsg("¡Contraseña actualizada! Redirigiendo al inicio...");
       setTimeout(onBack, 2000);
-    } catch {
-      setError("Token inválido o expirado. Solicitá un nuevo enlace.");
+    } catch (err: any) {
+      setError(
+        err?.message || "Token inválido o expirado. Solicita un nuevo enlace."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: "0.95rem",
+    color: "#4a4a4a",
+    marginBottom: "0.5rem",
+    fontWeight: 400,
+  };
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "0.95rem 1.1rem",
+    background: "#f1f3f5",
+    border: "none",
+    borderRadius: "0.85rem",
+    fontSize: "1rem",
+    color: "#1f2d3d",
+    outline: "none",
+  };
+  const btnStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "1rem",
+    border: "none",
+    borderRadius: "1rem",
+    background: "#1ec3dd",
+    color: "#fff",
+    fontSize: "1.05rem",
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 8px 20px rgba(30,195,221,0.35)",
+  };
+
   return (
     <div
-      className="glass-card animate-slide"
       style={{
-        padding: "2.5rem",
-        width: "100%",
-        maxWidth: 440,
-        margin: "0 auto",
+        background: "#ffffff",
+        borderRadius: "1.75rem",
+        boxShadow: "0 25px 70px rgba(0,0,0,0.3)",
+        overflow: "hidden",
       }}
     >
-      <h2
-        style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.25rem" }}
-      >
-        {step === 1 ? "Recuperar acceso" : "Nueva contraseña"}
-      </h2>
-      <p
+      {/* Header teal con logo + línea divisoria cian */}
+      <div
         style={{
-          color: "var(--text-muted)",
-          fontSize: "0.875rem",
-          marginBottom: "1.5rem",
+          background: "linear-gradient(135deg, #0d6b7a 0%, #15a3ba 100%)",
+          padding: "2.5rem 2rem 2rem",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          borderBottom: "4px solid #1ec3dd",
         }}
       >
-        {step === 1
-          ? "Ingresa tu correo registrado para recibir el enlace."
-          : "Pegá el token del correo y escribí tu nueva contraseña."}
-      </p>
-
-      {error && (
-        <div
-          className="badge badge-danger"
+        <img
+          src="/arco_logo.png"
+          alt="ARCO Dental Studio"
           style={{
-            width: "100%",
-            padding: "0.65rem 1rem",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1rem",
-            display: "block",
-            textTransform: "none",
-            letterSpacing: "normal",
-            lineHeight: 1.4,
+            height: 110,
+            objectFit: "contain",
+            filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))",
+          }}
+        />
+      </div>
+
+      {/* Cuerpo */}
+      <div style={{ padding: "2rem 2.25rem 2.5rem" }}>
+        <h1
+          style={{
+            textAlign: "center",
+            fontSize: "1.9rem",
+            fontWeight: 800,
+            color: "#1f2d3d",
+            margin: "0 0 0.5rem",
           }}
         >
-          {error}
-        </div>
-      )}
-      {successMsg && (
-        <div
-          className="badge badge-success"
+          {step === 1 ? "Recuperar acceso" : "Nueva contraseña"}
+        </h1>
+        <p
           style={{
-            width: "100%",
-            padding: "0.65rem 1rem",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1rem",
-            display: "block",
-            textTransform: "none",
-            letterSpacing: "normal",
-            lineHeight: 1.4,
+            textAlign: "center",
+            color: "#7a828b",
+            fontSize: "0.95rem",
+            margin: "0 0 1.75rem",
           }}
         >
-          {successMsg}
-        </div>
-      )}
+          {step === 1
+            ? "Ingresa tu correo registrado para recibir el enlace."
+            : "Pega el token del correo y escribe tu nueva contraseña."}
+        </p>
 
-      {step === 1 && (
-        <form
-          onSubmit={handleForgot}
-          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-        >
-          <div className="form-group">
-            <label className="form-label" htmlFor="forgot-email">
-              Correo electrónico
-            </label>
-            <input
-              id="forgot-email"
-              type="email"
-              required
-              className="form-input"
-              placeholder="usuario@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{ width: "100%", padding: "0.9rem" }}
-            disabled={loading}
+        {error && (
+          <div
+            style={{
+              background: "#fdecea",
+              color: "#c0392b",
+              fontSize: "0.9rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.75rem",
+              marginBottom: "1.25rem",
+              border: "1px solid #f5c6cb",
+            }}
           >
-            {loading ? "Enviando..." : "Enviar enlace"}
-          </button>
-        </form>
-      )}
-
-      {step === 2 && (
-        <form
-          onSubmit={handleReset}
-          style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-        >
-          <div className="form-group">
-            <label className="form-label" htmlFor="reset-token">
-              Token del correo
-            </label>
-            <input
-              id="reset-token"
-              type="text"
-              required
-              className="form-input"
-              placeholder="Pegá el token aquí"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
+            {error}
           </div>
+        )}
+        {successMsg && (
+          <div
+            style={{
+              background: "#e8f8ef",
+              color: "#1aaf5d",
+              fontSize: "0.9rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.75rem",
+              marginBottom: "1.25rem",
+              border: "1px solid #b8e6cb",
+            }}
+          >
+            {successMsg}
+          </div>
+        )}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="new-pwd">
-              Nueva contraseña
-            </label>
-            <div style={{ position: "relative" }}>
+        {step === 1 && (
+          <form onSubmit={handleForgot}>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={labelStyle} htmlFor="forgot-email">
+                Email registrado
+              </label>
               <input
-                id="new-pwd"
-                type={showPwd ? "text" : "password"}
+                id="forgot-email"
+                type="email"
                 required
-                className="form-input"
-                style={{ paddingRight: "2.8rem" }}
-                placeholder="Mínimo 8 caracteres"
-                value={newPwd}
-                onChange={(e) => setNewPwd(e.target.value)}
+                style={inputStyle}
+                placeholder="tu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
-              <button
-                type="button"
-                onClick={() => setShowPwd(!showPwd)}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--text-muted)",
-                  padding: 0,
-                }}
-              >
-                {showPwd ? "🙈" : "👁"}
-              </button>
             </div>
-            {newPwd.length > 0 && <PasswordChecklist pwd={newPwd} />}
-          </div>
+            <button
+              type="submit"
+              style={{ ...btnStyle, opacity: loading ? 0.7 : 1 }}
+              disabled={loading}
+            >
+              {loading ? "Enviando..." : "Enviar enlace"}
+            </button>
+          </form>
+        )}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="confirm-pwd">
-              Confirmar contraseña
-            </label>
-            <input
-              id="confirm-pwd"
-              type="password"
-              required
-              className="form-input"
-              placeholder="Repite la contraseña"
-              value={confirmPwd}
-              onChange={(e) => setConfirmPwd(e.target.value)}
-            />
-            {confirmPwd.length > 0 && (
-              <p
-                style={{
-                  fontSize: "0.8rem",
-                  marginTop: 4,
-                  color:
-                    newPwd === confirmPwd ? "var(--success)" : "var(--danger)",
-                }}
-              >
-                {newPwd === confirmPwd ? "✓ Coinciden" : "✗ No coinciden"}
-              </p>
-            )}
-          </div>
+        {step === 2 && (
+          <form onSubmit={handleReset}>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={labelStyle} htmlFor="reset-token">
+                Token del correo
+              </label>
+              <input
+                id="reset-token"
+                type="text"
+                required
+                style={inputStyle}
+                placeholder="Pega el token aquí"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+              />
+            </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{ width: "100%", padding: "0.9rem" }}
-            disabled={loading || !allPass(rules) || newPwd !== confirmPwd}
-          >
-            {loading ? "Guardando..." : "Restablecer contraseña"}
-          </button>
-        </form>
-      )}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={labelStyle} htmlFor="new-pwd">
+                Nueva contraseña
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="new-pwd"
+                  type={showPwd ? "text" : "password"}
+                  required
+                  style={{ ...inputStyle, paddingRight: "3rem" }}
+                  placeholder="Mínimo 8 caracteres"
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(!showPwd)}
+                  style={{
+                    position: "absolute",
+                    right: "1rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#8a9199",
+                    display: "flex",
+                    padding: 0,
+                  }}
+                >
+                  {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {newPwd.length > 0 && <PasswordChecklist pwd={newPwd} />}
+            </div>
 
-      <button
-        type="button"
-        onClick={onBack}
-        style={{
-          marginTop: "1.25rem",
-          width: "100%",
-          background: "none",
-          border: "none",
-          color: "var(--text-muted)",
-          fontSize: "0.85rem",
-          cursor: "pointer",
-          fontWeight: 600,
-        }}
-      >
-        ← Volver al inicio de sesión
-      </button>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={labelStyle} htmlFor="confirm-pwd">
+                Confirmar contraseña
+              </label>
+              <input
+                id="confirm-pwd"
+                type="password"
+                required
+                style={inputStyle}
+                placeholder="Repite la contraseña"
+                value={confirmPwd}
+                onChange={(e) => setConfirmPwd(e.target.value)}
+              />
+              {confirmPwd.length > 0 && (
+                <p
+                  style={{
+                    fontSize: "0.875rem",
+                    marginTop: 6,
+                    color: newPwd === confirmPwd ? "#1aaf5d" : "#d14343",
+                  }}
+                >
+                  {newPwd === confirmPwd
+                    ? "✓ Las contraseñas coinciden"
+                    : "✕ No coinciden"}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              style={{
+                ...btnStyle,
+                opacity:
+                  loading || !allPass(rules) || newPwd !== confirmPwd ? 0.6 : 1,
+              }}
+              disabled={loading || !allPass(rules) || newPwd !== confirmPwd}
+            >
+              {loading ? "Guardando..." : "Restablecer contraseña"}
+            </button>
+          </form>
+        )}
+
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            marginTop: "1.5rem",
+            width: "100%",
+            background: "none",
+            border: "none",
+            color: "#5a6671",
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          ← Volver al inicio
+        </button>
+      </div>
     </div>
   );
 };
+
+export default ForgotPasswordForm;
