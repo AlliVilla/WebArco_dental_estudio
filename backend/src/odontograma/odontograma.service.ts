@@ -1,4 +1,341 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { UpdateToothStateDto } from './dto/update-tooth-state.dto';
 
 @Injectable()
-export class OdontogramaService {}
+export class OdontogramaService {
+  constructor(private prisma: PrismaService) {}
+
+  async getPatientOdontogram(patientId: number) {
+    await this.assertPatientExists(patientId);
+
+    const dientes = await this.prisma.diente.findMany({
+      orderBy: { numero_diente: 'asc' },
+    });
+
+    const latestRecords = await this.prisma.$queryRaw<
+      Array<{
+        id_diente: number;
+        estado: string | null;
+        observacion: string | null;
+        id_consulta: number;
+        fecha_inicio: Date;
+        id_usuario: number;
+        doctor_nombre: string;
+        doctor_apellido: string;
+      }>
+    >`
+      SELECT DISTINCT ON (o.id_diente)
+        o.id_diente,
+        o.estado,
+        o.observacion,
+        o.id_consulta,
+        c.fecha_inicio,
+        c.id_usuario,
+        p.primer_nombre AS doctor_nombre,
+        p.primer_apellido AS doctor_apellido
+      FROM odontograma o
+      JOIN consulta c ON c.id_consulta = o.id_consulta
+      JOIN usuario u ON u.id_usuario = c.id_usuario
+      JOIN persona p ON p.id_persona = u.id_persona
+      WHERE c.id_persona = ${patientId}
+      ORDER BY o.id_diente, c.fecha_inicio DESC
+    `;
+
+    const recordCounts = await this.prisma.$queryRaw<
+      Array<{ id_diente: number; count: number }>
+    >`
+      SELECT o.id_diente, COUNT(*)::int AS count
+      FROM odontograma o
+      JOIN consulta c ON c.id_consulta = o.id_consulta
+      WHERE c.id_persona = ${patientId}
+      GROUP BY o.id_diente
+    `;
+
+    const recordMap = new Map<number, (typeof latestRecords)[number]>();
+    for (const record of latestRecords) {
+      recordMap.set(record.id_diente, record);
+    }
+
+    const countMap = new Map<number, number>();
+    for (const rc of recordCounts) {
+      countMap.set(rc.id_diente, rc.count);
+    }
+
+    const result = dientes.map((diente) => {
+      const record = recordMap.get(diente.numero_diente);
+      const prevCount = countMap.get(diente.numero_diente) ?? 0;
+      return {
+        numero_diente: diente.numero_diente,
+        nombre: diente.nombre,
+        estado: record?.estado ?? 'Sano',
+        observacion: record?.observacion ?? null,
+        doctor: record
+          ? {
+              id_usuario: record.id_usuario,
+              nombre: `${record.doctor_nombre} ${record.doctor_apellido}`,
+            }
+          : null,
+        fecha_consulta: record?.fecha_inicio ?? null,
+        hasPreviousRecords: prevCount > 0,
+        previousRecordsCount: prevCount,
+      };
+    });
+
+    const totalPreviousRecords = latestRecords.length;
+
+    return {
+      paciente_id: patientId,
+      total_dientes: dientes.length,
+      total_dientes_con_registros: totalPreviousRecords,
+      dientes: result,
+    };
+  }
+
+  async updateToothState(
+    patientId: number,
+    toothNumber: number,
+    dto: UpdateToothStateDto,
+    userId: number,
+  ) {
+    await this.assertPatientExists(patientId);
+    await this.assertToothExists(toothNumber);
+
+    const activeConsulta = await this.prisma.consulta.findFirst({
+      where: {
+        id_persona: patientId,
+        fecha_fin: null,
+      },
+      orderBy: { fecha_inicio: 'desc' },
+    });
+
+    if (!activeConsulta) {
+      throw new BadRequestException(
+        'No hay una consulta activa para este paciente. Debe iniciar una consulta antes de modificar el odontograma.',
+      );
+    }
+
+    const odontograma = await this.prisma.odontograma.upsert({
+      where: {
+        id_consulta_id_diente: {
+          id_consulta: activeConsulta.id_consulta,
+          id_diente: toothNumber,
+        },
+      },
+      create: {
+        id_consulta: activeConsulta.id_consulta,
+        id_diente: toothNumber,
+        estado: dto.estado,
+        observacion: dto.observacion ?? null,
+      },
+      update: {
+        estado: dto.estado,
+        observacion: dto.observacion ?? null,
+      },
+      include: {
+        diente: {
+          select: {
+            numero_diente: true,
+            nombre: true,
+          },
+        },
+        consulta: {
+          select: {
+            id_consulta: true,
+            fecha_inicio: true,
+            doctor: {
+              select: {
+                id_usuario: true,
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      message: 'Estado del diente actualizado exitosamente',
+      id_odontograma: odontograma.id_odontograma,
+      id_consulta: odontograma.id_consulta,
+      diente: {
+        numero_diente: odontograma.diente.numero_diente,
+        nombre: odontograma.diente.nombre,
+      },
+      estado: odontograma.estado,
+      observacion: odontograma.observacion,
+      doctor: {
+        id_usuario: odontograma.consulta.doctor.id_usuario,
+        nombre: `${odontograma.consulta.doctor.persona.primer_nombre} ${odontograma.consulta.doctor.persona.primer_apellido}`,
+      },
+      fecha_consulta: odontograma.consulta.fecha_inicio,
+    };
+  }
+
+  async getPatientHistory(patientId: number) {
+    await this.assertPatientExists(patientId);
+
+    const records = await this.prisma.odontograma.findMany({
+      where: {
+        consulta: {
+          id_persona: patientId,
+        },
+      },
+      include: {
+        diente: {
+          select: {
+            numero_diente: true,
+            nombre: true,
+          },
+        },
+        consulta: {
+          select: {
+            id_consulta: true,
+            fecha_inicio: true,
+            fecha_fin: true,
+            doctor: {
+              select: {
+                id_usuario: true,
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        consulta: {
+          fecha_inicio: 'desc',
+        },
+      },
+    });
+
+    const totalCount = await this.prisma.odontograma.count({
+      where: {
+        consulta: {
+          id_persona: patientId,
+        },
+      },
+    });
+
+    return {
+      paciente_id: patientId,
+      total_registros: totalCount,
+      historial: records.map((r) => ({
+        id_odontograma: r.id_odontograma,
+        id_consulta: r.id_consulta,
+        diente: {
+          numero_diente: r.diente.numero_diente,
+          nombre: r.diente.nombre,
+        },
+        estado: r.estado,
+        observacion: r.observacion,
+        doctor: {
+          id_usuario: r.consulta.doctor.id_usuario,
+          nombre: `${r.consulta.doctor.persona.primer_nombre} ${r.consulta.doctor.persona.primer_apellido}`,
+        },
+        fecha_consulta: r.consulta.fecha_inicio,
+        fecha_fin: r.consulta.fecha_fin,
+      })),
+    };
+  }
+
+  async getToothHistory(patientId: number, toothNumber: number) {
+    await this.assertPatientExists(patientId);
+    await this.assertToothExists(toothNumber);
+
+    const records = await this.prisma.odontograma.findMany({
+      where: {
+        id_diente: toothNumber,
+        consulta: {
+          id_persona: patientId,
+        },
+      },
+      include: {
+        diente: {
+          select: {
+            numero_diente: true,
+            nombre: true,
+          },
+        },
+        consulta: {
+          select: {
+            id_consulta: true,
+            fecha_inicio: true,
+            fecha_fin: true,
+            doctor: {
+              select: {
+                id_usuario: true,
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        consulta: {
+          fecha_inicio: 'desc',
+        },
+      },
+    });
+
+    return {
+      paciente_id: patientId,
+      diente: records.length > 0
+        ? {
+            numero_diente: records[0].diente.numero_diente,
+            nombre: records[0].diente.nombre,
+          }
+        : null,
+      total_registros: records.length,
+      historial: records.map((r) => ({
+        id_odontograma: r.id_odontograma,
+        id_consulta: r.id_consulta,
+        estado: r.estado,
+        observacion: r.observacion,
+        doctor: {
+          id_usuario: r.consulta.doctor.id_usuario,
+          nombre: `${r.consulta.doctor.persona.primer_nombre} ${r.consulta.doctor.persona.primer_apellido}`,
+        },
+        fecha_consulta: r.consulta.fecha_inicio,
+        fecha_fin: r.consulta.fecha_fin,
+      })),
+    };
+  }
+
+  private async assertPatientExists(id: number) {
+    const persona = await this.prisma.persona.findUnique({
+      where: { id_persona: id },
+      select: { id_persona: true },
+    });
+    if (!persona) {
+      throw new NotFoundException(`No se encontró el paciente con id ${id}`);
+    }
+  }
+
+  private async assertToothExists(numero: number) {
+    const diente = await this.prisma.diente.findUnique({
+      where: { numero_diente: numero },
+      select: { numero_diente: true },
+    });
+    if (!diente) {
+      throw new NotFoundException(
+        `No se encontró el diente con número ${numero}`,
+      );
+    }
+  }
+}

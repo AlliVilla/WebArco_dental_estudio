@@ -51,6 +51,7 @@ async function insertPrivilegios() {
     { nombre: "ROL_EDITAR" },
 
     { nombre: "PRIVILEGIO_VER" },
+    { nombre: "PRIVILEGIO_CREAR"},
 
     { nombre: "ANTECEDENTES_VER" },
     { nombre: "ANTECEDENTES_CREAR" },

@@ -135,15 +135,6 @@ function IconConsentimiento() {
     </svg>
   );
 }
-function IconReportes() {
-  return (
-    <svg className="block" fill="none" viewBox="0 0 17 17" width={17} height={17}>
-      <path d="M12.75 14.1667V7.08333" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-      <path d="M8.5 14.1667V2.83333" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-      <path d="M4.25 14.1667V9.91667" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-    </svg>
-  );
-}
 function IconSettings() {
   return (
     <svg className="block" fill="none" viewBox="0 0 17 17" width={17} height={17}>
@@ -195,24 +186,24 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: 'Finanzas',
+    title: 'Gesti\u00f3n',
     items: [
       {
         id: 'billing',
-        label: 'Financiero',
+        label: 'Facturaci\u00f3n',
         icon: <IconFacturacion />,
         subItems: [
           { id: 'billing-income', label: 'Gestión de Ingresos' },
           { id: 'billing-expense', label: 'Gestión de Egresos' },
+          { id: 'billing-list', label: 'Lista de Ingreso / Egreso' },
+          { id: 'billing-closures', label: 'Cierres' },
         ],
       },
-      { id: 'billing-closures', label: 'Cierres', icon: <IconTratamientos /> },
     ],
   },
   {
     title: 'Reportes',
     items: [
-      { id: 'billing-list', label: 'Listado de Ingresos/Egresos', icon: <IconReportes /> },
       { id: 'estado-resultado', label: 'Estado de Resultado', icon: <IconEstadisticas /> },
     ],
   },
@@ -323,8 +314,8 @@ export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: Sidebar
               {group.items.map((item, i) => {
                 const isActive = activeItem === item.id;
                 const hasSubItems = item.subItems && item.subItems.length > 0;
-                const isExpanded = expandedItems[item.id];
                 const isSubItemActive = item.subItems?.some((sub) => sub.id === activeItem) ?? false;
+                const isExpanded = expandedItems[item.id] ?? isSubItemActive;
 
                 return (
                   <div key={item.id} style={{ paddingTop: i === 0 ? 4 : 1 }}>

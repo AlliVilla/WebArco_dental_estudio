@@ -2,22 +2,50 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './page layouts/MainLayout';
 import { Dashboard } from './page layouts/Dashboard';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
-
-// IMPORTANTE: Tendrás que crear estos componentes en sus respectivas carpetas (features)
 import { PatientsScreen } from './features/patients/components/PatientsScreen';
-import { ExpedienteScreen } from './features/patients/components/expediente';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
-import { ConsentScreen } from './features/patients/components/ConsentScreen';
+import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { Card, Alert, DesignSystemScreen } from './context';
+import { LoginForm } from './features/auth/components/LoginForm';
+import { AuthGuard, GuestGuard } from './routes/index';
+import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
+import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
+import { UsersScreen } from './features/users';
+import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 
 function App() {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
+      {/* Login — solo si NO está autenticado */}
+      <Route
+        path="/login"
+        element={
+          <GuestGuard>
+            <LoginForm />
+          </GuestGuard>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <GuestGuard>
+            <ResetPasswordPage />
+          </GuestGuard>
+        }
+      />
+      {/* Rutas protegidas */}
+      <Route
+        element={
+          <AuthGuard>
+            <MainLayout />
+          </AuthGuard>
+        }
+      >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/agenda" element={<AppointmentsScreen />} />
+
         {/* Patients sub-routes */}
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
@@ -32,7 +60,7 @@ function App() {
             </Card>
           </div>
         } />
-        
+
         {/* Billing sub-routes */}
         <Route path="/billing" element={<Navigate to="/billing/income" replace />} />
         <Route path="/billing/income" element={<GestionIngresos />} />
@@ -45,14 +73,7 @@ function App() {
             </Card>
           </div>
         } />
-        <Route path="/billing/list" element={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <Card>
-              <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Lista de Ingreso / Egreso</h3>
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Muestra el flujo de caja unificado y reporte diario de transacciones.</p>
-            </Card>
-          </div>
-        } />
+        <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route path="/billing/closures" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <Card>
@@ -86,9 +107,13 @@ function App() {
             </Card>
           </div>
         } />
+        <Route path="/users" element={<UsersScreen />} />
         <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>
+
+      {/* Cualquier ruta desconocida → login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

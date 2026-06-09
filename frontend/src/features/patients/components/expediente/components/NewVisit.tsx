@@ -4,8 +4,9 @@ import {
     Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
     Loader2, Tag, Zap, Clock, User, ShieldAlert,
 } from 'lucide-react';
-import { ExpedientePaciente } from './expediente';
-import { OdontogramScreen } from './odontograma/components/OdontogramaScreen';
+import { ExpedientePaciente } from './ExpedienteScreen';
+import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
+import { Button, Input } from '../../../../../context';
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -195,39 +196,44 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
 }
 
 function Textarea({ value, onChange, placeholder, rows = 3, readOnly = false }: { value: string; onChange?: (v: string) => void; placeholder: string; rows?: number; readOnly?: boolean }) {
+    const [focused, setFocused] = useState(false);
+    const borderColor = focused ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)';
     return (
         <textarea
             value={value}
             onChange={onChange ? (e) => onChange(e.target.value) : undefined}
             placeholder={placeholder}
             rows={rows}
-            readOnly={readOnly}
+            disabled={readOnly}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             style={{
-                width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8,
-                fontSize: 13, color: C.navy, resize: 'vertical', fontFamily: 'Inter, system-ui, sans-serif',
-                outline: 'none', boxSizing: 'border-box', background: readOnly ? C.gray50 : C.white
+                width: '100%',
+                padding: '10px 12px',
+                border: `1px solid ${borderColor}`,
+                borderRadius: 8,
+                fontSize: 13,
+                color: 'var(--foreground, #203F49)',
+                background: readOnly ? 'var(--background, #F8F9FA)' : 'var(--card, #ffffff)',
+                resize: 'vertical',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.15s, box-shadow 0.15s',
+                boxShadow: focused ? `0 0 0 3px rgba(11,197,223,0.12)` : 'none',
             }}
-            onFocus={(e) => { if (!readOnly) e.currentTarget.style.borderColor = C.primary; }}
-            onBlur={(e) => { if (!readOnly) e.currentTarget.style.borderColor = C.gray300; }}
         />
     );
 }
 
 function TextInput({ value, onChange, placeholder, readOnly = false, type = 'text' }: { value: string; onChange?: (v: string) => void; placeholder: string; readOnly?: boolean; type?: string }) {
     return (
-        <input
+        <Input
             type={type}
             value={value}
             onChange={onChange ? (e) => onChange(e.target.value) : undefined}
             placeholder={placeholder}
-            readOnly={readOnly}
-            style={{
-                width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8,
-                fontSize: 13, color: C.navy, fontFamily: 'Inter, system-ui, sans-serif',
-                outline: 'none', boxSizing: 'border-box', background: readOnly ? C.gray50 : C.white
-            }}
-            onFocus={(e) => { if (!readOnly) e.currentTarget.style.borderColor = C.primary; }}
-            onBlur={(e) => { if (!readOnly) e.currentTarget.style.borderColor = C.gray300; }}
+            disabled={readOnly}
         />
     );
 }
@@ -274,7 +280,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     const [ultimaVisitaOdontologo, setUltimaVisitaOdontologo] = useState('');
     const [tipoVisita, setTipoVisita] = useState('Control');
     const [showOdontogram, setShowOdontogram] = useState(false);
-    const [teethState, setTeethState] = useState<any>(null); // To save state from odontogram
+    const [teethState, setTeethState] = useState<Record<number, { state: string; observation: string }> | null>(null); // To save state from odontogram
     const [modifiedTeethCount, setModifiedTeethCount] = useState(0);
 
     // ── STEP 3: Tratamientos y Cobro + Diagnóstico y Archivos ──
@@ -340,7 +346,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     }, [processFiles]);
 
     // ── Mapeo de tratamientos desde odontograma ───────────────────────────────────
-    const autoPopulateTreatments = (updatedTeeth: any, modifiedList: number[]) => {
+    const autoPopulateTreatments = (updatedTeeth: Record<number, { state: string; observation: string }>, modifiedList: number[]) => {
         const newTrats = [...tratamientos];
         
         modifiedList.forEach((num) => {
@@ -1029,30 +1035,29 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
 
                 {/* ── Navigation buttons ── */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: `1px solid ${C.gray300}` }}>
-                    <button
+                    <Button
+                        variant="secondary"
                         onClick={step === 1 ? onBack : () => setStep((s) => (s - 1) as Step)}
-                        style={{ padding: '10px 20px', borderRadius: 9, border: `1px solid ${C.gray300}`, background: C.white, fontSize: 13, fontWeight: 500, color: C.navy, cursor: 'pointer' }}
                     >
                         {step === 1 ? 'Cancelar' : '← Anterior'}
-                    </button>
+                    </Button>
 
                     <div style={{ display: 'flex', gap: 10 }}>
                         {step < 3 && (
-                            <button
+                            <Button
                                 onClick={() => setStep((s) => (s + 1) as Step)}
-                                style={{ padding: '10px 24px', borderRadius: 9, background: C.primary, color: C.white, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                             >
                                 Siguiente →
-                            </button>
+                            </Button>
                         )}
                         {step === 3 && (
-                            <button
+                            <Button
                                 onClick={handleSave}
-                                disabled={saving}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: 9, background: saving ? C.gray300 : C.success, color: C.white, border: 'none', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}
+                                loading={saving}
+                                style={{ background: saving ? undefined : 'var(--arco-success, #1D9E75)', borderColor: saving ? undefined : 'var(--arco-success, #1D9E75)' }}
                             >
-                                {saving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</> : <><Check size={15} /> Guardar Visita</>}
-                            </button>
+                                <Check size={15} /> Guardar Visita
+                            </Button>
                         )}
                     </div>
                 </div>
