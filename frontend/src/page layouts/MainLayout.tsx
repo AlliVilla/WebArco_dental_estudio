@@ -18,11 +18,11 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'consentimientos-lista': { title: 'Consentimientos Informados', breadcrumbs: ['Pacientes', 'Consentimientos'] },
   citas: { title: 'Control de Citas', breadcrumbs: ['Agenda', 'Citas'] },
   recordatorios: { title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios'] },
-  billing: { title: 'Gestión Financiera', breadcrumbs: ['Finanzas'] },
-  'billing-income': { title: 'Gestión de Ingresos', breadcrumbs: ['Finanzas', 'Ingresos'] },
-  'billing-expense': { title: 'Gestión de Egresos', breadcrumbs: ['Finanzas', 'Egresos'] },
-  'billing-closures': { title: 'Cierres de Caja', breadcrumbs: ['Finanzas', 'Cierres'] },
-  'billing-list': { title: 'Listado de Ingresos y Egresos', breadcrumbs: ['Reportes', 'Transacciones'] },
+  billing: { title: 'Gestión Financiera', breadcrumbs: ['Gestión', 'Facturación'] },
+  'billing-income': { title: 'Gestión de Ingresos', breadcrumbs: ['Gestión', 'Facturación', 'Ingresos'] },
+  'billing-expense': { title: 'Gestión de Egresos', breadcrumbs: ['Gestión', 'Facturación', 'Egresos'] },
+  'billing-closures': { title: 'Cierres de Caja', breadcrumbs: ['Gestión', 'Facturación', 'Cierres'] },
+  'billing-list': { title: 'Lista Financiera', breadcrumbs: ['Gestión', 'Facturación', 'Listado'] },
   'estado-resultado': { title: 'Estado de Resultado', breadcrumbs: ['Reportes', 'Estado de Resultado'] },
   users: { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
   treatments: { title: 'Catálogo de Tratamientos', breadcrumbs: ['Configuración', 'Tratamientos'] },
@@ -50,7 +50,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/treatments') return 'treatments';
     if (pathname === '/billing/income') return 'billing-income';
     if (pathname === '/billing/expense') return 'billing-expense';
-    if (pathname === '/billing/list') return 'billing-list';
+    if (pathname === '/billing/list' || pathname.startsWith('/billing/list/')) return 'billing-list';
     if (pathname === '/billing/closures') return 'billing-closures';
     if (pathname === '/inventory') return 'inventory';
     if (pathname === '/stats') return 'estado-resultado';
@@ -81,7 +81,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       'billing-closures': '/billing/closures',
       'billing-list': '/billing/list',
       'estado-resultado': '/stats',
-      users: '/settings', // Mapped to settings placeholder
+      users: '/users',
       inventory: '/inventory',
       settings: '/settings',
       design: '/design',
