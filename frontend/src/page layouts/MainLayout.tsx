@@ -14,10 +14,15 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   dashboard: { title: 'Dashboard', breadcrumbs: ['Inicio', 'Dashboard'] },
   'mi-perfil': { title: 'Mi Perfil', breadcrumbs: ['Inicio', 'Perfil'] },
   agenda: { title: 'Agenda', breadcrumbs: ['Inicio', 'Agenda'] },
+<<<<<<< HEAD
   'agenda-new': { title: 'Nueva Cita', breadcrumbs: ['Agenda', 'Nueva Cita'] },
   'agenda-detail': { title: 'Detalle de Cita', breadcrumbs: ['Agenda', 'Detalle'] },
   'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
   'agenda-recordatorios': {title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios']},
+=======
+  reminders: { title: 'Recordatorios', breadcrumbs: ['Inicio', 'Recordatorios'] },
+  'reminders-historial': { title: 'Historial de confirmaciones', breadcrumbs: ['Inicio', 'Recordatorios', 'Historial'] },
+>>>>>>> 68c27d8 (Implementar Historial Confirmaciones con datos Mock)
   patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
   'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
@@ -51,6 +56,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/mi-perfil') return 'mi-perfil';
     if (pathname === '/agenda/new') return 'agenda-new';
     if (pathname === '/agenda/reminders') return 'agenda-recordatorios';
+    if (pathname === '/agenda/reminders/historial') return 'reminders-historial';
     if (pathname.startsWith('/agenda/') && pathname.endsWith('/edit')) return 'agenda-edit';
     if (pathname.startsWith('/agenda/') && pathname !== '/agenda/new') return 'agenda-detail';
     if (pathname === '/agenda' || pathname === '/appointments') return 'citas'; // keep sidebar active
@@ -81,6 +87,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       dashboard: '/dashboard',
       citas: '/agenda',
       recordatorios: '/agenda/reminders', // Mapped to agenda placeholder
+      'reminders-historial': '/reminders/historial',
       patients: '/patients/list',
       'patients-list': '/patients/list',
       odontogram: '/patients/odontogram',
