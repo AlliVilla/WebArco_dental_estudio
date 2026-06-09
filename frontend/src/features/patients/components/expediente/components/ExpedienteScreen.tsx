@@ -43,7 +43,7 @@ interface ConsultaHistorica {
   firmaDoctor: boolean;
 }
 
-export interface ExpedientePaciente {
+export type ExpedientePaciente = {
   id: number;
   nombre: string;
   primerNombre: string;
@@ -66,7 +66,7 @@ export interface ExpedientePaciente {
   tomaMedicamento: string;
   alergias: string;
   consultas: ConsultaHistorica[];
-}
+};
 
 // ── Mock Clinical History Data ────────────────────────────────────────────────
 export const MOCK_EXPEDIENTES: ExpedientePaciente[] = [

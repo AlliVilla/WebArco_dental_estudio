@@ -1,13 +1,13 @@
 import { Plus, Eye, FileText } from "lucide-react";
 import { DataTable } from "../../../components";
 
-interface Patient {
+type Patient = {
   id: string;
   codigo: string;
   nombre: string;
   telefono: string;
   ultimaVisita: string;
-}
+};
 
 const mockPatients: Patient[] = [
   {
