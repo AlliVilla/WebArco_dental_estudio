@@ -2,22 +2,50 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './page layouts/MainLayout';
 import { Dashboard } from './page layouts/Dashboard';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
-
-// IMPORTANTE: Tendrás que crear estos componentes en sus respectivas carpetas (features)
-import { PatientsScreen, ExpedienteScreen, ConsentScreen } from './features/patients';
+import { PatientsScreen } from './features/patients/components/PatientsScreen';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
+import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
+import { Card, Alert, DesignSystemScreen } from './context';
+import { LoginForm } from './features/auth/components/LoginForm';
+import { AuthGuard, GuestGuard } from './routes/index';
+import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { UsersScreen } from './features/users';
-import { Card, Alert, DesignSystemScreen } from './context';
+import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 
 function App() {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
+      {/* Login — solo si NO está autenticado */}
+      <Route
+        path="/login"
+        element={
+          <GuestGuard>
+            <LoginForm />
+          </GuestGuard>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <GuestGuard>
+            <ResetPasswordPage />
+          </GuestGuard>
+        }
+      />
+      {/* Rutas protegidas */}
+      <Route
+        element={
+          <AuthGuard>
+            <MainLayout />
+          </AuthGuard>
+        }
+      >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/agenda" element={<AppointmentsScreen />} />
+
         {/* Patients sub-routes */}
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
@@ -32,7 +60,7 @@ function App() {
             </Card>
           </div>
         } />
-        
+
         {/* Billing sub-routes */}
         <Route path="/billing" element={<Navigate to="/billing/income" replace />} />
         <Route path="/billing/income" element={<GestionIngresos />} />
@@ -83,6 +111,9 @@ function App() {
         <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>
+
+      {/* Cualquier ruta desconocida → login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

@@ -1,41 +1,41 @@
-import React from 'react';
-import { useAuthStore } from '../features/auth/hooks/useAuthStore';
+import { Navigate } from "react-router-dom";
+import { Spinner } from "../components";
+import { useAuthStore } from "../features/auth/hooks/useAuthStore";
 
-interface GuardProps {
+export interface GuardProps {
   children: React.ReactNode;
-  fallbackRedirect?: string;
 }
 
-/**
- * AuthGuard: Renders children if authenticated, otherwise redirects or hides.
- */
-export const AuthGuard: React.FC<GuardProps> = ({ children }) => {
+function CenteredSpinner() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Spinner size={40} />
+    </div>
+  );
+}
+
+/** Solo entra si está autenticado, si no → /login */
+export function AuthGuard({ children }: GuardProps) {
   const { isAuthenticated, isLoading } = useAuthStore();
+  if (isLoading) return <CenteredSpinner />;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+}
 
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '3px solid var(--border-color)',
-          borderTopColor: 'var(--primary)',
-          borderRadius: '50%',
-          animation: 'spinSlow 1s linear infinite'
-        }} />
-      </div>
-    );
-  }
-
-  return isAuthenticated ? <>{children}</> : null;
-};
-
-/**
- * GuestGuard: Renders children if NOT authenticated (e.g. login form).
- */
-export const GuestGuard: React.FC<GuardProps> = ({ children }) => {
+/** Solo entra si NO está autenticado, si ya lo está → /dashboard */
+export function GuestGuard({ children }: GuardProps) {
   const { isAuthenticated } = useAuthStore();
-  
-  return !isAuthenticated ? <>{children}</> : null;
-};
+  return !isAuthenticated ? (
+    <>{children}</>
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
+}
+
 export default AuthGuard;
