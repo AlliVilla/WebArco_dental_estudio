@@ -5,14 +5,25 @@ import { authService } from '../services/authService';
 interface AuthActions {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  loadUserFromStorage: () => void;
   clearError: () => void;
 }
 
+function loadInitialState(): Pick<AuthState, 'user' | 'token' | 'isAuthenticated'> {
+  const token = localStorage.getItem('webarco_auth_token');
+  const userStr = localStorage.getItem('webarco_user');
+  if (token && userStr) {
+    try {
+      return { user: JSON.parse(userStr), token, isAuthenticated: true };
+    } catch {
+      localStorage.removeItem('webarco_auth_token');
+      localStorage.removeItem('webarco_user');
+    }
+  }
+  return { user: null, token: null, isAuthenticated: false };
+}
+
 export const useAuthStore = create<AuthState & AuthActions>((set) => ({
-  user: null,
-  token: null,
-  isAuthenticated: false,
+  ...loadInitialState(),
   isLoading: false,
   error: null,
 
@@ -65,28 +76,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         isLoading: false,
         error: null,
       });
-    }
-  },
-
-  loadUserFromStorage: () => {
-    const token = localStorage.getItem('webarco_auth_token');
-    const userStr = localStorage.getItem('webarco_user');
-    
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr) as User;
-        set({
-          token,
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } catch (e) {
-        // Corrupted localStorage
-        localStorage.removeItem('webarco_auth_token');
-        localStorage.removeItem('webarco_user');
-        set({ token: null, user: null, isAuthenticated: false });
-      }
     }
   },
 

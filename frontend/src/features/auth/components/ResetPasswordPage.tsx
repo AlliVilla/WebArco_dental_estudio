@@ -20,7 +20,7 @@ export function ResetPasswordPage() {
       }}
     >
       <div style={{ width: "100%", maxWidth: 440 }}>
-        <ForgotPasswordForm initialStep={2} initialToken={token} />
+        <ForgotPasswordForm initialToken={token} />
       </div>
     </div>
   );
