@@ -14,7 +14,6 @@ import { ResetPasswordPage } from "./features/auth/components/ResetPasswordPage"
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { UsersScreen } from './features/users';
 
-import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { MiPerfil } from './features/users/components/MiPerfil';
 function App() {
   return (
