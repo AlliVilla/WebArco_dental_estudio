@@ -75,7 +75,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   const handleNavigate = (tabId: string) => {
     const routeMap: Record<string, string> = {
       dashboard: '/dashboard',
-      'mi-perfil': '/settings', // Mapped to settings placeholder
       citas: '/agenda',
       recordatorios: '/agenda', // Mapped to agenda placeholder
       patients: '/patients/list',
