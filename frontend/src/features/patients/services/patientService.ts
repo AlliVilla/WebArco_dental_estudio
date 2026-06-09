@@ -4,7 +4,7 @@ import { Patient, ClinicalRecord, MedicalHistoryAnswer } from '../types';
 
 export const patientService = {
   // Patients (Persona)
-  getAll: async (params?: Record<string, any>): Promise<ApiResponse<Patient[]>> => {
+  getAll: async (params?: Record<string, unknown>): Promise<ApiResponse<Patient[]>> => {
     return api.get('/persona', { params });
   },
 
