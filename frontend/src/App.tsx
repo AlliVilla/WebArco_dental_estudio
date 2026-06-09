@@ -6,7 +6,10 @@ import { OdontogramScreen } from './features/patients/components/odontograma/com
 // IMPORTANTE: Tendrás que crear estos componentes en sus respectivas carpetas (features)
 import { PatientsScreen } from './features/patients/components/PatientsScreen';
 import { AppointmentsScreen, AppointmentFormScreen, AppointmentDetailScreen, PatientAppointmentHistoryScreen } from './features/appointments';
+import { ExpedienteScreen } from './features/patients/components/expediente';
+import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
+import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { ConsentScreen } from './features/patients/components/ConsentScreen';
 import { Card, Alert, DesignSystemScreen } from './context';
 
@@ -25,14 +28,7 @@ function App() {
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
         <Route path="/patients/odontogram" element={<OdontogramScreen consultaId={18} />} />
-        <Route path="/patients/records" element={
-          <div style={{ padding: 20 }}>
-            <Card>
-              <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Historia Clínica</h3>
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Módulo de historia clínica en desarrollo.</p>
-            </Card>
-          </div>
-        } />
+        <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
         <Route path="/treatments" element={
           <div style={{ padding: 20 }}>
@@ -55,14 +51,7 @@ function App() {
             </Card>
           </div>
         } />
-        <Route path="/billing/list" element={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <Card>
-              <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Lista de Ingreso / Egreso</h3>
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Muestra el flujo de caja unificado y reporte diario de transacciones.</p>
-            </Card>
-          </div>
-        } />
+        <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route path="/billing/closures" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <Card>

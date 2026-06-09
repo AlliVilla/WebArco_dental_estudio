@@ -23,3 +23,21 @@ export interface CreatePaymentInput {
   observacion?: string;
   firma_paciente?: string;
 }
+
+export type TransactionKind = 'ingreso' | 'egreso';
+
+export type IncomePaymentMethod = 'Tarjeta' | 'Efectivo' | 'Transferencia';
+
+export type ExpenseCategory = 'Insumos' | 'Equipos' | 'Nómina' | 'Servicios';
+
+export interface FinancialRecord extends Record<string, unknown> {
+  id_registro: string;
+  tipo: TransactionKind;
+  fecha: string;
+  paciente?: string;
+  concepto: string;
+  monto: number;
+  metodoPago?: IncomePaymentMethod;
+  categoria?: ExpenseCategory;
+  responsable?: string;
+}
