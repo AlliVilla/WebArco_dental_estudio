@@ -54,7 +54,3 @@ export const CALENDAR_START_HOUR = 8;
 export const CALENDAR_END_HOUR = 20;
 export const PX_PER_HOUR = 60;
 export const VISIBLE_HOURS = CALENDAR_END_HOUR - CALENDAR_START_HOUR;
-
-export function getHourLabel(hour: number): string {
-  return `${hour.toString().padStart(2, '0')}:00`;
-}
