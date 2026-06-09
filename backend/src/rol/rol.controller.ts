@@ -54,5 +54,14 @@ export class RolController {
         return this.rolService.findAll(pageNumber,limitNumber,search);
     }
 
-    
+    @Privileges(34)
+    @Post()
+    @HttpCode(HttpStatus.CREATED)
+    @ApiOperation({
+        summary: 'Crear rol',
+        description: 'Crear nuevo rol con nombre (único, requerido, máx. 100 chars) y descripción (opcional). DTO con class-validator.'
+    })
+    async createRole(@Body() body : CreateRoleDto){
+        return this.rolService.createRole(body);
+    }
 }
