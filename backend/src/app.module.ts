@@ -17,10 +17,14 @@ import { ExpedienteClinicoModule } from './expediente-clinico/expediente-clinico
 import { ReminderModule } from './reminder/reminder.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConsentimientoModule } from './consentimiento/consentimiento.module';
+<<<<<<< HEAD
+import { InventarioModule } from './inventario/inventario.module';
+=======
 import { InsumoModule } from './insumo/insumo.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.module';
 import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
+>>>>>>> main
 
 @Module({
   imports: [
@@ -40,10 +44,14 @@ import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
     CitaModule,
     ExpedienteClinicoModule,
     ReminderModule,
+<<<<<<< HEAD
+    InventarioModule,
+=======
     InsumoModule,
     InventarioModule,
     CategoriaInsumoModule,
     UnidadMedidaModule,
+>>>>>>> main
   ],
   controllers: [AppController],
   providers: [AppService],
