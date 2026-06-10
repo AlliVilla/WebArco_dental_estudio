@@ -6,7 +6,6 @@ import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { RecordatoriosScreen } from './features/reminders';
 import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
-import { InventoryScreen } from './features/inventory';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
@@ -107,7 +106,17 @@ function App() {
           }
         />
 
-        <Route path="/inventory" element={<InventoryScreen />} />
+        <Route
+          path="/inventory"
+          element={
+            <div style={{ padding: 20 }}>
+              <Card>
+                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Inventario</h3>
+                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Módulo de inventario en desarrollo.</p>
+              </Card>
+            </div>
+          }
+        />
         <Route
           path="/stats"
           element={

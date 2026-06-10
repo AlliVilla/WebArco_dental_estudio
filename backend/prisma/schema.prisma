@@ -262,70 +262,11 @@ model PagoPaciente {
   @@map("pago_paciente")
 }
 
-<<<<<<< HEAD
-enum CategoriaInsumo {
-  Anestesia
-  Higiene
-  Materiales
-  Instrumental
-  Medicamento
-  Otro
-}
-
-enum UnidadMedidaInsumo {
-  Unidad
-  Caja
-  Frasco
-  Paquete
-  Kit
-  Tubo
-  Bolsa
-}
-
-enum TipoMovimientoInventario {
-=======
 enum TipoMovimiento {
->>>>>>> main
   Entrada
   Salida
 }
 
-<<<<<<< HEAD
-model InsumoInventario {
-  id_insumo     Int              @id @default(autoincrement())
-  codigo        String           @unique @db.VarChar(20)
-  nombre        String           @db.VarChar(150)
-  categoria     CategoriaInsumo
-  unidad_medida UnidadMedidaInsumo
-  stock_actual  Int              @default(0)
-  stock_minimo  Int              @default(0)
-  precio_costo  Decimal          @db.Decimal(10, 2)
-  activo        Boolean          @default(true)
-  created_at    DateTime         @default(now())
-  updated_at    DateTime         @updatedAt
-
-  movimientos MovimientoInventario[]
-
-  @@index([categoria])
-  @@index([activo])
-  @@map("insumo_inventario")
-}
-
-model MovimientoInventario {
-  id_movimiento Int                       @id @default(autoincrement())
-  id_insumo     Int
-  tipo          TipoMovimientoInventario
-  cantidad      Int
-  fecha         DateTime                  @db.Date
-  responsable   String                    @db.VarChar(120)
-  observaciones String?                   @db.Text
-  created_at    DateTime                  @default(now())
-
-  insumo InsumoInventario @relation(fields: [id_insumo], references: [id_insumo])
-
-  @@index([id_insumo])
-  @@index([fecha])
-=======
 model CategoriaInsumo {
   id_categoria Int      @id @default(autoincrement())
   nombre       String   @unique @db.VarChar(100)
@@ -384,6 +325,5 @@ model MovimientoInventario {
 
   @@index([id_insumo])
   @@index([id_usuario])
->>>>>>> main
   @@map("movimiento_inventario")
 }
