@@ -98,30 +98,31 @@ model Persona {
   correo_electronico String?  @unique @db.VarChar(255)
   id_municipio       Int
   direccion_linea    String?  @db.Text
-  sexo Sexo
-  municipio Municipio @relation(fields: [id_municipio], references: [id_municipio])
-  usuarios  Usuario[]
-  consultas Consulta[]
-  citas     Cita[]
+  sexo               Sexo
+  municipio          Municipio @relation(fields: [id_municipio], references: [id_municipio])
+  usuarios           Usuario[]
+  consultas          Consulta[]
+  citas              Cita[]
 
   @@map("persona")
 }
 
 model Usuario {
-  id_usuario Int     @id @default(autoincrement())
-  id_persona Int
-  username   String  @unique @db.VarChar(100)
-  password   String  @db.VarChar(255)
-  id_rol     Int
-  firma      String? @db.Text
-  activo     Boolean @default(true)
-  must_change_password Boolean @default(true) 
+  id_usuario           Int               @id @default(autoincrement())
+  id_persona           Int
+  username             String            @unique @db.VarChar(100)
+  password             String            @db.VarChar(255)
+  id_rol               Int
+  firma                String?           @db.Text
+  activo               Boolean           @default(true)
+  must_change_password Boolean           @default(true)
 
-  persona           Persona            @relation(fields: [id_persona], references: [id_persona])
-  rol               Rol                @relation(fields: [id_rol], references: [id_rol])
-  consultas         Consulta[]
-  citas             Cita[]
-  historial_estados EstadoHistorial[]
+  persona              Persona           @relation(fields: [id_persona], references: [id_persona])
+  rol                  Rol               @relation(fields: [id_rol], references: [id_rol])
+  consultas            Consulta[]
+  citas                Cita[]
+  historial_estados    EstadoHistorial[]
+  movimientos_inventario MovimientoInventario[]
 
   @@map("usuario")
 }
@@ -143,8 +144,8 @@ model AntecedenteRespuesta {
   respuesta_boolean Boolean?
   explanation       String?  @db.Text
 
-  consulta Consulta            @relation(fields: [id_consulta], references: [id_consulta])
-  pregunta AntecedentePregunta @relation(fields: [id_pregunta], references: [id_pregunta])
+  consulta          Consulta            @relation(fields: [id_consulta], references: [id_consulta])
+  pregunta          AntecedentePregunta @relation(fields: [id_pregunta], references: [id_pregunta])
 
   @@index([id_consulta])
   @@map("antecedente_respuesta")
@@ -162,11 +163,11 @@ model Cita {
   recordatorio_enviado Boolean    @default(false)
   notas                String?    @db.Text
 
-  persona          Persona           @relation(fields: [id_persona], references: [id_persona])
-  doctor           Usuario           @relation(fields: [id_usuario], references: [id_usuario])
-  consulta         Consulta?
-  historial_estados EstadoHistorial[]
-  recordatorios    Recordatorio[]
+  persona              Persona           @relation(fields: [id_persona], references: [id_persona])
+  doctor               Usuario           @relation(fields: [id_usuario], references: [id_usuario])
+  consulta             Consulta?
+  historial_estados    EstadoHistorial[]
+  recordatorios        Recordatorio[]
 
   @@map("cita")
 }
@@ -187,26 +188,26 @@ model Recordatorio {
 }
 
 model Consulta {
-  id_consulta    Int       @id @default(autoincrement())
-  id_cita        Int?      @unique
-  id_persona     Int
-  id_usuario     Int
-  fecha_inicio   DateTime  @db.Timestamp()
-  fecha_fin      DateTime? @db.Timestamp()
-  diagnostico    String?   @db.Text
-  tratamiento    String?   @db.Text
-  motivo         String?   @db.Text
-  notas          String?   @db.Text
-  firma_paciente        String?   @db.Text
-  firma_doctor_snapshot String?   @db.Text
-  consentimiento        Boolean   @default(false)
+  id_consulta           Int                    @id @default(autoincrement())
+  id_cita               Int?                   @unique
+  id_persona            Int
+  id_usuario            Int
+  fecha_inicio          DateTime               @db.Timestamp()
+  fecha_fin             DateTime?              @db.Timestamp()
+  diagnostico           String?                @db.Text
+  tratamiento           String?                @db.Text
+  motivo                String?                @db.Text
+  notas                 String?                @db.Text
+  firma_paciente        String?                @db.Text
+  firma_doctor_snapshot String?                @db.Text
+  consentimiento        Boolean                @default(false)
 
-  cita         Cita?                  @relation(fields: [id_cita], references: [id_cita])
-  persona      Persona                @relation(fields: [id_persona], references: [id_persona])
-  doctor       Usuario                @relation(fields: [id_usuario], references: [id_usuario])
-  antecedentes AntecedenteRespuesta[]
-  odontogramas Odontograma[]
-  pagos        PagoPaciente[]
+  cita                  Cita?                  @relation(fields: [id_cita], references: [id_cita])
+  persona               Persona                @relation(fields: [id_persona], references: [id_persona])
+  doctor                Usuario                @relation(fields: [id_usuario], references: [id_usuario])
+  antecedentes          AntecedenteRespuesta[]
+  odontogramas          Odontograma[]
+  pagos                 PagoPaciente[]
 
   @@map("consulta")
 }
@@ -219,8 +220,8 @@ model EstadoHistorial {
   cambiado_por    Int
   fecha_cambio    DateTime   @default(now())
 
-  cita    Cita    @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade)
-  usuario Usuario @relation(fields: [cambiado_por], references: [id_usuario])
+  cita            Cita    @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade)
+  usuario         Usuario @relation(fields: [cambiado_por], references: [id_usuario])
 
   @@index([id_cita])
   @@map("estado_historial")
@@ -241,8 +242,8 @@ model Odontograma {
   estado         String? @db.VarChar(100)
   observacion    String? @db.Text
 
-  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
-  diente   Diente   @relation(fields: [id_diente], references: [numero_diente])
+  consulta       Consulta @relation(fields: [id_consulta], references: [id_consulta])
+  diente         Diente   @relation(fields: [id_diente], references: [numero_diente])
 
   @@unique([id_consulta, id_diente])
   @@map("odontograma")
@@ -256,11 +257,12 @@ model PagoPaciente {
   observacion    String?  @db.Text
   firma_paciente String?  @db.Text
 
-  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
+  consulta       Consulta @relation(fields: [id_consulta], references: [id_consulta])
 
   @@map("pago_paciente")
 }
 
+<<<<<<< HEAD
 enum CategoriaInsumo {
   Anestesia
   Higiene
@@ -281,10 +283,14 @@ enum UnidadMedidaInsumo {
 }
 
 enum TipoMovimientoInventario {
+=======
+enum TipoMovimiento {
+>>>>>>> main
   Entrada
   Salida
 }
 
+<<<<<<< HEAD
 model InsumoInventario {
   id_insumo     Int              @id @default(autoincrement())
   codigo        String           @unique @db.VarChar(20)
@@ -319,5 +325,65 @@ model MovimientoInventario {
 
   @@index([id_insumo])
   @@index([fecha])
+=======
+model CategoriaInsumo {
+  id_categoria Int      @id @default(autoincrement())
+  nombre       String   @unique @db.VarChar(100)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  insumos      Insumo[]
+
+  @@map("categoria_insumo")
+}
+
+model UnidadMedida {
+  id_unidad  Int      @id @default(autoincrement())
+  nombre     String   @unique @db.VarChar(100)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  insumos    Insumo[]
+
+  @@map("unidad_medida")
+}
+
+model Insumo {
+  id_insumo    Int                    @id @default(autoincrement())
+  codigo       String                 @unique @db.VarChar(50)
+  nombre       String                 @db.VarChar(255)
+  id_categoria Int
+  id_unidad    Int
+  stock_actual Int                    @default(0)
+  stock_minimo Int                    @default(0)
+  precio_costo Decimal                @db.Decimal(10, 2)
+  activo       Boolean                @default(true)
+  created_at   DateTime               @default(now())
+  updated_at   DateTime               @updatedAt
+
+  categoria    CategoriaInsumo        @relation(fields: [id_categoria], references: [id_categoria])
+  unidad       UnidadMedida           @relation(fields: [id_unidad], references: [id_unidad])
+  movimientos  MovimientoInventario[]
+
+  @@index([id_categoria])
+  @@index([id_unidad])
+  @@map("insumo")
+}
+
+model MovimientoInventario {
+  id_movimiento Int            @id @default(autoincrement())
+  id_insumo     Int
+  tipo          TipoMovimiento
+  cantidad      Int
+  fecha         DateTime       @default(now()) @db.Timestamp()
+  id_usuario    Int
+  observaciones String?        @db.Text
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+
+  insumo        Insumo         @relation(fields: [id_insumo], references: [id_insumo])
+  usuario       Usuario        @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@index([id_insumo])
+  @@index([id_usuario])
+>>>>>>> main
   @@map("movimiento_inventario")
 }

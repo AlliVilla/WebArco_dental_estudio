@@ -30,6 +30,24 @@ type AuthRequest = Request & {
 export class UsuarioController {
   constructor(private usuarioService: UsuarioService) {}
 
+  @Get('profile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener perfil del usuario autenticado',
+    description: 'Obtiene los datos del perfil del usuario logueado.',
+  })
+  @ApiOkResponse({ description: 'Perfil obtenido correctamente' })
+  async getAuthenticatedProfile(@Req() req: AuthRequest) {
+    const profile = await this.usuarioService.getAuthenticatedProfile(
+      req.user.id_usuario,
+    );
+
+    return {
+      ...profile,
+      message: 'Perfil obtenido correctamente.',
+    };
+  }
+
   @Privileges(9)
   @Get('profile/:id')
   @HttpCode(HttpStatus.OK)
@@ -103,6 +121,7 @@ export class UsuarioController {
   @ApiOkResponse({ description: 'Listado de usuarios con paginación' })
   @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
   async getAll(
+    @Req() req: AuthRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('nombre') nombre?: string,
@@ -120,6 +139,7 @@ export class UsuarioController {
       nombre,
       correo,
       rol,
+      excludeUserId: req.user.id_usuario,
     });
   }
 
