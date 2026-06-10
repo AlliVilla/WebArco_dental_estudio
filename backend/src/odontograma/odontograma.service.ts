@@ -317,6 +317,155 @@ export class OdontogramaService {
     };
   }
 
+  async bulkSave(
+    consultaId: number,
+    items: Array<{ id_diente: number; estado: string; observacion?: string }>,
+    userId: number,
+  ) {
+    const consulta = await this.prisma.consulta.findUnique({
+      where: { id_consulta: consultaId },
+      select: { id_consulta: true, id_persona: true },
+    });
+
+    if (!consulta) {
+      throw new NotFoundException(`No se encontró la consulta con id ${consultaId}`);
+    }
+
+    await this.assertPatientExists(consulta.id_persona);
+
+    const results: Array<{
+      id_odontograma: number;
+      id_consulta: number;
+      diente: { numero_diente: number; nombre: string | null };
+      estado: string | null;
+      observacion: string | null;
+      doctor: { id_usuario: number; nombre: string };
+      fecha_consulta: Date;
+    }> = [];
+    for (const item of items) {
+      await this.assertToothExists(item.id_diente);
+
+      const odontograma = await this.prisma.odontograma.upsert({
+        where: {
+          id_consulta_id_diente: {
+            id_consulta: consultaId,
+            id_diente: item.id_diente,
+          },
+        },
+        create: {
+          id_consulta: consultaId,
+          id_diente: item.id_diente,
+          estado: item.estado,
+          observacion: item.observacion ?? null,
+        },
+        update: {
+          estado: item.estado,
+          observacion: item.observacion ?? null,
+        },
+        include: {
+          diente: {
+            select: { numero_diente: true, nombre: true },
+          },
+          consulta: {
+            select: {
+              id_consulta: true,
+              fecha_inicio: true,
+              doctor: {
+                select: {
+                  id_usuario: true,
+                  persona: {
+                    select: { primer_nombre: true, primer_apellido: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      results.push({
+        id_odontograma: odontograma.id_odontograma,
+        id_consulta: odontograma.id_consulta,
+        diente: {
+          numero_diente: odontograma.diente.numero_diente,
+          nombre: odontograma.diente.nombre,
+        },
+        estado: odontograma.estado,
+        observacion: odontograma.observacion,
+        doctor: {
+          id_usuario: odontograma.consulta.doctor.id_usuario,
+          nombre: `${odontograma.consulta.doctor.persona.primer_nombre} ${odontograma.consulta.doctor.persona.primer_apellido}`,
+        },
+        fecha_consulta: odontograma.consulta.fecha_inicio,
+      });
+    }
+
+    return { message: 'Odontograma guardado exitosamente', registros: results };
+  }
+
+  async getActiveConsultationPatients(userId: number) {
+    const activeConsultas = await this.prisma.consulta.findMany({
+      where: {
+        fecha_fin: null,
+        id_usuario: userId,
+      },
+      include: {
+        persona: {
+          select: {
+            id_persona: true,
+            primer_nombre: true,
+            segundo_nombre: true,
+            primer_apellido: true,
+            segundo_apellido: true,
+            numero_identidad: true,
+            fecha_nacimiento: true,
+            sexo: true,
+            telefono: true,
+          },
+        },
+        doctor: {
+          select: {
+            id_usuario: true,
+            persona: {
+              select: {
+                primer_nombre: true,
+                primer_apellido: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { fecha_inicio: 'desc' },
+    });
+
+    const seen = new Set<number>();
+    return activeConsultas
+      .filter((c) => {
+        if (seen.has(c.id_persona)) return false;
+        seen.add(c.id_persona);
+        return true;
+      })
+      .map((c) => ({
+        id_persona: c.persona.id_persona,
+        primer_nombre: c.persona.primer_nombre,
+        segundo_nombre: c.persona.segundo_nombre,
+        primer_apellido: c.persona.primer_apellido,
+        segundo_apellido: c.persona.segundo_apellido,
+        numero_identidad: c.persona.numero_identidad,
+        fecha_nacimiento: c.persona.fecha_nacimiento,
+        sexo: c.persona.sexo,
+        telefono: c.persona.telefono,
+        id_consulta: c.id_consulta,
+        doctor: c.doctor
+          ? {
+              id_usuario: c.doctor.id_usuario,
+              nombre: `${c.doctor.persona.primer_nombre} ${c.doctor.persona.primer_apellido}`,
+            }
+          : null,
+        fecha_inicio: c.fecha_inicio,
+      }));
+  }
+
   private async assertPatientExists(id: number) {
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: id },

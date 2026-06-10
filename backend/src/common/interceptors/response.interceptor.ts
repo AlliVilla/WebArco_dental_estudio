@@ -41,6 +41,14 @@ export class ResponseInterceptor<T>
       };
     }
 
+    if (Array.isArray(data)) {
+      return {
+        success: true,
+        data,
+        message: DEFAULT_MESSAGES[statusCode] ?? 'Operación exitosa',
+      };
+    }
+
     if (typeof data !== 'object') {
       return {
         success: true,
