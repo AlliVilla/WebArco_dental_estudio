@@ -207,6 +207,7 @@ model Consulta {
   antecedentes AntecedenteRespuesta[]
   odontogramas Odontograma[]
   pagos        PagoPaciente[]
+  connsultas Consulta_Tratamiento[]
 
   @@map("consulta")
 }
@@ -270,7 +271,9 @@ model Tratamiento {
   precio               Decimal  @db.Decimal(10, 2)
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
-  connsultas
+  
+  connsultas Consulta_Tratamiento[]
+
   @@map("tratamiento")
 }
 

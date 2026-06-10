@@ -22,10 +22,6 @@ async function insertAntecedentesPreguntas(){
             pregunta: "¿Cuando fue su última visita al odontólogo ?",
             orden_num: 5,
         },
-        {
-            pregunta: "¿Motivo de consulta?",
-            orden_num: 6,
-        },
     ];
 
     await prisma.antecedentePregunta.createMany({data: antecendetespreguntas, skipDuplicates: true});
