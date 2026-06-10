@@ -3,12 +3,14 @@ import { AppointmentsScreen, AppointmentDetailScreen, AppointmentFormScreen, Pat
 import { LoginForm } from './features/auth/components/LoginForm';
 import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
+import { RecordatoriosScreen } from './features/reminders';
+import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
 import { PatientFormScreen, PatientProfileScreen, PatientsScreen } from './features/patients';
-import { RolesScreen, UsersScreen } from './features/users';
+import { PermissionsManagementScreen, RolesScreen, UsersScreen } from './features/users';
 
 import { MiPerfil } from './features/users/components/MiPerfil';
 import { Alert, Card, DesignSystemScreen } from './context';
@@ -50,8 +52,10 @@ function App() {
         <Route path="/agenda/:id" element={<AppointmentDetailScreen />} />
         <Route path="/agenda/:id/history" element={<PatientAppointmentHistoryScreen />} />
         <Route path="/agenda/:id/edit" element={<AppointmentFormScreen />} />
+        <Route path="/agenda/reminders" element={<RecordatoriosScreen />} />
+        <Route path="/agenda/reminders/historial" element={<HistorialConfirmacionesScreen />} />
         <Route path="/mi-perfil" element={<MiPerfil />} />
-
+        {/* Patients sub-routes */}
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
         <Route path="/patients/new" element={<PatientFormScreen />} />
@@ -138,6 +142,7 @@ function App() {
 
         <Route path="/users" element={<UsersScreen />} />
         <Route path="/users/roles" element={<RolesScreen />} />
+        <Route path="/users/roles/permisos" element={<PermissionsManagementScreen />} />
         <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>

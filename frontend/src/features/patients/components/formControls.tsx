@@ -1,48 +1,8 @@
 import { useState } from 'react';
-import type { ReactNode } from 'react';
+import { Check } from 'lucide-react';
 import { FieldBadge } from '../../../context';
 
 type BadgeType = 'required' | 'optional' | 'conditional';
-
-export function SectionHeader({
-  icon,
-  subtitle,
-  title,
-}: {
-  icon: ReactNode;
-  subtitle?: string;
-  title: string;
-}) {
-  return (
-    <div style={{ alignItems: 'center', display: 'flex', gap: 10, marginBottom: 20 }}>
-      <div
-        style={{
-          alignItems: 'center',
-          background: 'rgba(11,197,223,0.1)',
-          borderRadius: 8,
-          color: 'var(--arco-primary, #0BC5DF)',
-          display: 'flex',
-          flexShrink: 0,
-          height: 36,
-          justifyContent: 'center',
-          width: 36,
-        }}
-      >
-        {icon}
-      </div>
-      <div>
-        <h3 style={{ color: 'var(--arco-navy, #203F49)', fontSize: 15, fontWeight: 600, margin: 0 }}>
-          {title}
-        </h3>
-        {subtitle ? (
-          <p style={{ color: 'var(--arco-gray-500, #888F94)', fontSize: 12, margin: '2px 0 0' }}>
-            {subtitle}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export function Textarea({
   badge,
@@ -70,7 +30,7 @@ export function Textarea({
       {label || badge ? (
         <div style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           {label ? (
-            <label style={{ color: 'var(--arco-navy, #203F49)', fontSize: 13, fontWeight: 500 }}>
+            <label style={{ color: 'var(--foreground, #203F49)', fontSize: 13, fontWeight: 500 }}>
               {label}
             </label>
           ) : null}
@@ -86,11 +46,11 @@ export function Textarea({
         rows={rows}
         value={value}
         style={{
-          background: disabled ? '#F1F3F4' : '#FFFFFF',
-          border: `1px solid ${focused ? '#0BC5DF' : '#D3D7DA'}`,
+          background: disabled ? 'var(--secondary, #F1F3F4)' : 'var(--card, #FFFFFF)',
+          border: `1px solid ${focused ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
           borderRadius: 8,
           boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
-          color: '#203F49',
+          color: 'var(--foreground, #203F49)',
           fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 14,
           minHeight: rows * 38,
@@ -101,7 +61,7 @@ export function Textarea({
           width: '100%',
         }}
       />
-      {hint ? <span style={{ color: 'var(--arco-gray-500, #888F94)', fontSize: 11 }}>{hint}</span> : null}
+      {hint ? <span style={{ color: 'var(--muted-foreground, #888F94)', fontSize: 11 }}>{hint}</span> : null}
     </div>
   );
 }
@@ -128,7 +88,7 @@ export function CheckboxGroup({
       {label || badge ? (
         <div style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           {label ? (
-            <label style={{ color: 'var(--arco-navy, #203F49)', fontSize: 13, fontWeight: 500 }}>
+            <label style={{ color: 'var(--foreground, #203F49)', fontSize: 13, fontWeight: 500 }}>
               {label}
             </label>
           ) : null}
@@ -137,8 +97,8 @@ export function CheckboxGroup({
       ) : null}
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid #0BC5DF',
+          background: 'var(--card, #FFFFFF)',
+          border: '1px solid var(--border, #D3D7DA)',
           borderRadius: 8,
           display: 'flex',
           flexWrap: 'wrap',
@@ -149,7 +109,7 @@ export function CheckboxGroup({
         {options.map((option) => {
           const checked = selected.includes(option.id);
           return (
-            <label
+            <div
               key={option.id}
               onClick={() => toggle(option.id)}
               style={{
@@ -163,8 +123,8 @@ export function CheckboxGroup({
               <span
                 style={{
                   alignItems: 'center',
-                  background: checked ? '#0BC5DF' : '#FFFFFF',
-                  border: `2px solid ${checked ? '#0BC5DF' : '#D3D7DA'}`,
+                  background: checked ? 'var(--arco-primary, #0BC5DF)' : 'var(--card, #FFFFFF)',
+                  border: `2px solid ${checked ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
                   borderRadius: 4,
                   display: 'flex',
                   flexShrink: 0,
@@ -174,20 +134,10 @@ export function CheckboxGroup({
                   width: 16,
                 }}
               >
-                {checked ? (
-                  <svg fill="none" height="7" viewBox="0 0 9 7" width="9">
-                    <path
-                      d="M1 3.5L3.5 6L8 1"
-                      stroke="white"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.5"
-                    />
-                  </svg>
-                ) : null}
+                {checked ? <Check color="#FFFFFF" size={11} strokeWidth={3} /> : null}
               </span>
-              <span style={{ color: '#203F49', fontSize: 13 }}>{option.label}</span>
-            </label>
+              <span style={{ color: 'var(--foreground, #203F49)', fontSize: 13 }}>{option.label}</span>
+            </div>
           );
         })}
       </div>
@@ -213,7 +163,7 @@ export function RadioGroup({
       {label || badge ? (
         <div style={{ alignItems: 'center', display: 'flex', gap: 6 }}>
           {label ? (
-            <label style={{ color: 'var(--arco-navy, #203F49)', fontSize: 13, fontWeight: 500 }}>
+            <label style={{ color: 'var(--foreground, #203F49)', fontSize: 13, fontWeight: 500 }}>
               {label}
             </label>
           ) : null}
@@ -222,8 +172,8 @@ export function RadioGroup({
       ) : null}
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px solid #D3D7DA',
+          background: 'var(--card, #FFFFFF)',
+          border: '1px solid var(--border, #D3D7DA)',
           borderRadius: 8,
           display: 'flex',
           gap: 16,
@@ -233,7 +183,7 @@ export function RadioGroup({
         {options.map((option) => {
           const checked = value === option.value;
           return (
-            <label
+            <div
               key={option.value}
               onClick={() => onChange(option.value)}
               style={{
@@ -247,8 +197,8 @@ export function RadioGroup({
               <span
                 style={{
                   alignItems: 'center',
-                  background: '#FFFFFF',
-                  border: `2px solid ${checked ? '#0BC5DF' : '#D3D7DA'}`,
+                  background: 'var(--card, #FFFFFF)',
+                  border: `2px solid ${checked ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
                   borderRadius: '50%',
                   display: 'flex',
                   flexShrink: 0,
@@ -261,7 +211,7 @@ export function RadioGroup({
                 {checked ? (
                   <span
                     style={{
-                      background: '#0BC5DF',
+                      background: 'var(--arco-primary, #0BC5DF)',
                       borderRadius: '50%',
                       height: 8,
                       width: 8,
@@ -269,8 +219,8 @@ export function RadioGroup({
                   />
                 ) : null}
               </span>
-              <span style={{ color: '#203F49', fontSize: 13 }}>{option.label}</span>
-            </label>
+              <span style={{ color: 'var(--foreground, #203F49)', fontSize: 13 }}>{option.label}</span>
+            </div>
           );
         })}
       </div>

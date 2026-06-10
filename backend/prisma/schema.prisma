@@ -270,20 +270,16 @@ model Tratamiento {
   precio               Decimal  @db.Decimal(10, 2)
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
-
+  connsultas
   @@map("tratamiento")
 }
 
 model Consulta_Tratamiento {
   id_consulta_tratamiento       Int      @id @default(autoincrement())
-  id_tratamiento       Int      
-  especialidad         String   @db.VarChar(120)
-  nombre               String   @db.VarChar(150)
-  descripcion          String?  @db.Text
-  impacto_odontograma  String   @db.VarChar(60)
+  id_tratamiento       Int
+  id_consulta       Int      
+  descuento 
   precio               Decimal  @db.Decimal(10, 2)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
 
   @@map("consulta_tratamiento")
 }
