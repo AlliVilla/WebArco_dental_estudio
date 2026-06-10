@@ -1,96 +1,28 @@
-export type EstadoCita = 'programada' | 'confirmada' | 'atendida' | 'cancelada' | 'ausente' | 'reprogramada';
+import { User } from '../../auth/types';
 
-export interface CitaPersona {
-  id_persona: number;
-  primer_nombre: string;
-  segundo_nombre?: string;
-  primer_apellido: string;
-  segundo_apellido?: string;
-  numero_identidad: string;
-  telefono: string;
-}
-
-export interface CitaDoctor {
-  id_usuario: number;
-  username: string;
-  persona: {
-    primer_nombre: string;
-    primer_apellido: string;
-  };
-}
+export type AppointmentStatus = 'PENDIENTE' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA';
 
 export interface Appointment {
-  id_cita: number;
-  id_persona: number;
-  id_usuario: number;
-  fecha_inicio: string;
-  fecha_fin?: string;
-  tipo_cita?: string;
-  motivo?: string;
-  estado: EstadoCita;
-  notas?: string;
-  persona?: CitaPersona;
-  doctor?: CitaDoctor;
-  historial_estados?: StatusChange[];
-}
-
-export interface StatusChange {
-  id_historial: number;
-  estado_anterior?: EstadoCita;
-  estado_nuevo: EstadoCita;
-  fecha_cambio: string;
-  cambiado_por: number;
-  usuario?: {
-    id_usuario: number;
-    username: string;
-    persona?: {
-      primer_nombre: string;
-      primer_apellido: string;
-    };
+  id: number;
+  fecha: string;
+  motivo: string;
+  estado: AppointmentStatus;
+  id_paciente: number;
+  id_usuario_doctor: number;
+  observaciones?: string;
+  paciente?: {
+    nombre: string;
+    apellido: string;
+    telefono?: string;
+    correo?: string;
   };
+  doctor?: User;
 }
 
 export interface CreateAppointmentInput {
-  id_persona: number;
-  id_usuario: number;
-  fecha_inicio: string;
-  fecha_fin?: string;
-  tipo_cita?: string;
-  motivo?: string;
-  notas?: string;
-  estado?: EstadoCita;
-}
-
-export interface UpdateAppointmentInput extends Partial<CreateAppointmentInput> {}
-
-export interface PatientHistoryResponse {
-  data: Appointment[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    pages: number;
-  };
-}
-
-export interface PersonaRecord {
-  id_persona: number;
-  primer_nombre: string;
-  segundo_nombre?: string;
-  primer_apellido: string;
-  segundo_apellido?: string;
-  numero_identidad: string;
-  telefono: string;
-  correo_electronico?: string;
-}
-
-export interface UsuarioRecord {
-  id_usuario: number;
-  username: string;
-  activo: boolean;
-  persona: PersonaRecord;
-  rol: {
-    id_rol: number;
-    nombre: string;
-  };
+  fecha: string;
+  motivo: string;
+  id_paciente: number;
+  id_usuario_doctor: number;
+  observaciones?: string;
 }

@@ -1,49 +1,29 @@
 import api from '../../../services/api';
 import { ApiResponse } from '../../../types/api';
-import { Appointment, CreateAppointmentInput, UpdateAppointmentInput, StatusChange, PatientHistoryResponse, PersonaRecord, UsuarioRecord } from '../types';
+import { Appointment, CreateAppointmentInput } from '../types';
 
 export const appointmentService = {
-  getByCalendar: async (start: string, end: string, id_usuario?: number): Promise<ApiResponse<Appointment[]>> => {
-    const res: ApiResponse<{ data: Appointment[] }> = await api.get('/appointments', { params: { start, end, id_usuario } });
-    return { ...res, data: res.data?.data ?? [] };
+  getAll: async (params?: Record<string, any>): Promise<ApiResponse<Appointment[]>> => {
+    return api.get('/cita', { params });
   },
 
   getById: async (id: number): Promise<ApiResponse<Appointment>> => {
-    return api.get(`/appointments/${id}`);
+    return api.get(`/cita/${id}`);
   },
 
   create: async (data: CreateAppointmentInput): Promise<ApiResponse<Appointment>> => {
-    return api.post('/appointments', data);
+    return api.post('/cita', data);
   },
 
-  update: async (id: number, data: UpdateAppointmentInput): Promise<ApiResponse<Appointment>> => {
-    return api.put(`/appointments/${id}`, data);
+  update: async (id: number, data: Partial<CreateAppointmentInput>): Promise<ApiResponse<Appointment>> => {
+    return api.put(`/cita/${id}`, data);
   },
 
-  changeStatus: async (id: number, estado: string, cambiado_por: number): Promise<ApiResponse<Appointment>> => {
-    return api.patch(`/appointments/${id}/status`, { estado, cambiado_por });
-  },
-
-  getStatusHistory: async (id: number): Promise<ApiResponse<StatusChange[]>> => {
-    const res: ApiResponse<{ data: StatusChange[] }> = await api.get(`/appointments/${id}/status-history`);
-    return { ...res, data: res.data?.data ?? [] };
+  updateStatus: async (id: number, estado: string): Promise<ApiResponse<Appointment>> => {
+    return api.patch(`/cita/${id}/estado`, { estado });
   },
 
   delete: async (id: number): Promise<ApiResponse<null>> => {
-    return api.delete(`/appointments/${id}`);
-  },
-
-  getPatientHistory: async (patientId: number, params?: Record<string, unknown>): Promise<ApiResponse<PatientHistoryResponse>> => {
-    return api.get(`/appointments/patient/${patientId}/history`, { params });
-  },
-
-  getPersonas: async (search?: string): Promise<ApiResponse<PersonaRecord[]>> => {
-    const res: ApiResponse<{ data: PersonaRecord[] }> = await api.get('/persona', { params: { search } });
-    return { ...res, data: res.data?.data ?? [] };
-  },
-
-  getUsuarios: async (): Promise<ApiResponse<UsuarioRecord[]>> => {
-    const res: ApiResponse<{ usuarios: UsuarioRecord[] }> = await api.get('/usuario/all');
-    return { ...res, data: res.data?.usuarios ?? [] };
+    return api.delete(`/cita/${id}`);
   },
 };
