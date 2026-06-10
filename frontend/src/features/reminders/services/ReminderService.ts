@@ -1,5 +1,5 @@
 import { api } from '../../../services/api';
-import type { ApiResponse, RecordatorioRow, HistorialConfirmacionRow, SendReminderPayload } from '../types';
+import type { ApiResponse, RecordatorioRow, HistorialConfirmacionRow, SendReminderPayload, ReminderAppointmentOption } from '../types';
 
 // ─── Flag de mock ─────────────────────────────────────────────────────────────
 // Cambiar a false cuando el backend de recordatorios esté disponible
@@ -158,6 +158,43 @@ export const ReminderService = {
     }
     const base = (import.meta as any).env?.VITE_API_URL ?? '';
     window.open(`${base}/reminders/export`, '_blank');
+  },
+
+  getAppointments: async (): Promise<ApiResponse<ReminderAppointmentOption[]>> => {
+    if (USE_MOCK) {
+      return mockResponse([
+        {
+          id: 101,
+          paciente: 'María González',
+          fecha_hora: new Date().toISOString(),
+        },
+        {
+          id: 102,
+          paciente: 'Carlos Vega',
+          fecha_hora: new Date().toISOString(),
+        },
+        {
+          id: 103,
+          paciente: 'Ana López',
+          fecha_hora: new Date().toISOString(),
+        },
+      ]);
+    }
+
+    const res = await api.get('/appointments');
+
+    return {
+      ...res,
+      data:
+      res.data?.data?.map((cita: any) => ({
+        id: cita.id,
+        paciente:
+        cita.paciente?.nombre_completo ??
+        cita.paciente?.nombre ??
+        `Paciente #${cita.id_persona}`,
+        fecha_hora: cita.fecha_hora,
+      })) ?? [],
+    };
   },
 
 };

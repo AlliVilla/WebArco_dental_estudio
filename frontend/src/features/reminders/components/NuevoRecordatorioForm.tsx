@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ReminderService } from "../services/ReminderService";
 import { CanalRecordatorio } from "../types/types";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
-import { Button, Input, Select } from "../../../context";
+import { Button, Select } from "../../../context";
 
 interface NuevoRecordatorioFormProps {
     open: boolean;
@@ -29,6 +29,30 @@ export function NuevoRecordatorioForm({ open, onClose, onCreated }: NuevoRecorda
     const [form, setForm] = useState<FormState>(FORM_INITIAL);
     const [errors, setErrors] = useState<FormErrors>({});
     const [loading, setLoading] = useState(false);
+    const [appointments, setAppointments] = useState<
+        { value: string; label: string }[]
+    >([]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        async function loadAppointments() {
+            try {
+                const res = await ReminderService.getAppointments();
+
+                setAppointments(
+                    res.data.map((cita) => ({
+                        value: String(cita.id),
+                                            label: `${cita.paciente} (#${cita.id})`,
+                    }))
+                );
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        loadAppointments();
+    }, [open]);
 
     if (!open) return null;
 
@@ -118,14 +142,19 @@ export function NuevoRecordatorioForm({ open, onClose, onCreated }: NuevoRecorda
                 <div style={{ padding: '20px 24px' }}>
                     <FormSection title="Datos del recordatorio" icon={<Bell size={18} />} columns={1}>
                         <FullWidthField>
-                            <Input
-                                label="ID de cita"
+                            <Select
+                                label="Cita"
                                 badge="required"
-                                placeholder="Ej. 1042"
-                                type="number"
+                                placeholder="Selecciona una cita"
                                 value={form.id_cita}
-                                onChange={(e) => setForm((p) => ({ ...p, id_cita: e.target.value }))}
+                                onChange={(v) =>
+                                    setForm((p) => ({
+                                        ...p,
+                                        id_cita: v,
+                                    }))
+                                }
                                 error={errors.id_cita}
+                                options={appointments}
                             />
                         </FullWidthField>
                         <FullWidthField>

@@ -12,48 +12,6 @@ import { CANAL_CONFIG, RESPUESTA_CONFIG } from '../utils/badgeConfigs';
 
 export interface HistorialConfirmacionesScreenProps {}
 
-const MOCK_HISTORIAL: HistorialConfirmacionRow[] = [
-    {
-        id: 1,
-        paciente: 'Juan Pérez',
-        fecha_envio: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-        fecha_respuesta: new Date(Date.now() - 2 * 45 * 60 * 1000).toISOString(),
-        respuesta: 'Confirmó',
-        canal: 'WhatsApp',
-    },
-    {
-        id: 2,
-        paciente: 'María López',
-        fecha_envio: new Date(Date.now() - 2 * 50 * 60 * 1000).toISOString(),
-        fecha_respuesta: new Date(Date.now() - 1 * 30 * 60 * 1000).toISOString(),
-        respuesta: 'Canceló',
-        canal: 'SMS',
-    },
-    {
-        id: 3,
-        paciente: 'Carlos Hernández',
-        fecha_envio: new Date(Date.now() - 2 * 40 * 60 * 1000).toISOString(),
-        fecha_respuesta: null,
-        respuesta: 'Sin respuesta',
-        canal: 'Correo',
-    },
-    {
-        id: 4,
-        paciente: 'Ana Martínez',
-        fecha_envio: new Date(Date.now() - 28 * 30 * 60 * 1000).toISOString(),
-        fecha_respuesta: new Date(Date.now() - 1 * 30 * 60 * 1000).toISOString(),
-        respuesta: 'Confirmó',
-        canal: 'WhatsApp',
-    },
-    {
-        id: 5,
-        paciente: 'Luis Gómez',
-        fecha_envio: new Date(Date.now() - 1 * 33 * 60 * 1000).toISOString(),
-        fecha_respuesta: null,
-        respuesta: 'Sin respuesta',
-        canal: 'SMS',
-    },
-];
 
 // --- Helpers ---------------------------------------------------------------------------
 
@@ -107,13 +65,25 @@ export function HistorialConfirmacionesScreen(_props: HistorialConfirmacionesScr
 
     // -- Carga de datos -----------------------------------------------------------------
     const fetchHistorial = useCallback(async () => {
-        //  -- CARGAR DATOS MOCK_HISTORIAL ---------------------
-        setLoading(true);
+        try {
+            setLoading(true);
+            setError(null);
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
+            const response = await ReminderService.getHistorial();
 
-        setRows(MOCK_HISTORIAL);
-        setLoading(false);
+            if (response.success) {
+                setRows(response.data ?? []);
+            } else {
+                setError(response.message ?? 'Error al cargar el historial');
+                setRows([]);
+            }
+        } catch (err) {
+            console.error(err);
+            setError('Error al cargar el historial');
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchHistorial(); }, [fetchHistorial]);

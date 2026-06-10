@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Bell, Send, RotateCcw, Phone, Mail, MessageCircle, Clock, RefreshCw, Plus, X} from 'lucide-react';
-import { DataTable, FormSection, FullWidthField } from '../../../components';
-import { Avatar, Button, Input, Select } from '../../../context';
+import {  Send, RotateCcw, Clock, RefreshCw, Plus } from 'lucide-react';
+import { DataTable } from '../../../components';
+import { Avatar } from '../../../context';
 import { ReminderService } from '../services/ReminderService';
 import { formatDate, formatInitials } from '../../../utils/formatters';
 import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio } from '../types';
@@ -117,6 +117,9 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
     style.id = id;
     style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
     document.head.appendChild(style);
+  }, [fetchQueue]);
+
+  useEffect(() => {
     fetchQueue();
   }, [fetchQueue]);
 
