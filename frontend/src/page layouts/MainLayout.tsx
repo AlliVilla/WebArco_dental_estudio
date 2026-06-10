@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { AppFooter } from '../components/AppFooter';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
@@ -16,6 +17,8 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'agenda-new': { title: 'Nueva Cita', breadcrumbs: ['Agenda', 'Nueva Cita'] },
   'agenda-detail': { title: 'Detalle de Cita', breadcrumbs: ['Agenda', 'Detalle'] },
   'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
+  recordatorios: {title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios', 'Cola de envío']},
+  'reminders-historial': { title: 'Historial de confirmaciones', breadcrumbs: ['Agenda', 'Recordatorios', 'Historial de confirmaciones'] },
   patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
   'patient-new': { title: 'Nuevo Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Nuevo paciente'] },
@@ -25,7 +28,6 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   odontogram: { title: 'Odontograma', breadcrumbs: ['Pacientes', 'Odontograma'] },
   'consentimientos-lista': { title: 'Consentimientos Informados', breadcrumbs: ['Pacientes', 'Consentimientos'] },
   citas: { title: 'Control de Citas', breadcrumbs: ['Agenda', 'Citas'] },
-  recordatorios: { title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios'] },
   billing: { title: 'Gestión Financiera', breadcrumbs: ['Gestión', 'Facturación'] },
   'billing-income': { title: 'Gestión de Ingresos', breadcrumbs: ['Gestión', 'Facturación', 'Ingresos'] },
   'billing-expense': { title: 'Gestión de Egresos', breadcrumbs: ['Gestión', 'Facturación', 'Egresos'] },
@@ -35,8 +37,10 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   users: { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
   'users-list': { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
   'roles-management': { title: 'Gestión de Roles', breadcrumbs: ['Configuración', 'Usuarios', 'Roles'] },
+  'permissions-management': { title: 'Gestión de Permisos', breadcrumbs: ['Configuración', 'Usuarios', 'Roles', 'Permisos'] },
   treatments: { title: 'Catálogo de Tratamientos', breadcrumbs: ['Configuración', 'Tratamientos'] },
   inventory: { title: 'Control de Inventario', breadcrumbs: ['Configuración', 'Inventario'] },
+  'inventory-history': { title: 'Historial de Inventario', breadcrumbs: ['Configuración', 'Inventario', 'Historial'] },
   settings: { title: 'Configuración', breadcrumbs: ['Inicio', 'Configuración'] },
   design: { title: 'Sistema de Diseño UI Kit', breadcrumbs: ['Inicio', 'Sistema de Diseño'] },
 };
@@ -51,8 +55,9 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   const getActiveTab = (pathname: string) => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
     if (pathname === '/mi-perfil') return 'mi-perfil';
-    if (pathname === '/recordatorios') return 'recordatorios';
     if (pathname === '/agenda/new') return 'agenda-new';
+    if (pathname === '/agenda/reminders') return 'recordatorios';
+    if (pathname === '/agenda/reminders/historial') return 'reminders-historial';
     if (pathname.startsWith('/agenda/') && pathname.endsWith('/edit')) return 'agenda-edit';
     if (pathname.startsWith('/agenda/') && pathname !== '/agenda/new') return 'agenda-detail';
     if (pathname === '/agenda' || pathname === '/appointments') return 'citas'; // keep sidebar active
@@ -69,10 +74,12 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/billing/expense') return 'billing-expense';
     if (pathname === '/billing/list' || pathname.startsWith('/billing/list/')) return 'billing-list';
     if (pathname === '/billing/closures') return 'billing-closures';
+    if (pathname === '/inventory/history') return 'inventory-history';
     if (pathname === '/inventory') return 'inventory';
     if (pathname === '/stats') return 'estado-resultado';
     if (pathname === '/settings') return 'settings';
     if (pathname === '/users') return 'users-list';
+    if (pathname === '/users/roles/permisos') return 'permissions-management';
     if (pathname === '/users/roles') return 'roles-management';
     if (pathname === '/design') return 'design';
     return pathname.substring(1);
@@ -85,7 +92,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     const routeMap: Record<string, string> = {
       dashboard: '/dashboard',
       citas: '/agenda',
-      recordatorios: '/agenda', // Mapped to agenda placeholder
+      recordatorios: '/agenda/reminders', // Mapped to agenda placeholder
+      'reminders-historial': 'agenda/reminders/historial',
       patients: '/patients/list',
       'patients-list': '/patients/list',
       odontogram: '/patients/odontogram',
@@ -101,7 +109,9 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       users: '/users',
       'users-list': '/users',
       'roles-management': '/users/roles',
+      'permissions-management': '/users/roles/permisos',
       inventory: '/inventory',
+      'inventory-history': '/inventory/history',
       settings: '/settings',
       design: '/design',
     };
@@ -141,6 +151,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         <main style={{ marginTop: 60, padding: 24, width: '100%', flex: 1, minHeight: 0 }}>
           <Outlet />
         </main>
+
+        <AppFooter />
       </div>
     </div>
   );

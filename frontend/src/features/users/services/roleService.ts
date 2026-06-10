@@ -1,11 +1,23 @@
 import api from '../../../services/api';
 import type { ApiResponse } from '../../../types/api';
-import type { CreateRoleInput, RoleSummary, UpdateRoleInput } from '../types';
+import type {
+  AssignPrivilegesInput,
+  CreateRoleInput,
+  Privilegio,
+  RoleSummary,
+  RoleWithPrivileges,
+  UpdateRoleInput,
+} from '../types';
+
+type BackendPrivilegioRecord = {
+  privilegio: Privilegio;
+};
 
 type BackendRoleRecord = {
   id_rol: number;
   nombre: string;
   descripcion?: string | null;
+  privilegios?: BackendPrivilegioRecord[];
   _count?: {
     usuarios?: number;
   };
@@ -30,8 +42,25 @@ function mapRole(role: BackendRoleRecord): RoleSummary {
   };
 }
 
+function mapRoleWithPrivileges(role: BackendRoleRecord): RoleWithPrivileges {
+  return {
+    ...mapRole(role),
+    privilegios: (role.privilegios ?? []).map((item) => item.privilegio),
+  };
+}
+
 export const roleService = {
   getAll: async (): Promise<ApiResponse<RoleSummary[]>> => {
+    const response = await roleService.getAllWithPrivileges();
+
+    return {
+      success: response.success,
+      data: response.data,
+      message: response.message,
+    };
+  },
+
+  getAllWithPrivileges: async (): Promise<ApiResponse<RoleWithPrivileges[]>> => {
     const response = await api.get('/rol', {
       params: {
         page: 1,
@@ -41,7 +70,20 @@ export const roleService = {
 
     return {
       success: response.success,
-      data: response.data.data.map(mapRole),
+      data: response.data.data.map(mapRoleWithPrivileges),
+      message: response.message,
+    };
+  },
+
+  assignPrivileges: async (
+    id: number,
+    data: AssignPrivilegesInput,
+  ): Promise<ApiResponse<{ count: number }>> => {
+    const response = await api.post(`/rol/${id}/privilegios`, data) as ApiResponse<{ count: number }>;
+
+    return {
+      success: response.success,
+      data: response.data,
       message: response.message,
     };
   },

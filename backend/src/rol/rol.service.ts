@@ -45,7 +45,11 @@ export class RolService {
                     },
                     _count: {
                         select: {
-                            usuarios : true
+                            usuarios :{
+                              where: {
+                                activo: true,
+                              }
+                          }
                         }
                     } 
                 }

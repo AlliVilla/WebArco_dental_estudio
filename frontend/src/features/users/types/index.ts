@@ -3,6 +3,10 @@ export type Rol = {
   nombre: string;
 };
 
+export type Privilegio = {
+  id_privilegio: number;
+  nombre: string;
+};
 export type RoleSummary = {
   id_rol: number;
   nombre: string;
@@ -10,6 +14,13 @@ export type RoleSummary = {
   usuariosActivos: number;
 };
 
+export type RoleWithPrivileges = RoleSummary & {
+  privilegios: Privilegio[];
+};
+
+export type AssignPrivilegesInput = {
+  id_privilegios: number[];
+};
 export type CreateRoleInput = {
   nombre: string;
   descripcion?: string;
