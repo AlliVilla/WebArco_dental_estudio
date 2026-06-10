@@ -19,6 +19,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ConsentimientoModule } from './consentimiento/consentimiento.module';
 import { InsumoModule } from './insumo/insumo.module';
 import { InventarioModule } from './inventario/inventario.module';
+import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.module';
+import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { InventarioModule } from './inventario/inventario.module';
     ReminderModule,
     InsumoModule,
     InventarioModule,
+    CategoriaInsumoModule,
+    UnidadMedidaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

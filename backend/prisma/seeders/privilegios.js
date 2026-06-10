@@ -71,6 +71,14 @@ async function insertPrivilegios() {
     { nombre: "INVENTARIO_MOVIMIENTO_CREAR" },
     { nombre: "INVENTARIO_MOVIMIENTO_VER" },
     { nombre: "INSUMO_STATS" },
+    { nombre: "CATEGORIA_INSUMO_VER" },
+    { nombre: "CATEGORIA_INSUMO_CREAR" },
+    { nombre: "CATEGORIA_INSUMO_EDITAR" },
+    { nombre: "CATEGORIA_INSUMO_ELIMINAR" },
+    { nombre: "UNIDAD_MEDIDA_VER" },
+    { nombre: "UNIDAD_MEDIDA_CREAR" },
+    { nombre: "UNIDAD_MEDIDA_EDITAR" },
+    { nombre: "UNIDAD_MEDIDA_ELIMINAR" },
   ];
 
   await prisma.privilegio.createMany({

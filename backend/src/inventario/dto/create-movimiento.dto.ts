@@ -1,4 +1,4 @@
-import { IsInt, IsEnum, IsString, IsOptional, Min, MaxLength } from 'class-validator';
+import { IsInt, IsEnum, IsString, IsOptional, IsDefined, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -9,10 +9,12 @@ export enum TipoMovimiento {
 
 export class CreateMovimientoDto {
   @ApiProperty({ description: 'ID del insumo' })
+  @IsDefined({ message: 'El ID del insumo es requerido' })
   @IsInt()
   id_insumo: number;
 
   @ApiProperty({ description: 'Tipo de movimiento', enum: TipoMovimiento })
+  @IsDefined({ message: 'El tipo de movimiento es requerido' })
   @IsEnum(TipoMovimiento)
   tipo: TipoMovimiento;
 
