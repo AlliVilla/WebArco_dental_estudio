@@ -27,7 +27,7 @@ export class AuthService {
 
     const userExists = await this.prisma.usuario.findUnique({
       where: { username },
-      include: { persona: true },
+      include: { persona: true, rol: true },
     });
 
     if (!userExists) {
@@ -157,7 +157,7 @@ export class AuthService {
 
     const user = await this.prisma.usuario.findUnique({
       where: { id_usuario: payload.sub },
-      include: { persona: true },
+      include: { persona: true, rol: true },
     });
 
     if (!user || !user.activo) {
