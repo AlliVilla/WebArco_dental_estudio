@@ -52,6 +52,7 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
   const [newPwd, setNewPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const rules = checkRules(newPwd);
   const passwordsMatch = confirmPwd.length > 0 && newPwd === confirmPwd;
@@ -61,9 +62,22 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
     if (!canSubmit) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    onSuccess();
+    setError('');
+
+    try {
+      await profileService.changePassword({
+        currentPassword: currentPwd,
+        newPassword: newPwd,
+        confirmPassword: confirmPwd,
+      });
+
+      setLoading(false);
+      onSuccess();
+    } catch (err: any) {
+      setLoading(false);
+      const message = err?.message || 'Error al cambiar la contraseña.';
+      setError(message);
+    }
   };
 
   return (
@@ -118,6 +132,14 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
           </p>
         )}
       </div>
+
+      {error && (
+        <p style={{
+          fontSize: 13, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 6, margin: 0,
+        }}>
+          <AlertCircle size={14} />{error}
+        </p>
+      )}
 
       <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
         <Button variant="secondary" onClick={onSuccess} style={{ minWidth: 109 }}>
