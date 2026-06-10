@@ -14,6 +14,7 @@ export const inventoryService = {
     search?: string;
     categoria?: string;
     estado?: string;
+    estadoRegistro?: string;
   }): Promise<ApiResponse<InventoryListResponse>> => {
     return api.get('/inventory', { params }) as Promise<ApiResponse<InventoryListResponse>>;
   },
@@ -32,6 +33,10 @@ export const inventoryService = {
 
   delete: async (id: number): Promise<ApiResponse<{ id_insumo: number; message: string }>> => {
     return api.delete(`/inventory/${id}`) as Promise<ApiResponse<{ id_insumo: number; message: string }>>;
+  },
+
+  restore: async (id: number): Promise<ApiResponse<InventoryItem & { message: string }>> => {
+    return api.patch(`/inventory/${id}/restore`) as Promise<ApiResponse<InventoryItem & { message: string }>>;
   },
 
   getMovements: async (): Promise<ApiResponse<InventoryMovement[]>> => {

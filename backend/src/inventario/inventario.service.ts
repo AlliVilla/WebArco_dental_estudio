@@ -9,8 +9,14 @@ import { UpdateInsumoDto } from './dto/update-insumo.dto';
 export class InventarioService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(params: { search?: string; categoria?: string; estado?: string }) {
-    const where: Prisma.InsumoInventarioWhereInput = { activo: true };
+  async findAll(params: { search?: string; categoria?: string; estado?: string; estadoRegistro?: string }) {
+    const where: Prisma.InsumoInventarioWhereInput = {};
+
+    if (params.estadoRegistro === 'activo') {
+      where.activo = true;
+    } else if (params.estadoRegistro === 'inactivo') {
+      where.activo = false;
+    }
 
     if (params.search) {
       where.OR = [
@@ -39,6 +45,7 @@ export class InventarioService {
         ...insumo,
         precio_costo: Number(insumo.precio_costo),
         estado: this.getEstado(insumo.stock_actual, insumo.stock_minimo),
+        estado_registro: insumo.activo ? 'Activo' : 'Inactivo',
       })),
       stats,
     };
@@ -59,11 +66,11 @@ export class InventarioService {
       },
     });
 
-    return { ...insumo, precio_costo: Number(insumo.precio_costo), estado: this.getEstado(insumo.stock_actual, insumo.stock_minimo) };
+    return { ...insumo, precio_costo: Number(insumo.precio_costo), estado: this.getEstado(insumo.stock_actual, insumo.stock_minimo), estado_registro: insumo.activo ? 'Activo' : 'Inactivo' };
   }
 
   async update(id: number, dto: UpdateInsumoDto) {
-    await this.assertInsumoExists(id);
+    await this.assertInsumoExists(id, { includeInactive: true });
 
     const data: Prisma.InsumoInventarioUpdateInput = {};
     if (dto.nombre !== undefined) data.nombre = dto.nombre.trim();
@@ -74,13 +81,25 @@ export class InventarioService {
     if (dto.precio_costo !== undefined) data.precio_costo = new Prisma.Decimal(dto.precio_costo);
 
     const insumo = await this.prisma.insumoInventario.update({ where: { id_insumo: id }, data });
-    return { ...insumo, precio_costo: Number(insumo.precio_costo), estado: this.getEstado(insumo.stock_actual, insumo.stock_minimo) };
+    return { ...insumo, precio_costo: Number(insumo.precio_costo), estado: this.getEstado(insumo.stock_actual, insumo.stock_minimo), estado_registro: insumo.activo ? 'Activo' : 'Inactivo' };
   }
 
   async delete(id: number) {
-    await this.assertInsumoExists(id);
+    await this.assertInsumoExists(id, { includeInactive: true });
     const insumo = await this.prisma.insumoInventario.update({ where: { id_insumo: id }, data: { activo: false } });
     return { id_insumo: insumo.id_insumo, message: 'Insumo eliminado correctamente' };
+  }
+
+  async restore(id: number) {
+    await this.assertInsumoExists(id, { includeInactive: true });
+    const insumo = await this.prisma.insumoInventario.update({ where: { id_insumo: id }, data: { activo: true } });
+    return {
+      ...insumo,
+      precio_costo: Number(insumo.precio_costo),
+      estado: this.getEstado(insumo.stock_actual, insumo.stock_minimo),
+      estado_registro: insumo.activo ? 'Activo' : 'Inactivo',
+      message: 'Insumo readmitido correctamente',
+    };
   }
 
   async createMovimiento(dto: CreateMovimientoDto) {
@@ -139,8 +158,11 @@ export class InventarioService {
     return `INS-${String(next).padStart(3, '0')}`;
   }
 
-  private async assertInsumoExists(id: number) {
-    const insumo = await this.prisma.insumoInventario.findFirst({ where: { id_insumo: id, activo: true } });
+  private async assertInsumoExists(id: number, options: { includeInactive?: boolean } = {}) {
+    const where: Prisma.InsumoInventarioWhereInput = { id_insumo: id };
+    if (!options.includeInactive) where.activo = true;
+
+    const insumo = await this.prisma.insumoInventario.findFirst({ where });
     if (!insumo) throw new NotFoundException('Insumo no encontrado');
     return insumo;
   }

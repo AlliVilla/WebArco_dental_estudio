@@ -1,6 +1,7 @@
 export type CategoriaInsumo = 'Anestesia' | 'Higiene' | 'Materiales' | 'Instrumental' | 'Medicamento' | 'Otro';
 export type UnidadMedidaInsumo = 'Unidad' | 'Caja' | 'Frasco' | 'Paquete' | 'Kit' | 'Tubo' | 'Bolsa';
 export type EstadoInsumo = 'Normal' | 'Stock bajo' | 'Agotado';
+export type EstadoRegistroInsumo = 'Activo' | 'Inactivo';
 export type TipoMovimientoInventario = 'Entrada' | 'Salida';
 
 export type InventoryItem = Record<string, unknown> & {
@@ -12,7 +13,9 @@ export type InventoryItem = Record<string, unknown> & {
   stock_actual: number;
   stock_minimo: number;
   precio_costo: number;
+  activo: boolean;
   estado: EstadoInsumo;
+  estado_registro: EstadoRegistroInsumo;
 };
 
 export type InventoryMovement = Record<string, unknown> & {

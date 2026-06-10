@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { InventarioService } from './inventario.service';
@@ -16,8 +16,13 @@ export class InventarioController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar insumos del inventario' })
-  async findAll(@Query('search') search?: string, @Query('categoria') categoria?: string, @Query('estado') estado?: string) {
-    return this.inventarioService.findAll({ search, categoria, estado });
+  async findAll(
+    @Query('search') search?: string,
+    @Query('categoria') categoria?: string,
+    @Query('estado') estado?: string,
+    @Query('estadoRegistro') estadoRegistro?: string,
+  ) {
+    return this.inventarioService.findAll({ search, categoria, estado, estadoRegistro });
   }
 
   @Get('stats')
@@ -46,6 +51,13 @@ export class InventarioController {
   @ApiOperation({ summary: 'Eliminar insumo' })
   async delete(@Param('id', ParseIntPipe) id: number) {
     return this.inventarioService.delete(id);
+  }
+
+  @Patch(':id/restore')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Readmitir insumo eliminado' })
+  async restore(@Param('id', ParseIntPipe) id: number) {
+    return this.inventarioService.restore(id);
   }
 
   @Get('movements')

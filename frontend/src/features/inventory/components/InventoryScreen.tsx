@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
-import { Archive, Boxes, DollarSign, Edit2, Eye, FileText, PackagePlus, Plus, Trash2, TrendingDown, X } from 'lucide-react';
+import { Archive, Boxes, DollarSign, Edit2, Eye, FileText, PackagePlus, Plus, RotateCcw, Trash2, TrendingDown, X } from 'lucide-react';
 
 import { ConfirmModal, DataTable, type Column } from '../../../components';
 import { Alert, Button, Card, Input, SectionBlock, Select } from '../../../context';
@@ -130,7 +130,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     { key: 'stock_actual', label: 'Stock act.', align: 'center', width: 90, render: (value, row) => <span style={{ color: row.estado === 'Agotado' ? '#E24B4A' : row.estado === 'Stock bajo' ? '#EF9F27' : '#203F49', fontWeight: 600 }}>{String(value)}</span> },
     { key: 'stock_minimo', label: 'Stock mín.', align: 'center', width: 90 },
     { key: 'precio_costo', label: 'Precio costo', width: 116, render: (value) => <span style={{ color: '#203F49', fontWeight: 500 }}>{formatCurrency(Number(value))}</span> },
-    { key: 'estado', label: 'Estado', align: 'center', width: 110, render: (value) => <InventoryStatusBadge status={String(value)} /> },
+    { key: 'estado', label: 'Stock', align: 'center', width: 110, render: (value) => <InventoryStatusBadge status={String(value)} /> },
+    { key: 'estado_registro', label: 'Registro', align: 'center', width: 110, render: (value) => <RecordStatusBadge status={String(value)} /> },
   ], []);
 
   const movementColumns: Column<InventoryMovement>[] = useMemo(() => [
@@ -225,7 +226,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     setError('');
     try {
       await inventoryService.delete(itemToDelete.id_insumo);
-      setSuccess('Insumo eliminado correctamente.');
+      setSuccess('Insumo marcado como inactivo correctamente.');
       setItemToDelete(null);
       await loadInventory();
     } catch (err) {
@@ -234,6 +235,20 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       setSaving(false);
     }
   };
+  const restoreItem = async (item: InventoryItem) => {
+    setSaving(true);
+    setError('');
+    try {
+      await inventoryService.restore(item.id_insumo);
+      setSuccess('Insumo readmitido correctamente.');
+      await loadInventory();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -266,6 +281,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
             { value: 'Stock bajo', label: 'Stock bajo' },
             { value: 'Agotado', label: 'Agotado' },
           ] },
+          { key: 'estado_registro', placeholder: 'Estado del registro', options: [
+            { value: 'Activo', label: 'Activo' },
+            { value: 'Inactivo', label: 'Inactivo' },
+          ] },
         ]}
         primaryAction={{ label: 'Nuevo insumo', icon: <Plus size={16} />, onClick: openCreateItem }}
         secondaryActions={[
@@ -273,10 +292,13 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           { label: 'Ver historial', icon: <FileText size={16} />, onClick: () => setHistoryModalOpen(true) },
           { label: 'Exportar inventario', icon: <Archive size={16} />, onClick: () => exportInventoryCsv(items) },
         ]}
-        rowActions={(row) => [
+        rowActions={(row) => row.activo ? [
           { icon: <Eye size={15} />, label: 'Registrar movimiento', onClick: () => openMovementModal(row) },
           { icon: <Edit2 size={15} />, label: 'Editar', onClick: () => openEditItem(row) },
           { icon: <Trash2 size={15} />, label: 'Eliminar', danger: true, onClick: () => setItemToDelete(row) },
+        ] : [
+          { icon: <RotateCcw size={15} />, label: 'Readmitir', onClick: () => void restoreItem(row) },
+          { icon: <Edit2 size={15} />, label: 'Editar', onClick: () => openEditItem(row) },
         ]}
         getRowKey={(row) => String(row.id_insumo)}
         emptyMessage={loading ? 'Cargando inventario...' : 'No hay insumos registrados.'}
@@ -314,7 +336,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           <SectionBlock title="Movimiento de inventario">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <Select label="Tipo de movimiento" badge="required" placeholder="Seleccionar" options={[{ value: 'Entrada', label: 'Entrada' }, { value: 'Salida', label: 'Salida' }]} value={movementForm.tipo} onChange={(value) => setMovementForm((prev) => ({ ...prev, tipo: value as TipoMovimientoInventario }))} />
-              <Select label="Producto" badge="required" placeholder="Seleccionar" options={items.map((item) => ({ value: String(item.id_insumo), label: `${item.codigo} - ${item.nombre}` }))} value={movementForm.id_insumo} onChange={(value) => setMovementForm((prev) => ({ ...prev, id_insumo: value }))} />
+              <Select label="Producto" badge="required" placeholder="Seleccionar" options={items.filter((item) => item.activo).map((item) => ({ value: String(item.id_insumo), label: `${item.codigo} - ${item.nombre}` }))} value={movementForm.id_insumo} onChange={(value) => setMovementForm((prev) => ({ ...prev, id_insumo: value }))} />
               <Input label="Cantidad" badge="required" type="number" min="1" value={movementForm.cantidad} onChange={(e) => setMovementForm((prev) => ({ ...prev, cantidad: e.target.value }))} hint="Valor positivo" />
               <Input label="Fecha" badge="required" type="date" value={movementForm.fecha} onChange={(e) => setMovementForm((prev) => ({ ...prev, fecha: e.target.value }))} hint="Autorrellena con hoy; editable" />
               <div style={{ gridColumn: '1 / -1' }}>
@@ -353,8 +375,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       <ConfirmModal
         open={Boolean(itemToDelete)}
         title="Eliminar insumo"
-        description={`¿Deseas eliminar ${itemToDelete?.nombre ?? 'este insumo'}? Esta acción ocultará el producto del inventario.`}
-        confirmLabel="Eliminar"
+        description={`¿Deseas marcar ${itemToDelete?.nombre ?? 'este insumo'} como inactivo? Seguirá apareciendo en la tabla y podrás readmitirlo después.`}
+        confirmLabel="Marcar inactivo"
         cancelLabel="Cancelar"
         variant="danger"
         onConfirm={deleteItem}
@@ -406,6 +428,11 @@ function InventoryStatusBadge({ status }: { status: string }) {
   return <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: selected.bg, color: selected.color }}>{status}</span>;
 }
 
+function RecordStatusBadge({ status }: { status: string }) {
+  const isActive = status === 'Activo';
+  return <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: isActive ? '#E6F8FB' : '#F1F3F4', color: isActive ? '#0899B0' : '#5F656A' }}>{status}</span>;
+}
+
 function MovementBadge({ type }: { type: string }) {
   const isEntry = type === 'Entrada';
   return <span style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 20, background: isEntry ? '#ECFDF5' : '#FEF2F2', color: isEntry ? '#1D9E75' : '#E24B4A' }}>{type}</span>;
@@ -418,7 +445,8 @@ function InventoryLegend() {
         <td colSpan={9} style={{ padding: '12px 14px', fontSize: 11, color: '#888F94', textAlign: 'right' }}>
           <span style={{ color: '#1D9E75' }}>●</span> Normal&nbsp;&nbsp;&nbsp;
           <span style={{ color: '#EF9F27' }}>●</span> Stock bajo&nbsp;&nbsp;&nbsp;
-          <span style={{ color: '#E24B4A' }}>●</span> Agotado
+          <span style={{ color: '#E24B4A' }}>●</span> Agotado&nbsp;&nbsp;&nbsp;
+          <span style={{ color: '#5F656A' }}>●</span> Inactivo
         </td>
       </tr>
     </tfoot>
@@ -508,8 +536,8 @@ function getErrorMessage(error: unknown) {
 }
 
 function exportInventoryCsv(items: InventoryItem[]) {
-  const header = ['Código', 'Nombre', 'Categoría', 'Unidad', 'Stock actual', 'Stock mínimo', 'Precio costo', 'Estado'];
-  const rows = items.map((item) => [item.codigo, item.nombre, item.categoria, item.unidad_medida, item.stock_actual, item.stock_minimo, item.precio_costo, item.estado]);
+  const header = ['Código', 'Nombre', 'Categoría', 'Unidad', 'Stock actual', 'Stock mínimo', 'Precio costo', 'Estado stock', 'Estado registro'];
+  const rows = items.map((item) => [item.codigo, item.nombre, item.categoria, item.unidad_medida, item.stock_actual, item.stock_minimo, item.precio_costo, item.estado, item.estado_registro]);
   const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
