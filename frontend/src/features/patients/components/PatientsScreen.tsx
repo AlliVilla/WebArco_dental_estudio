@@ -16,6 +16,7 @@ import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
 import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
+import { formatDate } from "../../../utils/formatters";
 
 type Patient = Record<string, unknown> & {
   id: number;
@@ -108,45 +109,50 @@ export function PatientsScreen({
     searchName || searchIdentity || searchPhone || searchCode,
   );
 
-  const loadPatients = useCallback(async (page: number, filters: PatientSearchFilters = {}) => {
-    try {
-      setIsLoading(true);
-      setError("");
-      const response = await api.get<PersonasListResponse>("/persona", {
-        params: {
-          page,
-          limit: DEFAULT_PAGE_SIZE,
-          nombre: filters.nombre || undefined,
-          identidad: filters.identidad || undefined,
-          telefono: filters.telefono || undefined,
-          codigo: filters.codigo || undefined,
-        },
-      });
-      const personas = response.data?.data ?? [];
-      const patients = personas.map(mapPersonaToPatient);
-      setSearchResults(patients);
-      setPagination(response.data?.pagination ?? {
-        total: patients.length,
-        page,
-        limit: DEFAULT_PAGE_SIZE,
-        pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
-      });
-    } catch (requestError) {
-      const apiError = requestError as { message?: string };
-      setError(apiError.message ?? "No se pudieron cargar los pacientes.");
-      setSearchResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPatients(currentPage, activeFilters).catch(() => undefined);
-  }, [activeFilters, currentPage, loadPatients]);
+    let ignore = false;
+
+    api.get<PersonasListResponse>("/persona", {
+      params: {
+        page: currentPage,
+        limit: DEFAULT_PAGE_SIZE,
+        nombre: activeFilters.nombre || undefined,
+        identidad: activeFilters.identidad || undefined,
+        telefono: activeFilters.telefono || undefined,
+        codigo: activeFilters.codigo || undefined,
+      },
+    })
+      .then((response) => {
+        if (ignore) return;
+
+        const personas = response.data?.data ?? [];
+        const patients = personas.map(mapPersonaToPatient);
+        setSearchResults(patients);
+        setPagination(response.data?.pagination ?? {
+          total: patients.length,
+          page: currentPage,
+          limit: DEFAULT_PAGE_SIZE,
+          pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
+        });
+      })
+      .catch((requestError: { message?: string }) => {
+        if (ignore) return;
+        setError(requestError.message ?? "No se pudieron cargar los pacientes.");
+        setSearchResults([]);
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeFilters, currentPage]);
 
   const handleSearch = () => {
     if (!hasAnyFilter) return;
+    setIsLoading(true);
+    setError("");
     setHasSearched(true);
     setActiveFilters({
       nombre: searchName.trim(),
@@ -158,6 +164,8 @@ export function PatientsScreen({
   };
 
   const handleClear = () => {
+    setIsLoading(true);
+    setError("");
     setSearchName("");
     setSearchIdentity("");
     setSearchPhone("");
@@ -165,16 +173,6 @@ export function PatientsScreen({
     setHasSearched(false);
     setActiveFilters({});
     setCurrentPage(1);
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "Sin visitas";
-
-    return new Date(dateStr).toLocaleDateString("es-HN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
   };
 
   const handleEditPatient = (id: number) => {
@@ -188,8 +186,11 @@ export function PatientsScreen({
   };
 
   const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
-    setCurrentPage((current) => (current === page ? current : page));
-  }, []);
+    if (page === currentPage) return;
+    setIsLoading(true);
+    setError("");
+    setCurrentPage(page);
+  }, [currentPage]);
 
   const columns: Column<Patient>[] = [
     {
@@ -217,7 +218,7 @@ export function PatientsScreen({
       key: "lastVisit",
       label: "Fecha última visita",
       width: 170,
-      render: (_value, patient) => formatDate(patient.lastVisit),
+      render: (_value, patient) => patient.lastVisit ? formatDate(patient.lastVisit) : "Sin visitas",
     },
   ];
 

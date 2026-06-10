@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { FieldBadge } from '../../../context';
 
 type BadgeType = 'required' | 'optional' | 'conditional';
@@ -45,11 +46,11 @@ export function Textarea({
         rows={rows}
         value={value}
         style={{
-          background: disabled ? '#F1F3F4' : '#FFFFFF',
-          border: `1px solid ${focused ? '#0BC5DF' : '#D3D7DA'}`,
+          background: disabled ? 'var(--arco-gray-100)' : '#FFFFFF',
+          border: `1px solid ${focused ? 'var(--arco-primary)' : 'var(--arco-gray-300)'}`,
           borderRadius: 8,
           boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
-          color: '#203F49',
+          color: 'var(--arco-navy)',
           fontFamily: 'Inter, system-ui, sans-serif',
           fontSize: 14,
           minHeight: rows * 38,
@@ -97,7 +98,7 @@ export function CheckboxGroup({
       <div
         style={{
           background: '#FFFFFF',
-          border: '1px solid #0BC5DF',
+          border: '1px solid var(--arco-primary)',
           borderRadius: 8,
           display: 'flex',
           flexWrap: 'wrap',
@@ -122,8 +123,8 @@ export function CheckboxGroup({
               <span
                 style={{
                   alignItems: 'center',
-                  background: checked ? '#0BC5DF' : '#FFFFFF',
-                  border: `2px solid ${checked ? '#0BC5DF' : '#D3D7DA'}`,
+                  background: checked ? 'var(--arco-primary)' : '#FFFFFF',
+                  border: `2px solid ${checked ? 'var(--arco-primary)' : 'var(--arco-gray-300)'}`,
                   borderRadius: 4,
                   display: 'flex',
                   flexShrink: 0,
@@ -133,17 +134,7 @@ export function CheckboxGroup({
                   width: 16,
                 }}
               >
-                {checked ? (
-                  <svg fill="none" height="7" viewBox="0 0 9 7" width="9">
-                    <path
-                      d="M1 3.5L3.5 6L8 1"
-                      stroke="white"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.5"
-                    />
-                  </svg>
-                ) : null}
+                {checked ? <Check color="#FFFFFF" size={11} strokeWidth={3} /> : null}
               </span>
               <span style={{ color: '#203F49', fontSize: 13 }}>{option.label}</span>
             </label>
@@ -182,7 +173,7 @@ export function RadioGroup({
       <div
         style={{
           background: '#FFFFFF',
-          border: '1px solid #D3D7DA',
+          border: '1px solid var(--arco-gray-300)',
           borderRadius: 8,
           display: 'flex',
           gap: 16,
@@ -207,7 +198,7 @@ export function RadioGroup({
                 style={{
                   alignItems: 'center',
                   background: '#FFFFFF',
-                  border: `2px solid ${checked ? '#0BC5DF' : '#D3D7DA'}`,
+                  border: `2px solid ${checked ? 'var(--arco-primary)' : 'var(--arco-gray-300)'}`,
                   borderRadius: '50%',
                   display: 'flex',
                   flexShrink: 0,
@@ -220,7 +211,7 @@ export function RadioGroup({
                 {checked ? (
                   <span
                     style={{
-                      background: '#0BC5DF',
+                      background: 'var(--arco-primary)',
                       borderRadius: '50%',
                       height: 8,
                       width: 8,

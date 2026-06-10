@@ -8,8 +8,11 @@ interface FormSectionProps {
   style?: React.CSSProperties;
 }
 
+const TWO_COLUMN_MIN_WIDTH = 280;
+const THREE_COLUMN_MIN_WIDTH = 240;
+
 export function FormSection({ title, icon, columns = 2, children, style }: FormSectionProps) {
-  const minColumnWidth = columns === 3 ? 240 : 280;
+  const minColumnWidth = columns === 3 ? THREE_COLUMN_MIN_WIDTH : TWO_COLUMN_MIN_WIDTH;
 
   return (
     <div
