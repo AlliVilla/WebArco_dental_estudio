@@ -108,7 +108,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   };
 
   return (
-    <div style={{ display: 'flex', background: '#F8F9FA', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div style={{ display: 'flex', background: "var(--background)", minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
       {/* Figma styled Sidebar */}
       <Sidebar
