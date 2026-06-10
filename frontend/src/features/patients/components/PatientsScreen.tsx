@@ -137,7 +137,7 @@ export function PatientsScreen({
       setIsLoading(true);
       setError("");
       const response = await api.get<PersonasListResponse>("/persona", {
-        params: { page, limit: DEFAULT_PAGE_SIZE, search: search || undefined },
+        params: { page, limit: DEFAULT_PAGE_SIZE, search: search || undefined, includeConsulta: false },
       });
       const personas = response.data?.data ?? [];
       const patients = personas.map(mapPersonaToPatient);

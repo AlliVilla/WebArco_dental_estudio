@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Calendar,
-  ClipboardList,
   Hash,
   IdCard,
   Mail,
@@ -80,8 +79,6 @@ export function PatientFormScreen() {
   const [medicamentos, setMedicamentos] = useState("");
   const [alergias, setAlergias] = useState("");
   const [anestesiaReaction, setAnestesiaReaction] = useState("no");
-  const [lastVisitDate, setLastVisitDate] = useState("");
-  const [motivoConsulta, setMotivoConsulta] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -414,34 +411,6 @@ export function PatientFormScreen() {
               { value: "si", label: "Sí, ha tenido reacciones" },
             ]}
             value={anestesiaReaction}
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <SectionHeader
-          icon={<ClipboardList size={18} />}
-          subtitle="Historial previo y motivo de la primera consulta"
-          title="Información odontológica inicial"
-        />
-
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", alignItems: "start" }}>
-          <Input
-            badge="optional"
-            hint="Si viene de otra clínica"
-            icon={<Calendar size={15} />}
-            label="Fecha de última visita previa"
-            onChange={(event) => setLastVisitDate(event.target.value)}
-            type="date"
-            value={lastVisitDate}
-          />
-          <Textarea
-            badge="optional"
-            label="Motivo de consulta inicial"
-            onChange={setMotivoConsulta}
-            placeholder="Describe el motivo principal de la primera visita del paciente..."
-            rows={4}
-            value={motivoConsulta}
           />
         </div>
       </Card>
