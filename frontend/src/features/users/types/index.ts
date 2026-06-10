@@ -3,6 +3,23 @@ export type Rol = {
   nombre: string;
 };
 
+export type RoleSummary = {
+  id_rol: number;
+  nombre: string;
+  descripcion?: string | null;
+  usuariosActivos: number;
+};
+
+export type CreateRoleInput = {
+  nombre: string;
+  descripcion?: string;
+};
+
+export type UpdateRoleInput = {
+  nombre: string;
+  descripcion?: string;
+};
+
 export type Persona = {
   id_persona: number;
   numero_identidad: string;

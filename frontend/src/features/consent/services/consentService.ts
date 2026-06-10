@@ -1,45 +1,25 @@
-import { api } from '../../../services/api';
-import type { ApiResponse } from '../../../types/api';
-import type {
-  ConsentimientoListResponse,
-  ConsentimientoDetalle,
-  ConsentimientoStats,
-  CreateConsentimientoRequest,
-  UpdateSignaturesRequest,
-  QueryConsentimientoParams,
-} from '../types';
+import api from '../../../services/api';
+import { ApiResponse } from '../../../types/api';
+import { ConsentTemplate, PatientConsent } from '../types';
 
 export const consentService = {
-  // ── Estadísticas ──
-  getStats: async (): Promise<ApiResponse<ConsentimientoStats>> => {
-    return api.get('/consents/stats');
+  getTemplates: async (): Promise<ApiResponse<ConsentTemplate[]>> => {
+    return api.get('/consentimiento/templates');
   },
 
-  // ── Listado y búsqueda ──
-  getAll: async (params: QueryConsentimientoParams = {}): Promise<ApiResponse<ConsentimientoListResponse>> => {
-    return api.get('/consents', { params });
+  getTemplateById: async (id: number): Promise<ApiResponse<ConsentTemplate>> => {
+    return api.get(`/consentimiento/templates/${id}`);
   },
 
-  // ── Obtener detalle ──
-  getById: async (id: number): Promise<ApiResponse<ConsentimientoDetalle>> => {
-    return api.get(`/consents/${id}`);
+  getSignaturesByConsulta: async (consultaId: number): Promise<ApiResponse<PatientConsent[]>> => {
+    return api.get(`/consentimiento/consulta/${consultaId}`);
   },
 
-  // ── Crear consentimiento ──
-  create: async (data: CreateConsentimientoRequest): Promise<ApiResponse<ConsentimientoDetalle>> => {
-    return api.post('/consents', data);
-  },
-
-  // ── Actualizar firmas ──
-  updateSignatures: async (
-    id: number,
-    data: UpdateSignaturesRequest
-  ): Promise<ApiResponse<ConsentimientoDetalle>> => {
-    return api.patch(`/consents/${id}/signatures`, data);
-  },
-
-  // ── Obtener para impresión ──
-  getPrintData: async (id: number): Promise<ApiResponse<ConsentimientoDetalle>> => {
-    return api.get(`/consents/${id}/print`);
+  signConsent: async (consultaId: number, data: {
+    firma_paciente: string;
+    consentimiento: boolean;
+  }): Promise<ApiResponse<any>> => {
+    return api.post(`/consentimiento/consulta/${consultaId}/firmar`, data);
   },
 };
+export default consentService;

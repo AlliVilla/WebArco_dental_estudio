@@ -9,27 +9,12 @@ import { useAuthStore } from '../features/auth/hooks/useAuthStore';
 
 type NavId =
   | 'dashboard'
-  | 'patients'
-  | 'patients-list'
-  | 'patient-expediente'
-  | 'odontogram'
-  | 'consent'
-  | 'consentimientos-lista'
-  | 'citas'
-  | 'recordatorios'
-  | 'reminders-historial'
-  | 'billing'
-  | 'billing-income'
-  | 'billing-expense'
-  | 'billing-closures'
-  | 'billing-list'
-  | 'estado-resultados'
-  | 'settings'
-  | 'users'
-  | 'treatments'
-  | 'inventory'
-  | 'records'
-  | 'registro-pacientes';
+  | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consentimientos-lista'
+  | 'citas' | 'recordatorios' | 'reminders-historial'
+  | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
+  | 'billing-list' | 'estado-resultado'
+  | 'settings' | 'users' | 'users-list' | 'roles-management' | 'treatments' | 'inventory'
+  | 'records' | 'registro-pacientes';
 
 interface NavItem {
   id: NavId;
@@ -182,7 +167,7 @@ const navGroups: NavGroup[] = [
           { id: 'odontogram', label: 'Odontograma' },
         ],
       },
-      { id: 'consent', label: 'Consentimientos', icon: <IconConsentimiento /> },
+      { id: 'consentimientos-lista', label: 'Consentimientos', icon: <IconConsentimiento /> },
     ],
   },
   {
@@ -222,7 +207,15 @@ const navGroups: NavGroup[] = [
   {
     title: 'Configuración',
     items: [
-      { id: 'users', label: 'Usuarios', icon: <IconUsers /> },
+      {
+        id: 'users',
+        label: 'Usuarios',
+        icon: <IconUsers />,
+        subItems: [
+          { id: 'users-list', label: 'Gesti\u00f3n de Usuarios' },
+          { id: 'roles-management', label: 'Gesti\u00f3n de Roles' },
+        ],
+      },
       { id: 'treatments', label: 'Tratamientos', icon: <IconTratamientos /> },
       { id: 'inventory', label: 'Inventario', icon: <IconInventario /> },
     ],

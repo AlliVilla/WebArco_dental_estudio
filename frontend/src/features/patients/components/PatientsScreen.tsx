@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, FileText, Pencil, Plus, Search, X } from "lucide-react";
-
+import {
+  FileText,
+  Hash,
+  IdCard,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  User,
+  X,
+} from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
@@ -9,29 +18,23 @@ import { DEFAULT_PAGE_SIZE, PATIENT_SYSTEMIC_DISEASES } from "../../../config/co
 import api from "../../../services/api";
 import { formatDate } from "../../../utils/formatters";
 
-type Patient = {
+type Patient = Record<string, unknown> & {
   id: number;
   code: string;
   fullName: string;
   identity: string;
   phone: string;
   lastVisit: string | null;
-  enfermedades?: string | null;
-  otras_enfermedades?: string | null;
-  medicamentos?: string | null;
-  alergias?: string | null;
-  reaccion_anestesia?: string | null;
 };
 
 type PersonaApi = {
   id_persona: number;
-  primer_nombre?: string | null;
-  segundo_nombre?: string | null;
-  primer_apellido?: string | null;
-  segundo_apellido?: string | null;
   numero_identidad: string;
+  primer_nombre: string;
+  segundo_nombre?: string | null;
+  primer_apellido: string;
+  segundo_apellido?: string | null;
   telefono: string;
-  ultima_visita?: string | null;
   enfermedades?: string | null;
   otras_enfermedades?: string | null;
   medicamentos?: string | null;
@@ -57,7 +60,6 @@ type PatientSearchFilters = {
 };
 
 interface PatientsScreenProps {
-  onViewProfile?: () => void;
   onCreatePatient?: () => void;
   onEditPatient?: (id: number) => void;
   onViewPatient?: (id: number) => void;
@@ -79,7 +81,7 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
     fullName,
     identity: persona.numero_identidad,
     phone: persona.telefono,
-    lastVisit: persona.ultima_visita ?? null,
+    lastVisit: null,
     enfermedades: persona.enfermedades || null,
     otras_enfermedades: persona.otras_enfermedades || null,
     medicamentos: persona.medicamentos || null,
@@ -88,47 +90,19 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
   };
 };
 
-function PatientNameButton({
-  name,
-  onClick,
-}: {
-  name: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: "transparent",
-        border: "none",
-        color: "var(--arco-primary)",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 500,
-        padding: 0,
-        textAlign: "left",
-      }}
-      type="button"
-    >
-      {name || "Sin nombre registrado"}
-    </button>
-  );
-}
-
 export function PatientsScreen({
-  onViewProfile,
   onCreatePatient,
   onEditPatient,
   onViewPatient,
 }: PatientsScreenProps) {
   const navigate = useNavigate();
-
   const [searchName, setSearchName] = useState("");
   const [searchIdentity, setSearchIdentity] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
   const [searchCode, setSearchCode] = useState("");
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [selectedMedicalPatient, setSelectedMedicalPatient] = useState<Patient | null>(null);
+  const [selectedMedicalPatient, setSelectedMedicalPatient] =
+    useState<Patient | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeFilters, setActiveFilters] = useState<PatientSearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,41 +121,35 @@ export function PatientsScreen({
 
   useEffect(() => {
     let ignore = false;
-
     setIsLoading(true);
     setError("");
 
-    api
-      .get<PersonasListResponse>("/persona", {
-        params: {
-          page: currentPage,
-          limit: DEFAULT_PAGE_SIZE,
-          nombre: activeFilters.nombre || undefined,
-          identidad: activeFilters.identidad || undefined,
-          telefono: activeFilters.telefono || undefined,
-          codigo: activeFilters.codigo || undefined,
-          includeConsulta: false,
-        },
-      })
+    api.get<PersonasListResponse>("/persona", {
+      params: {
+        page: currentPage,
+        limit: DEFAULT_PAGE_SIZE,
+        nombre: activeFilters.nombre || undefined,
+        identidad: activeFilters.identidad || undefined,
+        telefono: activeFilters.telefono || undefined,
+        codigo: activeFilters.codigo || undefined,
+        includeConsulta: false,
+      },
+    })
       .then((response) => {
         if (ignore) return;
 
         const personas = response.data?.data ?? [];
         const patients = personas.map(mapPersonaToPatient);
-
         setSearchResults(patients);
-        setPagination(
-          response.data?.pagination ?? {
-            total: patients.length,
-            page: currentPage,
-            limit: DEFAULT_PAGE_SIZE,
-            pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
-          },
-        );
+        setPagination(response.data?.pagination ?? {
+          total: patients.length,
+          page: currentPage,
+          limit: DEFAULT_PAGE_SIZE,
+          pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
+        });
       })
       .catch((requestError: { message?: string }) => {
         if (ignore) return;
-
         setError(requestError.message ?? "No se pudieron cargar los pacientes.");
         setSearchResults([]);
       })
@@ -196,7 +164,6 @@ export function PatientsScreen({
 
   const handleSearch = () => {
     if (!hasAnyFilter) return;
-
     setIsLoading(true);
     setError("");
     setHasSearched(true);
@@ -221,154 +188,147 @@ export function PatientsScreen({
     setCurrentPage(1);
   };
 
-  const handleCreatePatient = () => {
-    if (onCreatePatient) {
-      onCreatePatient();
-      return;
-    }
-
-    navigate("/patients/new");
-  };
-
   const handleEditPatient = (id: number) => {
-    if (onEditPatient) {
-      onEditPatient(id);
-      return;
-    }
-
-    navigate(`/patients/edit/${id}`);
+    onEditPatient?.(id);
+    if (!onEditPatient) navigate(`/patients/edit/${id}`);
   };
 
-  const handleViewProfile = (patient: Patient) => {
-    if (onViewProfile) {
-      onViewProfile();
-      return;
-    }
-
-    navigate(`/patients/profile/${patient.id}`);
-  };
-
-  const handleViewMedicalInfo = (patient: Patient) => {
+  const handleViewPatient = (patient: Patient) => {
     onViewPatient?.(patient.id);
     setSelectedMedicalPatient(patient);
   };
 
-  const handleTableParamsChange = useCallback(
-    ({ page }: { page: number }) => {
-      if (page === currentPage) return;
-
-      setIsLoading(true);
-      setError("");
-      setCurrentPage(page);
-    },
-    [currentPage],
-  );
+  const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
+    if (page === currentPage) return;
+    setIsLoading(true);
+    setError("");
+    setCurrentPage(page);
+  }, [currentPage]);
 
   const columns: Column<Patient>[] = [
-    { key: "code", label: "Código del paciente", width: 150 },
+    {
+      key: "code",
+      label: "Código del paciente",
+      width: 160,
+      render: (_value, patient) => (
+        <span style={{ color: "var(--arco-primary)", fontSize: 13, fontWeight: 500 }}>
+          {patient.code}
+        </span>
+      ),
+    },
     {
       key: "fullName",
       label: "Nombre completo",
       render: (_value, patient) => (
         <PatientNameButton
           name={patient.fullName}
-          onClick={() => handleViewProfile(patient)}
+          onClick={() => navigate(`/patients/profile/${patient.id}`)}
         />
       ),
     },
-    { key: "identity", label: "Identidad", width: 160 },
     { key: "phone", label: "Teléfono", width: 160 },
     {
       key: "lastVisit",
       label: "Fecha última visita",
       width: 170,
-      render: (_value, patient) =>
-        patient.lastVisit ? formatDate(patient.lastVisit) : "Sin visitas",
+      render: (_value, patient) => patient.lastVisit ? formatDate(patient.lastVisit) : "Sin visitas",
     },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <Card>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <h3
-              style={{
-                color: "var(--arco-navy)",
-                fontSize: 18,
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
-              Búsqueda de pacientes
-            </h3>
-            <p
-              style={{
-                color: "var(--arco-gray-500)",
-                fontSize: 13,
-                margin: "6px 0 0",
-              }}
-            >
-              Busca pacientes por nombre, identidad, teléfono o código interno.
-            </p>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
+      {error ? <Alert variant="error" message={error} onClose={() => setError("")} /> : null}
 
-          <div
+      <Card>
+        <div style={{ marginBottom: 20 }}>
+          <h3
             style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              color: "var(--arco-navy)",
+              fontSize: 15,
+              fontWeight: 600,
+              margin: "0 0 4px",
             }}
           >
-            <Input
-              label="Nombre"
-              placeholder="Nombre del paciente"
-              value={searchName}
-              onChange={(event) => setSearchName(event.target.value)}
-            />
-            <Input
-              label="Identidad"
-              placeholder="0801199012345"
-              value={searchIdentity}
-              onChange={(event) => setSearchIdentity(event.target.value)}
-            />
-            <Input
-              label="Teléfono"
-              placeholder="98765432"
-              value={searchPhone}
-              onChange={(event) => setSearchPhone(event.target.value)}
-            />
-            <Input
-              label="Código"
-              placeholder="PAC-000001"
-              value={searchCode}
-              onChange={(event) => setSearchCode(event.target.value)}
-            />
-          </div>
+            Filtros de búsqueda
+          </h3>
+          <p
+            style={{
+              color: "var(--arco-gray-500)",
+              fontSize: 12,
+              margin: 0,
+            }}
+          >
+            Ingresa al menos un criterio para buscar pacientes
+          </p>
+        </div>
 
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <Button
-              disabled={!hasAnyFilter && !hasSearched}
-              onClick={handleClear}
-              type="button"
-              variant="secondary"
-            >
-              Limpiar
-            </Button>
-            <Button
-              disabled={!hasAnyFilter}
-              onClick={handleSearch}
-              type="button"
-              variant="primary"
-            >
-              <Search size={16} />
-              Buscar
-            </Button>
-          </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+            marginBottom: 20,
+          }}
+        >
+          <Input
+            label="Búsqueda por nombre"
+            badge="optional"
+            placeholder="Ej: María López"
+            value={searchName}
+            onChange={(event) => setSearchName(event.target.value)}
+            icon={<User size={15} />}
+          />
+          <Input
+            label="Búsqueda por número de identidad"
+            badge="optional"
+            placeholder="Ej: 0801-1990-12345"
+            value={searchIdentity}
+            onChange={(event) => setSearchIdentity(event.target.value)}
+            icon={<IdCard size={15} />}
+          />
+          <Input
+            label="Búsqueda por teléfono"
+            badge="optional"
+            placeholder="Ej: 9876-5432"
+            value={searchPhone}
+            onChange={(event) => setSearchPhone(event.target.value)}
+            icon={<Phone size={15} />}
+          />
+          <Input
+            label="Búsqueda por código autogenerado"
+            badge="optional"
+            placeholder="Ej: PAC-000124"
+            value={searchCode}
+            onChange={(event) => setSearchCode(event.target.value)}
+            icon={<Hash size={15} />}
+          />
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          <Button
+            variant="primary"
+            onClick={handleSearch}
+            disabled={!hasAnyFilter || isLoading}
+            style={{ flex: "1 1 220px" }}
+          >
+            <Search size={16} />
+            {isLoading && hasSearched ? "Buscando..." : "Buscar paciente"}
+          </Button>
+          <Button variant="secondary" onClick={handleClear} disabled={isLoading}>
+            <X size={16} />
+            Limpiar filtros
+          </Button>
+          <Button
+            variant="primary"
+            onClick={
+              onCreatePatient ?? (() => navigate("/patients/new"))
+            }
+          >
+            <Plus size={16} />
+            Crear nuevo paciente
+          </Button>
         </div>
       </Card>
-
-      {error ? <Alert variant="error" message={error} /> : null}
 
       <DataTable<Patient>
         key={hasSearched ? JSON.stringify(activeFilters) : "all-patients"}
@@ -386,26 +346,16 @@ export function PatientsScreen({
         isServerSide
         onServerParamsChange={handleTableParamsChange}
         pageSize={DEFAULT_PAGE_SIZE}
-        primaryAction={{
-          label: "Crear nuevo paciente",
-          icon: <Plus size={16} />,
-          onClick: handleCreatePatient,
-        }}
         rowActions={(patient) => [
           {
-            icon: <Eye size={16} />,
-            label: "Ver perfil",
-            onClick: () => handleViewProfile(patient),
-          },
-          {
-            icon: <Pencil size={16} />,
+            icon: <Pencil size={14} />,
             label: "Editar paciente",
             onClick: () => handleEditPatient(patient.id),
           },
           {
-            icon: <FileText size={16} />,
+            icon: <FileText size={14} />,
             label: "Ver información médica",
-            onClick: () => handleViewMedicalInfo(patient),
+            onClick: () => handleViewPatient(patient),
           },
         ]}
         searchable={false}
@@ -430,29 +380,21 @@ function MedicalInfoModal({
   onClose: () => void;
   patient: Patient;
 }) {
-  const enfermedadesStr = patient.enfermedades;
+  const enfermedadesStr = patient.enfermedades as string | null;
   let enfermedadesList: string[] = [];
-
   try {
     if (enfermedadesStr) {
-      enfermedadesList = JSON.parse(enfermedadesStr) as string[];
+      enfermedadesList = JSON.parse(enfermedadesStr);
     }
   } catch {
-    enfermedadesList = [];
+    // Fail-safe
   }
+  const otrasEnfermedades = patient.otras_enfermedades as string | null;
+  const medicamentos = patient.medicamentos as string | null;
+  const alergias = patient.alergias as string | null;
+  const reaccionAnestesia = patient.reaccion_anestesia as string | null;
 
-  const otrasEnfermedades = patient.otras_enfermedades;
-  const medicamentos = patient.medicamentos;
-  const alergias = patient.alergias;
-  const reaccionAnestesia = patient.reaccion_anestesia;
-
-  const hasMedicalInfo = Boolean(
-    enfermedadesList.length > 0 ||
-      otrasEnfermedades ||
-      medicamentos ||
-      alergias ||
-      reaccionAnestesia,
-  );
+  const hasMedicalInfo = enfermedadesList.length > 0 || otrasEnfermedades || medicamentos || alergias || reaccionAnestesia;
 
   return (
     <div
@@ -472,8 +414,8 @@ function MedicalInfoModal({
     >
       <div
         style={{
-          background: "var(--card)",
-          border: "1px solid var(--border)",
+          background: "#FFFFFF",
+          border: "1px solid var(--arco-gray-300)",
           borderRadius: 12,
           boxShadow: "0 24px 70px rgba(32, 63, 73, 0.18)",
           maxWidth: 720,
@@ -492,32 +434,25 @@ function MedicalInfoModal({
           <div>
             <h3
               style={{
-                color: "var(--foreground)",
+                color: "var(--arco-navy)",
                 fontSize: 18,
-                fontWeight: 600,
+                fontWeight: 700,
                 margin: 0,
               }}
             >
               Información médica
             </h3>
-            <p
-              style={{
-                color: "var(--arco-gray-500)",
-                fontSize: 13,
-                margin: "4px 0 0",
-              }}
-            >
+            <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "4px 0 0" }}>
               {patient.fullName} · {patient.code}
             </p>
           </div>
-
           <button
             onClick={onClose}
             style={{
               alignItems: "center",
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
+              background: "#FFFFFF",
+              border: "1px solid var(--arco-gray-300)",
+              borderRadius: 6,
               color: "var(--arco-gray-500)",
               cursor: "pointer",
               display: "flex",
@@ -532,110 +467,64 @@ function MedicalInfoModal({
         </div>
 
         {hasMedicalInfo ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              maxHeight: "60vh",
-              overflowY: "auto",
-              paddingRight: 4,
-            }}
-          >
-            {enfermedadesList.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "60vh", overflowY: "auto", paddingRight: 4 }}>
+            {enfermedadesList.length > 0 && (
               <div>
-                <strong
-                  style={{
-                    color: "var(--foreground)",
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Enfermedades sistémicas:
-                </strong>
-
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 6 }}>Enfermedades sistémicas:</strong>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {enfermedadesList.map((disease) => {
-                    const matched = PATIENT_SYSTEMIC_DISEASES.find(
-                      (item) => item.id === disease,
-                    );
-
+                    const matched = PATIENT_SYSTEMIC_DISEASES.find(d => d.id === disease);
                     return (
-                      <span
-                        key={disease}
-                        style={{
-                          background: "var(--arco-primary-light)",
-                          borderRadius: 20,
-                          color: "var(--arco-primary)",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          padding: "4px 10px",
-                        }}
-                      >
+                      <span key={disease} style={{ background: "var(--arco-primary-light)", color: "var(--arco-primary)", fontSize: 12, fontWeight: 500, padding: "4px 10px", borderRadius: 20 }}>
                         {matched?.label || disease}
                       </span>
                     );
                   })}
                 </div>
               </div>
-            ) : null}
+            )}
 
-            {otrasEnfermedades ? (
-              <MedicalInfoText title="Otras enfermedades" value={otrasEnfermedades} />
-            ) : null}
-
-            {medicamentos ? (
-              <MedicalInfoText title="Medicamentos actuales" value={medicamentos} />
-            ) : null}
-
-            {alergias ? (
-              <MedicalInfoText title="Alergias a medicamentos" value={alergias} />
-            ) : null}
-
-            {reaccionAnestesia ? (
+            {otrasEnfermedades && (
               <div>
-                <strong
-                  style={{
-                    color: "var(--foreground)",
-                    display: "block",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
-                  Historial de anestesia:
-                </strong>
-                <span
-                  style={{
-                    background:
-                      reaccionAnestesia === "si"
-                        ? "var(--arco-primary-light)"
-                        : "var(--arco-gray-100)",
-                    borderRadius: 8,
-                    color:
-                      reaccionAnestesia === "si"
-                        ? "var(--arco-danger)"
-                        : "var(--arco-success)",
-                    display: "inline-block",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: "4px 10px",
-                  }}
-                >
-                  {reaccionAnestesia === "si"
-                    ? "Sí, ha tenido reacciones a la anestesia"
-                    : "No ha tenido reacciones a la anestesia"}
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Otras enfermedades:</strong>
+                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
+                  {otrasEnfermedades}
+                </p>
+              </div>
+            )}
+
+            {medicamentos && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Medicamentos actuales:</strong>
+                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
+                  {medicamentos}
+                </p>
+              </div>
+            )}
+
+            {alergias && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Alergias a medicamentos:</strong>
+                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
+                  {alergias}
+                </p>
+              </div>
+            )}
+
+            {reaccionAnestesia && (
+              <div>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Historial de anestesia:</strong>
+                <span style={{ display: "inline-block", fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: reaccionAnestesia === "si" ? "var(--arco-danger-soft)" : "var(--arco-success-soft)", color: reaccionAnestesia === "si" ? "var(--arco-danger)" : "var(--arco-success)" }}>
+                  {reaccionAnestesia === "si" ? "Sí, ha tenido reacciones a la anestesia" : "No ha tenido reacciones a la anestesia"}
                 </span>
               </div>
-            ) : null}
+            )}
           </div>
         ) : (
           <div
             style={{
               background: "var(--arco-gray-50)",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--arco-gray-300)",
               borderRadius: 8,
               color: "var(--arco-gray-500)",
               fontSize: 13,
@@ -647,13 +536,7 @@ function MedicalInfoModal({
           </div>
         )}
 
-        <p
-          style={{
-            color: "var(--arco-gray-500)",
-            fontSize: 12,
-            margin: "16px 0 0",
-          }}
-        >
+        <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "16px 0 0" }}>
           Los antecedentes médicos iniciales se guardan en el perfil del paciente.
         </p>
       </div>
@@ -661,39 +544,37 @@ function MedicalInfoModal({
   );
 }
 
-function MedicalInfoText({
-  title,
-  value,
+function PatientNameButton({
+  name,
+  onClick,
 }: {
-  title: string;
-  value: string;
+  name: string;
+  onClick: () => void;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
-    <div>
-      <strong
-        style={{
-          color: "var(--foreground)",
-          display: "block",
-          fontSize: 13,
-          fontWeight: 600,
-          marginBottom: 4,
-        }}
-      >
-        {title}:
-      </strong>
-      <p
-        style={{
-          background: "var(--arco-gray-50)",
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          color: "var(--arco-gray-700)",
-          fontSize: 13,
-          margin: 0,
-          padding: "8px 12px",
-        }}
-      >
-        {value}
-      </p>
-    </div>
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      type="button"
+      style={{
+        background: "transparent",
+        border: "none",
+        color: isHovered ? "#0899B0" : "#0BC5DF",
+        cursor: "pointer",
+        fontSize: 13,
+        fontWeight: 600,
+        padding: 0,
+        textAlign: "left",
+        textDecoration: isHovered ? "underline" : "none",
+        textUnderlineOffset: 3,
+        transition: "color 0.15s ease",
+      }}
+      title="Abrir perfil del paciente"
+    >
+      {name}
+    </button>
   );
 }

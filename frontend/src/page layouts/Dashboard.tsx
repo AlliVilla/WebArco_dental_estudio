@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Users, Calendar, TrendingUp, AlertCircle, Clock, ChevronRight } from 'lucide-react';
-import { Card, StatusBadge, Avatar } from '../context';
+import { Card, StatusBadge, Avatar, Alert } from '../context';
 
 const appointmentsToday = [
   { time: '09:00', patient: 'María González', treatment: 'Limpieza dental', status: 'confirmada' as const, avatar: 'MG' },
@@ -131,8 +133,26 @@ function LineChartSVG({ data }: { data: typeof revenueData }) {
 }
 
 export function Dashboard() {
+  const location = useLocation();
+  const [alert, setAlert] = useState<{ message: string; type: 'warning' | 'error' } | null>(null);
+
+  useEffect(() => {
+    const state = location.state as Record<string, unknown> | null;
+    if (state?.noPermission) {
+      const section = (state.section as string) || 'esta sección';
+      setAlert({
+        message: `No tienes permisos suficientes para acceder a ${section}.`,
+        type: 'warning',
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {alert && (
+        <Alert variant={alert.type} message={alert.message} onClose={() => setAlert(null)} />
+      )}
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         {kpis.map((kpi) => {

@@ -85,8 +85,21 @@ export class PersonaService {
       const numericSearch = search.replace(/\D/g, '');
       andFilters.push({
         OR: [
+          ...(numericSearch
+            ? [
+                {
+                  id_persona: Number(numericSearch),
+                },
+              ]
+            : []),
           {
             numero_identidad: {
+              contains: searchLower,
+              mode: 'insensitive',
+            },
+          },
+          {
+            telefono: {
               contains: searchLower,
               mode: 'insensitive',
             },
