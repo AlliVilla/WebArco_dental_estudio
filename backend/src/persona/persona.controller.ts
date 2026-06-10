@@ -60,12 +60,20 @@ export class PersonaController {
   @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1' })
   @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 10)', example: '10' })
   @ApiQuery({ name: 'search', required: false, description: 'Búsqueda por número de identidad, nombre o apellido', example: 'Juan' })
+  @ApiQuery({ name: 'nombre', required: false, description: 'Filtrar por nombre o apellido', example: 'Juan' })
+  @ApiQuery({ name: 'identidad', required: false, description: 'Filtrar por número de identidad', example: '0801199012345' })
+  @ApiQuery({ name: 'telefono', required: false, description: 'Filtrar por teléfono', example: '98765432' })
+  @ApiQuery({ name: 'codigo', required: false, description: 'Filtrar por código PAC o ID', example: 'PAC-000001' })
   @ApiOkResponse({ description: 'Listado de personas con paginación' })
   @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('nombre') nombre?: string,
+    @Query('identidad') identidad?: string,
+    @Query('telefono') telefono?: string,
+    @Query('codigo') codigo?: string,
     @Query('includeConsulta', ParseBoolPipe) includeConsulta?: boolean
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
@@ -75,7 +83,12 @@ export class PersonaController {
       throw new BadRequestException('page y limit deben ser mayores a 0');
     }
 
-    return this.personaService.findAll(pageNum, limitNum, search,includeConsulta);
+    return this.personaService.findAll(
+      pageNum,
+      limitNum,
+      { search, nombre, identidad, telefono, codigo },
+      includeConsulta
+    );
   }
 
   @Privileges(19)
