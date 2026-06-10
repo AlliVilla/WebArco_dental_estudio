@@ -1,3 +1,5 @@
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
 const { insertDepartamentos } =   require("./seeders/departamento");
 const { insertMunicipios } = require("./seeders/municipios");
 const { insertRoles } = require("./seeders/roles");

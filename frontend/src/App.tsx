@@ -3,6 +3,8 @@ import { AppointmentsScreen, AppointmentDetailScreen, AppointmentFormScreen, Pat
 import { LoginForm } from './features/auth/components/LoginForm';
 import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
 import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
+import { RecordatoriosScreen } from './features/reminders';
+import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
@@ -50,8 +52,10 @@ function App() {
         <Route path="/agenda/:id" element={<AppointmentDetailScreen />} />
         <Route path="/agenda/:id/history" element={<PatientAppointmentHistoryScreen />} />
         <Route path="/agenda/:id/edit" element={<AppointmentFormScreen />} />
+        <Route path="/agenda/reminders" element={<RecordatoriosScreen />} />
+        <Route path="/agenda/reminders/historial" element={<HistorialConfirmacionesScreen />} />
         <Route path="/mi-perfil" element={<MiPerfil />} />
-
+        {/* Patients sub-routes */}
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
         <Route path="/patients/new" element={<PatientFormScreen />} />
