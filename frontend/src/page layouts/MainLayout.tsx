@@ -130,17 +130,26 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
 export const MainLayout: React.FC<MainLayoutProps> = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 768;
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => window.innerWidth <= 768
-  );
+
+  // En móvil empieza cerrado, en desktop empieza abierto
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   useEffect(() => {
-    const fn = () => setWindowWidth(window.innerWidth);
+    const fn = () => {
+      const w = window.innerWidth;
+      setWindowWidth(w);
+      // Al cambiar a móvil → cerrar; al cambiar a desktop → abrir
+      if (w <= 768) setSidebarOpen(false);
+      else setSidebarOpen(true);
+    };
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
   }, []);
 
-  const sidebarWidth = sidebarCollapsed ? 64 : 240;
+  // En desktop: collapsed controla si es 64px o 240px
+  // En móvil: sidebarOpen controla si se muestra o no (siempre 240px)
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const sidebarWidth = desktopCollapsed ? 64 : 240;
   const contentMargin = isMobile ? 0 : sidebarWidth;
 
   const navigate = useNavigate();
@@ -218,7 +227,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     };
     const targetPath = routeMap[tabId] || `/${tabId}`;
     navigate(targetPath);
-    if (isMobile) setSidebarCollapsed(true);
+    if (isMobile) setSidebarOpen(false);
   };
 
   return (
@@ -230,14 +239,14 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      {/* Overlay para cerrar sidebar en móvil */}
-      {isMobile && !sidebarCollapsed && (
+      {/* Overlay oscuro en móvil cuando sidebar está abierto */}
+      {isMobile && sidebarOpen && (
         <div
-          onClick={() => setSidebarCollapsed(true)}
+          onClick={() => setSidebarOpen(false)}
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.4)",
+            background: "rgba(0,0,0,0.45)",
             zIndex: 49,
           }}
         />
@@ -246,8 +255,13 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       <Sidebar
         activeItem={activeTab}
         onNavigate={handleNavigate}
-        collapsed={isMobile ? true : sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
+        // En móvil: collapsed=!sidebarOpen (true=oculto, false=visible)
+        // En desktop: collapsed=desktopCollapsed
+        collapsed={isMobile ? !sidebarOpen : desktopCollapsed}
+        onToggle={() => {
+          if (isMobile) setSidebarOpen((v) => !v);
+          else setDesktopCollapsed((v) => !v);
+        }}
       />
 
       <div
@@ -265,6 +279,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
           breadcrumbs={config.breadcrumbs}
           notificationCount={2}
           sidebarWidth={isMobile ? 0 : sidebarWidth}
+          showMenuButton={isMobile}
+          onMenuClick={() => setSidebarOpen((v) => !v)}
         />
 
         <main
