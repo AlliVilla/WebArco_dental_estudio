@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
-  Search,
   Edit,
   Trash2,
   FileText,
@@ -10,8 +9,8 @@ import {
   Layers,
   X,
 } from "lucide-react";
-import { Input, Select, Button, Alert } from "../../../context";
-import { ConfirmModal } from "../../../components";
+import { Button, Alert } from "../../../context";
+import { ConfirmModal, DataTable } from "../../../components";
 import { formatCurrency } from "../../../utils/formatters";
 import { ESPECIALIDADES, MOCK_TREATMENTS, type Treatment } from "../types";
 
@@ -55,7 +54,7 @@ function getEstadoColor(estado: string) {
   return map[estado] ?? { bg: "#E8EBED", color: "#5F656A" };
 }
 
-// ─── Card view para móvil ─────────────────────────────────────────────────────
+// ─── Card para móvil ──────────────────────────────────────────────────────────
 interface TreatmentCardProps {
   t: Treatment;
   isAdmin: boolean;
@@ -74,7 +73,6 @@ function TreatmentCard({ t, isAdmin, onEdit, onDelete }: TreatmentCardProps) {
         padding: 16,
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -135,10 +133,7 @@ function TreatmentCard({ t, isAdmin, onEdit, onDelete }: TreatmentCardProps) {
           </div>
         )}
       </div>
-
-      {/* Filas */}
       <div style={{ borderTop: `1px solid ${C.gray50}`, paddingTop: 4 }}>
-        {/* Especialidad: etiqueta arriba, valor abajo si es largo */}
         <div
           style={{ padding: "8px 0", borderBottom: `1px solid ${C.gray50}` }}
         >
@@ -158,7 +153,6 @@ function TreatmentCard({ t, isAdmin, onEdit, onDelete }: TreatmentCardProps) {
             {t.especialidad}
           </span>
         </div>
-        {/* Impacto y Precio: siempre en fila */}
         <div
           style={{
             display: "flex",
@@ -263,7 +257,6 @@ function Drawer({ open, title, subtitle, onClose, children }: DrawerProps) {
         />
       )}
       <div style={panelStyle}>
-        {/* Handle visual en móvil */}
         {isMobile && (
           <div
             style={{
@@ -335,18 +328,17 @@ export interface TreatmentsScreenProps {
   userRole?: "Administrador" | "Doctor" | "Especialista" | "Contador";
 }
 
+// Tipo compatible con DataTable (Record<string, unknown>)
+type TreatmentRow = Treatment & Record<string, unknown>;
+
 export function TreatmentsScreen({
   userRole = "Administrador",
 }: TreatmentsScreenProps) {
   const navigate = useNavigate();
   const w = useWindowWidth();
   const isMobile = w <= 640;
-  const isTablet = w > 640 && w <= 1024;
-  const isDesktop = w > 1024;
 
   const [treatments, setTreatments] = useState<Treatment[]>(MOCK_TREATMENTS);
-  const [search, setSearch] = useState("");
-  const [filterEsp, setFilterEsp] = useState("all");
   const [alert, setAlert] = useState<{
     variant: "success" | "error";
     message: string;
@@ -357,18 +349,6 @@ export function TreatmentsScreen({
   >(null);
 
   const isAdmin = userRole === "Administrador";
-
-  const filtered = useMemo(
-    () =>
-      treatments.filter((t) => {
-        const matchSearch = t.nombre
-          .toLowerCase()
-          .includes(search.toLowerCase());
-        const matchEsp = filterEsp === "all" || t.especialidad === filterEsp;
-        return matchSearch && matchEsp;
-      }),
-    [treatments, search, filterEsp]
-  );
 
   const { porEsp, principal } = useMemo(() => {
     const porEsp = treatments.reduce<Record<string, number>>((acc, t) => {
@@ -420,19 +400,71 @@ export function TreatmentsScreen({
     setTimeout(() => setAlert(null), 4000);
   }
 
-  const thStyle: React.CSSProperties = {
-    padding: isTablet ? "10px 14px" : "12px 20px",
-    fontSize: 12,
-    fontWeight: 600,
-    color: C.gray500,
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-  };
+  // Columnas para DataTable
+  const columns = [
+    {
+      key: "especialidad",
+      label: "Especialidad",
+      render: (_: unknown, row: TreatmentRow) => (
+        <span style={{ fontSize: 13, color: C.gray700 }}>
+          {row.especialidad as string}
+        </span>
+      ),
+    },
+    {
+      key: "nombre",
+      label: "Nombre del Tratamiento",
+      render: (_: unknown, row: TreatmentRow) => (
+        <span style={{ fontSize: 14, fontWeight: 500, color: C.navy }}>
+          {row.nombre as string}
+        </span>
+      ),
+    },
+    {
+      key: "impactoOdontograma",
+      label: "Impacto en Odontograma",
+      render: (_: unknown, row: TreatmentRow) => {
+        const ec = getEstadoColor(row.impactoOdontograma as string);
+        return (
+          <span
+            style={{
+              display: "inline-flex",
+              padding: "4px 10px",
+              borderRadius: 9999,
+              fontSize: 12,
+              fontWeight: 500,
+              background: ec.bg,
+              color: ec.color,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {row.impactoOdontograma as string}
+          </span>
+        );
+      },
+    },
+    {
+      key: "precio",
+      label: "Precio",
+      align: "right" as const,
+      render: (_: unknown, row: TreatmentRow) => (
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 500,
+            color: C.navy,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {formatCurrency(row.precio as number)}
+        </span>
+      ),
+    },
+  ];
 
-  // Grid de tarjetas de stats
   const statsGridCols = isMobile
     ? "1fr"
-    : isTablet
+    : w <= 1024
     ? "1fr 1fr"
     : "repeat(3, 1fr)";
 
@@ -452,7 +484,7 @@ export function TreatmentsScreen({
         />
       )}
 
-      {/* ── Tarjetas de estadísticas ── */}
+      {/* Tarjetas de estadísticas */}
       <div
         style={{
           display: "grid",
@@ -468,14 +500,15 @@ export function TreatmentsScreen({
               background: "#fff",
               borderRadius: 12,
               border: `1px solid ${C.gray300}`,
-              padding: isMobile ? 14 : isTablet ? 16 : 20,
+              padding: isMobile ? 14 : 20,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "flex-start",
               cursor: "pointer",
               textAlign: "left",
               width: "100%",
-              gridColumn: isTablet && i === 2 ? "1 / -1" : undefined,
+              gridColumn:
+                w <= 1024 && w > 640 && i === 2 ? "1 / -1" : undefined,
               transition: "box-shadow 0.15s, border-color 0.15s",
             }}
             onMouseEnter={(e) => {
@@ -502,7 +535,7 @@ export function TreatmentsScreen({
               </p>
               <p
                 style={{
-                  fontSize: isMobile ? 20 : isTablet ? 20 : 24,
+                  fontSize: isMobile ? 20 : 24,
                   fontWeight: 600,
                   color: C.navy,
                   margin: "0 0 4px",
@@ -545,94 +578,26 @@ export function TreatmentsScreen({
         ))}
       </div>
 
-      {/* ── Filtros ── */}
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          border: `1px solid ${C.gray300}`,
-          padding: isMobile ? 14 : 20,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: isMobile ? "column" : isTablet ? "column" : "row",
-            alignItems: "flex-end",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: isMobile ? "column" : "row",
-              gap: 12,
-              flex: 1,
-              width: "100%",
-            }}
-          >
-            <div style={{ flex: 1, position: "relative" }}>
-              <Search
-                size={16}
-                style={{
-                  position: "absolute",
-                  left: 12,
-                  top: 36,
-                  color: C.gray500,
-                  pointerEvents: "none",
-                }}
-              />
-              <Input
-                label="Buscar"
-                placeholder={
-                  isMobile
-                    ? "Buscar tratamiento..."
-                    : "Buscar por nombre de tratamiento..."
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ paddingLeft: 36 }}
-              />
-            </div>
-            <div
+      {/* Cards en móvil / DataTable en tablet+desktop */}
+      {isMobile ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => navigate("/treatments/new")}
               style={{
-                width: isMobile ? "100%" : isTablet ? 200 : 260,
-                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+                justifyContent: "center",
               }}
             >
-              <Select
-                label="Especialidad"
-                value={filterEsp}
-                onChange={setFilterEsp}
-                options={[
-                  { value: "all", label: "Todas las especialidades" },
-                  ...ESPECIALIDADES.map((e) => ({ value: e, label: e })),
-                ]}
-              />
-            </div>
+              <Plus size={16} /> Nuevo Tratamiento
+            </Button>
           </div>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => navigate("/treatments/new")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              width: isMobile || isTablet ? "100%" : undefined,
-            }}
-          >
-            <Plus size={16} /> Nuevo Tratamiento
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Contenido: Cards en móvil, Tabla en tablet/desktop ── */}
-      {isMobile ? (
-        // CARDS para móvil
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {filtered.length === 0 ? (
+          {treatments.length === 0 ? (
             <div
               style={{
                 padding: 32,
@@ -644,10 +609,10 @@ export function TreatmentsScreen({
                 border: `1px solid ${C.gray300}`,
               }}
             >
-              No hay tratamientos que coincidan.
+              No hay tratamientos registrados.
             </div>
           ) : (
-            filtered.map((t) => (
+            treatments.map((t) => (
               <TreatmentCard
                 key={t.id}
                 t={t}
@@ -659,175 +624,49 @@ export function TreatmentsScreen({
           )}
         </div>
       ) : (
-        // TABLA para tablet y desktop
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 12,
-            border: `1px solid ${C.gray300}`,
-            overflow: "auto",
-          }}
-        >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              minWidth: isTablet ? 500 : "unset",
-            }}
-          >
-            <thead style={{ background: C.gray50 }}>
-              <tr>
-                {isDesktop && (
-                  <th style={{ ...thStyle, textAlign: "left" }}>
-                    Especialidad
-                  </th>
-                )}
-                <th style={{ ...thStyle, textAlign: "left" }}>
-                  Nombre del Tratamiento
-                </th>
-                <th style={{ ...thStyle, textAlign: "left" }}>Impacto</th>
-                <th style={{ ...thStyle, textAlign: "right" }}>Precio</th>
-                {isAdmin && (
-                  <th style={{ ...thStyle, textAlign: "right" }}>Acciones</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={isAdmin ? (isDesktop ? 5 : 4) : isDesktop ? 4 : 3}
-                    style={{
-                      padding: 40,
-                      textAlign: "center",
-                      fontSize: 14,
-                      color: C.gray500,
-                    }}
-                  >
-                    No hay tratamientos que coincidan.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((t) => {
-                  const ec = getEstadoColor(t.impactoOdontograma);
-                  const tdPad = isTablet ? "12px 14px" : "16px 20px";
-                  return (
-                    <tr
-                      key={t.id}
-                      style={{ borderTop: `1px solid ${C.gray300}` }}
-                    >
-                      {isDesktop && (
-                        <td
-                          style={{
-                            padding: tdPad,
-                            fontSize: 13,
-                            color: C.gray700,
-                          }}
-                        >
-                          {t.especialidad}
-                        </td>
-                      )}
-                      <td
-                        style={{
-                          padding: tdPad,
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: C.navy,
-                        }}
-                      >
-                        {t.nombre}
-                        {isTablet && (
-                          <p
-                            style={{
-                              fontSize: 12,
-                              color: C.gray500,
-                              margin: "2px 0 0",
-                              fontWeight: 400,
-                            }}
-                          >
-                            {t.especialidad}
-                          </p>
-                        )}
-                      </td>
-                      <td style={{ padding: tdPad }}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            padding: "4px 10px",
-                            borderRadius: 9999,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            background: ec.bg,
-                            color: ec.color,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {t.impactoOdontograma}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          padding: tdPad,
-                          textAlign: "right",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: C.navy,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatCurrency(t.precio)}
-                      </td>
-                      {isAdmin && (
-                        <td style={{ padding: tdPad }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              gap: 4,
-                            }}
-                          >
-                            <button
-                              onClick={() =>
-                                navigate(`/treatments/edit/${t.id}`)
-                              }
-                              title="Editar"
-                              style={{
-                                padding: 8,
-                                borderRadius: 8,
-                                border: "none",
-                                background: "transparent",
-                                cursor: "pointer",
-                                color: C.gray700,
-                                display: "flex",
-                              }}
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => setConfirmId(t.id)}
-                              title="Eliminar"
-                              style={{
-                                padding: 8,
-                                borderRadius: 8,
-                                border: "none",
-                                background: "transparent",
-                                cursor: "pointer",
-                                color: C.danger,
-                                display: "flex",
-                              }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<TreatmentRow>
+          columns={columns}
+          data={treatments as TreatmentRow[]}
+          searchable
+          searchPlaceholder="Buscar por nombre de tratamiento..."
+          searchKeys={["nombre"]}
+          filters={[
+            {
+              key: "especialidad",
+              placeholder: "Todas las especialidades",
+              options: ESPECIALIDADES.map((e) => ({ value: e, label: e })),
+            },
+          ]}
+          primaryAction={
+            isAdmin
+              ? {
+                  label: "Nuevo Tratamiento",
+                  icon: <Plus size={16} />,
+                  onClick: () => navigate("/treatments/new"),
+                }
+              : undefined
+          }
+          rowActions={
+            isAdmin
+              ? (row) => [
+                  {
+                    icon: <Edit size={16} />,
+                    label: "Editar",
+                    onClick: (r) => navigate(`/treatments/edit/${r.id}`),
+                  },
+                  {
+                    icon: <Trash2 size={16} />,
+                    label: "Eliminar",
+                    danger: true,
+                    onClick: (r) => setConfirmId(r.id as number),
+                  },
+                ]
+              : undefined
+          }
+          getRowKey={(row) => String(row.id)}
+          emptyMessage="No hay tratamientos registrados."
+          pageSize={10}
+        />
       )}
 
       <ConfirmModal
@@ -841,7 +680,7 @@ export function TreatmentsScreen({
         onClose={() => setConfirmId(null)}
       />
 
-      {/* Drawer: Total de Tratamientos */}
+      {/* Drawer: Total */}
       <Drawer
         open={openDrawer === "total"}
         title="Total de Tratamientos"
