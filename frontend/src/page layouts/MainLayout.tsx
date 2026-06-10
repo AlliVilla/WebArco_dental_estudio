@@ -17,7 +17,7 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'agenda-new': { title: 'Nueva Cita', breadcrumbs: ['Agenda', 'Nueva Cita'] },
   'agenda-detail': { title: 'Detalle de Cita', breadcrumbs: ['Agenda', 'Detalle'] },
   'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
-  'agenda-recordatorios': {title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios', 'Cola de envío']},
+  recordatorios: {title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios', 'Cola de envío']},
   'reminders-historial': { title: 'Historial de confirmaciones', breadcrumbs: ['Agenda', 'Recordatorios', 'Historial de confirmaciones'] },
   patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
@@ -51,7 +51,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
     if (pathname === '/mi-perfil') return 'mi-perfil';
     if (pathname === '/agenda/new') return 'agenda-new';
-    if (pathname === '/agenda/reminders') return 'agenda-recordatorios';
+    if (pathname === '/agenda/reminders') return 'recordatorios';
     if (pathname === '/agenda/reminders/historial') return 'reminders-historial';
     if (pathname.startsWith('/agenda/') && pathname.endsWith('/edit')) return 'agenda-edit';
     if (pathname.startsWith('/agenda/') && pathname !== '/agenda/new') return 'agenda-detail';

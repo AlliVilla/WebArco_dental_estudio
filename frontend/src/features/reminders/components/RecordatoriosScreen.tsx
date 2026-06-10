@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Bell, Send, RotateCcw, Phone, Mail, MessageCircle, Clock, RefreshCw } from 'lucide-react';
-import { DataTable } from '../../../components/DataTable';
-import { Avatar, Button } from '../../../context';
+import { Bell, Send, RotateCcw, Phone, Mail, MessageCircle, Clock, RefreshCw, Plus, X} from 'lucide-react';
+import { DataTable, FormSection, FullWidthField } from '../../../components';
+import { Avatar, Button, Input, Select } from '../../../context';
 import { ReminderService } from '../services/ReminderService';
 import { formatDate } from '../../../utils/formatters';
 import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio } from '../types';
@@ -93,6 +93,159 @@ function UrgenteBadge() {
   );
 }
 
+// ─── Formulario modal ─────────────────────────────────────────────────────────
+
+interface NuevoRecordatorioFormProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+interface FormState {
+  id_cita: string;
+  canal: CanalRecordatorio | '';
+}
+
+const FORM_INITIAL: FormState = { id_cita: '', canal: '' };
+
+function NuevoRecordatorioForm({ open, onClose, onCreated }: NuevoRecordatorioFormProps) {
+  const [form, setForm] = useState<FormState>(FORM_INITIAL);
+  const [errors, setErrors] = useState<Partial<FormState>>({});
+  const [loading, setLoading] = useState(false);
+
+  if (!open) return null;
+
+  function validate(): boolean {
+    const next: Partial<FormState> = {};
+    if (!form.id_cita.trim()) next.id_cita = 'Requerido';
+    if (!form.canal)          next.canal   = 'Requerido' as CanalRecordatorio;
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await ReminderService.send({
+        id_cita: Number(form.id_cita),
+                                 canal: form.canal as CanalRecordatorio,
+      });
+      setForm(FORM_INITIAL);
+      setErrors({});
+      onCreated();
+      onClose();
+    } catch {
+      setErrors({ id_cita: 'Error al crear el recordatorio. Intenta de nuevo.' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleClose() {
+    setForm(FORM_INITIAL);
+    setErrors({});
+    onClose();
+  }
+
+  return (
+    <div
+    style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)',
+          zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}
+    onClick={handleClose}
+    >
+    <div
+    style={{
+      background: '#fff', borderRadius: 14, width: '100%', maxWidth: 480,
+      boxShadow: '0px 10px 30px rgba(0,0,0,0.15)', zIndex: 51,
+          display: 'flex', flexDirection: 'column', gap: 0,
+    }}
+    onClick={(e) => e.stopPropagation()}
+    >
+    {/* Header */}
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '20px 24px', borderBottom: '1px solid #F1F3F4',
+    }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{
+      width: 36, height: 36, borderRadius: 10, background: '#E6F8FB',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+    <Bell size={18} style={{ color: '#0BC5DF' }} />
+    </div>
+    <div>
+    <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#203F49' }}>
+    Nuevo recordatorio
+    </p>
+    <p style={{ margin: 0, fontSize: 12, color: '#888F94' }}>
+    Enviar recordatorio de cita al paciente
+    </p>
+    </div>
+    </div>
+    <button
+    onClick={handleClose}
+    style={{
+      background: 'none', border: 'none', cursor: 'pointer',
+      color: '#888F94', display: 'flex', alignItems: 'center', padding: 4,
+    }}
+    >
+    <X size={18} />
+    </button>
+    </div>
+
+    {/* Body */}
+    <div style={{ padding: '20px 24px' }}>
+    <FormSection title="Datos del recordatorio" icon={<Bell size={18} />} columns={1}>
+    <FullWidthField>
+    <Input
+    label="ID de cita"
+    badge="required"
+    placeholder="Ej. 1042"
+    type="number"
+    value={form.id_cita}
+    onChange={(e) => setForm((p) => ({ ...p, id_cita: e.target.value }))}
+    error={errors.id_cita}
+    />
+    </FullWidthField>
+    <FullWidthField>
+    <Select
+    label="Canal de envío"
+    badge="required"
+    placeholder="Selecciona un canal"
+    value={form.canal}
+    onChange={(v) => setForm((p) => ({ ...p, canal: v as CanalRecordatorio }))}
+    error={errors.canal}
+    options={[
+      { value: 'WhatsApp', label: '💬 WhatsApp' },
+      { value: 'SMS',      label: '📱 SMS'      },
+      { value: 'Correo',   label: '✉️ Correo'   },
+    ]}
+    />
+    </FullWidthField>
+    </FormSection>
+    </div>
+
+    {/* Footer */}
+    <div style={{
+      display: 'flex', gap: 10, justifyContent: 'flex-end',
+      padding: '16px 24px', borderTop: '1px solid #F1F3F4',
+    }}>
+    <Button variant="secondary" onClick={handleClose}>
+    Cancelar
+    </Button>
+    <Button variant="primary" onClick={handleSubmit} loading={loading}>
+    Enviar recordatorio
+    </Button>
+    </div>
+    </div>
+    </div>
+  );
+}
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
@@ -101,6 +254,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // ── Carga de datos ──────────────────────────────────────────────────────────
   const fetchQueue = useCallback(async () => {
@@ -275,6 +429,11 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
         searchable
         searchPlaceholder="Buscar paciente o contacto..."
         searchKeys={['paciente', 'contacto']}
+        primaryAction={{
+          label: 'Nuevo recordatorio',
+          icon: <Plus size={16} />,
+          onClick: () => setModalOpen(true),
+        }}
         filters={[
           {
             key: 'estado_envio',
@@ -335,6 +494,14 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
             : 'No hay recordatorios pendientes.'
         }
       />
+
+      {/* ── Modal nuevo recordatorio ── */}
+      <NuevoRecordatorioForm
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={fetchQueue}
+      />
+
 
       {/* Spinner keyframe (solo necesario una vez en el DOM) */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
