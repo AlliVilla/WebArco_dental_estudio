@@ -37,6 +37,7 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   users: { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
   'users-list': { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
   'roles-management': { title: 'Gestión de Roles', breadcrumbs: ['Configuración', 'Usuarios', 'Roles'] },
+  'permissions-management': { title: 'Gestión de Permisos', breadcrumbs: ['Configuración', 'Usuarios', 'Roles', 'Permisos'] },
   treatments: { title: 'Catálogo de Tratamientos', breadcrumbs: ['Configuración', 'Tratamientos'] },
   inventory: { title: 'Control de Inventario', breadcrumbs: ['Configuración', 'Inventario'] },
   settings: { title: 'Configuración', breadcrumbs: ['Inicio', 'Configuración'] },
@@ -76,6 +77,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/stats') return 'estado-resultado';
     if (pathname === '/settings') return 'settings';
     if (pathname === '/users') return 'users-list';
+    if (pathname === '/users/roles/permisos') return 'permissions-management';
     if (pathname === '/users/roles') return 'roles-management';
     if (pathname === '/design') return 'design';
     return pathname.substring(1);
@@ -105,6 +107,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       users: '/users',
       'users-list': '/users',
       'roles-management': '/users/roles',
+      'permissions-management': '/users/roles/permisos',
       inventory: '/inventory',
       settings: '/settings',
       design: '/design',

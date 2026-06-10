@@ -10,7 +10,7 @@ import { ConsentScreen } from './features/patients/components/consentimientos/co
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
 import { PatientFormScreen, PatientProfileScreen, PatientsScreen } from './features/patients';
-import { RolesScreen, UsersScreen } from './features/users';
+import { PermissionsManagementScreen, RolesScreen, UsersScreen } from './features/users';
 
 import { MiPerfil } from './features/users/components/MiPerfil';
 import { Alert, Card, DesignSystemScreen } from './context';
@@ -142,6 +142,7 @@ function App() {
 
         <Route path="/users" element={<UsersScreen />} />
         <Route path="/users/roles" element={<RolesScreen />} />
+        <Route path="/users/roles/permisos" element={<PermissionsManagementScreen />} />
         <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>
