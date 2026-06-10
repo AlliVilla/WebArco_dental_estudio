@@ -4,9 +4,10 @@ import {
     Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
     Loader2, Tag, Zap, Clock, User, ShieldAlert,
 } from 'lucide-react';
-import { ExpedientePaciente } from './ExpedienteScreen';
+import { ExpedientePaciente } from '../types/index';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
 import { Button, Input } from '../../../../../context';
+import { calcularEdad , formatDate} from '../services/miscelaneousService';
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -251,16 +252,16 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     const [toasts, setToasts] = useState<ToastMsg[]>([]);
 
     // ── STEP 1: Paciente y Cita ──
-    const [primerNombre, setPrimerNombre] = useState(patient.primerNombre || '');
-    const [segundoNombre, setSegundoNombre] = useState(patient.segundoNombre || '');
-    const [primerApellido, setPrimerApellido] = useState(patient.primerApellido || '');
-    const [segundoApellido, setSegundoApellido] = useState(patient.segundoApellido || '');
-    const [identidad, setIdentidad] = useState(patient.identidad || '');
-    const [fechaNacimiento, setFechaNacimiento] = useState(patient.fechaNacimiento || '');
+    const [primerNombre, setPrimerNombre] = useState(patient.primer_nombre || '');
+    const [segundoNombre, setSegundoNombre] = useState(patient.segundo_nombre || '');
+    const [primerApellido, setPrimerApellido] = useState(patient.primer_apellido || '');
+    const [segundoApellido, setSegundoApellido] = useState(patient.segundo_apellido || '');
+    const [identidad, setIdentidad] = useState(patient.numero_identidad || '');
+    const [fechaNacimiento, setFechaNacimiento] = useState(patient.fecha_nacimiento || '');
     const [telefono, setTelefono] = useState(patient.telefono || '');
-    const [correo, setCorreo] = useState(patient.correo || '');
-    const [departamento, setDepartamento] = useState(patient.departamento || '');
-    const [ciudad, setCiudad] = useState(patient.ciudad || '');
+    const [correo, setCorreo] = useState(patient.correo_electronico || '');
+    const [departamento, setDepartamento] = useState(patient.municipio.departamento.nombre || '');
+    const [ciudad, setCiudad] = useState(patient.municipio.nombre || '');
     const [direccion, setDireccion] = useState(patient.direccion || '');
     const [enfermedadBase, setEnfermedadBase] = useState(patient.enfermedadBase || '');
     const [tomaMedicamento, setTomaMedicamento] = useState(patient.tomaMedicamento || '');
@@ -455,7 +456,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
 
         setSaving(true);
         const payload = {
-            patientId: patient.id,
+            patientId: patient.id_persona,
             patientName: `${primerNombre} ${primerApellido}`,
             identidad,
             fecha,
@@ -508,7 +509,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                     isEmbedded={true}
                     patientName={`${primerNombre} ${primerApellido}`}
                     patientIdentidad={identidad}
-                    initialDentition={patient.edad < 12 ? 'child' : 'adult'}
+                    initialDentition={calcularEdad(patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
                     onSaveEmbedded={(updatedTeeth, modifiedList) => {
                         setTeethState(updatedTeeth);
                         setModifiedTeethCount(modifiedList.length);
@@ -610,7 +611,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Fecha de Nacimiento</FieldLabel>
-                                    <TextInput type="date" value={fechaNacimiento} onChange={setFechaNacimiento} placeholder="YYYY-MM-DD" />
+                                    <TextInput type="date" value={formatDate(fechaNacimiento)} onChange={(e: any) => setFechaNacimiento(new Date(e.target.value))} placeholder="YYYY-MM-DD" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Teléfono</FieldLabel>

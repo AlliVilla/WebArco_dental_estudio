@@ -139,7 +139,11 @@ export class PersonaService {
     };
 
     if (includeConsulta) {
-      include.consulta = true;
+      include.consultas = {
+        orderBy: {
+          fecha_fin: 'desc', 
+        },
+      };
     }
 
     const [personas, total] = await Promise.all([
