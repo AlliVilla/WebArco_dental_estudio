@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import React, { useCallback } from 'react';
 import svgPaths from '../imports/Sidebar/svg-zii4vktzzu';
 import logoImg from '../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221.png';
 import { ImageWithFallback } from './figma/ImageWithFallback';
