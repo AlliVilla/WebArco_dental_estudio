@@ -12,6 +12,7 @@ import {
   User,
   X,
 } from "lucide-react";
+import { FormSection, FullWidthField } from "../../../components";
 import { Alert, Button, Card, Input, Select } from "../../../context";
 import {
   PATIENT_DEPARTMENTS,
@@ -19,7 +20,8 @@ import {
   PATIENT_SYSTEMIC_DISEASES,
 } from "../../../config/constants";
 import api from "../../../services/api";
-import { CheckboxGroup, RadioGroup, SectionHeader, Textarea } from "./formControls";
+import { calculateAge } from "../../../utils/formatters";
+import { CheckboxGroup, RadioGroup, Textarea } from "./formControls";
 
 type PatientPayload = {
   numero_identidad: string;
@@ -96,15 +98,7 @@ export function PatientFormScreen() {
       return "";
     }
 
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let years = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      years -= 1;
-    }
-
+    const years = calculateAge(birthDate);
     return years >= 0 ? String(years) : "";
   }, [birthDate]);
 
@@ -156,9 +150,8 @@ export function PatientFormScreen() {
 
   useEffect(() => {
     if (patientId) {
-      queueMicrotask(() => {
-        loadPatient(patientId).catch(() => undefined);
-      });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadPatient(patientId).catch(() => undefined);
     }
   }, [loadPatient, patientId]);
 
@@ -229,14 +222,13 @@ export function PatientFormScreen() {
 
       {isLoadingPatient ? <Alert message="Cargando datos del paciente..." variant="info" /> : null}
 
-      <Card>
-        <SectionHeader
-          icon={<User size={18} />}
-          subtitle="Datos de identificación y contacto del paciente"
-          title="Información personal"
-        />
-
-        <div style={{ marginBottom: 20 }}>
+      <FormSection columns={2} icon={<User size={18} />} title="Información personal">
+        <FullWidthField>
+          <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: 0 }}>
+            Datos de identificación y contacto del paciente
+          </p>
+        </FullWidthField>
+        <FullWidthField>
           <Input
             badge="required"
             disabled
@@ -246,205 +238,64 @@ export function PatientFormScreen() {
             readOnly
             value={displayCode}
           />
-        </div>
+        </FullWidthField>
+        <Input badge="required" label="Primer nombre" onChange={(event) => setFirstName(event.target.value)} placeholder="Ej: María" value={firstName} />
+        <Input badge="optional" label="Segundo nombre" onChange={(event) => setSecondName(event.target.value)} placeholder="Ej: Fernanda" value={secondName} />
+        <Input badge="required" label="Primer apellido" onChange={(event) => setFirstLastName(event.target.value)} placeholder="Ej: López" value={firstLastName} />
+        <Input badge="optional" label="Segundo apellido" onChange={(event) => setSecondLastName(event.target.value)} placeholder="Ej: García" value={secondLastName} />
+        <Input badge="required" icon={<IdCard size={15} />} label="Número de identidad" onChange={(event) => setIdentityNumber(event.target.value)} placeholder="Ej: 0801-1990-12345" value={identityNumber} />
+        <Input badge="required" icon={<Calendar size={15} />} label="Fecha de nacimiento" onChange={(event) => setBirthDate(event.target.value)} type="date" value={birthDate} />
+        <Input badge="required" disabled hint="Calculada" label="Edad" placeholder="-" readOnly value={age} />
+        <Select badge="required" label="Sexo" onChange={(value) => setSex(value === "M" || value === "F" ? value : "")} options={[{ value: "M", label: "Masculino" }, { value: "F", label: "Femenino" }]} placeholder="Selecciona..." value={sex} />
+        <Select badge="required" label="Departamento" onChange={handleDepartamentoChange} options={PATIENT_DEPARTMENTS} placeholder="Selecciona..." value={departamento} />
+        <Select badge="required" disabled={!departamento} label="Ciudad / Municipio" onChange={setMunicipio} options={municipioOptions} placeholder={departamento ? "Selecciona..." : "Primero elige un departamento"} value={municipio} />
+        <Input badge="required" icon={<Phone size={15} />} label="Teléfono" onChange={(event) => setPhone(event.target.value)} placeholder="Ej: +504 9876-5432" value={phone} />
+        <Input badge="optional" icon={<Mail size={15} />} label="Correo electrónico" onChange={(event) => setEmail(event.target.value)} placeholder="Ej: maria@correo.com" type="email" value={email} />
+      </FormSection>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 16 }}>
-          <Input
-            badge="required"
-            label="Primer nombre"
-            onChange={(event) => setFirstName(event.target.value)}
-            placeholder="Ej: María"
-            value={firstName}
-          />
-          <Input
-            badge="optional"
-            label="Segundo nombre"
-            onChange={(event) => setSecondName(event.target.value)}
-            placeholder="Ej: Fernanda"
-            value={secondName}
-          />
-        </div>
+      <FormSection columns={1} icon={<Stethoscope size={18} />} title="Información médica">
+        <FullWidthField>
+          <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: 0 }}>
+            Antecedentes de salud relevantes para el tratamiento dental
+          </p>
+        </FullWidthField>
+        <FullWidthField>
+          <CheckboxGroup badge="optional" label="Enfermedades sistémicas" onChange={setEnfermedades} options={PATIENT_SYSTEMIC_DISEASES} selected={enfermedades} />
+        </FullWidthField>
+        {otrasChecked ? (
+          <FullWidthField
+            style={{
+              background: "rgba(239, 159, 39, 0.12)",
+              border: "1px solid var(--arco-warning)",
+              borderRadius: 8,
+              padding: 14,
+            }}
+          >
+            <Textarea badge="conditional" hint='Este campo es obligatorio porque seleccionaste "Otras".' label='Descripción de "Otras" enfermedades' onChange={setOtrasDescription} placeholder="Describe las enfermedades sistémicas no listadas..." rows={3} value={otrasDescription} />
+          </FullWidthField>
+        ) : null}
+        <FullWidthField>
+          <Textarea badge="optional" label="Medicamentos actuales" onChange={setMedicamentos} placeholder="Lista los medicamentos que el paciente consume actualmente..." rows={3} value={medicamentos} />
+        </FullWidthField>
+        <FullWidthField>
+          <Textarea badge="optional" label="Alergias a medicamentos" onChange={setAlergias} placeholder="Describe alergias conocidas a medicamentos..." rows={3} value={alergias} />
+        </FullWidthField>
+        <FullWidthField>
+          <RadioGroup badge="optional" label="Historial de anestesia - ¿Ha tenido reacciones a la anestesia?" onChange={setAnestesiaReaction} options={[{ value: "no", label: "No ha tenido reacciones" }, { value: "si", label: "Sí, ha tenido reacciones" }]} value={anestesiaReaction} />
+        </FullWidthField>
+      </FormSection>
 
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 16 }}>
-          <Input
-            badge="required"
-            label="Primer apellido"
-            onChange={(event) => setFirstLastName(event.target.value)}
-            placeholder="Ej: López"
-            value={firstLastName}
-          />
-          <Input
-            badge="optional"
-            label="Segundo apellido"
-            onChange={(event) => setSecondLastName(event.target.value)}
-            placeholder="Ej: García"
-            value={secondLastName}
-          />
-        </div>
-
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 16 }}>
-          <Input
-            badge="required"
-            icon={<IdCard size={15} />}
-            label="Número de identidad"
-            onChange={(event) => setIdentityNumber(event.target.value)}
-            placeholder="Ej: 0801-1990-12345"
-            value={identityNumber}
-          />
-          <Input
-            badge="required"
-            icon={<Calendar size={15} />}
-            label="Fecha de nacimiento"
-            onChange={(event) => setBirthDate(event.target.value)}
-            type="date"
-            value={birthDate}
-          />
-          <Input badge="required" disabled hint="Calculada" label="Edad" placeholder="-" readOnly value={age} />
-        </div>
-
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 16 }}>
-          <Select
-            badge="required"
-            label="Sexo"
-            onChange={(value) => setSex(value === "M" || value === "F" ? value : "")}
-            options={[
-              { value: "M", label: "Masculino" },
-              { value: "F", label: "Femenino" },
-            ]}
-            placeholder="Selecciona..."
-            value={sex}
-          />
-          <Select
-            badge="required"
-            label="Departamento"
-            onChange={handleDepartamentoChange}
-            options={PATIENT_DEPARTMENTS}
-            placeholder="Selecciona..."
-            value={departamento}
-          />
-          <Select
-            badge="required"
-            disabled={!departamento}
-            label="Ciudad / Municipio"
-            onChange={setMunicipio}
-            options={municipioOptions}
-            placeholder={departamento ? "Selecciona..." : "Primero elige un departamento"}
-            value={municipio}
-          />
-        </div>
-
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-          <Input
-            badge="required"
-            icon={<Phone size={15} />}
-            label="Teléfono"
-            onChange={(event) => setPhone(event.target.value)}
-            placeholder="Ej: +504 9876-5432"
-            value={phone}
-          />
-          <Input
-            badge="optional"
-            icon={<Mail size={15} />}
-            label="Correo electrónico"
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Ej: maria@correo.com"
-            type="email"
-            value={email}
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <SectionHeader
-          icon={<Stethoscope size={18} />}
-          subtitle="Antecedentes de salud relevantes para el tratamiento dental"
-          title="Información médica"
-        />
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <CheckboxGroup
-            badge="optional"
-            label="Enfermedades sistémicas"
-            onChange={setEnfermedades}
-            options={PATIENT_SYSTEMIC_DISEASES}
-            selected={enfermedades}
-          />
-          {otrasChecked ? (
-            <div
-              style={{
-                background: "#FFFBEB",
-                border: "1px solid #FDE68A",
-                borderRadius: 8,
-                padding: 14,
-              }}
-            >
-              <Textarea
-                badge="conditional"
-                hint='Este campo es obligatorio porque seleccionaste "Otras".'
-                label='Descripción de "Otras" enfermedades'
-                onChange={setOtrasDescription}
-                placeholder="Describe las enfermedades sistémicas no listadas..."
-                rows={3}
-                value={otrasDescription}
-              />
-            </div>
-          ) : null}
-          <Textarea
-            badge="optional"
-            label="Medicamentos actuales"
-            onChange={setMedicamentos}
-            placeholder="Lista los medicamentos que el paciente consume actualmente..."
-            rows={3}
-            value={medicamentos}
-          />
-          <Textarea
-            badge="optional"
-            label="Alergias a medicamentos"
-            onChange={setAlergias}
-            placeholder="Describe alergias conocidas a medicamentos..."
-            rows={3}
-            value={alergias}
-          />
-          <RadioGroup
-            badge="optional"
-            label="Historial de anestesia - ¿Ha tenido reacciones a la anestesia?"
-            onChange={setAnestesiaReaction}
-            options={[
-              { value: "no", label: "No ha tenido reacciones" },
-              { value: "si", label: "Sí, ha tenido reacciones" },
-            ]}
-            value={anestesiaReaction}
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <SectionHeader
-          icon={<ClipboardList size={18} />}
-          subtitle="Historial previo y motivo de la primera consulta"
-          title="Información odontológica inicial"
-        />
-
-        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", alignItems: "start" }}>
-          <Input
-            badge="optional"
-            hint="Si viene de otra clínica"
-            icon={<Calendar size={15} />}
-            label="Fecha de última visita previa"
-            onChange={(event) => setLastVisitDate(event.target.value)}
-            type="date"
-            value={lastVisitDate}
-          />
-          <Textarea
-            badge="optional"
-            label="Motivo de consulta inicial"
-            onChange={setMotivoConsulta}
-            placeholder="Describe el motivo principal de la primera visita del paciente..."
-            rows={4}
-            value={motivoConsulta}
-          />
-        </div>
-      </Card>
+      <FormSection columns={2} icon={<ClipboardList size={18} />} title="Información odontológica inicial">
+        <FullWidthField>
+          <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: 0 }}>
+            Historial previo y motivo de la primera consulta
+          </p>
+        </FullWidthField>
+        <Input badge="optional" hint="Si viene de otra clínica" icon={<Calendar size={15} />} label="Fecha de última visita previa" onChange={(event) => setLastVisitDate(event.target.value)} type="date" value={lastVisitDate} />
+        <FullWidthField>
+          <Textarea badge="optional" label="Motivo de consulta inicial" onChange={setMotivoConsulta} placeholder="Describe el motivo principal de la primera visita del paciente..." rows={4} value={motivoConsulta} />
+        </FullWidthField>
+      </FormSection>
 
       <Card style={{ padding: "16px 20px" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>

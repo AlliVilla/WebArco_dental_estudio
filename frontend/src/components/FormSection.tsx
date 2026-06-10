@@ -9,6 +9,8 @@ interface FormSectionProps {
 }
 
 export function FormSection({ title, icon, columns = 2, children, style }: FormSectionProps) {
+  const minColumnWidth = columns === 3 ? 240 : 280;
+
   return (
     <div
       style={{
@@ -42,7 +44,7 @@ export function FormSection({ title, icon, columns = 2, children, style }: FormS
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: columns === 1 ? '1fr' : columns === 3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+          gridTemplateColumns: columns === 1 ? '1fr' : `repeat(auto-fit, minmax(${minColumnWidth}px, 1fr))`,
           gap: 16,
         }}
       >

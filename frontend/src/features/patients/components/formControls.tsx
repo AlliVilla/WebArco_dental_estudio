@@ -1,48 +1,7 @@
 import { useState } from 'react';
-import type { ReactNode } from 'react';
 import { FieldBadge } from '../../../context';
 
 type BadgeType = 'required' | 'optional' | 'conditional';
-
-export function SectionHeader({
-  icon,
-  subtitle,
-  title,
-}: {
-  icon: ReactNode;
-  subtitle?: string;
-  title: string;
-}) {
-  return (
-    <div style={{ alignItems: 'center', display: 'flex', gap: 10, marginBottom: 20 }}>
-      <div
-        style={{
-          alignItems: 'center',
-          background: 'rgba(11,197,223,0.1)',
-          borderRadius: 8,
-          color: 'var(--arco-primary, #0BC5DF)',
-          display: 'flex',
-          flexShrink: 0,
-          height: 36,
-          justifyContent: 'center',
-          width: 36,
-        }}
-      >
-        {icon}
-      </div>
-      <div>
-        <h3 style={{ color: 'var(--arco-navy, #203F49)', fontSize: 15, fontWeight: 600, margin: 0 }}>
-          {title}
-        </h3>
-        {subtitle ? (
-          <p style={{ color: 'var(--arco-gray-500, #888F94)', fontSize: 12, margin: '2px 0 0' }}>
-            {subtitle}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export function Textarea({
   badge,

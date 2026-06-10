@@ -46,8 +46,14 @@ type PersonasListResponse = {
   };
 };
 
+type PatientSearchFilters = {
+  nombre?: string;
+  identidad?: string;
+  telefono?: string;
+  codigo?: string;
+};
+
 interface PatientsScreenProps {
-  onViewProfile?: () => void;
   onCreatePatient?: () => void;
   onEditPatient?: (id: number) => void;
   onViewPatient?: (id: number) => void;
@@ -79,7 +85,6 @@ export function PatientsScreen({
   onViewPatient,
 }: PatientsScreenProps) {
   const navigate = useNavigate();
-  const [allPatients, setAllPatients] = useState<Patient[]>([]);
   const [searchName, setSearchName] = useState("");
   const [searchIdentity, setSearchIdentity] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
@@ -88,7 +93,7 @@ export function PatientsScreen({
   const [selectedMedicalPatient, setSelectedMedicalPatient] =
     useState<Patient | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [activeFilters, setActiveFilters] = useState<PatientSearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -103,46 +108,23 @@ export function PatientsScreen({
     searchName || searchIdentity || searchPhone || searchCode,
   );
 
-  const filterPatients = useCallback((patients: Patient[]) => {
-    const identityQuery = searchIdentity.replace(/\D/g, "");
-    const phoneQuery = searchPhone.replace(/\D/g, "");
-
-    return patients.filter((patient) => {
-      const matchName =
-        !searchName ||
-        patient.fullName.toLowerCase().includes(searchName.toLowerCase());
-      const matchIdentity =
-        !searchIdentity ||
-        patient.identity.includes(identityQuery || searchIdentity);
-      const matchPhone =
-        !searchPhone ||
-        patient.phone.includes(searchPhone) ||
-        patient.phone.replace(/\D/g, "").includes(phoneQuery);
-      const matchCode =
-        !searchCode ||
-        patient.code.toLowerCase().includes(searchCode.toLowerCase());
-
-      return matchName && matchIdentity && matchPhone && matchCode;
-    });
-  }, [searchCode, searchIdentity, searchName, searchPhone]);
-
-  const getBackendSearchQuery = useCallback(() =>
-    searchName.trim() ||
-    searchIdentity.replace(/\D/g, "") ||
-    searchPhone.replace(/\D/g, "") ||
-    searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""), [searchCode, searchIdentity, searchName, searchPhone]);
-
-  const loadPatients = useCallback(async (page: number, search = "") => {
+  const loadPatients = useCallback(async (page: number, filters: PatientSearchFilters = {}) => {
     try {
       setIsLoading(true);
       setError("");
       const response = await api.get<PersonasListResponse>("/persona", {
-        params: { page, limit: DEFAULT_PAGE_SIZE, search: search || undefined },
+        params: {
+          page,
+          limit: DEFAULT_PAGE_SIZE,
+          nombre: filters.nombre || undefined,
+          identidad: filters.identidad || undefined,
+          telefono: filters.telefono || undefined,
+          codigo: filters.codigo || undefined,
+        },
       });
       const personas = response.data?.data ?? [];
       const patients = personas.map(mapPersonaToPatient);
-      setAllPatients(patients);
-      setSearchResults(hasSearched ? filterPatients(patients) : patients);
+      setSearchResults(patients);
       setPagination(response.data?.pagination ?? {
         total: patients.length,
         page,
@@ -152,23 +134,26 @@ export function PatientsScreen({
     } catch (requestError) {
       const apiError = requestError as { message?: string };
       setError(apiError.message ?? "No se pudieron cargar los pacientes.");
-      setAllPatients([]);
       setSearchResults([]);
     } finally {
       setIsLoading(false);
     }
-  }, [filterPatients, hasSearched]);
+  }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      loadPatients(currentPage, activeSearchQuery).catch(() => undefined);
-    });
-  }, [activeSearchQuery, currentPage, loadPatients]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPatients(currentPage, activeFilters).catch(() => undefined);
+  }, [activeFilters, currentPage, loadPatients]);
 
   const handleSearch = () => {
     if (!hasAnyFilter) return;
     setHasSearched(true);
-    setActiveSearchQuery(getBackendSearchQuery());
+    setActiveFilters({
+      nombre: searchName.trim(),
+      identidad: searchIdentity.replace(/\D/g, ""),
+      telefono: searchPhone.replace(/\D/g, ""),
+      codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""),
+    });
     setCurrentPage(1);
   };
 
@@ -177,9 +162,8 @@ export function PatientsScreen({
     setSearchIdentity("");
     setSearchPhone("");
     setSearchCode("");
-    setSearchResults(allPatients);
     setHasSearched(false);
-    setActiveSearchQuery("");
+    setActiveFilters({});
     setCurrentPage(1);
   };
 
@@ -204,7 +188,7 @@ export function PatientsScreen({
   };
 
   const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
-    setCurrentPage(page);
+    setCurrentPage((current) => (current === page ? current : page));
   }, []);
 
   const columns: Column<Patient>[] = [
@@ -333,7 +317,7 @@ export function PatientsScreen({
       </Card>
 
       <DataTable<Patient>
-        key={activeSearchQuery || "all-patients"}
+        key={hasSearched ? JSON.stringify(activeFilters) : "all-patients"}
         columns={columns}
         data={isLoading ? [] : searchResults}
         description={
