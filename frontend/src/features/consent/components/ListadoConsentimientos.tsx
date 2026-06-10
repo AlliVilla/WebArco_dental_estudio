@@ -4,13 +4,22 @@ import { Calendar, CheckCircle, Download, Eye, FileText, Plus, XCircle } from 'l
 import { DataTable, type Column, type FilterDef } from '../../../components';
 import { Alert, Card, StatusBadge, useTheme } from '../../../context';
 import { formatDate, formatIdentity } from '../../../utils/formatters';
-import type { ConsentimientoListItem, EstadoFirma } from '../types';
+import type { ConsentimientoListItem, ConsentimientoStats, EstadoFirma } from '../types';
+
+export type ConsentimientosTableParams = {
+  page: number;
+  search: string;
+  filters: Record<string, string>;
+};
 
 export interface ListadoConsentimientosProps {
   consentimientos: ConsentimientoListItem[];
+  stats?: ConsentimientoStats | null;
+  totalRecords?: number;
   onPrint?: (id: number) => void;
   onViewDetail?: (id: number) => void;
   onCreateNew?: () => void;
+  onTableParamsChange?: (params: ConsentimientosTableParams) => void;
   loading?: boolean;
 }
 
@@ -48,9 +57,12 @@ function getEstadoBadge(estado: EstadoFirma) {
 
 export function ListadoConsentimientos({
   consentimientos,
+  stats,
+  totalRecords = consentimientos.length,
   onPrint,
   onViewDetail,
   onCreateNew,
+  onTableParamsChange,
   loading = false,
 }: ListadoConsentimientosProps) {
   useTheme();
@@ -68,15 +80,17 @@ export function ListadoConsentimientos({
     [consentimientos],
   );
 
-  const stats = useMemo(
+  const fallbackStats = useMemo(
     () => ({
-      total: consentimientos.length,
+      total: totalRecords,
       completos: consentimientos.filter((item) => item.estado_firmas === 'completo').length,
       pendientes: consentimientos.filter((item) => item.estado_firmas === 'pendiente').length,
       incompletos: consentimientos.filter((item) => item.estado_firmas === 'incompleto').length,
     }),
-    [consentimientos],
+    [consentimientos, totalRecords],
   );
+
+  const displayStats = stats ?? fallbackStats;
 
   const monthOptions = useMemo(() => {
     const months = Array.from(new Set(consentimientos.map((item) => item.fecha.slice(0, 7)))).sort().reverse();
@@ -98,7 +112,7 @@ export function ListadoConsentimientos({
         label: 'Fecha',
         width: 120,
         render: (value) => (
-          <span style={{ color: 'var(--foreground)', fontSize: 13 }}>{formatDate(String(value))}</span>
+          <span style={{ color: 'var(--foreground)', fontSize: 13 }}>{formatDate(value as string)}</span>
         ),
       },
       {
@@ -109,7 +123,7 @@ export function ListadoConsentimientos({
             <span style={{ color: 'var(--foreground)', fontSize: 13, fontWeight: 500 }}>
               {String(row.paciente_nombre)}
             </span>
-            <span style={{ color: 'var(--muted-foreground, var(--arco-gray-500))', fontSize: 11 }}>
+            <span style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>
               {formatIdentity(row.paciente.numero_identidad)}
             </span>
           </div>
@@ -125,7 +139,7 @@ export function ListadoConsentimientos({
         label: 'Firmas',
         render: (_, row) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted-foreground)' }}>
               {row.tiene_firma_paciente ? (
                 <CheckCircle size={16} style={{ color: 'var(--arco-success)' }} />
               ) : (
@@ -133,7 +147,7 @@ export function ListadoConsentimientos({
               )}
               Pac.
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted-foreground)' }}>
               {row.tiene_firma_doctor ? (
                 <CheckCircle size={16} style={{ color: 'var(--arco-success)' }} />
               ) : (
@@ -180,34 +194,34 @@ export function ListadoConsentimientos({
         <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--foreground)' }}>
           Ver Consentimientos
         </h1>
-        <p style={{ margin: 0, fontSize: 14, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--muted-foreground)' }}>
           Gestión y seguimiento de consentimientos informados
         </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
         <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground, var(--arco-gray-500))', fontWeight: 600, textTransform: 'uppercase' }}>Total</p>
-          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--foreground)' }}>{stats.total}</p>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)', fontWeight: 500, textTransform: 'uppercase' }}>Total</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--foreground)' }}>{displayStats.total}</p>
         </Card>
         <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-success)', fontWeight: 600, textTransform: 'uppercase' }}>Completos</p>
-          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-success)' }}>{stats.completos}</p>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-success)', fontWeight: 500, textTransform: 'uppercase' }}>Completos</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-success)' }}>{displayStats.completos}</p>
         </Card>
         <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-warning)', fontWeight: 600, textTransform: 'uppercase' }}>Pendientes</p>
-          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-warning)' }}>{stats.pendientes}</p>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-warning)', fontWeight: 500, textTransform: 'uppercase' }}>Pendientes</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-warning)' }}>{displayStats.pendientes}</p>
         </Card>
         <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-danger)', fontWeight: 600, textTransform: 'uppercase' }}>Incompletos</p>
-          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-danger)' }}>{stats.incompletos}</p>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-danger)', fontWeight: 500, textTransform: 'uppercase' }}>Incompletos</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-danger)' }}>{displayStats.incompletos}</p>
         </Card>
       </div>
 
-      {stats.incompletos + stats.pendientes > 0 && (
+      {displayStats.incompletos + displayStats.pendientes > 0 && (
         <Alert
           variant="warning"
-          message={`Hay ${stats.incompletos + stats.pendientes} consentimientos que requieren firmas pendientes.`}
+          message={`Hay ${displayStats.incompletos + displayStats.pendientes} consentimientos que requieren firmas pendientes.`}
         />
       )}
 
@@ -220,6 +234,9 @@ export function ListadoConsentimientos({
         searchKeys={['paciente_nombre', 'numero_identidad', 'tratamiento_busqueda']}
         filters={filters}
         pageSize={10}
+        isServerSide={Boolean(onTableParamsChange)}
+        totalRecords={totalRecords}
+        onServerParamsChange={onTableParamsChange}
         primaryAction={{ label: 'Crear Nuevo', icon: <Plus size={16} />, onClick: () => onCreateNew?.() }}
         secondaryActions={[
           {
@@ -244,9 +261,9 @@ export function ListadoConsentimientos({
         emptyMessage={loading ? 'Cargando consentimientos...' : 'No se encontraron consentimientos.'}
         style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16 }}
         footer={
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-foreground)' }}>
             <FileText size={16} />
-            {consentimientos.length} consentimientos en total
+            {totalRecords} consentimientos en total
           </span>
         }
       />

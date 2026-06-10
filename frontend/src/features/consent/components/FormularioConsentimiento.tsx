@@ -106,7 +106,7 @@ export function FormularioConsentimiento({
         <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--foreground)' }}>
           Consentimiento Informado
         </h1>
-        <p style={{ margin: 0, fontSize: 14, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--muted-foreground)' }}>
           Autorización para procedimientos dentales
         </p>
       </div>

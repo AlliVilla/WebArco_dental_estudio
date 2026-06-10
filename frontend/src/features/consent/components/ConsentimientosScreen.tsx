@@ -1,43 +1,75 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Spinner } from '../../../components';
 import { Alert, useTheme } from '../../../context';
 import { consentService } from '../services/consentService';
-import type { ConsentimientoListItem } from '../types';
-import { ListadoConsentimientos } from './ListadoConsentimientos';
+import type { ConsentimientoListItem, ConsentimientoStats, EstadoFirma, QueryConsentimientoParams } from '../types';
+import { ListadoConsentimientos, type ConsentimientosTableParams } from './ListadoConsentimientos';
 
 export interface ConsentimientosScreenProps {}
+
+const PAGE_SIZE = 10;
+
+function mapTableParamsToQuery(params: ConsentimientosTableParams): QueryConsentimientoParams {
+  const query: QueryConsentimientoParams = {
+    page: params.page,
+    limit: PAGE_SIZE,
+  };
+
+  if (params.search.trim()) {
+    query.paciente = params.search.trim();
+  }
+
+  const estado = params.filters.estado_firmas;
+  if (estado) {
+    query.estado = estado as EstadoFirma;
+  }
+
+  const mes = params.filters.mes;
+  if (mes) {
+    const [anio, mesNumero] = mes.split('-');
+    query.anio = Number(anio);
+    query.mes = Number(mesNumero);
+  }
+
+  return query;
+}
 
 export function ConsentimientosScreen(_props: ConsentimientosScreenProps) {
   useTheme();
 
   const [consentimientos, setConsentimientos] = useState<ConsentimientoListItem[]>([]);
+  const [stats, setStats] = useState<ConsentimientoStats | null>(null);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchConsentimientos = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const handleTableParamsChange = useCallback(async (params: ConsentimientosTableParams) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const response = await consentService.getAll({ page: 1, limit: 50 });
+      const [listResponse, statsResponse] = await Promise.all([
+        consentService.getAll(mapTableParamsToQuery(params)),
+        consentService.getStats(),
+      ]);
 
-        if (response.success && response.data) {
-          setConsentimientos(response.data.data);
-        } else {
-          setError(response.message || 'Error al cargar consentimientos');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-      } finally {
-        setLoading(false);
+      if (listResponse.success && listResponse.data) {
+        setConsentimientos(listResponse.data.data);
+        setTotalRecords(listResponse.data.total);
+      } else {
+        setError(listResponse.message || 'Error al cargar consentimientos');
       }
-    };
 
-    fetchConsentimientos();
+      if (statsResponse.success && statsResponse.data) {
+        setStats(statsResponse.data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const handlePrint = (id: number) => {
@@ -53,14 +85,6 @@ export function ConsentimientosScreen(_props: ConsentimientosScreenProps) {
     navigate('/consent/nuevo');
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <Spinner />
-      </div>
-    );
-  }
-
   if (error) {
     return <Alert variant="error" message={`Error: ${error}`} />;
   }
@@ -68,9 +92,12 @@ export function ConsentimientosScreen(_props: ConsentimientosScreenProps) {
   return (
     <ListadoConsentimientos
       consentimientos={consentimientos}
+      stats={stats}
+      totalRecords={totalRecords}
       onPrint={handlePrint}
       onViewDetail={handleViewDetail}
       onCreateNew={handleCreateNew}
+      onTableParamsChange={handleTableParamsChange}
       loading={loading}
     />
   );

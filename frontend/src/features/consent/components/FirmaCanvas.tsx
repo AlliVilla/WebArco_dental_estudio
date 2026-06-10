@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CheckCircle, X } from 'lucide-react';
+
 import { Button, useTheme } from '../../../context';
 
 export interface FirmaCanvasProps {
@@ -9,6 +10,9 @@ export interface FirmaCanvasProps {
   isSigned?: boolean;
   disabled?: boolean;
 }
+
+const CANVAS_BACKGROUND = '#FFFFFF';
+const SIGNATURE_STROKE = '#203F49';
 
 export function FirmaCanvas({
   label,
@@ -20,7 +24,27 @@ export function FirmaCanvas({
   useTheme();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const strokeColorRef = useRef(SIGNATURE_STROKE);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  const fillCanvasBackground = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = CANVAS_BACKGROUND;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  };
+
+  useEffect(() => {
+    strokeColorRef.current = SIGNATURE_STROKE;
+    fillCanvasBackground();
+  }, []);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (disabled || isSigned) return;
@@ -53,9 +77,7 @@ export function FirmaCanvas({
     const y = e.clientY - rect.top;
 
     ctx.lineTo(x, y);
-    // Leemos la variable del tema para que la "tinta" se adapte al modo oscuro/claro
-    const strokeColor = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
-    ctx.strokeStyle = strokeColor || '#203F49';
+    ctx.strokeStyle = strokeColorRef.current;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -73,25 +95,36 @@ export function FirmaCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Se borra el contenido dejándolo transparente en lugar de forzar un color blanco
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    fillCanvasBackground();
   };
 
   const handleCapture = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const signatureData = canvas.toDataURL('image/png');
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvas.width;
+    exportCanvas.height = canvas.height;
+
+    const exportContext = exportCanvas.getContext('2d');
+    if (!exportContext) return;
+
+    exportContext.fillStyle = CANVAS_BACKGROUND;
+    exportContext.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    exportContext.drawImage(canvas, 0, 0);
+
+    const signatureData = exportCanvas.toDataURL('image/png');
     onCapture(signatureData);
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>
-        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', display: 'block', marginBottom: 4 }}>
+        <label style={{ fontSize: 11, fontWeight: 500, color: 'var(--foreground)', display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>
           {label}
         </label>
-        <p style={{ fontSize: 12, color: 'var(--muted-foreground, var(--arco-gray-500))', margin: 0 }}>{subtitle}</p>
+        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0 }}>{subtitle}</p>
       </div>
 
       {/* Canvas area */}
@@ -100,7 +133,7 @@ export function FirmaCanvas({
           border: isSigned ? '2px solid var(--arco-success)' : '2px dashed var(--border)',
           borderRadius: 8,
           padding: 8,
-          backgroundColor: 'var(--background)',
+          backgroundColor: 'var(--card)',
           transition: 'border-color 0.2s ease',
         }}
       >
@@ -112,7 +145,7 @@ export function FirmaCanvas({
             width: '100%',
             height: 'auto',
             display: 'block',
-            backgroundColor: 'transparent',
+            backgroundColor: CANVAS_BACKGROUND,
             borderRadius: 4,
             cursor: disabled || isSigned ? 'not-allowed' : 'crosshair',
             opacity: disabled ? 0.6 : 1,
@@ -143,8 +176,9 @@ export function FirmaCanvas({
           </>
         )}
         {isSigned && (
-          <div style={{ fontSize: 12, color: 'var(--arco-success)', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-            ✓ Firma capturada
+          <div style={{ fontSize: 13, color: 'var(--arco-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CheckCircle size={14} />
+            Firma capturada
           </div>
         )}
       </div>
