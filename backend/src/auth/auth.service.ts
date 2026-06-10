@@ -34,6 +34,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas.');
     }
 
+    if (!userExists.activo) {
+      throw new UnauthorizedException('El usuario se encuentra inactivo.');
+    }
+
     const isPasswordValid = await comparePassword(
       password,
       userExists.password,

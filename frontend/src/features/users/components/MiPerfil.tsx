@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { User, Key, LogOut, Shield, ChevronRight, Lock, Check, X, AlertCircle } from 'lucide-react';
 
 import { FormSection, FullWidthField, ConfirmModal } from '../../../components';
 import { Button, Input, Card, useTheme, PasswordInput } from '../../../context';
 import { useAuthStore } from '../../auth/hooks/useAuthStore';
 import profileTooth from '../../../assets/profile-tooth.png';
+import { profileService } from '../services/profileService';
 
 type Mode = 'view' | 'edit' | 'changePassword';
 
@@ -58,6 +59,7 @@ function ChangePasswordForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+
     setLoading(true);
     await new Promise((r) => setTimeout(r, 1200));
     setLoading(false);
@@ -147,6 +149,8 @@ export function MiPerfil() {
   const [fullName, setFullName] = useState(
     user ? `${user.persona?.nombre ?? ''} ${user.persona?.apellido ?? ''}`.trim() : ''
   );
+  const [roleName, setRoleName] = useState(user?.rol?.nombre ?? 'Sin rol');
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
 
   const addToast = useCallback((type: ToastMsg['type'], message: string) => {
@@ -159,27 +163,56 @@ export function MiPerfil() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const handleSave = () => {
-    if (!user) {
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setIsProfileLoading(true);
+
+        const profile = await profileService.getProfile();
+
+        setUsername(profile.username ?? '');
+        setEmail(profile.email ?? '');
+        setFullName(profile.nombre ?? '');
+        setRoleName(profile.rol ?? 'Sin rol');
+      } catch (error) {
+        console.error('Error cargando perfil:', error);
+        addToast('error', 'No se pudo cargar el perfil.');
+      } finally {
+        setIsProfileLoading(false);
+      }
+    };
+
+    void loadProfile();
+  }, [addToast]);
+
+  const handleSave = async () => {
+    if (!username.trim() || !email.trim() || !fullName.trim()) {
+      addToast('error', 'Username, correo y nombre completo son obligatorios.');
       return;
     }
 
-    const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
-    const updated = {
-      ...user,
-      username,
-      persona: {
-        nombre: nameParts[0] || user.persona?.nombre || '',
-        apellido: nameParts.slice(1).join(' ') || user.persona?.apellido || '',
-        telefono: user.persona?.telefono,
-        correo: email,
-      },
-    };
+    try {
+      setIsProfileLoading(true);
 
-    localStorage.setItem('webarco_user', JSON.stringify(updated));
-    useAuthStore.setState({ user: updated });
-    addToast('success', 'Perfil actualizado correctamente.');
-    setMode('view');
+      const profile = await profileService.updateProfile({
+        username: username.trim(),
+        email: email.trim(),
+        nombre_completo: fullName.trim(),
+      });
+
+      setUsername(profile.username ?? '');
+      setEmail(profile.email ?? '');
+      setFullName(profile.nombre ?? '');
+      setRoleName(profile.rol ?? 'Sin rol');
+
+      addToast('success', 'Perfil actualizado correctamente.');
+      setMode('view');
+    } catch (error) {
+      console.error('Error actualizando perfil:', error);
+      addToast('error', 'No se pudo actualizar el perfil.');
+    } finally {
+      setIsProfileLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -194,6 +227,15 @@ export function MiPerfil() {
 
   const isEditing = mode === 'edit';
   const isChangingPwd = mode === 'changePassword';
+
+  const displayFullName = fullName || 'Usuario';
+  const displayUsername = username || 'usuario';
+  const displayRole = roleName || 'Sin rol';
+
+  const nameParts = displayFullName.trim().split(/\s+/).filter(Boolean);
+  const initials = nameParts.length > 0
+    ? `${nameParts[0]?.charAt(0)?.toUpperCase() ?? 'U'}${nameParts[1]?.charAt(0)?.toUpperCase() ?? ''}`
+    : 'U';
 
   const formIcon = isChangingPwd ? (
     <div style={{ width: 32, height: 32, borderRadius: 8, background: '#E6F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -211,14 +253,14 @@ export function MiPerfil() {
     <ChangePasswordForm onSuccess={handlePwdChangeSuccess} />
   ) : (
     <>
-      <Input label="Username" badge="required" value={username} onChange={(e) => setUsername(e.target.value)} disabled={!isEditing} />
-      <Input label="Correo electrónico" badge="required" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!isEditing} />
+      <Input label="Username" badge="required" value={username} onChange={(e) => setUsername(e.target.value)} disabled={!isEditing || isProfileLoading} />
+      <Input label="Correo electrónico" badge="required" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!isEditing || isProfileLoading} />
       <FullWidthField>
-        <Input label="Nombre completo" badge="required" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={!isEditing} />
+        <Input label="Nombre completo" badge="required" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={!isEditing || isProfileLoading} />
       </FullWidthField>
       <FullWidthField style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, minHeight: 40 }}>
         {isEditing ? (
-          <Button variant="primary" onClick={handleSave} style={{ width: 153 }}>Guardar cambios</Button>
+          <Button variant="primary" onClick={handleSave} loading={isProfileLoading} style={{ width: 153 }}>Guardar cambios</Button>
         ) : (
           <div style={{ width: 153 }} />
         )}
@@ -264,15 +306,14 @@ export function MiPerfil() {
               flexShrink: 0,
             }}
           >
-            {user?.persona?.nombre?.charAt(0)?.toUpperCase() ?? 'U'}
-            {user?.persona?.apellido?.charAt(0)?.toUpperCase() ?? ''}
+            {initials}
           </div>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: '#ffffff', margin: '0 0 6px 0' }}>
-              {user?.persona?.nombre ?? 'Usuario'} {user?.persona?.apellido ?? ''}
+              {isProfileLoading ? 'Cargando perfil...' : displayFullName}
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, color: '#ffffff' }}>
-              <span>@{user?.username ?? 'usuario'}</span>
+              <span>@{displayUsername}</span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#ffffff', flexShrink: 0 }} />
               <span
                 style={{
@@ -284,7 +325,7 @@ export function MiPerfil() {
                   fontWeight: 600,
                 }}
               >
-                {user?.rol?.nombre ?? 'Sin rol'}
+                {displayRole}
               </span>
             </div>
           </div>
