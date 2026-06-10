@@ -17,6 +17,7 @@ import { ExpedienteClinicoModule } from './expediente-clinico/expediente-clinico
 import { ReminderModule } from './reminder/reminder.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConsentimientoModule } from './consentimiento/consentimiento.module';
+import { InventarioModule } from './inventario/inventario.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ConsentimientoModule } from './consentimiento/consentimiento.module';
     CitaModule,
     ExpedienteClinicoModule,
     ReminderModule,
+    InventarioModule,
   ],
   controllers: [AppController],
   providers: [AppService],
