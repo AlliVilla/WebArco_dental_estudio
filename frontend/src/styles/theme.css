@@ -10,6 +10,9 @@
   --arco-success: #1D9E75;
   --arco-warning: #EF9F27;
   --arco-danger: #E24B4A;
+  --arco-success-soft: rgba(29, 158, 117, 0.12);
+  --arco-warning-soft: rgba(239, 159, 39, 0.12);
+  --arco-danger-soft: rgba(226, 75, 74, 0.12);
   --arco-gray-50: #F8F9FA;
   --arco-gray-100: #F1F3F4;
   --arco-gray-300: #D3D7DA;

@@ -41,6 +41,9 @@ const consultaInclude = {
       },
     },
   },
+  pagos: {
+    orderBy: { fecha: 'desc' },
+  },
 } satisfies Prisma.ConsultaInclude;
 
 @Injectable()
@@ -144,9 +147,6 @@ export class ConsultaService {
               },
             },
           },
-        },
-        pagos: {
-          orderBy: { fecha: 'desc' },
         },
       },
     });

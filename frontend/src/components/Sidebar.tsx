@@ -1,19 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import svgPaths from '../imports/Sidebar/svg-zii4vktzzu';
 import logoImg from '../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221.png';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { useAuthStore } from '../features/auth/hooks/useAuthStore';
 
 // ── Nav data (SVG paths wired from Figma import) ──────────────────────────────
 
 type NavId =
   | 'dashboard'
-  | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consent'
-  | 'citas' | 'recordatorios'
-  | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
-  | 'billing-list' | 'estado-resultado'
-  | 'settings' | 'users' | 'treatments' | 'inventory'
-  | 'records' | 'registro-pacientes';
+  | 'patients'
+  | 'patients-list'
+  | 'patient-expediente'
+  | 'odontogram'
+  | 'consent'
+  | 'consentimientos-lista'
+  | 'citas'
+  | 'recordatorios'
+  | 'reminders-historial'
+  | 'billing'
+  | 'billing-income'
+  | 'billing-expense'
+  | 'billing-closures'
+  | 'billing-list'
+  | 'estado-resultados'
+  | 'settings'
+  | 'users'
+  | 'treatments'
+  | 'inventory'
+  | 'records'
+  | 'registro-pacientes';
 
 interface NavItem {
   id: NavId;
@@ -173,7 +189,12 @@ const navGroups: NavGroup[] = [
     title: 'Agenda',
     items: [
       { id: 'citas', label: 'Citas', badge: 3, icon: <IconAgenda /> },
-      { id: 'recordatorios', label: 'Recordatorios', icon: <IconBell /> },
+      { id: 'recordatorios', label: 'Recordatorios', icon: <IconBell /> ,
+        subItems: [
+          { id: 'recordatorios',           label: 'Cola de envío'          },
+          { id: 'reminders-historial', label: 'Historial de confirmaciones' },
+        ],
+      },
     ],
   },
   {
@@ -220,6 +241,24 @@ interface SidebarProps {
 export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: SidebarProps) {
   const w = collapsed ? 64 : 240;
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+  }, [logout]);
+
+  const fullName = user
+    ? [user.persona?.primer_nombre, user.persona?.primer_apellido]
+        .filter(Boolean).join(' ') || 'Usuario'
+    : 'Usuario';
+  const roleName = user?.rol?.nombre ?? 'Sin rol';
+  const initials = (() => {
+    if (!user?.persona) return 'U';
+    const n = (user.persona.primer_nombre ?? '')?.charAt(0)?.toUpperCase();
+    const a = (user.persona.primer_apellido ?? '')?.charAt(0)?.toUpperCase();
+    return (n || 'U') + (a || '');
+  })();
 
   const toggleExpand = (itemId: string) => {
     setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
@@ -485,27 +524,46 @@ export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: Sidebar
             justifyContent: collapsed ? 'center' : 'flex-start',
           }}>
             {/* Avatar */}
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%',
-              background: '#0BC5DF', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 600, color: '#fff',
-            }}>KA</div>
+            <button
+              onClick={() => onNavigate('mi-perfil')}
+              title={collapsed ? 'Mi Perfil' : undefined}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: '#0BC5DF', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 600, color: '#fff',
+                border: 'none', cursor: 'pointer', padding: 0,
+              }}
+            >
+              {initials}
+            </button>
 
             {!collapsed && (
               <>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <button
+                  onClick={() => onNavigate('mi-perfil')}
+                  style={{
+                    flex: 1, minWidth: 0, textAlign: 'left',
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  }}
+                >
                   <p style={{
                     fontSize: 13, fontWeight: 500, color: '#203F49',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    lineHeight: '19.5px',
-                  }}>Dr. Karla Arita</p>
-                  <p style={{ fontSize: 11, color: '#888F94', lineHeight: '16.5px' }}>Administradora</p>
-                </div>
-                <button style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  padding: 4, color: '#888F94', display: 'flex', flexShrink: 0,
-                }}>
+                    lineHeight: '19.5px', margin: 0,
+                  }}>{fullName}</p>
+                  <p style={{
+                    fontSize: 11, color: '#888F94', lineHeight: '16.5px', margin: 0,
+                  }}>{roleName}</p>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  title="Cerrar Sesión"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 4, color: '#888F94', display: 'flex', flexShrink: 0,
+                  }}
+                >
                   <IconLogout />
                 </button>
               </>

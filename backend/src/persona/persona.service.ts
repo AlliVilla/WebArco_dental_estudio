@@ -73,14 +73,17 @@ export class PersonaService {
     return persona;
   }
 
-  async findAll(page: number = 1, limit: number = 10, search?: string) {
+  async findAll(page: number = 1, limit: number = 10, filters?: { search?: string; nombre?: string; identidad?: string; telefono?: string; codigo?: string }, includeConsulta: boolean = false) {
     const skip = (page - 1) * limit;
 
-    let where = {};
+    const where: Record<string, unknown> = {};
+    const andFilters: Record<string, unknown>[] = [];
+    const search = filters?.search?.trim();
 
     if (search) {
       const searchLower = search.toLowerCase();
-      where = {
+      const numericSearch = search.replace(/\D/g, '');
+      andFilters.push({
         OR: [
           {
             numero_identidad: {
@@ -113,7 +116,60 @@ export class PersonaService {
             },
           },
         ],
-      };
+      });
+    }
+
+    if (filters?.nombre?.trim()) {
+      const nombre = filters.nombre.trim().toLowerCase();
+      andFilters.push({
+        OR: [
+          { primer_nombre: { contains: nombre, mode: 'insensitive' } },
+          { segundo_nombre: { contains: nombre, mode: 'insensitive' } },
+          { primer_apellido: { contains: nombre, mode: 'insensitive' } },
+          { segundo_apellido: { contains: nombre, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (filters?.identidad?.trim()) {
+      andFilters.push({
+        numero_identidad: {
+          contains: filters.identidad.replace(/\D/g, ''),
+          mode: 'insensitive',
+        },
+      });
+    }
+
+    if (filters?.telefono?.trim()) {
+      andFilters.push({
+        telefono: {
+          contains: filters.telefono.replace(/\D/g, ''),
+          mode: 'insensitive',
+        },
+      });
+    }
+
+    if (filters?.codigo?.trim()) {
+      const codigo = Number(filters.codigo.replace(/^PAC-/i, '').replace(/\D/g, ''));
+      if (Number.isFinite(codigo) && codigo > 0) {
+        andFilters.push({ id_persona: codigo });
+      }
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
+    }
+
+    const include: any = {
+      municipio: {
+        include: {
+          departamento: true,
+        },
+      },
+    };
+
+    if (includeConsulta) {
+      include.consulta = true;
     }
 
     const [personas, total] = await Promise.all([
@@ -121,13 +177,7 @@ export class PersonaService {
         where,
         skip,
         take: limit,
-        include: {
-          municipio: {
-            include: {
-              departamento: true,
-            },
-          },
-        },
+        include,
         orderBy: {
           id_persona: 'desc',
         },

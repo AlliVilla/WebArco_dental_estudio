@@ -3,6 +3,9 @@ import { MainLayout } from './page layouts/MainLayout';
 import { Dashboard } from './page layouts/Dashboard';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
 import { AppointmentsScreen } from './features/appointments/components/AppointmentsScreen';
+import { AppointmentDetailScreen } from './features/appointments/components/AppointmentDetailScreen';
+import { AppointmentFormScreen } from './features/appointments/components/AppointmentFormScreen';
+import { PatientAppointmentHistoryScreen } from './features/appointments/components/PatientAppointmentHistoryScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { ConsentimientosScreen, CrearConsentimientoScreen } from './features/consent';
@@ -15,6 +18,8 @@ import { PatientsScreen } from './features/patients';
 import { UsersScreen } from './features/users';
 import { MiPerfil } from './features/users/components/MiPerfil';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
+import { RecordatoriosScreen } from './features/reminders';
+import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
 
 function App() {
   return (
@@ -48,7 +53,16 @@ function App() {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Agenda routes */}
         <Route path="/agenda" element={<AppointmentsScreen />} />
+        <Route path="/agenda/new" element={<AppointmentFormScreen />} />
+        <Route path="/agenda/:id" element={<AppointmentDetailScreen />} />
+        <Route path="/agenda/:id/history" element={<PatientAppointmentHistoryScreen />} />
+        <Route path="/agenda/:id/edit" element={<AppointmentFormScreen />} />
+        <Route path="/agenda/reminders" element={<RecordatoriosScreen />} />
+        <Route path="/agenda/reminders/historial" element={<HistorialConfirmacionesScreen />} />
+
         <Route path="/mi-perfil" element={<MiPerfil />} />
 
         {/* Patients sub-routes */}
