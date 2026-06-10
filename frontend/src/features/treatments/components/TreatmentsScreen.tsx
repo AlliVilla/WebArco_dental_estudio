@@ -8,13 +8,14 @@ import {
   FileText,
   TrendingUp,
   Layers,
+  X,
 } from "lucide-react";
 import { Input, Select, Button, Alert } from "../../../context";
 import { ConfirmModal } from "../../../components";
 import { formatCurrency } from "../../../utils/formatters";
 import { ESPECIALIDADES, MOCK_TREATMENTS, type Treatment } from "../types";
 
-const COLORS = {
+const C = {
   primary: "#0BC5DF",
   navy: "#203F49",
   success: "#1D9E75",
@@ -26,7 +27,7 @@ const COLORS = {
   gray700: "#5F656A",
 };
 
-function getEstadoColor(estado: string): { bg: string; color: string } {
+function getEstadoColor(estado: string) {
   const map: Record<string, { bg: string; color: string }> = {
     Sano: { bg: "#d6efe1", color: "#4a8c68" },
     Caries: { bg: "#fce4e4", color: "#b85755" },
@@ -41,6 +42,98 @@ function getEstadoColor(estado: string): { bg: string; color: string } {
   };
   return map[estado] ?? { bg: "#E8EBED", color: "#5F656A" };
 }
+
+// ─── Drawer genérico ──────────────────────────────────────────────────────────
+interface DrawerProps {
+  open: boolean;
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function Drawer({ open, title, subtitle, onClose, children }: DrawerProps) {
+  return (
+    <>
+      {/* Overlay */}
+      {open && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            zIndex: 40,
+          }}
+        />
+      )}
+      {/* Panel */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 400,
+          background: "#fff",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          transform: open ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.25s ease",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            padding: "20px 24px",
+            borderBottom: `1px solid ${C.gray300}`,
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: C.navy,
+                margin: 0,
+              }}
+            >
+              {title}
+            </h3>
+            <p style={{ fontSize: 13, color: C.gray500, margin: "4px 0 0" }}>
+              {subtitle}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              padding: 6,
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              color: C.gray500,
+              display: "flex",
+              borderRadius: 6,
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        {/* Contenido */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export interface TreatmentsScreenProps {
   userRole?: "Administrador" | "Doctor" | "Especialista" | "Contador";
@@ -58,6 +151,9 @@ export function TreatmentsScreen({
     message: string;
   } | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [openDrawer, setOpenDrawer] = useState<
+    "total" | "principal" | "categorias" | null
+  >(null);
 
   const isAdmin = userRole === "Administrador";
 
@@ -73,39 +169,44 @@ export function TreatmentsScreen({
     [treatments, search, filterEsp]
   );
 
-  const stats = useMemo(() => {
+  const { porEsp, principal } = useMemo(() => {
     const porEsp = treatments.reduce<Record<string, number>>((acc, t) => {
       acc[t.especialidad] = (acc[t.especialidad] || 0) + 1;
       return acc;
     }, {});
     const principal = Object.entries(porEsp).sort((a, b) => b[1] - a[1])[0];
-    return [
-      {
-        label: "Total de Tratamientos",
-        value: treatments.length.toString(),
-        subtitle: "En el catálogo",
-        icon: FileText,
-        bg: "rgba(11,197,223,0.08)",
-        iconColor: COLORS.primary,
-      },
-      {
-        label: "Especialidad Principal",
-        value: principal ? principal[1].toString() : "0",
-        subtitle: principal ? principal[0] : "N/A",
-        icon: TrendingUp,
-        bg: "rgba(29,158,117,0.08)",
-        iconColor: COLORS.success,
-      },
-      {
-        label: "Categorías Activas",
-        value: Object.keys(porEsp).length.toString(),
-        subtitle: `de ${ESPECIALIDADES.length} disponibles`,
-        icon: Layers,
-        bg: "rgba(239,159,39,0.08)",
-        iconColor: COLORS.warning,
-      },
-    ];
+    return { porEsp, principal };
   }, [treatments]);
+
+  const stats = [
+    {
+      key: "total" as const,
+      label: "Total de Tratamientos",
+      value: treatments.length.toString(),
+      subtitle: "En el catálogo",
+      icon: FileText,
+      bg: "rgba(11,197,223,0.08)",
+      iconColor: C.primary,
+    },
+    {
+      key: "principal" as const,
+      label: "Especialidad Principal",
+      value: principal ? principal[1].toString() : "0",
+      subtitle: principal ? principal[0] : "N/A",
+      icon: TrendingUp,
+      bg: "rgba(29,158,117,0.08)",
+      iconColor: C.success,
+    },
+    {
+      key: "categorias" as const,
+      label: "Categorías Activas",
+      value: Object.keys(porEsp).length.toString(),
+      subtitle: `de ${ESPECIALIDADES.length} disponibles`,
+      icon: Layers,
+      bg: "rgba(239,159,39,0.08)",
+      iconColor: C.warning,
+    },
+  ];
 
   function handleDelete() {
     if (confirmId === null) return;
@@ -122,7 +223,7 @@ export function TreatmentsScreen({
     padding: "12px 20px",
     fontSize: 12,
     fontWeight: 600,
-    color: COLORS.gray500,
+    color: C.gray500,
     textTransform: "uppercase",
     letterSpacing: "0.04em",
   };
@@ -137,7 +238,7 @@ export function TreatmentsScreen({
         />
       )}
 
-      {/* Tarjetas de estadísticas */}
+      {/* Tarjetas de estadísticas — clicables */}
       <div
         style={{
           display: "grid",
@@ -146,23 +247,36 @@ export function TreatmentsScreen({
         }}
       >
         {stats.map((s) => (
-          <div
-            key={s.label}
+          <button
+            key={s.key}
+            onClick={() => setOpenDrawer(s.key)}
             style={{
               background: "#fff",
               borderRadius: 12,
-              border: `1px solid ${COLORS.gray300}`,
+              border: `1px solid ${C.gray300}`,
               padding: 20,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "flex-start",
+              cursor: "pointer",
+              textAlign: "left",
+              width: "100%",
+              transition: "box-shadow 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
+              e.currentTarget.style.borderColor = C.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = "none";
+              e.currentTarget.style.borderColor = C.gray300;
             }}
           >
             <div>
               <p
                 style={{
                   fontSize: 12,
-                  color: COLORS.gray500,
+                  color: C.gray500,
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
                   margin: "0 0 8px",
@@ -175,13 +289,13 @@ export function TreatmentsScreen({
                 style={{
                   fontSize: 24,
                   fontWeight: 600,
-                  color: COLORS.navy,
+                  color: C.navy,
                   margin: "0 0 4px",
                 }}
               >
                 {s.value}
               </p>
-              <p style={{ fontSize: 12, color: COLORS.gray500, margin: 0 }}>
+              <p style={{ fontSize: 12, color: C.gray500, margin: 0 }}>
                 {s.subtitle}
               </p>
             </div>
@@ -199,7 +313,7 @@ export function TreatmentsScreen({
             >
               <s.icon size={24} style={{ color: s.iconColor }} />
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -208,7 +322,7 @@ export function TreatmentsScreen({
         style={{
           background: "#fff",
           borderRadius: 12,
-          border: `1px solid ${COLORS.gray300}`,
+          border: `1px solid ${C.gray300}`,
           padding: 20,
         }}
       >
@@ -227,7 +341,7 @@ export function TreatmentsScreen({
                 position: "absolute",
                 left: 12,
                 top: 36,
-                color: COLORS.gray500,
+                color: C.gray500,
                 pointerEvents: "none",
               }}
             />
@@ -266,12 +380,12 @@ export function TreatmentsScreen({
         style={{
           background: "#fff",
           borderRadius: 12,
-          border: `1px solid ${COLORS.gray300}`,
+          border: `1px solid ${C.gray300}`,
           overflow: "hidden",
         }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead style={{ background: COLORS.gray50 }}>
+          <thead style={{ background: C.gray50 }}>
             <tr>
               <th style={{ ...thStyle, textAlign: "left" }}>Especialidad</th>
               <th style={{ ...thStyle, textAlign: "left" }}>
@@ -295,7 +409,7 @@ export function TreatmentsScreen({
                     padding: 40,
                     textAlign: "center",
                     fontSize: 14,
-                    color: COLORS.gray500,
+                    color: C.gray500,
                   }}
                 >
                   No hay tratamientos que coincidan con la búsqueda.
@@ -307,13 +421,13 @@ export function TreatmentsScreen({
                 return (
                   <tr
                     key={t.id}
-                    style={{ borderTop: `1px solid ${COLORS.gray300}` }}
+                    style={{ borderTop: `1px solid ${C.gray300}` }}
                   >
                     <td
                       style={{
                         padding: "16px 20px",
                         fontSize: 14,
-                        color: COLORS.gray700,
+                        color: C.gray700,
                       }}
                     >
                       {t.especialidad}
@@ -323,7 +437,7 @@ export function TreatmentsScreen({
                         padding: "16px 20px",
                         fontSize: 14,
                         fontWeight: 500,
-                        color: COLORS.navy,
+                        color: C.navy,
                       }}
                     >
                       {t.nombre}
@@ -349,7 +463,7 @@ export function TreatmentsScreen({
                         textAlign: "right",
                         fontSize: 14,
                         fontWeight: 500,
-                        color: COLORS.navy,
+                        color: C.navy,
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -373,7 +487,7 @@ export function TreatmentsScreen({
                               border: "none",
                               background: "transparent",
                               cursor: "pointer",
-                              color: COLORS.gray700,
+                              color: C.gray700,
                               display: "flex",
                             }}
                           >
@@ -388,7 +502,7 @@ export function TreatmentsScreen({
                               border: "none",
                               background: "transparent",
                               cursor: "pointer",
-                              color: COLORS.danger,
+                              color: C.danger,
                               display: "flex",
                             }}
                           >
@@ -415,6 +529,189 @@ export function TreatmentsScreen({
         onConfirm={handleDelete}
         onClose={() => setConfirmId(null)}
       />
+
+      {/* ── Drawer: Total de Tratamientos ── */}
+      <Drawer
+        open={openDrawer === "total"}
+        title="Total de Tratamientos"
+        subtitle="Lista completa de todos los tratamientos registrados"
+        onClose={() => setOpenDrawer(null)}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {treatments.map((t) => {
+            const ec = getEstadoColor(t.impactoOdontograma);
+            return (
+              <div
+                key={t.id}
+                style={{
+                  padding: 16,
+                  borderRadius: 10,
+                  border: `1px solid ${C.gray300}`,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 14, fontWeight: 600, color: C.navy }}
+                  >
+                    {t.nombre}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      padding: "2px 10px",
+                      borderRadius: 9999,
+                      background: ec.bg,
+                      color: ec.color,
+                      flexShrink: 0,
+                      marginLeft: 8,
+                    }}
+                  >
+                    {t.impactoOdontograma}
+                  </span>
+                </div>
+                <p style={{ fontSize: 12, color: C.gray500, margin: 0 }}>
+                  {t.especialidad}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Drawer>
+
+      {/* ── Drawer: Especialidad Principal ── */}
+      <Drawer
+        open={openDrawer === "principal"}
+        title="Especialidad Principal"
+        subtitle="Distribución de tratamientos por especialidad"
+        onClose={() => setOpenDrawer(null)}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {Object.entries(porEsp)
+            .sort((a, b) => b[1] - a[1])
+            .map(([esp, count]) => {
+              const pct = Math.round((count / treatments.length) * 100);
+              return (
+                <div key={esp}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span
+                      style={{ fontSize: 14, fontWeight: 500, color: C.navy }}
+                    >
+                      {esp}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: C.primary,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 8,
+                      borderRadius: 9999,
+                      background: C.gray50,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${pct}%`,
+                        borderRadius: 9999,
+                        background: C.success,
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: C.gray500,
+                      margin: "4px 0 0",
+                    }}
+                  >
+                    {pct}% del total
+                  </p>
+                </div>
+              );
+            })}
+        </div>
+      </Drawer>
+
+      {/* ── Drawer: Categorías Activas ── */}
+      <Drawer
+        open={openDrawer === "categorias"}
+        title="Categorías Activas"
+        subtitle="Estado de las especialidades disponibles"
+        onClose={() => setOpenDrawer(null)}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {ESPECIALIDADES.map((esp) => {
+            const count = porEsp[esp] || 0;
+            const isActive = count > 0;
+            return (
+              <div
+                key={esp}
+                style={{
+                  padding: 16,
+                  borderRadius: 10,
+                  border: `1px solid ${isActive ? C.success : C.gray300}`,
+                  background: isActive ? "rgba(29,158,117,0.05)" : "#fff",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 14, fontWeight: 500, color: C.navy }}
+                  >
+                    {esp}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: "2px 10px",
+                      borderRadius: 9999,
+                      background: isActive ? `${C.success}20` : C.gray50,
+                      color: isActive ? C.success : C.gray500,
+                    }}
+                  >
+                    {count} tratamiento{count !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: C.gray500, margin: 0 }}>
+                  {isActive
+                    ? "Categoría activa"
+                    : "Sin tratamientos registrados"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Drawer>
     </div>
   );
 }
