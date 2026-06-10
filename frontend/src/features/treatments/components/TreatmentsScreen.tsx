@@ -74,18 +74,25 @@ function TreatmentCard({ t, isAdmin, onEdit, onDelete }: TreatmentCardProps) {
         padding: 16,
       }}
     >
-      {/* Header de la card */}
+      {/* Header */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
           marginBottom: 12,
+          gap: 8,
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
-            style={{ fontSize: 15, fontWeight: 600, color: C.navy, margin: 0 }}
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: C.navy,
+              margin: 0,
+              wordBreak: "break-word",
+            }}
           >
             {t.nombre}
           </p>
@@ -94,9 +101,7 @@ function TreatmentCard({ t, isAdmin, onEdit, onDelete }: TreatmentCardProps) {
           </p>
         </div>
         {isAdmin && (
-          <div
-            style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}
-          >
+          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
             <button
               onClick={onEdit}
               title="Editar"
@@ -131,57 +136,71 @@ function TreatmentCard({ t, isAdmin, onEdit, onDelete }: TreatmentCardProps) {
         )}
       </div>
 
-      {/* Filas de datos */}
-      {[
-        {
-          label: "Especialidad",
-          value: (
-            <span style={{ fontSize: 13, color: C.navy }}>
-              {t.especialidad}
-            </span>
-          ),
-        },
-        {
-          label: "Impacto Odontograma",
-          value: (
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                padding: "3px 10px",
-                borderRadius: 9999,
-                background: ec.bg,
-                color: ec.color,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {t.impactoOdontograma}
-            </span>
-          ),
-        },
-        {
-          label: "Precio",
-          value: (
-            <span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>
-              {formatCurrency(t.precio)}
-            </span>
-          ),
-        },
-      ].map(({ label, value }) => (
+      {/* Filas */}
+      <div style={{ borderTop: `1px solid ${C.gray50}`, paddingTop: 4 }}>
+        {/* Especialidad: etiqueta arriba, valor abajo si es largo */}
         <div
-          key={label}
+          style={{ padding: "8px 0", borderBottom: `1px solid ${C.gray50}` }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              color: C.gray500,
+              display: "block",
+              marginBottom: 2,
+            }}
+          >
+            Especialidad
+          </span>
+          <span
+            style={{ fontSize: 13, color: C.navy, wordBreak: "break-word" }}
+          >
+            {t.especialidad}
+          </span>
+        </div>
+        {/* Impacto y Precio: siempre en fila */}
+        <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             padding: "8px 0",
-            borderTop: `1px solid ${C.gray50}`,
+            borderBottom: `1px solid ${C.gray50}`,
           }}
         >
-          <span style={{ fontSize: 13, color: C.gray500 }}>{label}</span>
-          {value}
+          <span style={{ fontSize: 12, color: C.gray500 }}>
+            Impacto Odontograma
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              padding: "3px 10px",
+              borderRadius: 9999,
+              background: ec.bg,
+              color: ec.color,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              marginLeft: 8,
+            }}
+          >
+            {t.impactoOdontograma}
+          </span>
         </div>
-      ))}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px 0",
+          }}
+        >
+          <span style={{ fontSize: 12, color: C.gray500 }}>Precio</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>
+            {formatCurrency(t.precio)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -198,7 +217,37 @@ interface DrawerProps {
 function Drawer({ open, title, subtitle, onClose, children }: DrawerProps) {
   const w = useWindowWidth();
   const isMobile = w <= 640;
-  const drawerWidth = isMobile ? w : Math.min(w - 32, 420);
+
+  const panelStyle: React.CSSProperties = isMobile
+    ? {
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        maxHeight: "85vh",
+        background: "#fff",
+        borderRadius: "20px 20px 0 0",
+        boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
+        zIndex: 201,
+        display: "flex",
+        flexDirection: "column",
+        transform: open ? "translateY(0)" : "translateY(100%)",
+        transition: "transform 0.3s ease",
+      }
+    : {
+        position: "fixed",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: Math.min(w - 32, 420),
+        background: "#fff",
+        boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
+        zIndex: 201,
+        display: "flex",
+        flexDirection: "column",
+        transform: open ? "translateX(0)" : "translateX(100%)",
+        transition: "transform 0.25s ease",
+      };
 
   return (
     <>
@@ -209,32 +258,36 @@ function Drawer({ open, title, subtitle, onClose, children }: DrawerProps) {
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.35)",
-            zIndex: 40,
+            zIndex: 200,
           }}
         />
       )}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: drawerWidth,
-          background: "#fff",
-          boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          transform: open ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.25s ease",
-        }}
-      >
+      <div style={panelStyle}>
+        {/* Handle visual en móvil */}
+        {isMobile && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "12px 0 4px",
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 9999,
+                background: C.gray300,
+              }}
+            />
+          </div>
+        )}
         <div
           style={{
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
-            padding: "20px 24px",
+            padding: isMobile ? "12px 20px 16px" : "20px 24px",
             borderBottom: `1px solid ${C.gray300}`,
             flexShrink: 0,
           }}
