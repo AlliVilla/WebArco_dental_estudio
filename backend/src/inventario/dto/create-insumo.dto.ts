@@ -1,24 +1,36 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsString, MaxLength, Min } from 'class-validator';
-import { CategoriaInsumo, UnidadMedidaInsumo } from '@prisma/client';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateInsumoDto {
-  @ApiProperty({ example: 'Anestesia Lidocaína 2%' })
+  @ApiProperty({ example: 'Anestesia lidocaína' })
   @IsString({ message: 'El nombre debe ser texto' })
-  @IsNotEmpty({ message: 'El nombre del insumo es obligatorio' })
-  @MaxLength(150, { message: 'El nombre no puede exceder 150 caracteres' })
+  @IsNotEmpty({ message: 'El nombre es obligatorio' })
+  @MaxLength(255, { message: 'El nombre no puede exceder 255 caracteres' })
   nombre: string;
 
-  @ApiProperty({ enum: CategoriaInsumo, example: 'Anestesia' })
-  @IsEnum(CategoriaInsumo, { message: 'Categoría inválida' })
-  categoria: CategoriaInsumo;
+  @ApiProperty({ example: 'Anestesia' })
+  @IsString({ message: 'La categoría debe ser texto' })
+  @IsNotEmpty({ message: 'La categoría es obligatoria' })
+  @MaxLength(100, { message: 'La categoría no puede exceder 100 caracteres' })
+  categoria: string;
 
-  @ApiProperty({ enum: UnidadMedidaInsumo, example: 'Frasco' })
-  @IsEnum(UnidadMedidaInsumo, { message: 'Unidad de medida inválida' })
-  unidad_medida: UnidadMedidaInsumo;
+  @ApiProperty({ example: 'Caja' })
+  @IsString({ message: 'La unidad de medida debe ser texto' })
+  @IsNotEmpty({ message: 'La unidad de medida es obligatoria' })
+  @MaxLength(100, {
+    message: 'La unidad de medida no puede exceder 100 caracteres',
+  })
+  unidad_medida: string;
 
-  @ApiProperty({ example: 10 })
+  @ApiProperty({ example: 20 })
   @Type(() => Number)
   @IsInt({ message: 'El stock actual debe ser un número entero' })
   @Min(0, { message: 'El stock actual no puede ser negativo' })
@@ -30,9 +42,9 @@ export class CreateInsumoDto {
   @Min(0, { message: 'El stock mínimo no puede ser negativo' })
   stock_minimo: number;
 
-  @ApiProperty({ example: 120.0 })
+  @ApiProperty({ example: 150.5 })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'El precio debe ser numérico con máximo dos decimales' })
-  @Min(0.01, { message: 'El precio debe ser mayor a 0' })
+  @IsNumber({}, { message: 'El precio de costo debe ser numérico' })
+  @Min(0, { message: 'El precio de costo no puede ser negativo' })
   precio_costo: number;
 }
