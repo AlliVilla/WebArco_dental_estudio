@@ -627,6 +627,8 @@ export function TreatmentsScreen({
         <DataTable<TreatmentRow>
           columns={columns}
           data={treatments as TreatmentRow[]}
+          title="Catálogo de Tratamientos"
+          description="Gestiona los tratamientos disponibles en la clínica."
           searchable
           searchPlaceholder="Buscar por nombre de tratamiento..."
           searchKeys={["nombre"]}
@@ -646,6 +648,7 @@ export function TreatmentsScreen({
                 }
               : undefined
           }
+          secondaryActions={[]}
           rowActions={
             isAdmin
               ? (row) => [
