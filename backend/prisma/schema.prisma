@@ -278,8 +278,9 @@ model Consulta_Tratamiento {
   id_consulta_tratamiento       Int      @id @default(autoincrement())
   id_tratamiento       Int
   id_consulta       Int      
-  descuento 
+  descuento         Int
   precio               Decimal  @db.Decimal(10, 2)
-
+  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
+  tratamiento Tratamiento @relation(fields: [id_tratamiento], references: [id_tratamiento])
   @@map("consulta_tratamiento")
 }
