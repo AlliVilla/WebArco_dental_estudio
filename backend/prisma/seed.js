@@ -11,6 +11,8 @@ const { insertAntecedentesPreguntas } = require("./seeders/antecendentespregunta
 const { insertDientes } = require("./seeders/dientes");  
 const { insertCategoriasInsumo } = require("./seeders/categorias-insumo");
 const { insertUnidadesMedida } = require("./seeders/unidades-medida");
+const { insertConsultas } = require("./seeders/consultas");
+const { insertOdontograma } = require("./seeders/odontograma");
 
 async function insertSeeder(){
     try{
@@ -25,6 +27,8 @@ async function insertSeeder(){
         await insertMunicipios();
         await insertPersonas();
         await insertUsuarios();
+        await insertConsultas();
+        await insertOdontograma();
         console.log("Seeder realizado exitosamente")
     }catch(error){
         console.error("Error:", error);

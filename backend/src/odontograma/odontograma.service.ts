@@ -403,6 +403,69 @@ export class OdontogramaService {
     return { message: 'Odontograma guardado exitosamente', registros: results };
   }
 
+  async getActiveConsultationPatients(userId: number) {
+    const activeConsultas = await this.prisma.consulta.findMany({
+      where: {
+        fecha_fin: null,
+        id_usuario: userId,
+      },
+      include: {
+        persona: {
+          select: {
+            id_persona: true,
+            primer_nombre: true,
+            segundo_nombre: true,
+            primer_apellido: true,
+            segundo_apellido: true,
+            numero_identidad: true,
+            fecha_nacimiento: true,
+            sexo: true,
+            telefono: true,
+          },
+        },
+        doctor: {
+          select: {
+            id_usuario: true,
+            persona: {
+              select: {
+                primer_nombre: true,
+                primer_apellido: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { fecha_inicio: 'desc' },
+    });
+
+    const seen = new Set<number>();
+    return activeConsultas
+      .filter((c) => {
+        if (seen.has(c.id_persona)) return false;
+        seen.add(c.id_persona);
+        return true;
+      })
+      .map((c) => ({
+        id_persona: c.persona.id_persona,
+        primer_nombre: c.persona.primer_nombre,
+        segundo_nombre: c.persona.segundo_nombre,
+        primer_apellido: c.persona.primer_apellido,
+        segundo_apellido: c.persona.segundo_apellido,
+        numero_identidad: c.persona.numero_identidad,
+        fecha_nacimiento: c.persona.fecha_nacimiento,
+        sexo: c.persona.sexo,
+        telefono: c.persona.telefono,
+        id_consulta: c.id_consulta,
+        doctor: c.doctor
+          ? {
+              id_usuario: c.doctor.id_usuario,
+              nombre: `${c.doctor.persona.primer_nombre} ${c.doctor.persona.primer_apellido}`,
+            }
+          : null,
+        fecha_inicio: c.fecha_inicio,
+      }));
+  }
+
   private async assertPatientExists(id: number) {
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: id },

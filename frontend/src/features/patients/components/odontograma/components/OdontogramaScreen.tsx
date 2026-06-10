@@ -537,6 +537,7 @@ export function OdontogramScreen({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [mode, setMode] = useState<'view' | 'consultation'>('view');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [dentition, setDentition] = useState<'adult' | 'child'>(initialDentition);
   const [teeth, setTeeth] = useState<Record<number, ToothData>>(emptyTeeth(ADULT_NUMBERS));
@@ -555,37 +556,62 @@ export function OdontogramScreen({
   const currentPatient = patients.find(p => p.id === selectedPatientId) || null;
   const patientAge = currentPatient ? getAge(currentPatient.fecha_nacimiento) : 0;
 
+  const isEditable = mode === 'consultation' && !isEmbedded;
+
   const toothCount = dentition === 'adult' ? 32 : 20;
   const TODAY = new Date().toISOString().split('T')[0];
 
-  // ── Fetch patients list on mount ──
-  useEffect(() => {
-    if (!isEmbedded) {
-      setLoadingPatients(true);
-      patientService
-        .getAll({ limit: 1000 })
-        .then((res) => {
-          const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-          setPatients(data);
-          if (data.length > 0) {
-            setSelectedPatientId(data[0].id);
-          }
-        })
-        .catch((err) => {
-          setError(err?.message || 'Error al cargar pacientes');
-        })
-        .finally(() => setLoadingPatients(false));
+  // ── Fetch patients list based on mode ──
+  const fetchPatients = useCallback(async (currentMode: 'view' | 'consultation') => {
+    if (isEmbedded) return;
+    setLoadingPatients(true);
+    setError(null);
+    try {
+      let raw: any[];
+      if (currentMode === 'view') {
+        const res = await patientService.getAll({ limit: 1000 });
+        raw = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      } else {
+        const res = await odontogramaService.getActiveConsultationPatients();
+        raw = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      }
+      const mapped: Patient[] = raw.map((p: any) => ({
+        id: p.id_persona,
+        nombre: [p.primer_nombre, p.segundo_nombre].filter(Boolean).join(' '),
+        apellido: [p.primer_apellido, p.segundo_apellido].filter(Boolean).join(' '),
+        identidad: p.numero_identidad,
+        fecha_nacimiento: p.fecha_nacimiento,
+        genero: p.sexo || p.genero,
+        telefono: p.telefono,
+        correo: p.correo_electronico || p.correo,
+        direccion: p.direccion_linea || p.direccion,
+      }));
+      setPatients(mapped);
+      setSelectedPatientId(null);
+      setTeeth(emptyTeeth(ADULT_NUMBERS));
+      setHistory([]);
+      if (mapped.length > 0) {
+        setSelectedPatientId(mapped[0].id);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar pacientes');
+    } finally {
+      setLoadingPatients(false);
     }
   }, [isEmbedded]);
 
+  useEffect(() => {
+    fetchPatients(mode);
+  }, [mode, fetchPatients]);
+
   // ── Fetch odontogram data when patient changes ──
-  const fetchOdontogram = useCallback(async (patientId: number) => {
+  const fetchOdontogram = useCallback(async (patientId: number, dentitionType: 'adult' | 'child') => {
     setLoadingOdontogram(true);
     setError(null);
     try {
       const res = await odontogramaService.getByPatientId(patientId);
       const odontograma = res.data;
-      const numbers = dentition === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS;
+      const numbers = dentitionType === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS;
       const toothMap: Record<number, ToothData> = {};
       numbers.forEach(n => { toothMap[n] = { number: n, state: 'sano', observation: '' }; });
 
@@ -593,23 +619,11 @@ export function OdontogramScreen({
         odontograma.dientes.forEach((d: any) => {
           const num = d.numero_diente;
           if (toothMap[num]) {
-            const frontState = mapToFrontendState(d.estado);
-            if (frontState !== d.estado) {
-              toothMap[num] = {
-                number: num,
-                state: frontState as ToothState,
-                observation: d.observacion || '',
-              };
-            } else {
-              const found = (Object.entries(STATE_CONFIG) as [ToothState, any][]).find(
-                ([, cfg]) => cfg.label === d.estado
-              );
-              toothMap[num] = {
-                number: num,
-                state: found ? found[0] : 'sano',
-                observation: d.observacion || '',
-              };
-            }
+            toothMap[num] = {
+              number: num,
+              state: (mapToFrontendState(d.estado) || 'sano') as ToothState,
+              observation: d.observacion || '',
+            };
           }
         });
       }
@@ -624,11 +638,11 @@ export function OdontogramScreen({
       setTeeth(toothMap);
     } catch (err: any) {
       setError(err?.message || 'Error al cargar odontograma');
-      setTeeth(emptyTeeth(dentition === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS));
+      setTeeth(emptyTeeth(dentitionType === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS));
     } finally {
       setLoadingOdontogram(false);
     }
-  }, [dentition]);
+  }, []);
 
   // ── Fetch history when patient changes ──
   const fetchHistory = useCallback(async (patientId: number) => {
@@ -636,27 +650,27 @@ export function OdontogramScreen({
     try {
       const res = await odontogramaService.getHistory(patientId);
       const histData = res.data;
-      const entries: HistoryEntry[] = (histData?.historial || []).map((item: any, index: number) => {
-        const frontState = mapToFrontendState(item.estado);
-        let mappedState: ToothState = 'sano';
-        if (frontState !== item.estado) {
-          mappedState = frontState as ToothState;
-        } else {
-          const found = (Object.entries(STATE_CONFIG) as [ToothState, any][]).find(
-            ([, cfg]) => cfg.label === item.estado
-          );
-          mappedState = found ? found[0] : 'sano';
-        }
+      const rawEntries = (histData?.historial || []).map((item: any, index: number) => {
+        const mappedState = (mapToFrontendState(item.estado) || 'sano') as ToothState;
         return {
           id: item.id_odontograma || index,
           toothNumber: item.diente?.numero_diente || 0,
-          previousState: null,
+          previousState: null as string | null,
           newState: mappedState,
           observation: item.observacion || '',
           doctor: item.doctor?.nombre || '',
           date: item.fecha_consulta ? item.fecha_consulta.split('T')[0] : '',
+          _sort: item.fecha_consulta ? new Date(item.fecha_consulta).getTime() : 0,
         };
       });
+      rawEntries.sort((a, b) => a._sort - b._sort);
+      const prevMap = new Map<number, string | null>();
+      const entries: HistoryEntry[] = rawEntries.map(({ _sort, ...e }) => {
+        const prev = prevMap.get(e.toothNumber) ?? null;
+        prevMap.set(e.toothNumber, e.newState);
+        return { ...e, previousState: prev };
+      });
+      entries.reverse();
       setHistory(entries);
     } catch {
       setHistory([]);
@@ -668,11 +682,13 @@ export function OdontogramScreen({
   useEffect(() => {
     if (selectedPatientId && !isEmbedded) {
       const p = patients.find(pj => pj.id === selectedPatientId);
+      let resolvedDentition = dentition;
       if (p) {
         const age = getAge(p.fecha_nacimiento);
-        setDentition(age < 12 ? 'child' : 'adult');
+        resolvedDentition = age < 12 ? 'child' : 'adult';
+        setDentition(resolvedDentition);
       }
-      fetchOdontogram(selectedPatientId);
+      fetchOdontogram(selectedPatientId, resolvedDentition);
       fetchHistory(selectedPatientId);
     }
   }, [selectedPatientId, isEmbedded, patients, fetchOdontogram, fetchHistory]);
@@ -721,7 +737,7 @@ export function OdontogramScreen({
 
       setAlert({ type: 'success', text: `Cambio guardado correctamente para el diente #${selectedTooth}.` });
       setSelectedTooth(null); setPendingState(''); setPendingObs('');
-      fetchHistory(selectedPatientId);
+      await fetchHistory(selectedPatientId);
     } catch (err: any) {
       setAlert({ type: 'error', text: err?.message || 'Error al guardar el cambio.' });
     } finally {
@@ -766,6 +782,53 @@ export function OdontogramScreen({
           <span style={{ color: '#E24B4A', fontWeight: 700, fontSize: 14 }}>✕</span>
           <span style={{ color: '#E24B4A', fontSize: 13, flex: 1 }}>{error}</span>
           <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E24B4A', fontSize: 16, opacity: 0.6, padding: 0 }}>×</button>
+        </div>
+      )}
+
+      {/* Mode toggle (only when not embedded) */}
+      {!isEmbedded && (
+        <div style={{ display: 'flex', gap: 0, background: '#F1F3F4', borderRadius: 12, padding: 4, alignSelf: 'flex-start' }}>
+          <button
+            onClick={() => setMode('view')}
+            style={{
+              padding: '10px 24px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              background: mode === 'view' ? '#fff' : 'transparent',
+              color: mode === 'view' ? '#203F49' : '#888F94',
+              boxShadow: mode === 'view' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s',
+            }}
+          >
+            Visualizar Odontograma
+          </button>
+          <button
+            onClick={() => setMode('consultation')}
+            style={{
+              padding: '10px 24px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              background: mode === 'consultation' ? '#fff' : 'transparent',
+              color: mode === 'consultation' ? '#203F49' : '#888F94',
+              boxShadow: mode === 'consultation' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s',
+            }}
+          >
+            Editar en Consulta Activa
+          </button>
+        </div>
+      )}
+
+      {/* No active consultations notice */}
+      {!isEmbedded && mode === 'consultation' && !loadingPatients && patients.length === 0 && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: '#FFF8EC', border: '1px solid #EF9F27', borderRadius: 12, padding: '16px 20px' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF9F27" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, color: '#B45309', fontSize: 14 }}>Sin consultas activas</p>
+            <p style={{ margin: '4px 0 0', color: '#92400E', fontSize: 13, lineHeight: 1.4 }}>
+              No tienes consultas activas asignadas. Para editar un odontograma, primero debes iniciar una consulta para el paciente desde el expediente clínico.
+            </p>
+          </div>
         </div>
       )}
 
@@ -815,7 +878,7 @@ export function OdontogramScreen({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#888F94', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Seleccionar Paciente para ver odontograma
+                {mode === 'view' ? 'Seleccionar Paciente para ver odontograma' : 'Pacientes con consulta activa'}
               </label>
               <div style={{ position: 'relative' }}>
                 <select
@@ -988,14 +1051,15 @@ export function OdontogramScreen({
           `}</style>
 
           {/* Odontogram + Action Panel */}
-          <div className="odonto-grid">
+          <div className="odonto-grid" style={!isEditable ? { gridTemplateColumns: '1fr' } : undefined}>
 
             {/* Arch SVG */}
             <div className="odonto-svg-card">
               <OdontogramSVG teeth={teeth} selectedTooth={selectedTooth} onSelect={handleSelect} dentition={dentition} />
             </div>
 
-            {/* Action Panel */}
+            {/* Action Panel (only in consultation/edit mode) */}
+            {isEditable && (
             <div
               className="odonto-panel"
               style={{
@@ -1019,17 +1083,29 @@ export function OdontogramScreen({
                 </div>
               </div>
 
-              {!selectedTooth ? (
-                <div style={{ flex: 1, border: '2px dashed #D3D7DA', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#888F94', textAlign: 'center', padding: '28px 16px' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D3D7DA" strokeWidth="1.5">
-                    <path d="M12 2C9 2 7 4 7 7c0 4 2 8 5 13 3-5 5-9 5-13 0-3-2-5-5-5z" />
-                  </svg>
-                  <span style={{ fontSize: 12 }}>Haz clic sobre un diente para editar su estado</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
+          {!selectedTooth ? (
+            <div style={{ flex: 1, border: '2px dashed #D3D7DA', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#888F94', textAlign: 'center', padding: '28px 16px' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D3D7DA" strokeWidth="1.5">
+                <path d="M12 2C9 2 7 4 7 7c0 4 2 8 5 13 3-5 5-9 5-13 0-3-2-5-5-5z" />
+              </svg>
+              <span style={{ fontSize: 12 }}>Haz clic sobre un diente para editar su estado</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
 
-                  {/* Estado */}
+              {/* Estado */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <label style={{ fontSize: 13, color: '#203F49', margin: 0 }}>Estado actual</label>
+                </div>
+                <div style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 13, color: '#203F49' }}>
+                  <StateBadge state={teeth[selectedTooth]?.state} />
+                </div>
+              </div>
+
+              {isEditable && (
+                <>
+                  {/* Estado a asignar */}
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                       <label style={{ fontSize: 13, color: '#203F49', margin: 0 }}>Estado a asignar</label>
@@ -1101,10 +1177,14 @@ export function OdontogramScreen({
                       Cancelar
                     </button>
                   </div>
-                </div>
+                </>
               )}
+
             </div>
-          </div>
+          )}
+            </div>
+          )}
+            </div>
 
           {/* History */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #D3D7DA', padding: 20 }}>
@@ -1147,7 +1227,7 @@ export function OdontogramScreen({
                         <span style={{ fontSize: 11, color: '#888F94' }}>{entry.doctor}</span>
                       </div>
                       {entry.observation && (
-                        <p style={{ margin: '3px 0 0', fontSize: 11, color: '#5F656A', fontStyle: 'italic' }}>"{entry.observation}"</p>
+                        <p style={{ margin: '3px 0 0', fontSize: 11, color: '#5F656A', fontStyle: 'italic', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>"{entry.observation}"</p>
                       )}
                     </div>
                   </div>

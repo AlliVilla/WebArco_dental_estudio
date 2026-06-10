@@ -180,4 +180,19 @@ export class OdontogramaController {
     const userId = req.user.id_usuario;
     return this.odontogramaService.bulkSave(consultaId, body.items, userId);
   }
+
+  @Privileges(3)
+  @Get('consulta/activas')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Pacientes con consulta activa',
+    description: 'Retorna los pacientes que tienen una consulta activa (sin fecha_fin) para editar su odontograma.',
+  })
+  @ApiOkResponse({ description: 'Lista de pacientes con consulta activa' })
+  async getActiveConsultationPatients(
+    @Req() req: AuthRequest,
+  ) {
+    const userId = req.user.id_usuario;
+    return this.odontogramaService.getActiveConsultationPatients(userId);
+  }
 }

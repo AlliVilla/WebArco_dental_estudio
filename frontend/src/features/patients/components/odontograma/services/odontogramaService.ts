@@ -77,6 +77,10 @@ export const odontogramaService = {
     }));
     return api.post(`/odontograma/consulta/${consultaId}/bulk`, { items: mappedItems });
   },
+
+  getActiveConsultationPatients: async (): Promise<ApiResponse<any[]>> => {
+    return api.get('/odontograma/consulta/activas');
+  },
 };
 
 export default odontogramaService;
