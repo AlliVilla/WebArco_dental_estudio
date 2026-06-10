@@ -80,10 +80,24 @@ export class PersonaService {
 
     if (search) {
       const searchLower = search.toLowerCase();
+      const numericSearch = search.replace(/\D/g, '');
       where = {
         OR: [
+          ...(numericSearch
+            ? [
+                {
+                  id_persona: Number(numericSearch),
+                },
+              ]
+            : []),
           {
             numero_identidad: {
+              contains: searchLower,
+              mode: 'insensitive',
+            },
+          },
+          {
+            telefono: {
               contains: searchLower,
               mode: 'insensitive',
             },

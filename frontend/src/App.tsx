@@ -7,7 +7,7 @@ import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
-import { PatientsScreen } from './features/patients/components/PatientsScreen';
+import { PatientFormScreen, PatientProfileScreen, PatientsScreen } from './features/patients';
 import { RolesScreen, UsersScreen } from './features/users';
 
 import { MiPerfil } from './features/users/components/MiPerfil';
@@ -54,6 +54,9 @@ function App() {
 
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
+        <Route path="/patients/new" element={<PatientFormScreen />} />
+        <Route path="/patients/edit/:id" element={<PatientFormScreen />} />
+        <Route path="/patients/profile/:id" element={<PatientProfileScreen />} />
         <Route path="/patients/odontogram" element={<OdontogramScreen consultaId={18} />} />
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
