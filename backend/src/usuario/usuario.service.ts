@@ -15,6 +15,7 @@ type UsuarioFilters = {
   nombre?: string;
   correo?: string;
   rol?: string;
+  excludeUserId?: number;
 };
 
 type PrismaExecutor = PrismaService | Prisma.TransactionClient;
@@ -96,6 +97,13 @@ export class UsuarioService {
     const nombre = filters.nombre?.trim();
     const correo = filters.correo?.trim();
     const rol = filters.rol?.trim();
+    const excludeUserId = filters.excludeUserId;
+
+    if (excludeUserId) {
+      where.id_usuario = {
+        not: excludeUserId,
+      };
+    }
 
     if (nombre) {
       personaWhere.OR = [
@@ -189,6 +197,22 @@ export class UsuarioService {
       doctores,
       especialistas,
     };
+  }
+
+  async getAuthenticatedProfile(id_usuario: number) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id_usuario },
+      include: {
+        persona: true,
+        rol: true,
+      },
+    });
+
+    if (!usuario || !usuario.activo) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo.');
+    }
+
+    return this.mapProfile(usuario);
   }
 
   async updateAuthenticatedProfile(
@@ -553,10 +577,39 @@ export class UsuarioService {
   async updateStatus(id: number, updateStatusDto: UpdateStatusUsuarioDto) {
     const usuarioExists = await this.prisma.usuario.findUnique({
       where: { id_usuario: id },
+      include: { rol: true },
     });
 
     if (!usuarioExists) {
       throw new NotFoundException(`No se encontró el usuario con id ${id}`);
+    }
+
+    const isTryingToDeactivate = updateStatusDto.activo === false;
+    const isAdmin = usuarioExists.rol.nombre.trim().toLowerCase() === 'administrador';
+
+    if (isTryingToDeactivate && isAdmin) {
+      const otherActiveAdmins = await this.prisma.usuario.count({
+        where: {
+          id_usuario: {
+            not: id,
+          },
+          activo: true,
+          rol: {
+            is: {
+              nombre: {
+                equals: 'Administrador',
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      });
+
+      if (otherActiveAdmins === 0) {
+        throw new BadRequestException(
+          'No se puede desactivar este administrador porque debe existir al menos otro administrador activo.',
+        );
+      }
     }
 
     const usuario = await this.prisma.usuario.update({

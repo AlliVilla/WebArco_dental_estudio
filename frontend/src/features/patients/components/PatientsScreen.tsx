@@ -112,9 +112,20 @@ export function PatientsScreen({
   useEffect(() => {
     let ignore = false;
 
-    api.get<PersonasListResponse>("/persona", {
-      params: {
-        page: currentPage,
+  const loadPatients = useCallback(async (page: number, search = "") => {
+    try {
+      setIsLoading(true);
+      setError("");
+      const response = await api.get<PersonasListResponse>("/persona", {
+        params: { page, limit: DEFAULT_PAGE_SIZE, search: search || undefined, includeConsulta: false },
+      });
+      const personas = response.data?.data ?? [];
+      const patients = personas.map(mapPersonaToPatient);
+      setAllPatients(patients);
+      setSearchResults(hasSearched ? filterPatients(patients) : patients);
+      setPagination(response.data?.pagination ?? {
+        total: patients.length,
+        page,
         limit: DEFAULT_PAGE_SIZE,
         nombre: activeFilters.nombre || undefined,
         identidad: activeFilters.identidad || undefined,

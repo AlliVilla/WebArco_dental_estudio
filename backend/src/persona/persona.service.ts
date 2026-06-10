@@ -73,17 +73,7 @@ export class PersonaService {
     return persona;
   }
 
-  async findAll(
-    page: number = 1,
-    limit: number = 10,
-    filters?: {
-      search?: string;
-      nombre?: string;
-      identidad?: string;
-      telefono?: string;
-      codigo?: string;
-    },
-  ) {
+  async findAll(page: number = 1, limit: number = 10, search?: string, includeConsulta: boolean = false) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
@@ -183,18 +173,24 @@ export class PersonaService {
       where.AND = andFilters;
     }
 
+    const include: any = {
+      municipio: {
+        include: {
+          departamento: true,
+        },
+      },
+    };
+
+    if (includeConsulta) {
+      include.consulta = true;
+    }
+
     const [personas, total] = await Promise.all([
       this.prisma.persona.findMany({
         where,
         skip,
         take: limit,
-        include: {
-          municipio: {
-            include: {
-              departamento: true,
-            },
-          },
-        },
+        include,
         orderBy: {
           id_persona: 'desc',
         },

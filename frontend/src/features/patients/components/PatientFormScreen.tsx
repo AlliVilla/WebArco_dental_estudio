@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Calendar,
-  ClipboardList,
   Hash,
   IdCard,
   Mail,
@@ -92,8 +91,6 @@ export function PatientFormScreen() {
   const [medicamentos, setMedicamentos] = useState("");
   const [alergias, setAlergias] = useState("");
   const [anestesiaReaction, setAnestesiaReaction] = useState("no");
-  const [lastVisitDate, setLastVisitDate] = useState("");
-  const [motivoConsulta, setMotivoConsulta] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
