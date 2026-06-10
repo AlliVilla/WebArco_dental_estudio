@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Body,
   Param,
@@ -155,5 +156,28 @@ export class OdontogramaController {
     @Param('toothNumber', ParseIntPipe) toothNumber: number,
   ) {
     return this.odontogramaService.getToothHistory(patientId, toothNumber);
+  }
+
+  @Privileges(4)
+  @Post('consulta/:consultaId/bulk')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Guardar múltiples estados de dientes en una consulta',
+    description: 'Guarda o actualiza el estado de varios dientes en una consulta específica mediante upsert.',
+  })
+  @ApiParam({
+    name: 'consultaId',
+    description: 'ID de la consulta',
+    example: 101,
+  })
+  @ApiOkResponse({ description: 'Odontograma guardado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Consulta no encontrada' })
+  async bulkSave(
+    @Param('consultaId', ParseIntPipe) consultaId: number,
+    @Body() body: { items: Array<{ id_diente: number; estado: string; observacion?: string }> },
+    @Req() req: AuthRequest,
+  ) {
+    const userId = req.user.id_usuario;
+    return this.odontogramaService.bulkSave(consultaId, body.items, userId);
   }
 }

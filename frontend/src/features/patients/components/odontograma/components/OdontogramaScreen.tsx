@@ -1,211 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Check } from 'lucide-react';
-
-// ── Mock Clinical History Data ────────────────────────────────────────────────
-export const MOCK_EXPEDIENTES: any[] = [
-  {
-    id: 1,
-    nombre: 'Ana López Martínez',
-    primerNombre: 'Ana',
-    segundoNombre: '',
-    primerApellido: 'López',
-    segundoApellido: 'Martínez',
-    identidad: '0801199512345',
-    fechaNacimiento: '1995-06-15',
-    telefono: '9988-7766',
-    correo: 'ana.lopez@gmail.com',
-    departamento: 'Francisco Morazán',
-    ciudad: 'Tegucigalpa',
-    direccion: 'Col. Palermo, Calle Principal, Casa 123',
-    edad: 31,
-    sexo: 'F',
-    ultimaVisita: '2026-06-08',
-    totalVisitas: 2,
-    antecedentes: 'Hipertensión controlada, alérgica a la penicilina.',
-    enfermedadBase: 'Hipertensión controlada',
-    tomaMedicamento: 'Enalapril 20mg diario',
-    alergias: 'Alergia a la penicilina',
-    consultas: [
-      {
-        id: 101,
-        fecha: '2026-06-08',
-        doctor: 'Dra. Karla Arita',
-        motivo: 'Control post-tratamiento de conductos y restauración',
-        diagnostico: 'Diente 36 restaurado con endodoncia y corona metal-porcelana en buen estado. Ajuste de oclusión correcto.',
-        notas: 'Se recomienda profilaxis dental en 6 meses. Paciente asintomática.',
-        tratamientos: [
-          { nombre: 'Corona metal-porcelana (Pieza 36)', costo: 5500 },
-          { nombre: 'Ajuste oclusal', costo: 0 }
-        ],
-        archivos: [
-          { nombre: 'rx_control_36.jpg', categoria: 'Radiografía Periapical' },
-          { nombre: 'foto_final_corona.jpg', categoria: 'Fotografía Clínica Intraoral/Extraoral' }
-        ],
-        firmaPaciente: true,
-        firmaDoctor: true
-      },
-      {
-        id: 100,
-        fecha: '2026-05-28',
-        doctor: 'Dr. Miguel Herrera',
-        motivo: 'Dolor agudo en primer molar inferior izquierdo',
-        diagnostico: 'Pulpitis irreversible en pieza 36 secundaria a caries penetrante.',
-        notas: 'Se realiza primera fase de endodoncia (pulpotomía) y colocación de medicamento intraconducto. Paciente medicado con analgésicos.',
-        tratamientos: [
-          { nombre: 'Endodoncia multirradicular (Pieza 36)', costo: 4800 }
-        ],
-        archivos: [
-          { nombre: 'rx_diagnostica_36.jpg', categoria: 'Radiografía Periapical' }
-        ],
-        firmaPaciente: true,
-        firmaDoctor: true
-      }
-    ]
-  },
-  {
-    id: 2,
-    nombre: 'Carlos Vega Salgado',
-    primerNombre: 'Carlos',
-    segundoNombre: 'Alberto',
-    primerApellido: 'Vega',
-    segundoApellido: 'Salgado',
-    identidad: '0501198800452',
-    fechaNacimiento: '1988-11-22',
-    telefono: '3344-5566',
-    correo: 'carlos.vega@hotmail.com',
-    departamento: 'Cortés',
-    ciudad: 'San Pedro Sula',
-    direccion: 'Barrio El Centro, 5 Avenida, entre 7 y 8 Calle',
-    edad: 38,
-    sexo: 'M',
-    ultimaVisita: '2026-06-07',
-    totalVisitas: 1,
-    antecedentes: 'Ninguno relevante.',
-    enfermedadBase: 'Ninguna',
-    tomaMedicamento: 'Ninguno',
-    alergias: 'Ninguna',
-    consultas: [
-      {
-        id: 200,
-        fecha: '2026-06-07',
-        doctor: 'Dra. Sofía Munguía',
-        motivo: 'Dolor y sangrado al cepillarse',
-        diagnostico: 'Gingivitis marginal generalizada por acumulación de cálculo supragingival.',
-        notas: 'Se realiza detartraje y profilaxis. Se indica uso de enjuague de clorhexidina al 0.12% y mejorar técnica de cepillado.',
-        tratamientos: [
-          { nombre: 'Detartraje supragingival', costo: 800 },
-          { nombre: 'Limpieza dental (Profilaxis)', costo: 1200 }
-        ],
-        archivos: [],
-        firmaPaciente: true,
-        firmaDoctor: true
-      }
-    ]
-  },
-  {
-    id: 3,
-    nombre: 'María Fernanda López García',
-    primerNombre: 'María',
-    segundoNombre: 'Fernanda',
-    primerApellido: 'López',
-    segundoApellido: 'García',
-    identidad: '0801199204512',
-    fechaNacimiento: '1992-04-18',
-    telefono: '9876-5432',
-    correo: 'maria.lopez@gmail.com',
-    departamento: 'Francisco Morazán',
-    ciudad: 'Tegucigalpa',
-    direccion: 'Residencial Plaza, Bloque C, Casa 14',
-    edad: 34,
-    sexo: 'F',
-    ultimaVisita: '2026-05-27',
-    totalVisitas: 1,
-    antecedentes: 'Reacción moderada a lidocaína con epinefrina en procedimiento de 2023. Utilizar anestesia sin vasoconstrictor.',
-    enfermedadBase: 'Diabetes, Hipertensión',
-    tomaMedicamento: 'Metformina 850mg',
-    alergias: 'Alergia: Penicilina, Alergia: Ibuprofeno, Reacción a anestesia',
-    consultas: [
-      {
-        id: 300,
-        fecha: '2026-05-27',
-        doctor: 'Dr. Andrés López',
-        motivo: 'Sensibilidad al frío en molares superiores',
-        diagnostico: 'Caries activa en caras oclusales de piezas 16 y 26.',
-        notas: 'Se realizan restauraciones con resina compuesta. Se aplica flúor preventivo.',
-        tratamientos: [
-          { nombre: 'Resina clase I (Pieza 16)', costo: 900 },
-          { nombre: 'Resina clase I (Pieza 26)', costo: 900 }
-        ],
-        archivos: [
-          { nombre: 'rx_molares_superiores.jpg', categoria: 'Radiografía Panorámica' }
-        ],
-        firmaPaciente: true,
-        firmaDoctor: true
-      }
-    ]
-  },
-  {
-    id: 4,
-    nombre: 'Mateo Gómez Ruiz',
-    primerNombre: 'Mateo',
-    segundoNombre: 'Alejandro',
-    primerApellido: 'Gómez',
-    segundoApellido: 'Ruiz',
-    identidad: '0801201804321',
-    fechaNacimiento: '2018-03-10',
-    telefono: '9944-8822',
-    correo: 'padre.mateo@gmail.com',
-    departamento: 'Francisco Morazán',
-    ciudad: 'Tegucigalpa',
-    direccion: 'Col. Lomas del Guijarro, Bloque H, Casa 24',
-    edad: 8,
-    sexo: 'M',
-    ultimaVisita: '2026-06-02',
-    totalVisitas: 1,
-    antecedentes: 'Paciente pediátrico, hiperactivo, sin alergias conocidas.',
-    enfermedadBase: 'Ninguna',
-    tomaMedicamento: 'Ninguno',
-    alergias: 'Ninguna',
-    consultas: [
-      {
-        id: 400,
-        fecha: '2026-06-02',
-        doctor: 'Dra. Karla Arita',
-        motivo: 'Revisión y aplicación de flúor preventivo',
-        diagnostico: 'Dentición infantil temporal sana, sin caries activas detectadas.',
-        notas: 'Excelente cooperación. Se programa próxima aplicación de flúor en 6 meses.',
-        tratamientos: [
-          { nombre: 'Aplicación de flúor preventivo', costo: 600 }
-        ],
-        archivos: [],
-        firmaPaciente: true,
-        firmaDoctor: true
-      }
-    ]
-  }
-];
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type ToothState =
-  | 'sano' | 'caries' | 'obturacion' | 'extraccion' | 'ausente'
-  | 'endodoncia' | 'corona' | 'protesis' | 'implante' | 'puente';
-
-interface HistoryEntry {
-  id: number;
-  toothNumber: number;
-  previousState: ToothState | null;
-  newState: ToothState;
-  observation: string;
-  doctor: string;
-  date: string;
-}
-
-interface ToothData {
-  number: number;
-  state: ToothState;
-  observation: string;
-}
+import React, { useState, useEffect, useCallback } from 'react';
+import { Check, Loader2 } from 'lucide-react';
+import { patientService } from '../../../services/patientService';
+import { odontogramaService, mapToFrontendState } from '../services/odontogramaService';
+import type { ToothState, ToothData, HistoryEntry } from '../types';
+import type { Patient } from '../../../types';
 
 // ── State config ──────────────────────────────────────────────────────────────
 
@@ -328,35 +126,16 @@ const LOWER_ARCH = buildArch(LOWER_NUMBERS, 285, 482, 252, 192, 210, 330, false)
 const UPPER_PRIMARY_ARCH = buildArch(UPPER_PRIMARY, 285, 5, 190, 148, 148, 32, true, true);
 const LOWER_PRIMARY_ARCH = buildArch(LOWER_PRIMARY, 285, 450, 190, 148, 212, 328, false, true);
 
-// ── Initial data ──────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-function initAdultTeeth(): Record<number, ToothData> {
-  const m: Record<number, ToothData> = {};
-  [...UPPER_NUMBERS, ...LOWER_NUMBERS].forEach(n => { m[n] = { number: n, state: 'sano', observation: '' }; });
-  m[16].state = 'obturacion';
-  m[36].state = 'endodoncia';
-  m[46].state = 'ausente';
-  m[25].state = 'corona';
-  m[14].state = 'caries';
-  m[44].state = 'implante';
-  m[27].state = 'puente';
-  return m;
+function getAge(birthDate: string): number {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
 }
-
-function initPrimaryTeeth(): Record<number, ToothData> {
-  const m: Record<number, ToothData> = {};
-  [...UPPER_PRIMARY, ...LOWER_PRIMARY].forEach(n => { m[n] = { number: n, state: 'sano', observation: '' }; });
-  m[54].state = 'caries';
-  m[75].state = 'obturacion';
-  return m;
-}
-
-const INITIAL_HISTORY: HistoryEntry[] = [
-  { id: 1, toothNumber: 16, previousState: 'sano', newState: 'caries', observation: 'Lesión oclusal incipiente', doctor: 'Dr. Karla Arita', date: '2026-05-10' },
-  { id: 2, toothNumber: 16, previousState: 'caries', newState: 'obturacion', observation: 'Restauración composite clase I', doctor: 'Dr. Karla Arita', date: '2026-05-20' },
-  { id: 3, toothNumber: 36, previousState: 'sano', newState: 'endodoncia', observation: 'Pulpitis irreversible', doctor: 'Dr. Marco Salinas', date: '2026-05-28' },
-  { id: 4, toothNumber: 46, previousState: null, newState: 'ausente', observation: 'Extracción previa al tratamiento', doctor: 'Dr. Karla Arita', date: '2026-04-15' },
-];
 
 // ── Tooth Crown SVG component ─────────────────────────────────────────────────
 // Drawn centered at (0,0). Buccal face = local -y (top). Rotated by parent group.
@@ -725,6 +504,15 @@ function FieldBadge({ type }: { type: 'Requerido' | 'Opcional' }) {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
+const ADULT_NUMBERS = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28, 48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
+const PRIMARY_NUMBERS = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65, 85, 84, 83, 82, 81, 71, 72, 73, 74, 75];
+
+function emptyTeeth(numbers: number[]): Record<number, ToothData> {
+  const m: Record<number, ToothData> = {};
+  numbers.forEach(n => { m[n] = { number: n, state: 'sano', observation: '' }; });
+  return m;
+}
+
 export function OdontogramScreen({
   consultaId,
   isEmbedded = false,
@@ -742,83 +530,18 @@ export function OdontogramScreen({
   onSaveEmbedded?: (updatedTeeth: Record<number, ToothData>, modifiedTeethList: number[]) => void;
   onCancelEmbedded?: () => void;
 }) {
-  if (consultaId) {
-    // Referenciado para evitar advertencia de TypeScript (TS6133)
-  }
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [loadingOdontogram, setLoadingOdontogram] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [dentition, setDentition] = useState<'adult' | 'child'>(initialDentition);
-  const [selectedPatientId, setSelectedPatientId] = useState<number>(MOCK_EXPEDIENTES[0].id);
-
-  const currentPatient = MOCK_EXPEDIENTES.find(p => p.id === selectedPatientId) || MOCK_EXPEDIENTES[0];
-
-  useEffect(() => {
-
-  },[]);
-
-  useEffect(() => {
-    if (!isEmbedded) {
-      const patient = MOCK_EXPEDIENTES.find(p => p.id === selectedPatientId);
-      if (patient) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setDentition(patient.edad < 12 ? 'child' : 'adult');
-      }
-    }
-  }, [selectedPatientId, isEmbedded]);
-
-  // Unified per-patient state map to prevent data leakage between patients
-  const [patientsData, setPatientsData] = useState<Record<number, {
-    adultTeeth: Record<number, ToothData>;
-    primaryTeeth: Record<number, ToothData>;
-    history: HistoryEntry[];
-    modifiedTeethList: number[];
-  }>>(() => {
-    const map: Record<number, {
-      adultTeeth: Record<number, ToothData>;
-      primaryTeeth: Record<number, ToothData>;
-      history: HistoryEntry[];
-      modifiedTeethList: number[];
-    }> = {};
-    MOCK_EXPEDIENTES.forEach(p => {
-      if (p.id === 1) {
-        map[p.id] = {
-          adultTeeth: initAdultTeeth(),
-          primaryTeeth: initPrimaryTeeth(),
-          history: INITIAL_HISTORY,
-          modifiedTeethList: []
-        };
-      } else {
-        const freshAdult = initAdultTeeth();
-        const freshPrimary = initPrimaryTeeth();
-        Object.keys(freshAdult).forEach(k => { freshAdult[Number(k)].state = 'sano'; freshAdult[Number(k)].observation = ''; });
-        Object.keys(freshPrimary).forEach(k => { freshPrimary[Number(k)].state = 'sano'; freshPrimary[Number(k)].observation = ''; });
-        map[p.id] = {
-          adultTeeth: freshAdult,
-          primaryTeeth: freshPrimary,
-          history: [],
-          modifiedTeethList: []
-        };
-      }
-    });
-    // Key 0 for embedded mode
-    map[0] = {
-      adultTeeth: initAdultTeeth(),
-      primaryTeeth: initPrimaryTeeth(),
-      history: INITIAL_HISTORY,
-      modifiedTeethList: []
-    };
-    return map;
-  });
-
-  const activeId = isEmbedded ? 0 : selectedPatientId;
-  const currentData = patientsData[activeId] || {
-    adultTeeth: initAdultTeeth(),
-    primaryTeeth: initPrimaryTeeth(),
-    history: [],
-    modifiedTeethList: []
-  };
-
-  const teeth = dentition === 'adult' ? currentData.adultTeeth : currentData.primaryTeeth;
-  const history = currentData.history;
-  const modifiedTeethList = currentData.modifiedTeethList;
+  const [teeth, setTeeth] = useState<Record<number, ToothData>>(emptyTeeth(ADULT_NUMBERS));
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [modifiedTeethList, setModifiedTeethList] = useState<number[]>([]);
 
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
   const [pendingState, setPendingState] = useState<ToothState | ''>('');
@@ -827,11 +550,132 @@ export function OdontogramScreen({
     { type: 'info', text: 'Selecciona un diente del odontograma para ver o editar su estado clínico.' }
   );
   const [histFilter, setHistFilter] = useState<number | 'all'>('all');
+  const [doctorName, setDoctorName] = useState('');
+
+  const currentPatient = patients.find(p => p.id === selectedPatientId) || null;
+  const patientAge = currentPatient ? getAge(currentPatient.fecha_nacimiento) : 0;
 
   const toothCount = dentition === 'adult' ? 32 : 20;
-
-  const DOCTOR = 'Dr. Karla Arita';
   const TODAY = new Date().toISOString().split('T')[0];
+
+  // ── Fetch patients list on mount ──
+  useEffect(() => {
+    if (!isEmbedded) {
+      setLoadingPatients(true);
+      patientService
+        .getAll({ limit: 1000 })
+        .then((res) => {
+          const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+          setPatients(data);
+          if (data.length > 0) {
+            setSelectedPatientId(data[0].id);
+          }
+        })
+        .catch((err) => {
+          setError(err?.message || 'Error al cargar pacientes');
+        })
+        .finally(() => setLoadingPatients(false));
+    }
+  }, [isEmbedded]);
+
+  // ── Fetch odontogram data when patient changes ──
+  const fetchOdontogram = useCallback(async (patientId: number) => {
+    setLoadingOdontogram(true);
+    setError(null);
+    try {
+      const res = await odontogramaService.getByPatientId(patientId);
+      const odontograma = res.data;
+      const numbers = dentition === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS;
+      const toothMap: Record<number, ToothData> = {};
+      numbers.forEach(n => { toothMap[n] = { number: n, state: 'sano', observation: '' }; });
+
+      if (odontograma?.dientes) {
+        odontograma.dientes.forEach((d: any) => {
+          const num = d.numero_diente;
+          if (toothMap[num]) {
+            const frontState = mapToFrontendState(d.estado);
+            if (frontState !== d.estado) {
+              toothMap[num] = {
+                number: num,
+                state: frontState as ToothState,
+                observation: d.observacion || '',
+              };
+            } else {
+              const found = (Object.entries(STATE_CONFIG) as [ToothState, any][]).find(
+                ([, cfg]) => cfg.label === d.estado
+              );
+              toothMap[num] = {
+                number: num,
+                state: found ? found[0] : 'sano',
+                observation: d.observacion || '',
+              };
+            }
+          }
+        });
+      }
+
+      if (odontograma?.dientes) {
+        const firstWithDoctor = odontograma.dientes.find((d: any) => d.doctor);
+        if (firstWithDoctor?.doctor?.nombre) {
+          setDoctorName(firstWithDoctor.doctor.nombre);
+        }
+      }
+
+      setTeeth(toothMap);
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar odontograma');
+      setTeeth(emptyTeeth(dentition === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS));
+    } finally {
+      setLoadingOdontogram(false);
+    }
+  }, [dentition]);
+
+  // ── Fetch history when patient changes ──
+  const fetchHistory = useCallback(async (patientId: number) => {
+    setLoadingHistory(true);
+    try {
+      const res = await odontogramaService.getHistory(patientId);
+      const histData = res.data;
+      const entries: HistoryEntry[] = (histData?.historial || []).map((item: any, index: number) => {
+        const frontState = mapToFrontendState(item.estado);
+        let mappedState: ToothState = 'sano';
+        if (frontState !== item.estado) {
+          mappedState = frontState as ToothState;
+        } else {
+          const found = (Object.entries(STATE_CONFIG) as [ToothState, any][]).find(
+            ([, cfg]) => cfg.label === item.estado
+          );
+          mappedState = found ? found[0] : 'sano';
+        }
+        return {
+          id: item.id_odontograma || index,
+          toothNumber: item.diente?.numero_diente || 0,
+          previousState: null,
+          newState: mappedState,
+          observation: item.observacion || '',
+          doctor: item.doctor?.nombre || '',
+          date: item.fecha_consulta ? item.fecha_consulta.split('T')[0] : '',
+        };
+      });
+      setHistory(entries);
+    } catch {
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedPatientId && !isEmbedded) {
+      const p = patients.find(pj => pj.id === selectedPatientId);
+      if (p) {
+        const age = getAge(p.fecha_nacimiento);
+        setDentition(age < 12 ? 'child' : 'adult');
+      }
+      fetchOdontogram(selectedPatientId);
+      fetchHistory(selectedPatientId);
+    }
+  }, [selectedPatientId, isEmbedded, patients, fetchOdontogram, fetchHistory]);
 
   const handleSelect = (n: number) => {
     if (selectedTooth === n) {
@@ -847,60 +691,42 @@ export function OdontogramScreen({
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedTooth || !pendingState) {
       setAlert({ type: 'error', text: 'Debes seleccionar un estado antes de guardar el cambio.' }); return;
     }
-    const prev = teeth[selectedTooth].state;
-    const entry: HistoryEntry = {
-      id: history.length + 1, toothNumber: selectedTooth,
-      previousState: prev, newState: pendingState as ToothState,
-      observation: pendingObs, doctor: DOCTOR, date: TODAY,
-    };
+    if (!selectedPatientId) return;
 
-    setPatientsData(prevMap => {
-      const pData = prevMap[activeId] || {
-        adultTeeth: initAdultTeeth(),
-        primaryTeeth: initPrimaryTeeth(),
-        history: [],
-        modifiedTeethList: []
-      };
+    setSaving(true);
+    try {
+      await odontogramaService.saveToothState(
+        selectedPatientId,
+        selectedTooth,
+        pendingState,
+        pendingObs,
+      );
 
-      const updatedAdult = { ...pData.adultTeeth };
-      const updatedPrimary = { ...pData.primaryTeeth };
-
-      if (dentition === 'adult') {
-        updatedAdult[selectedTooth] = {
-          ...updatedAdult[selectedTooth],
+      setTeeth(prev => ({
+        ...prev,
+        [selectedTooth]: {
+          ...prev[selectedTooth],
           state: pendingState as ToothState,
-          observation: pendingObs
-        };
-      } else {
-        updatedPrimary[selectedTooth] = {
-          ...updatedPrimary[selectedTooth],
-          state: pendingState as ToothState,
-          observation: pendingObs
-        };
+          observation: pendingObs,
+        },
+      }));
+
+      if (!modifiedTeethList.includes(selectedTooth)) {
+        setModifiedTeethList(prev => [...prev, selectedTooth]);
       }
 
-      const updatedHistory = [entry, ...pData.history];
-      const updatedModified = pData.modifiedTeethList.includes(selectedTooth)
-        ? pData.modifiedTeethList
-        : [...pData.modifiedTeethList, selectedTooth];
-
-      return {
-        ...prevMap,
-        [activeId]: {
-          adultTeeth: updatedAdult,
-          primaryTeeth: updatedPrimary,
-          history: updatedHistory,
-          modifiedTeethList: updatedModified
-        }
-      };
-    });
-
-    setAlert({ type: 'success', text: `Cambio guardado correctamente para el diente #${selectedTooth}.` });
-    setSelectedTooth(null); setPendingState(''); setPendingObs('');
+      setAlert({ type: 'success', text: `Cambio guardado correctamente para el diente #${selectedTooth}.` });
+      setSelectedTooth(null); setPendingState(''); setPendingObs('');
+      fetchHistory(selectedPatientId);
+    } catch (err: any) {
+      setAlert({ type: 'error', text: err?.message || 'Error al guardar el cambio.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -917,6 +743,8 @@ export function OdontogramScreen({
     error: { bg: '#FDF0F0', border: '#E24B4A', color: '#E24B4A', icon: '✕' },
   };
 
+  const showLoading = loadingPatients || loadingOdontogram;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -931,6 +759,15 @@ export function OdontogramScreen({
           </div>
         );
       })()}
+
+      {/* Error banner */}
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FDF0F0', borderLeft: '4px solid #E24B4A', border: '1px solid #E24B4A', borderRadius: 8, padding: '10px 14px' }}>
+          <span style={{ color: '#E24B4A', fontWeight: 700, fontSize: 14 }}>✕</span>
+          <span style={{ color: '#E24B4A', fontSize: 13, flex: 1 }}>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E24B4A', fontSize: 16, opacity: 0.6, padding: 0 }}>×</button>
+        </div>
+      )}
 
       {/* Patient selector (only when not embedded) */}
       {!isEmbedded && (
@@ -982,8 +819,9 @@ export function OdontogramScreen({
               </label>
               <div style={{ position: 'relative' }}>
                 <select
-                  value={selectedPatientId}
+                  value={selectedPatientId ?? ''}
                   onChange={(e) => setSelectedPatientId(Number(e.target.value))}
+                  disabled={loadingPatients}
                   style={{
                     width: '100%',
                     padding: '8px 36px 8px 12px',
@@ -1001,11 +839,17 @@ export function OdontogramScreen({
                   onFocus={e => e.target.style.borderColor = '#0BC5DF'}
                   onBlur={e => e.target.style.borderColor = '#D3D7DA'}
                 >
-                  {MOCK_EXPEDIENTES.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre} ({p.edad} años)
-                    </option>
-                  ))}
+                  {loadingPatients ? (
+                    <option value="">Cargando pacientes...</option>
+                  ) : patients.length === 0 ? (
+                    <option value="">No hay pacientes disponibles</option>
+                  ) : (
+                    patients.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre} {p.apellido} ({getAge(p.fecha_nacimiento)} años)
+                      </option>
+                    ))
+                  )}
                 </select>
                 <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#888F94' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1017,286 +861,302 @@ export function OdontogramScreen({
           </div>
 
           {/* Right Side: Validation Alert Badge */}
-          <div style={{
-            flex: '1 1 280px',
-            background: currentPatient.edad < 12 ? '#FFF8EC' : '#E6F8FB',
-            border: `1px solid ${currentPatient.edad < 12 ? '#EF9F27' : '#0BC5DF'}`,
-            borderRadius: 12,
-            padding: '12px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            transition: 'all 0.2s'
-          }}>
+          {currentPatient && (
             <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              background: currentPatient.edad < 12 ? '#FFF8EC' : '#E6F8FB',
+              flex: '1 1 280px',
+              background: patientAge < 12 ? '#FFF8EC' : '#E6F8FB',
+              border: `1px solid ${patientAge < 12 ? '#EF9F27' : '#0BC5DF'}`,
+              borderRadius: 12,
+              padding: '12px 18px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: currentPatient.edad < 12 ? '#EF9F27' : '#0BC5DF',
-              fontSize: 20,
-              flexShrink: 0
+              gap: 12,
+              transition: 'all 0.2s'
             }}>
-              {currentPatient.edad < 12 ? '🧒' : '🦷'}
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: currentPatient.edad < 12 ? '#EF9F27' : '#203F49',
-                }}>
-                  {currentPatient.edad < 12 ? 'Paciente Infantil' : 'Paciente Adulto'}
-                </span>
-                <span style={{
-                  background: currentPatient.edad < 12 ? '#EF9F27' : '#0BC5DF',
-                  color: '#fff',
-                  fontSize: 9,
-                  fontWeight: 700,
-                  padding: '1px 6px',
-                  borderRadius: 6,
-                  textTransform: 'uppercase'
-                }}>
-                  Validado
-                </span>
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: patientAge < 12 ? '#FFF8EC' : '#E6F8FB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: patientAge < 12 ? '#EF9F27' : '#0BC5DF',
+                fontSize: 20,
+                flexShrink: 0
+              }}>
+                {patientAge < 12 ? '🧒' : '🦷'}
               </div>
-              <p style={{ margin: '3px 0 0', fontSize: 12, color: currentPatient.edad < 12 ? '#B45309' : '#0899B0', lineHeight: 1.3 }}>
-                Edad: <strong>{currentPatient.edad} años</strong>. Dentición <strong>{currentPatient.edad < 12 ? 'Temporal' : 'Permanente'}</strong> ({currentPatient.edad < 12 ? '20' : '32'} piezas).
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Patient header */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #D3D7DA', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ margin: 0, color: '#203F49' }}>{isEmbedded ? 'Odontograma de la Consulta' : 'Odontograma Interactivo'}</h2>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#888F94' }}>
-              Paciente: <strong style={{ color: '#203F49' }}>{isEmbedded ? (patientName || 'Ana López Martínez') : currentPatient.nombre}</strong>
-              &nbsp;·&nbsp; Exp. #{isEmbedded ? (patientIdentidad || '2024-00142') : currentPatient.identidad} &nbsp;·&nbsp; Vista oclusal — {toothCount} dientes
-            </p>
-          </div>
-        </div>
-        {/* Legend chips — pastel filled */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxWidth: 500, justifyContent: 'flex-end', alignItems: 'center' }}>
-          {(Object.entries(STATE_CONFIG) as [ToothState, typeof STATE_CONFIG[ToothState]][]).map(([key, cfg]) => (
-            <span key={key} style={{
-              background: cfg.bg,
-              color: cfg.textColor,
-              fontSize: 10,
-              fontWeight: 600,
-              borderRadius: 20,
-              padding: '3px 10px',
-              letterSpacing: '0.01em',
-              whiteSpace: 'nowrap',
-            }}>
-              {cfg.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Responsive CSS */}
-      <style>{`
-        .odonto-grid {
-          display: grid;
-          grid-template-columns: 1fr 300px;
-          gap: 20px;
-          align-items: stretch;
-        }
-        .odonto-svg-card {
-          background: #fff;
-          border-radius: 12px;
-          border: 1px solid #D3D7DA;
-          padding: 16px;
-          overflow: hidden;
-        }
-        .odonto-panel {
-          display: flex;
-          flex-direction: column;
-          border-radius: 12px;
-          padding: 20px;
-          transition: border 0.2s;
-        }
-        @media (max-width: 860px) {
-          .odonto-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
-      {/* Odontogram + Action Panel */}
-      <div className="odonto-grid">
-
-        {/* Arch SVG */}
-        <div className="odonto-svg-card">
-          <OdontogramSVG teeth={teeth} selectedTooth={selectedTooth} onSelect={handleSelect} dentition={dentition} />
-        </div>
-
-        {/* Action Panel */}
-        <div
-          className="odonto-panel"
-          style={{
-            background: '#fff',
-            border: selectedTooth ? '1.5px solid #0BC5DF' : '1px solid #D3D7DA',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: selectedTooth ? '#E6F8FB' : '#F1F3F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={selectedTooth ? '#0BC5DF' : '#888F94'} strokeWidth="2">
-                <path d="M12 2C9 2 7 4 7 7c0 4 2 8 5 13 3-5 5-9 5-13 0-3-2-5-5-5z" />
-              </svg>
-            </div>
-            <div>
-              <h4 style={{ margin: 0, color: '#203F49' }}>{selectedTooth ? `Diente #${selectedTooth}` : 'Panel de Acción'}</h4>
-              {selectedTooth && (
-                <p style={{ margin: 0, fontSize: 11, color: '#888F94' }}>
-                  Estado actual: <StateBadge state={teeth[selectedTooth].state} />
-                </p>
-              )}
-            </div>
-          </div>
-
-          {!selectedTooth ? (
-            <div style={{ flex: 1, border: '2px dashed #D3D7DA', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#888F94', textAlign: 'center', padding: '28px 16px' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D3D7DA" strokeWidth="1.5">
-                <path d="M12 2C9 2 7 4 7 7c0 4 2 8 5 13 3-5 5-9 5-13 0-3-2-5-5-5z" />
-              </svg>
-              <span style={{ fontSize: 12 }}>Haz clic sobre un diente para editar su estado</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
-
-              {/* Estado */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: 13, color: '#203F49', margin: 0 }}>Estado a asignar</label>
-                  <FieldBadge type="Requerido" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    color: patientAge < 12 ? '#EF9F27' : '#203F49',
+                  }}>
+                    {patientAge < 12 ? 'Paciente Infantil' : 'Paciente Adulto'}
+                  </span>
+                  <span style={{
+                    background: patientAge < 12 ? '#EF9F27' : '#0BC5DF',
+                    color: '#fff',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '1px 6px',
+                    borderRadius: 6,
+                    textTransform: 'uppercase'
+                  }}>
+                    Validado
+                  </span>
                 </div>
-                <select
-                  value={pendingState}
-                  onChange={e => setPendingState(e.target.value as ToothState)}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 13, color: '#203F49', cursor: 'pointer' }}
-                >
-                  <option value="">— Seleccionar estado —</option>
-                  {(Object.entries(STATE_CONFIG) as [ToothState, typeof STATE_CONFIG[ToothState]][]).map(([k, c]) => (
-                    <option key={k} value={k}>{c.label}</option>
-                  ))}
-                </select>
-                {pendingState && <div style={{ marginTop: 6 }}><StateBadge state={pendingState as ToothState} /></div>}
-              </div>
-
-              {/* Observación — crece para llenar el espacio disponible */}
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: 13, color: '#203F49', margin: 0 }}>Observación</label>
-                  <FieldBadge type="Opcional" />
-                </div>
-                <textarea
-                  value={pendingObs}
-                  onChange={e => setPendingObs(e.target.value)}
-                  placeholder="Notas clínicas adicionales..."
-                  style={{
-                    flex: 1,
-                    minHeight: 80,
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #D3D7DA',
-                    background: '#F8F9FA',
-                    fontSize: 13,
-                    color: '#203F49',
-                    resize: 'none',
-                    fontFamily: 'inherit',
-                    lineHeight: 1.5,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              {/* Auto-filled */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: '#888F94', display: 'block', marginBottom: 4 }}>Doctor responsable</label>
-                  <div style={{ padding: '6px 10px', borderRadius: 8, background: '#F1F3F4', border: '1px solid #EAECEE', fontSize: 11, color: '#5F656A' }}>{DOCTOR}</div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: '#888F94', display: 'block', marginBottom: 4 }}>Fecha del cambio</label>
-                  <div style={{ padding: '6px 10px', borderRadius: 8, background: '#F1F3F4', border: '1px solid #EAECEE', fontSize: 11, color: '#5F656A' }}>{TODAY}</div>
-                </div>
-              </div>
-
-              {/* Botones — pegados al fondo del panel */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
-                <button onClick={handleSave}
-                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, background: '#0BC5DF', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#0899B0'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#0BC5DF'; }}>
-                  Guardar cambio
-                </button>
-                <button onClick={handleCancel}
-                  style={{ padding: '9px 12px', borderRadius: 8, background: '#F1F3F4', color: '#5F656A', border: '1px solid #D3D7DA', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                  Cancelar
-                </button>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: patientAge < 12 ? '#B45309' : '#0899B0', lineHeight: 1.3 }}>
+                  Edad: <strong>{patientAge} años</strong>. Dentición <strong>{patientAge < 12 ? 'Temporal' : 'Permanente'}</strong> ({patientAge < 12 ? '20' : '32'} piezas).
+                </p>
               </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* History */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #D3D7DA', padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h4 style={{ margin: 0, color: '#203F49' }}>Historial de Cambios</h4>
-            <span style={{ background: '#E6F8FB', color: '#0BC5DF', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '2px 8px' }}>{history.length}</span>
-          </div>
-          <select value={histFilter === 'all' ? 'all' : String(histFilter)}
-            onChange={e => setHistFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 12, color: '#203F49', cursor: 'pointer' }}>
-            <option value="all">Todos los dientes</option>
-            {[...new Set(history.map(h => h.toothNumber))].sort((a, b) => a - b).map(n => (
-              <option key={n} value={n}>Diente #{n}</option>
-            ))}
-          </select>
+      {/* Loading overlay */}
+      {showLoading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, background: '#fff', borderRadius: 12, border: '1px solid #D3D7DA', gap: 12 }}>
+          <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: '#0BC5DF' }} />
+          <span style={{ color: '#888F94', fontSize: 14 }}>
+            {loadingPatients ? 'Cargando pacientes...' : 'Cargando odontograma...'}
+          </span>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
+      ) : (
+        <>
+          {/* Patient header */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #D3D7DA', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#203F49' }}>{isEmbedded ? 'Odontograma de la Consulta' : 'Odontograma Interactivo'}</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 13, color: '#888F94' }}>
+                  Paciente: <strong style={{ color: '#203F49' }}>{isEmbedded ? (patientName || '—') : (currentPatient ? `${currentPatient.nombre} ${currentPatient.apellido}` : '—')}</strong>
+                  &nbsp;·&nbsp; Exp. #{isEmbedded ? (patientIdentidad || '—') : (currentPatient?.identidad || '—')} &nbsp;·&nbsp; Vista oclusal — {toothCount} dientes
+                </p>
+              </div>
+            </div>
+            {/* Legend chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxWidth: 500, justifyContent: 'flex-end', alignItems: 'center' }}>
+              {(Object.entries(STATE_CONFIG) as [ToothState, typeof STATE_CONFIG[ToothState]][]).map(([key, cfg]) => (
+                <span key={key} style={{
+                  background: cfg.bg,
+                  color: cfg.textColor,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  borderRadius: 20,
+                  padding: '3px 10px',
+                  letterSpacing: '0.01em',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {cfg.label}
+                </span>
+              ))}
+            </div>
+          </div>
 
-        {visibleHistory.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#888F94', fontSize: 13, padding: '24px 0' }}>Sin registros para este diente.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
-            {visibleHistory.map(entry => (
-              <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, background: '#F8F9FA', border: '1px solid #EAECEE' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#E6F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0BC5DF', flexShrink: 0 }}>
-                  #{entry.toothNumber}
+          <style>{`
+            .odonto-grid {
+              display: grid;
+              grid-template-columns: 1fr 300px;
+              gap: 20px;
+              align-items: stretch;
+            }
+            .odonto-svg-card {
+              background: #fff;
+              border-radius: 12px;
+              border: 1px solid #D3D7DA;
+              padding: 16px;
+              overflow: hidden;
+            }
+            .odonto-panel {
+              display: flex;
+              flex-direction: column;
+              border-radius: 12px;
+              padding: 20px;
+              transition: border 0.2s;
+            }
+            @media (max-width: 860px) {
+              .odonto-grid {
+                grid-template-columns: 1fr;
+              }
+            }
+          `}</style>
+
+          {/* Odontogram + Action Panel */}
+          <div className="odonto-grid">
+
+            {/* Arch SVG */}
+            <div className="odonto-svg-card">
+              <OdontogramSVG teeth={teeth} selectedTooth={selectedTooth} onSelect={handleSelect} dentition={dentition} />
+            </div>
+
+            {/* Action Panel */}
+            <div
+              className="odonto-panel"
+              style={{
+                background: '#fff',
+                border: selectedTooth ? '1.5px solid #0BC5DF' : '1px solid #D3D7DA',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: selectedTooth ? '#E6F8FB' : '#F1F3F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={selectedTooth ? '#0BC5DF' : '#888F94'} strokeWidth="2">
+                    <path d="M12 2C9 2 7 4 7 7c0 4 2 8 5 13 3-5 5-9 5-13 0-3-2-5-5-5z" />
+                  </svg>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <StateBadge state={entry.previousState} />
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888F94" strokeWidth="2">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                    <StateBadge state={entry.newState} />
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, color: '#888F94' }}>{entry.date}</span>
-                    <span style={{ fontSize: 11, color: '#888F94' }}>{entry.doctor}</span>
-                  </div>
-                  {entry.observation && (
-                    <p style={{ margin: '3px 0 0', fontSize: 11, color: '#5F656A', fontStyle: 'italic' }}>"{entry.observation}"</p>
+                <div>
+                  <h4 style={{ margin: 0, color: '#203F49' }}>{selectedTooth ? `Diente #${selectedTooth}` : 'Panel de Acción'}</h4>
+                  {selectedTooth && (
+                    <p style={{ margin: 0, fontSize: 11, color: '#888F94' }}>
+                      Estado actual: <StateBadge state={teeth[selectedTooth]?.state} />
+                    </p>
                   )}
                 </div>
               </div>
-            ))}
+
+              {!selectedTooth ? (
+                <div style={{ flex: 1, border: '2px dashed #D3D7DA', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#888F94', textAlign: 'center', padding: '28px 16px' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D3D7DA" strokeWidth="1.5">
+                    <path d="M12 2C9 2 7 4 7 7c0 4 2 8 5 13 3-5 5-9 5-13 0-3-2-5-5-5z" />
+                  </svg>
+                  <span style={{ fontSize: 12 }}>Haz clic sobre un diente para editar su estado</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
+
+                  {/* Estado */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <label style={{ fontSize: 13, color: '#203F49', margin: 0 }}>Estado a asignar</label>
+                      <FieldBadge type="Requerido" />
+                    </div>
+                    <select
+                      value={pendingState}
+                      onChange={e => setPendingState(e.target.value as ToothState)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 13, color: '#203F49', cursor: 'pointer' }}
+                    >
+                      <option value="">— Seleccionar estado —</option>
+                      {(Object.entries(STATE_CONFIG) as [ToothState, typeof STATE_CONFIG[ToothState]][]).map(([k, c]) => (
+                        <option key={k} value={k}>{c.label}</option>
+                      ))}
+                    </select>
+                    {pendingState && <div style={{ marginTop: 6 }}><StateBadge state={pendingState as ToothState} /></div>}
+                  </div>
+
+                  {/* Observación */}
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <label style={{ fontSize: 13, color: '#203F49', margin: 0 }}>Observación</label>
+                      <FieldBadge type="Opcional" />
+                    </div>
+                    <textarea
+                      value={pendingObs}
+                      onChange={e => setPendingObs(e.target.value)}
+                      placeholder="Notas clínicas adicionales..."
+                      style={{
+                        flex: 1,
+                        minHeight: 80,
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #D3D7DA',
+                        background: '#F8F9FA',
+                        fontSize: 13,
+                        color: '#203F49',
+                        resize: 'none',
+                        fontFamily: 'inherit',
+                        lineHeight: 1.5,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  {/* Auto-filled */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{ fontSize: 11, color: '#888F94', display: 'block', marginBottom: 4 }}>Doctor responsable</label>
+                      <div style={{ padding: '6px 10px', borderRadius: 8, background: '#F1F3F4', border: '1px solid #EAECEE', fontSize: 11, color: '#5F656A' }}>{doctorName || '—'}</div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: '#888F94', display: 'block', marginBottom: 4 }}>Fecha del cambio</label>
+                      <div style={{ padding: '6px 10px', borderRadius: 8, background: '#F1F3F4', border: '1px solid #EAECEE', fontSize: 11, color: '#5F656A' }}>{TODAY}</div>
+                    </div>
+                  </div>
+
+                  {/* Botones */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
+                    <button onClick={handleSave} disabled={saving}
+                      style={{ flex: 1, padding: '9px 0', borderRadius: 8, background: saving ? '#B0E0E8' : '#0BC5DF', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}
+                      onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = '#0899B0'; }}
+                      onMouseLeave={e => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = '#0BC5DF'; }}>
+                      {saving ? 'Guardando...' : 'Guardar cambio'}
+                    </button>
+                    <button onClick={handleCancel}
+                      style={{ padding: '9px 12px', borderRadius: 8, background: '#F1F3F4', color: '#5F656A', border: '1px solid #D3D7DA', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* History */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #D3D7DA', padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h4 style={{ margin: 0, color: '#203F49' }}>Historial de Cambios</h4>
+                <span style={{ background: '#E6F8FB', color: '#0BC5DF', fontSize: 11, fontWeight: 700, borderRadius: 10, padding: '2px 8px' }}>
+                  {loadingHistory ? '...' : history.length}
+                </span>
+              </div>
+              <select value={histFilter === 'all' ? 'all' : String(histFilter)}
+                onChange={e => setHistFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 12, color: '#203F49', cursor: 'pointer' }}>
+                <option value="all">Todos los dientes</option>
+                {[...new Set(history.map(h => h.toothNumber))].sort((a, b) => a - b).map(n => (
+                  <option key={n} value={n}>Diente #{n}</option>
+                ))}
+              </select>
+            </div>
+
+            {visibleHistory.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#888F94', fontSize: 13, padding: '24px 0' }}>Sin registros para este diente.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
+                {visibleHistory.map(entry => (
+                  <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, background: '#F8F9FA', border: '1px solid #EAECEE' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#E6F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#0BC5DF', flexShrink: 0 }}>
+                      #{entry.toothNumber}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <StateBadge state={entry.previousState} />
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888F94" strokeWidth="2">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                        <StateBadge state={entry.newState} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: '#888F94' }}>{entry.date}</span>
+                        <span style={{ fontSize: 11, color: '#888F94' }}>{entry.doctor}</span>
+                      </div>
+                      {entry.observation && (
+                        <p style={{ margin: '3px 0 0', fontSize: 11, color: '#5F656A', fontStyle: 'italic' }}>"{entry.observation}"</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {isEmbedded && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, padding: '16px 0', borderTop: `1px solid #D3D7DA` }}>
