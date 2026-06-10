@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 type NavId =
   | 'dashboard'
   | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consentimientos-lista'
-  | 'citas' | 'recordatorios' | 'recordatorios-historial'
+  | 'citas' | 'recordatorios' | 'reminders-historial'
   | 'billing' | 'billing-income' | 'billing-expense' | 'billing-closures'
   | 'billing-list' | 'estado-resultado'
   | 'settings' | 'users' | 'users-list' | 'roles-management' | 'treatments' | 'inventory'
@@ -151,19 +151,6 @@ const navGroups: NavGroup[] = [
     title: 'Principal',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <IconDashboard /> },
-<<<<<<< HEAD
-=======
-      { id: 'agenda', label: 'Agenda', badge: 3, icon: <IconAgenda /> },
-      {
-        id: 'reminders',
-        label: 'Recordatorios',
-        icon: <IconRecordatorios />,
-        subItems: [
-          { id: 'reminders',           label: 'Cola de envío'          },
-          { id: 'reminders-historial', label: 'Historial de confirmaciones' },
-        ],
-      },
->>>>>>> 68c27d8 (Implementar Historial Confirmaciones con datos Mock)
     ],
   },
   {
@@ -189,7 +176,7 @@ const navGroups: NavGroup[] = [
       { id: 'recordatorios', label: 'Recordatorios', icon: <IconBell /> ,
         subItems: [
           { id: 'recordatorios',           label: 'Cola de envío'          },
-          { id: 'recordatorios-historial', label: 'Historial de confirmaciones' },
+          { id: 'reminders-historial', label: 'Historial de confirmaciones' },
         ],
       },
     ],

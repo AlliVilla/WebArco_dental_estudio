@@ -14,15 +14,11 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   dashboard: { title: 'Dashboard', breadcrumbs: ['Inicio', 'Dashboard'] },
   'mi-perfil': { title: 'Mi Perfil', breadcrumbs: ['Inicio', 'Perfil'] },
   agenda: { title: 'Agenda', breadcrumbs: ['Inicio', 'Agenda'] },
-<<<<<<< HEAD
   'agenda-new': { title: 'Nueva Cita', breadcrumbs: ['Agenda', 'Nueva Cita'] },
   'agenda-detail': { title: 'Detalle de Cita', breadcrumbs: ['Agenda', 'Detalle'] },
   'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
-  'agenda-recordatorios': {title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios']},
-=======
-  reminders: { title: 'Recordatorios', breadcrumbs: ['Inicio', 'Recordatorios'] },
-  'reminders-historial': { title: 'Historial de confirmaciones', breadcrumbs: ['Inicio', 'Recordatorios', 'Historial'] },
->>>>>>> 68c27d8 (Implementar Historial Confirmaciones con datos Mock)
+  'agenda-recordatorios': {title: 'Recordatorios', breadcrumbs: ['Agenda', 'Recordatorios', 'Cola de envío']},
+  'reminders-historial': { title: 'Historial de confirmaciones', breadcrumbs: ['Agenda', 'Recordatorios', 'Historial de confirmaciones'] },
   patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
   'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
@@ -87,7 +83,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       dashboard: '/dashboard',
       citas: '/agenda',
       recordatorios: '/agenda/reminders', // Mapped to agenda placeholder
-      'reminders-historial': '/reminders/historial',
+      'reminders-historial': 'agenda/reminders/historial',
       patients: '/patients/list',
       'patients-list': '/patients/list',
       odontogram: '/patients/odontogram',
