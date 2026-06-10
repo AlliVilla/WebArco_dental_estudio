@@ -73,7 +73,7 @@ export class PersonaService {
     return persona;
   }
 
-  async findAll(page: number = 1, limit: number = 10, search?: string, includeConsulta: boolean = false) {
+  async findAll(page: number = 1, limit: number = 10, filters?: { search?: string; nombre?: string; identidad?: string; telefono?: string; codigo?: string }, includeConsulta: boolean = false) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};

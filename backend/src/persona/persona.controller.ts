@@ -74,7 +74,7 @@ export class PersonaController {
     @Query('identidad') identidad?: string,
     @Query('telefono') telefono?: string,
     @Query('codigo') codigo?: string,
-    @Query('includeConsulta', ParseBoolPipe) includeConsulta?: boolean
+    @Query('includeConsulta', new ParseBoolPipe({ optional: true })) includeConsulta?: boolean
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
