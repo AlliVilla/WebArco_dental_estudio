@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+
 import svgPaths from '../imports/Sidebar/svg-zii4vktzzu';
 import logoImg from '../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221.png';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+
 import { appointmentService } from '../features/appointments/services/appointmentService';
 import { useAuthStore } from '../features/auth/hooks/useAuthStore';
+import { SIDEBAR_PRIVILEGES } from '../features/users/constants/sidebar-privileges';
 
 // ── Nav data (SVG paths wired from Figma import) ──────────────────────────────
 
-type NavId =
+export type NavId =
   | 'dashboard'
   | 'patients' | 'patients-list' | 'patient-expediente' | 'odontogram' | 'consentimientos-lista'
   | 'citas' | 'recordatorios' | 'reminders-historial'
@@ -275,6 +278,35 @@ export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: Sidebar
     return (n || 'U') + (a || '');
   })();
 
+  // ── Privilege‑based filtering ──────────────────────────────────────────
+  const userPrivileges = useMemo(() => new Set(user?.privilegios ?? []), [user]);
+
+  function hasNavPrivilege(id: NavId): boolean {
+    const required = SIDEBAR_PRIVILEGES[id];
+    if (!required || required.length === 0) return true;
+    return required.some(p => userPrivileges.has(p));
+  }
+
+  const filteredNavGroups: NavGroup[] = useMemo(() => {
+    const result: NavGroup[] = [];
+    for (const group of navGroups) {
+      const filteredItems: NavItem[] = [];
+      for (const item of group.items) {
+        if (item.subItems) {
+          const visibleSubItems = item.subItems.filter(sub => hasNavPrivilege(sub.id));
+          if (visibleSubItems.length === 0) continue;
+          filteredItems.push({ ...item, subItems: visibleSubItems });
+        } else if (hasNavPrivilege(item.id)) {
+          filteredItems.push(item);
+        }
+      }
+      if (filteredItems.length > 0) {
+        result.push({ ...group, items: filteredItems });
+      }
+    }
+    return result;
+  }, [userPrivileges]);
+
   const toggleExpand = (itemId: string) => {
     setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
@@ -339,7 +371,7 @@ export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: Sidebar
           scrollbarWidth: 'none',
           padding: 12,
         }}>
-          {navGroups.map((group) => (
+          {filteredNavGroups.map((group) => (
             <div key={group.title} style={{ marginBottom: 0 }}>
               {/* Section title */}
               {!collapsed && (
@@ -512,24 +544,26 @@ export function Sidebar({ activeItem, onNavigate, collapsed, onToggle }: Sidebar
         </nav>
 
         {/* ── Settings ── */}
-        <div style={{ borderTop: '1.067px solid #D3D7DA', padding: '9px 12px 8px', flexShrink: 0 }}>
-          <button
-            onClick={() => onNavigate('settings')}
-            title={collapsed ? 'Configuración' : undefined}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: 10, padding: '9px 12px', borderRadius: 8,
-              border: 'none', cursor: 'pointer', background: 'transparent',
-              color: '#5F656A', fontSize: 14, fontWeight: 400,
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F8F9FA'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >
-            <span style={{ color: '#888F94', display: 'flex', flexShrink: 0 }}><IconSettings /></span>
-            {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>Configuración</span>}
-          </button>
-        </div>
+        {hasNavPrivilege('settings') && (
+          <div style={{ borderTop: '1.067px solid #D3D7DA', padding: '9px 12px 8px', flexShrink: 0 }}>
+            <button
+              onClick={() => onNavigate('settings')}
+              title={collapsed ? 'Configuración' : undefined}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                gap: 10, padding: '9px 12px', borderRadius: 8,
+                border: 'none', cursor: 'pointer', background: 'transparent',
+                color: '#5F656A', fontSize: 14, fontWeight: 400,
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F8F9FA'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >
+              <span style={{ color: '#888F94', display: 'flex', flexShrink: 0 }}><IconSettings /></span>
+              {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>Configuración</span>}
+            </button>
+          </div>
+        )}
 
         {/* ── User profile ── */}
         <div style={{ borderTop: '1.067px solid #D3D7DA', padding: '13px 16px 12px', flexShrink: 0 }}>

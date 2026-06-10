@@ -47,6 +47,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas.');
     }
 
+    const rolePrivileges = await this.prisma.rolPrivilegio.findMany({
+      where: { id_rol: userExists.id_rol },
+      select: { id_privilegio: true },
+    });
+    const privilegios = rolePrivileges.map(rp => rp.id_privilegio);
+
     const tokenPayload = {
       sub: userExists.id_usuario,
       username: userExists.username,
@@ -60,7 +66,10 @@ export class AuthService {
     return {
       access_token,
       refresh_token,
-      user: userExists,
+      user: {
+        ...userExists,
+        privilegios,
+      },
     };
   }
 
