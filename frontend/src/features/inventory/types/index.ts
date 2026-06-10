@@ -26,6 +26,7 @@ export type InventoryMovement = Record<string, unknown> & {
   tipo: TipoMovimientoInventario;
   cantidad: number;
   fecha: string;
+  id_usuario?: number;
   responsable: string;
   observaciones?: string | null;
 };
@@ -35,6 +36,36 @@ export type InventoryStats = {
   stock_bajo: number;
   agotados: number;
   valor_total: number;
+};
+
+export type InventoryMovementSummary = {
+  total_movimientos: number;
+  total_entradas: number;
+  total_salidas: number;
+  balance_unidades: number;
+};
+
+export type InventoryMovementPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+};
+
+export type InventoryMovementHistoryResponse = {
+  data: InventoryMovement[];
+  summary: InventoryMovementSummary;
+  pagination: InventoryMovementPagination;
+};
+
+export type InventoryMovementHistoryParams = {
+  search?: string;
+  id_insumo?: number;
+  tipo?: TipoMovimientoInventario;
+  fechaInicio?: string;
+  fechaFin?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type CreateInventoryItemInput = {
@@ -51,7 +82,6 @@ export type CreateInventoryMovementInput = {
   id_insumo: number;
   cantidad: number;
   fecha: string;
-  responsable: string;
   observaciones?: string;
 };
 

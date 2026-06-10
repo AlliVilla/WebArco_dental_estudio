@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { CreateMovimientoDto } from './dto/create-movimiento.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
+import { GetMovementHistoryDto } from './dto/get-movement-history.dto';
 
 @Injectable()
 export class InventarioService {
@@ -266,6 +267,48 @@ export class InventarioService {
     return movimientos.map((movimiento) => this.mapMovimiento(movimiento));
   }
 
+  async getMovementHistory(params: GetMovementHistoryDto) {
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 25;
+    const where = this.buildMovementWhere(params);
+
+    const [total, movimientos, entradas, salidas] = await Promise.all([
+      this.prisma.movimientoInventario.count({ where }),
+      this.prisma.movimientoInventario.findMany({
+        where,
+        include: {
+          insumo: true,
+          usuario: {
+            include: {
+              persona: true,
+            },
+          },
+        },
+        orderBy: [{ fecha: 'desc' }, { id_movimiento: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.sumMovementQuantity(where, TipoMovimiento.Entrada, params.tipo),
+      this.sumMovementQuantity(where, TipoMovimiento.Salida, params.tipo),
+    ]);
+
+    return {
+      data: movimientos.map((movimiento) => this.mapMovimiento(movimiento)),
+      summary: {
+        total_movimientos: total,
+        total_entradas: entradas,
+        total_salidas: salidas,
+        balance_unidades: entradas - salidas,
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
   async getStats() {
     const insumos = await this.prisma.insumo.findMany({
       where: { activo: true },
@@ -332,6 +375,63 @@ export class InventarioService {
       update: {},
       create: { nombre },
     });
+  }
+
+  private buildMovementWhere(params?: GetMovementHistoryDto) {
+    const where: Prisma.MovimientoInventarioWhereInput = {};
+
+    if (params?.id_insumo) {
+      where.id_insumo = params.id_insumo;
+    }
+
+    if (params?.tipo) {
+      where.tipo = params.tipo;
+    }
+
+    if (params?.fechaInicio || params?.fechaFin) {
+      where.fecha = {};
+
+      if (params.fechaInicio) {
+        where.fecha.gte = new Date(`${params.fechaInicio}T00:00:00.000Z`);
+      }
+
+      if (params.fechaFin) {
+        where.fecha.lte = new Date(`${params.fechaFin}T23:59:59.999Z`);
+      }
+    }
+
+    const search = params?.search?.trim();
+
+    if (search) {
+      where.OR = [
+        { insumo: { codigo: { contains: search, mode: 'insensitive' } } },
+        { insumo: { nombre: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    return where;
+  }
+
+  private async sumMovementQuantity(
+    where: Prisma.MovimientoInventarioWhereInput,
+    tipo: TipoMovimiento,
+    selectedType?: TipoMovimiento,
+  ) {
+    if (selectedType && selectedType !== tipo) {
+      return 0;
+    }
+
+    const result = await this.prisma.movimientoInventario.aggregate({
+      where: {
+        ...where,
+        tipo,
+      },
+      _sum: {
+        cantidad: true,
+      },
+    });
+
+    return result._sum.cantidad ?? 0;
   }
 
   private getEstado(stockActual: number, stockMinimo: number) {

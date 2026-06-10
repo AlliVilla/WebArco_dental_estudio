@@ -28,6 +28,7 @@ import { InventarioService } from './inventario.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { CreateMovimientoDto } from './dto/create-movimiento.dto';
 import { UpdateInsumoDto } from './dto/update-insumo.dto';
+import { GetMovementHistoryDto } from './dto/get-movement-history.dto';
 
 interface RequestWithUser extends Request {
   user?: {
@@ -104,6 +105,14 @@ export class InventarioController {
   @ApiOkResponse({ description: 'Insumo readmitido exitosamente.' })
   async restore(@Param('id', ParseIntPipe) id: number) {
     return this.inventarioService.restore(id);
+  }
+
+  @Get('movements/history')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Vista detallada del historial de movimientos de inventario' })
+  @ApiOkResponse({ description: 'Historial detallado de movimientos obtenido exitosamente.' })
+  async getMovementHistory(@Query() query: GetMovementHistoryDto) {
+    return this.inventarioService.getMovementHistory(query);
   }
 
   @Get('movements')

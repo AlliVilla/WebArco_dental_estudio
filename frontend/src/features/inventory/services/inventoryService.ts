@@ -6,6 +6,8 @@ import type {
   InventoryItem,
   InventoryListResponse,
   InventoryMovement,
+  InventoryMovementHistoryParams,
+  InventoryMovementHistoryResponse,
   InventoryStats,
 } from '../types';
 
@@ -39,8 +41,12 @@ export const inventoryService = {
     return api.patch(`/inventory/${id}/restore`) as Promise<ApiResponse<InventoryItem & { message: string }>>;
   },
 
-  getMovements: async (): Promise<ApiResponse<InventoryMovement[]>> => {
-    return api.get('/inventory/movements') as Promise<ApiResponse<InventoryMovement[]>>;
+  getMovements: async (params?: InventoryMovementHistoryParams): Promise<ApiResponse<InventoryMovement[]>> => {
+    return api.get('/inventory/movements', { params }) as Promise<ApiResponse<InventoryMovement[]>>;
+  },
+
+  getMovementHistory: async (params?: InventoryMovementHistoryParams): Promise<ApiResponse<InventoryMovementHistoryResponse>> => {
+    return api.get('/inventory/movements/history', { params }) as Promise<ApiResponse<InventoryMovementHistoryResponse>>;
   },
 
   createMovement: async (data: CreateInventoryMovementInput): Promise<ApiResponse<InventoryMovement>> => {

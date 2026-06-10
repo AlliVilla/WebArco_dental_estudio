@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type React from 'react';
 import { Archive, Boxes, DollarSign, Edit2, Eye, FileText, PackagePlus, Plus, RotateCcw, Trash2, TrendingDown, X } from 'lucide-react';
 
 import { ConfirmModal, DataTable, type Column } from '../../../components';
 import { Alert, Button, Card, Input, SectionBlock, Select } from '../../../context';
 import { useTheme } from '../../../context/ThemeContext';
-import { useAuthStore } from '../../auth/hooks/useAuthStore';
 import { inventoryService } from '../services/inventoryService';
-import { formatCurrency, formatDate } from '../../../utils/formatters';
+import { formatCurrency } from '../../../utils/formatters';
 import type {
   CategoriaInsumo,
   CreateInventoryItemInput,
   CreateInventoryMovementInput,
   InventoryItem,
-  InventoryMovement,
   InventoryStats,
   TipoMovimientoInventario,
   UnidadMedidaInsumo,
@@ -35,7 +34,6 @@ type MovementFormState = {
   id_insumo: string;
   cantidad: string;
   fecha: string;
-  responsable: string;
   observaciones: string;
 };
 
@@ -71,9 +69,8 @@ const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
 export function InventoryScreen(_props: InventoryScreenProps) {
   useTheme();
-  const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [stats, setStats] = useState<InventoryStats>({ total_productos: 0, stock_bajo: 0, agotados: 0, valor_total: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,7 +78,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const [success, setSuccess] = useState('');
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState<ItemFormState>(emptyItemForm);
@@ -90,7 +86,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     id_insumo: '',
     cantidad: '0',
     fecha: todayInputValue(),
-    responsable: getResponsibleName(user),
     observaciones: '',
   });
 
@@ -98,14 +93,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     setLoading(true);
     setError('');
     try {
-      const [inventoryResponse, movementResponse] = await Promise.all([
-        inventoryService.getAll(),
-        inventoryService.getMovements(),
-      ]);
+      const inventoryResponse = await inventoryService.getAll();
 
       setItems(inventoryResponse.data.data);
       setStats(inventoryResponse.data.stats);
-      setMovements(movementResponse.data);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -134,14 +125,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     { key: 'estado_registro', label: 'Registro', align: 'center', width: 110, render: (value) => <RecordStatusBadge status={String(value)} /> },
   ], []);
 
-  const movementColumns: Column<InventoryMovement>[] = useMemo(() => [
-    { key: 'fecha', label: 'Fecha', width: 120, render: (value) => formatDate(String(value)) },
-    { key: 'producto', label: 'Producto', render: (value) => <span style={{ color: '#203F49', fontWeight: 500 }}>{String(value)}</span> },
-    { key: 'tipo', label: 'Tipo', align: 'center', width: 110, render: (value) => <MovementBadge type={String(value)} /> },
-    { key: 'cantidad', label: 'Cant.', align: 'center', width: 80, render: (value) => <strong style={{ color: '#203F49' }}>{String(value)}</strong> },
-    { key: 'responsable', label: 'Responsable', width: 160 },
-  ], []);
-
   const openCreateItem = () => {
     setSelectedItem(null);
     setItemForm(emptyItemForm);
@@ -167,8 +150,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       id_insumo: item ? String(item.id_insumo) : '',
       cantidad: '0',
       fecha: todayInputValue(),
-      responsable: getResponsibleName(user),
-      observaciones: '',
+        observaciones: '',
     });
     setMovementModalOpen(true);
   };
@@ -289,7 +271,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
         primaryAction={{ label: 'Nuevo insumo', icon: <Plus size={16} />, onClick: openCreateItem }}
         secondaryActions={[
           { label: 'Registrar movimiento', icon: <PackagePlus size={16} />, onClick: () => openMovementModal() },
-          { label: 'Ver historial', icon: <FileText size={16} />, onClick: () => setHistoryModalOpen(true) },
+          { label: 'Ver historial', icon: <FileText size={16} />, onClick: () => navigate('/inventory/history') },
           { label: 'Exportar inventario', icon: <Archive size={16} />, onClick: () => exportInventoryCsv(items) },
         ]}
         rowActions={(row) => row.activo ? [
@@ -339,9 +321,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               <Select label="Producto" badge="required" placeholder="Seleccionar" options={items.filter((item) => item.activo).map((item) => ({ value: String(item.id_insumo), label: `${item.codigo} - ${item.nombre}` }))} value={movementForm.id_insumo} onChange={(value) => setMovementForm((prev) => ({ ...prev, id_insumo: value }))} />
               <Input label="Cantidad" badge="required" type="number" min="1" value={movementForm.cantidad} onChange={(e) => setMovementForm((prev) => ({ ...prev, cantidad: e.target.value }))} hint="Valor positivo" />
               <Input label="Fecha" badge="required" type="date" value={movementForm.fecha} onChange={(e) => setMovementForm((prev) => ({ ...prev, fecha: e.target.value }))} hint="Autorrellena con hoy; editable" />
-              <div style={{ gridColumn: '1 / -1' }}>
-                <Input label="Responsable" badge="required" value={movementForm.responsable} onChange={(e) => setMovementForm((prev) => ({ ...prev, responsable: e.target.value }))} hint="Autorrellena con usuario en sesión" />
-              </div>
               <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>Observaciones <span style={{ fontSize: 10, color: '#888F94', border: '1px solid #D3D7DA', borderRadius: 4, padding: '1px 6px' }}>Opcional</span></label>
                 <textarea value={movementForm.observaciones} onChange={(e) => setMovementForm((prev) => ({ ...prev, observaciones: e.target.value }))} placeholder="Motivo, proveedor, procedimiento..." style={{ minHeight: 88, border: '1px solid #D3D7DA', borderRadius: 8, padding: 12, fontSize: 14, color: '#203F49', background: '#fff', outline: 'none', resize: 'vertical' }} />
@@ -351,23 +330,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           <ModalActions>
             <Button variant="secondary" onClick={() => setMovementModalOpen(false)}>Cancelar</Button>
             <Button loading={saving} onClick={saveMovement}>Registrar</Button>
-          </ModalActions>
-        </Modal>
-      )}
-
-      {historyModalOpen && (
-        <Modal title="Historial de movimientos" subtitle="Entradas y salidas registradas" onClose={() => setHistoryModalOpen(false)} maxWidth={760}>
-          <DataTable<InventoryMovement>
-            columns={movementColumns}
-            data={movements}
-            searchable={false}
-            hidePagination
-            getRowKey={(row) => String(row.id_movimiento)}
-            emptyMessage="No hay movimientos registrados."
-            style={{ padding: 0, border: 'none', boxShadow: 'none' }}
-          />
-          <ModalActions>
-            <Button variant="secondary" onClick={() => setHistoryModalOpen(false)}>Cerrar</Button>
           </ModalActions>
         </Modal>
       )}
@@ -431,11 +393,6 @@ function InventoryStatusBadge({ status }: { status: string }) {
 function RecordStatusBadge({ status }: { status: string }) {
   const isActive = status === 'Activo';
   return <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: isActive ? '#E6F8FB' : '#F1F3F4', color: isActive ? '#0899B0' : '#5F656A' }}>{status}</span>;
-}
-
-function MovementBadge({ type }: { type: string }) {
-  const isEntry = type === 'Entrada';
-  return <span style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 20, background: isEntry ? '#ECFDF5' : '#FEF2F2', color: isEntry ? '#1D9E75' : '#E24B4A' }}>{type}</span>;
 }
 
 function InventoryLegend() {
@@ -507,7 +464,6 @@ function validateMovementForm(form: MovementFormState): { ok: true; data: Create
   if (!Number.isInteger(idInsumo) || idInsumo <= 0) return { ok: false, message: 'Selecciona un producto.' };
   if (!Number.isInteger(cantidad) || cantidad <= 0) return { ok: false, message: 'La cantidad debe ser un entero mayor a 0.' };
   if (!form.fecha) return { ok: false, message: 'La fecha es obligatoria.' };
-  if (!form.responsable.trim()) return { ok: false, message: 'El responsable es obligatorio.' };
 
   return {
     ok: true,
@@ -516,17 +472,9 @@ function validateMovementForm(form: MovementFormState): { ok: true; data: Create
       id_insumo: idInsumo,
       cantidad,
       fecha: form.fecha,
-      responsable: form.responsable.trim(),
       observaciones: form.observaciones.trim() || undefined,
     },
   };
-}
-
-function getResponsibleName(user: unknown) {
-  if (!user || typeof user !== 'object') return 'Dr. Karla Arita';
-  const candidate = user as { username?: string; persona?: { primer_nombre?: string; primer_apellido?: string } };
-  const fullName = [candidate.persona?.primer_nombre, candidate.persona?.primer_apellido].filter(Boolean).join(' ');
-  return fullName || candidate.username || 'Dr. Karla Arita';
 }
 
 function getErrorMessage(error: unknown) {
