@@ -113,18 +113,18 @@ export type QueryConsentimientoParams = {
 
 // ── Tipos legales (templates) ──
 
-export interface ConsentTemplate {
+export type ConsentTemplate = {
   id: number;
   titulo: string;
   contenido: string;
   activo: boolean;
-}
+};
 
-export interface PatientConsent {
+export type PatientConsent = {
   id_consentimiento: number;
   id_consulta: number;
   firmado: boolean;
   firma_imagen?: string;
   fecha_firma: string;
   paciente_nombre: string;
-}
+};

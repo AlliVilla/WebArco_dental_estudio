@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { Button } from '../../../context';
+import { Button, useTheme } from '../../../context';
 
 export interface FirmaCanvasProps {
   label: string;
@@ -17,8 +17,10 @@ export function FirmaCanvas({
   isSigned = false,
   disabled = false,
 }: FirmaCanvasProps) {
+  useTheme();
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = React.useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (disabled || isSigned) return;
@@ -51,7 +53,9 @@ export function FirmaCanvas({
     const y = e.clientY - rect.top;
 
     ctx.lineTo(x, y);
-    ctx.strokeStyle = '#203F49';
+    // Leemos la variable del tema para que la "tinta" se adapte al modo oscuro/claro
+    const strokeColor = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
+    ctx.strokeStyle = strokeColor || '#203F49';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -69,8 +73,8 @@ export function FirmaCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Se borra el contenido dejándolo transparente en lugar de forzar un color blanco
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   const handleCapture = () => {
@@ -84,19 +88,19 @@ export function FirmaCanvas({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>
-        <label style={{ fontSize: 13, fontWeight: 600, color: '#203F49', display: 'block', marginBottom: 4 }}>
+        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', display: 'block', marginBottom: 4 }}>
           {label}
         </label>
-        <p style={{ fontSize: 12, color: '#888F94', margin: 0 }}>{subtitle}</p>
+        <p style={{ fontSize: 12, color: 'var(--muted-foreground, var(--arco-gray-500))', margin: 0 }}>{subtitle}</p>
       </div>
 
       {/* Canvas area */}
       <div
         style={{
-          border: isSigned ? '2px solid #1D9E75' : '2px dashed #D3D7DA',
+          border: isSigned ? '2px solid var(--arco-success)' : '2px dashed var(--border)',
           borderRadius: 8,
           padding: 8,
-          backgroundColor: '#fff',
+          backgroundColor: 'var(--background)',
           transition: 'border-color 0.2s ease',
         }}
       >
@@ -108,7 +112,7 @@ export function FirmaCanvas({
             width: '100%',
             height: 'auto',
             display: 'block',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'transparent',
             borderRadius: 4,
             cursor: disabled || isSigned ? 'not-allowed' : 'crosshair',
             opacity: disabled ? 0.6 : 1,
@@ -130,7 +134,7 @@ export function FirmaCanvas({
               onClick={handleClear}
               style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              <X size={14} />
+              <X size={16} />
               Limpiar
             </Button>
             <Button variant="primary" size="sm" onClick={handleCapture}>
@@ -139,7 +143,7 @@ export function FirmaCanvas({
           </>
         )}
         {isSigned && (
-          <div style={{ fontSize: 12, color: '#1D9E75', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
+          <div style={{ fontSize: 12, color: 'var(--arco-success)', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
             ✓ Firma capturada
           </div>
         )}
@@ -147,5 +151,3 @@ export function FirmaCanvas({
     </div>
   );
 }
-
-export default FirmaCanvas;

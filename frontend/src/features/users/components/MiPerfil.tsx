@@ -19,7 +19,14 @@ export function MiPerfil() {
   );
 
   const handleSave = () => {
-    const updated = { ...user, username, persona: { ...user?.persona, correo: email, nombre: fullName } };
+    if (!user) return;
+
+    const updated = {
+      ...user,
+      username,
+      persona: { nombre: fullName, apellido: user.persona?.apellido ?? '', telefono: user.persona?.telefono, correo: email },
+    };
+
     localStorage.setItem('webarco_user', JSON.stringify(updated));
     useAuthStore.setState({ user: updated });
   };

@@ -100,14 +100,6 @@ function IconEstadisticas() {
   );
 }
 
-function IconUser() {
-  return (
-    <svg className="block" fill="none" viewBox="0 0 17 17" width={17} height={17}>
-      <circle cx="8.5" cy="5.66667" r="2.83333" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-      <path d="M2.83333 15.5833C2.83333 12.4538 5.37048 9.91667 8.5 9.91667C11.6295 9.91667 14.1667 12.4538 14.1667 15.5833" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.41667" />
-    </svg>
-  );
-}
 function IconUsers() {
   return (
     <svg className="block" fill="none" viewBox="0 0 17 17" width={17} height={17}>

@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, CheckCircle, XCircle, AlertCircle, Calendar, Download } from 'lucide-react';
-import { Button, Card } from '../../../context';
-import { ConsentimientoListItem } from '../types';
+import { useMemo } from 'react';
+import { Calendar, CheckCircle, Download, Eye, FileText, Plus, XCircle } from 'lucide-react';
+
+import { DataTable, type Column, type FilterDef } from '../../../components';
+import { Alert, Card, StatusBadge, useTheme } from '../../../context';
+import { formatDate, formatIdentity } from '../../../utils/formatters';
+import type { ConsentimientoListItem, EstadoFirma } from '../types';
 
 export interface ListadoConsentimientosProps {
   consentimientos: ConsentimientoListItem[];
@@ -11,6 +14,38 @@ export interface ListadoConsentimientosProps {
   loading?: boolean;
 }
 
+type ConsentimientoTableItem = ConsentimientoListItem & Record<string, unknown>;
+
+const ESTADO_LABELS: Record<EstadoFirma, string> = {
+  completo: 'Completo',
+  pendiente: 'Pendiente',
+  incompleto: 'Incompleto',
+};
+
+function getPacienteNombre(consentimiento: ConsentimientoListItem) {
+  const { paciente } = consentimiento;
+  return [
+    paciente.primer_nombre,
+    paciente.segundo_nombre,
+    paciente.primer_apellido,
+    paciente.segundo_apellido,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function getEstadoBadge(estado: EstadoFirma) {
+  if (estado === 'completo') {
+    return <StatusBadge status="confirmada" />;
+  }
+
+  if (estado === 'pendiente') {
+    return <StatusBadge status="programada" />;
+  }
+
+  return <StatusBadge status="cancelada" />;
+}
+
 export function ListadoConsentimientos({
   consentimientos,
   onPrint,
@@ -18,421 +53,203 @@ export function ListadoConsentimientos({
   onCreateNew,
   loading = false,
 }: ListadoConsentimientosProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterEstado, setFilterEstado] = useState<string>('todos');
-  const [filterMes, setFilterMes] = useState<string>('');
+  useTheme();
 
-  const doctoresUnicos = useMemo(
-    () => Array.from(new Set(consentimientos.map((c) => c.doctor.username))),
-    [consentimientos]
+  const tableData = useMemo<ConsentimientoTableItem[]>(
+    () =>
+      consentimientos.map((consentimiento) => ({
+        ...consentimiento,
+        paciente_nombre: getPacienteNombre(consentimiento),
+        numero_identidad: consentimiento.paciente.numero_identidad,
+        tratamiento_busqueda: consentimiento.tratamiento,
+        estado_label: ESTADO_LABELS[consentimiento.estado_firmas],
+        mes: consentimiento.fecha.slice(0, 7),
+      })),
+    [consentimientos],
   );
-
-  const filteredConsentimientos = useMemo(() => {
-    return consentimientos.filter((consent) => {
-      const pacienteCompleto = `${consent.paciente.primer_nombre} ${consent.paciente.segundo_nombre || ''} ${consent.paciente.primer_apellido} ${consent.paciente.segundo_apellido || ''}`.toLowerCase();
-
-      const matchesSearch =
-        pacienteCompleto.includes(searchTerm.toLowerCase()) ||
-        consent.paciente.numero_identidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        consent.tratamiento.toLowerCase().includes(searchTerm.toLowerCase());
-
-      let matchesEstado = true;
-      if (filterEstado !== 'todos') {
-        matchesEstado = consent.estado_firmas === filterEstado;
-      }
-
-      let matchesMes = true;
-      if (filterMes) {
-        const consentMes = consent.fecha.substring(0, 7);
-        matchesMes = consentMes === filterMes;
-      }
-
-      return matchesSearch && matchesEstado && matchesMes;
-    });
-  }, [consentimientos, searchTerm, filterEstado, filterMes]);
 
   const stats = useMemo(
     () => ({
       total: consentimientos.length,
-      completos: consentimientos.filter((c) => c.estado_firmas === 'completo').length,
-      pendientes: consentimientos.filter((c) => c.estado_firmas === 'pendiente').length,
-      incompletos: consentimientos.filter((c) => c.estado_firmas === 'incompleto').length,
+      completos: consentimientos.filter((item) => item.estado_firmas === 'completo').length,
+      pendientes: consentimientos.filter((item) => item.estado_firmas === 'pendiente').length,
+      incompletos: consentimientos.filter((item) => item.estado_firmas === 'incompleto').length,
     }),
-    [consentimientos]
+    [consentimientos],
   );
 
-  const getEstadoBadge = (estado: string) => {
-    switch (estado) {
-      case 'completo':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              backgroundColor: '#ECFDF5',
-              color: '#1D9E75',
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: 20,
-            }}
-          >
-            <CheckCircle size={14} />
-            Completo
-          </span>
-        );
-      case 'pendiente':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              backgroundColor: '#FFFBEB',
-              color: '#EF9F27',
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: 20,
-            }}
-          >
-            <AlertCircle size={14} />
-            Pendiente
-          </span>
-        );
-      case 'incompleto':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              backgroundColor: '#FFE8EC',
-              color: '#E24B4A',
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: 20,
-            }}
-          >
-            <XCircle size={14} />
-            Incompleto
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
+  const monthOptions = useMemo(() => {
+    const months = Array.from(new Set(consentimientos.map((item) => item.fecha.slice(0, 7)))).sort().reverse();
+
+    return months.map((month) => {
+      const [year, monthNumber] = month.split('-');
+      const label = new Intl.DateTimeFormat('es-HN', { month: 'long', year: 'numeric' }).format(
+        new Date(Number(year), Number(monthNumber) - 1, 1),
+      );
+
+      return { value: month, label };
+    });
+  }, [consentimientos]);
+
+  const columns = useMemo<Column<ConsentimientoTableItem>[]>(
+    () => [
+      {
+        key: 'fecha',
+        label: 'Fecha',
+        width: 120,
+        render: (value) => (
+          <span style={{ color: 'var(--foreground)', fontSize: 13 }}>{formatDate(String(value))}</span>
+        ),
+      },
+      {
+        key: 'paciente_nombre',
+        label: 'Paciente',
+        render: (_, row) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ color: 'var(--foreground)', fontSize: 13, fontWeight: 500 }}>
+              {String(row.paciente_nombre)}
+            </span>
+            <span style={{ color: 'var(--muted-foreground, var(--arco-gray-500))', fontSize: 11 }}>
+              {formatIdentity(row.paciente.numero_identidad)}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: 'tratamiento',
+        label: 'Tratamiento',
+        render: (value) => <span style={{ color: 'var(--foreground)', fontSize: 13 }}>{String(value)}</span>,
+      },
+      {
+        key: 'firmas',
+        label: 'Firmas',
+        render: (_, row) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+              {row.tiene_firma_paciente ? (
+                <CheckCircle size={16} style={{ color: 'var(--arco-success)' }} />
+              ) : (
+                <XCircle size={16} style={{ color: 'var(--arco-warning)' }} />
+              )}
+              Pac.
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+              {row.tiene_firma_doctor ? (
+                <CheckCircle size={16} style={{ color: 'var(--arco-success)' }} />
+              ) : (
+                <XCircle size={16} style={{ color: 'var(--arco-warning)' }} />
+              )}
+              Doc.
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: 'estado_firmas',
+        label: 'Estado',
+        width: 140,
+        render: (value) => getEstadoBadge(value as EstadoFirma),
+      },
+    ],
+    [],
+  );
+
+  const filters = useMemo<FilterDef[]>(
+    () => [
+      {
+        key: 'estado_firmas',
+        placeholder: 'Estado',
+        options: [
+          { value: 'completo', label: 'Completo' },
+          { value: 'pendiente', label: 'Pendiente' },
+          { value: 'incompleto', label: 'Incompleto' },
+        ],
+      },
+      {
+        key: 'mes',
+        placeholder: 'Mes',
+        options: monthOptions,
+      },
+    ],
+    [monthOptions],
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600, color: '#203F49', marginBottom: 8 }}>
-            Ver Consentimientos
-          </h1>
-          <p style={{ margin: 0, fontSize: 14, color: '#888F94' }}>
-            Gestión y seguimiento de consentimientos informados
-          </p>
-        </div>
-        <Button onClick={onCreateNew} variant="primary" disabled={loading}>
-          + Crear Nuevo
-        </Button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--foreground)' }}>
+          Ver Consentimientos
+        </h1>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+          Gestión y seguimiento de consentimientos informados
+        </p>
       </div>
 
-      {/* Stats cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <Card style={{ padding: 16 }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#888F94', marginBottom: 8, fontWeight: 600 }}>TOTAL</p>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 600, color: '#203F49' }}>{stats.total}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+        <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground, var(--arco-gray-500))', fontWeight: 600, textTransform: 'uppercase' }}>Total</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--foreground)' }}>{stats.total}</p>
         </Card>
-        <Card style={{ padding: 16 }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#1D9E75', marginBottom: 8, fontWeight: 600 }}>COMPLETOS</p>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 600, color: '#1D9E75' }}>{stats.completos}</p>
+        <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-success)', fontWeight: 600, textTransform: 'uppercase' }}>Completos</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-success)' }}>{stats.completos}</p>
         </Card>
-        <Card style={{ padding: 16 }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#EF9F27', marginBottom: 8, fontWeight: 600 }}>PENDIENTES</p>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 600, color: '#EF9F27' }}>{stats.pendientes}</p>
+        <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-warning)', fontWeight: 600, textTransform: 'uppercase' }}>Pendientes</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-warning)' }}>{stats.pendientes}</p>
         </Card>
-        <Card style={{ padding: 16 }}>
-          <p style={{ margin: 0, fontSize: 12, color: '#E24B4A', marginBottom: 8, fontWeight: 600 }}>INCOMPLETOS</p>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 600, color: '#E24B4A' }}>{stats.incompletos}</p>
+        <Card style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--arco-danger)', fontWeight: 600, textTransform: 'uppercase' }}>Incompletos</p>
+          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 600, color: 'var(--arco-danger)' }}>{stats.incompletos}</p>
         </Card>
       </div>
 
-      {/* Alert for incomplete */}
       {stats.incompletos + stats.pendientes > 0 && (
-        <div
-          style={{
-            backgroundColor: '#FFFBEB',
-            border: '1px solid #EF9F27',
-            borderRadius: 8,
-            padding: 16,
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 12,
-          }}
-        >
-          <AlertCircle size={20} style={{ color: '#EF9F27', flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#203F49' }}>Acción requerida</p>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#203F49' }}>
-              Hay {stats.incompletos + stats.pendientes} consentimientos que requieren firmas pendientes.
-            </p>
-          </div>
-        </div>
+        <Alert
+          variant="warning"
+          message={`Hay ${stats.incompletos + stats.pendientes} consentimientos que requieren firmas pendientes.`}
+        />
       )}
 
-      {/* Filters */}
-      <Card style={{ padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Filter size={18} style={{ color: '#0BC5DF' }} />
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#203F49' }}>Filtros</h3>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-          {/* Search */}
-          <div>
-            <label style={{ fontSize: 12, color: '#888F94', fontWeight: 600, display: 'block', marginBottom: 6 }}>
-              Buscar
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: 10,
-                  color: '#888F94',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Paciente, ID, tratamiento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  paddingLeft: 36,
-                  paddingRight: 12,
-                  paddingTop: 10,
-                  paddingBottom: 10,
-                  borderRadius: 8,
-                  border: '1px solid #D3D7DA',
-                  fontSize: 13,
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Estado filter */}
-          <div>
-            <label style={{ fontSize: 12, color: '#888F94', fontWeight: 600, display: 'block', marginBottom: 6 }}>
-              Estado
-            </label>
-            <select
-              value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #D3D7DA',
-                fontSize: 13,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              <option value="todos">Todos</option>
-              <option value="completo">Completo</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="incompleto">Incompleto</option>
-            </select>
-          </div>
-
-          {/* Month filter */}
-          <div>
-            <label style={{ fontSize: 12, color: '#888F94', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <Calendar size={14} />
-              Filtrar por mes
-            </label>
-            <input
-              type="month"
-              value={filterMes}
-              onChange={(e) => setFilterMes(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #D3D7DA',
-                fontSize: 13,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Results count */}
-      <p style={{ margin: 0, fontSize: 13, color: '#888F94' }}>
-        Mostrando {filteredConsentimientos.length} de {consentimientos.length} consentimientos
-      </p>
-
-      {/* Table */}
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: 13,
-            }}
-          >
-            <thead>
-              <tr style={{ backgroundColor: '#F8F9FA', borderBottom: '1px solid #D3D7DA' }}>
-                <th
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontWeight: 600,
-                    color: '#203F49',
-                  }}
-                >
-                  Fecha
-                </th>
-                <th
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontWeight: 600,
-                    color: '#203F49',
-                  }}
-                >
-                  Paciente
-                </th>
-                <th
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontWeight: 600,
-                    color: '#203F49',
-                  }}
-                >
-                  Tratamiento
-                </th>
-                <th
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontWeight: 600,
-                    color: '#203F49',
-                  }}
-                >
-                  Firmas
-                </th>
-                <th
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontWeight: 600,
-                    color: '#203F49',
-                  }}
-                >
-                  Estado
-                </th>
-                <th
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'center',
-                    fontWeight: 600,
-                    color: '#203F49',
-                  }}
-                >
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredConsentimientos.map((consent, idx) => (
-                <tr
-                  key={consent.id_consulta}
-                  style={{
-                    borderBottom: '1px solid #F1F3F4',
-                    backgroundColor: idx % 2 === 0 ? '#fff' : '#F8F9FA',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#F1F3F4';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = idx % 2 === 0 ? '#fff' : '#F8F9FA';
-                  }}
-                >
-                  <td style={{ padding: '12px 16px' }}>
-                    {new Date(consent.fecha).toLocaleDateString('es-ES')}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <p style={{ margin: 0, fontWeight: 500, color: '#203F49' }}>
-                      {consent.paciente.primer_nombre} {consent.paciente.primer_apellido}
-                    </p>
-                    <p style={{ margin: '2px 0 0', fontSize: 12, color: '#888F94' }}>
-                      {consent.paciente.numero_identidad}
-                    </p>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>{consent.tratamiento}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {consent.tiene_firma_paciente ? (
-                          <CheckCircle size={14} style={{ color: '#1D9E75' }} />
-                        ) : (
-                          <XCircle size={14} style={{ color: '#EF9F27' }} />
-                        )}
-                        <span style={{ fontSize: 11, color: '#888F94' }}>Pac.</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {consent.tiene_firma_doctor ? (
-                          <CheckCircle size={14} style={{ color: '#1D9E75' }} />
-                        ) : (
-                          <XCircle size={14} style={{ color: '#EF9F27' }} />
-                        )}
-                        <span style={{ fontSize: 11, color: '#888F94' }}>Doc.</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>{getEstadoBadge(consent.estado_firmas)}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onPrint?.(consent.id_consulta)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <Download size={14} />
-                      Imprimir
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredConsentimientos.length === 0 && (
-          <div style={{ padding: 48, textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: 14, color: '#888F94' }}>
-              No se encontraron consentimientos con los filtros aplicados.
-            </p>
-          </div>
-        )}
-      </Card>
+      <DataTable<ConsentimientoTableItem>
+        columns={columns}
+        data={tableData}
+        title="Consentimientos registrados"
+        description="Busca por paciente, identidad o tratamiento y filtra por estado o mes."
+        searchPlaceholder="Buscar consentimiento..."
+        searchKeys={['paciente_nombre', 'numero_identidad', 'tratamiento_busqueda']}
+        filters={filters}
+        pageSize={10}
+        primaryAction={{ label: 'Crear Nuevo', icon: <Plus size={16} />, onClick: () => onCreateNew?.() }}
+        secondaryActions={[
+          {
+            label: 'Mes actual',
+            icon: <Calendar size={16} />,
+            onClick: () => undefined,
+          },
+        ]}
+        rowActions={(row) => [
+          {
+            icon: <Eye size={16} />,
+            label: 'Ver detalle',
+            onClick: () => onViewDetail?.(row.id_consulta),
+          },
+          {
+            icon: <Download size={16} />,
+            label: 'Imprimir',
+            onClick: () => onPrint?.(row.id_consulta),
+          },
+        ]}
+        getRowKey={(row) => String(row.id_consulta)}
+        emptyMessage={loading ? 'Cargando consentimientos...' : 'No se encontraron consentimientos.'}
+        style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16 }}
+        footer={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted-foreground, var(--arco-gray-500))' }}>
+            <FileText size={16} />
+            {consentimientos.length} consentimientos en total
+          </span>
+        }
+      />
     </div>
   );
 }

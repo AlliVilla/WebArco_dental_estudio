@@ -76,7 +76,7 @@ export function ForgotPasswordForm({
 }: ForgotPasswordFormProps) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState(initialToken);
+  const [token] = useState(initialToken);
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [loading, setLoading] = useState(false);

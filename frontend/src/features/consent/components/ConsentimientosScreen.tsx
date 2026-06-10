@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Spinner } from '../../../components';
-import { Card } from '../../../context';
-import { ListadoConsentimientos } from './ListadoConsentimientos';
-import { consentService } from '../services/consentService';
-import { ConsentimientoListItem } from '../types';
 
-export function ConsentimientosScreen() {
+import { Spinner } from '../../../components';
+import { Alert, useTheme } from '../../../context';
+import { consentService } from '../services/consentService';
+import type { ConsentimientoListItem } from '../types';
+import { ListadoConsentimientos } from './ListadoConsentimientos';
+
+export interface ConsentimientosScreenProps {}
+
+export function ConsentimientosScreen(_props: ConsentimientosScreenProps) {
+  useTheme();
+
   const [consentimientos, setConsentimientos] = useState<ConsentimientoListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,10 +21,9 @@ export function ConsentimientosScreen() {
     const fetchConsentimientos = async () => {
       try {
         setLoading(true);
-        const response = await consentService.getAll({
-          page: 1,
-          limit: 50,
-        });
+        setError(null);
+
+        const response = await consentService.getAll({ page: 1, limit: 50 });
 
         if (response.success && response.data) {
           setConsentimientos(response.data.data);
@@ -37,8 +41,8 @@ export function ConsentimientosScreen() {
   }, []);
 
   const handlePrint = (id: number) => {
-    // TODO: Implementar descarga de PDF
-    alert(`Descargando consentimiento ${id}...`);
+    window.print();
+    console.info(`Imprimiendo consentimiento ${id}`);
   };
 
   const handleViewDetail = (id: number) => {
@@ -58,13 +62,7 @@ export function ConsentimientosScreen() {
   }
 
   if (error) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Card style={{ backgroundColor: '#FFE8EC', borderColor: '#E24B4A', padding: 16 }}>
-          <p style={{ margin: 0, fontSize: 14, color: '#E24B4A' }}>Error: {error}</p>
-        </Card>
-      </div>
-    );
+    return <Alert variant="error" message={`Error: ${error}`} />;
   }
 
   return (
