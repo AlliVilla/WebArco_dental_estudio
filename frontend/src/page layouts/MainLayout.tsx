@@ -18,6 +18,9 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
   patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
+  'patient-new': { title: 'Nuevo Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Nuevo paciente'] },
+  'patient-edit': { title: 'Editar Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Editar paciente'] },
+  'patient-profile': { title: 'Perfil del Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Perfil del paciente'] },
   'patient-expediente': { title: 'Expedientes Clínicos', breadcrumbs: ['Pacientes', 'Expedientes'] },
   odontogram: { title: 'Odontograma', breadcrumbs: ['Pacientes', 'Odontograma'] },
   'consentimientos-lista': { title: 'Consentimientos Informados', breadcrumbs: ['Pacientes', 'Consentimientos'] },
@@ -55,6 +58,9 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/agenda' || pathname === '/appointments') return 'citas'; // keep sidebar active
     if (pathname === '/patients') return 'patients';
     if (pathname === '/patients/list') return 'patients-list';
+    if (pathname === '/patients/new') return 'patient-new';
+    if (pathname.startsWith('/patients/edit/')) return 'patient-edit';
+    if (pathname.startsWith('/patients/profile/')) return 'patient-profile';
     if (pathname === '/patients/odontogram') return 'odontogram';
     if (pathname === '/patients/records') return 'patient-expediente';
     if (pathname === '/patients/consent') return 'consentimientos-lista';

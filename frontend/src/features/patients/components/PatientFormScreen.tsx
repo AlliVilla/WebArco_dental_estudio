@@ -1,0 +1,465 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Calendar,
+  ClipboardList,
+  Hash,
+  IdCard,
+  Mail,
+  Phone,
+  Save,
+  Stethoscope,
+  User,
+  X,
+} from "lucide-react";
+import { Alert, Button, Card, Input, Select } from "../../../context";
+import {
+  PATIENT_DEPARTMENTS,
+  PATIENT_MUNICIPALITIES,
+  PATIENT_SYSTEMIC_DISEASES,
+} from "../../../config/constants";
+import api from "../../../services/api";
+import { CheckboxGroup, RadioGroup, SectionHeader, Textarea } from "./formControls";
+
+type PatientPayload = {
+  numero_identidad: string;
+  primer_nombre: string;
+  segundo_nombre?: string;
+  primer_apellido: string;
+  segundo_apellido?: string;
+  fecha_nacimiento: string;
+  telefono: string;
+  correo_electronico?: string;
+  id_municipio: number;
+  direccion_linea?: string;
+  sexo: "M" | "F";
+};
+
+type PersonaDetail = {
+  id_persona: number;
+  numero_identidad: string;
+  primer_nombre: string;
+  segundo_nombre?: string | null;
+  primer_apellido: string;
+  segundo_apellido?: string | null;
+  fecha_nacimiento: string;
+  telefono: string;
+  correo_electronico?: string | null;
+  id_municipio: number;
+  direccion_linea?: string | null;
+  sexo: "M" | "F";
+  municipio?: {
+    id_municipio: number;
+    id_departamento: number;
+    departamento?: {
+      id_departamento: number;
+    };
+  };
+};
+
+export function PatientFormScreen() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const parsedPatientId = id ? Number(id) : null;
+  const patientId = parsedPatientId && Number.isFinite(parsedPatientId) ? parsedPatientId : null;
+  const isEditMode = patientId !== null;
+
+  const [firstName, setFirstName] = useState("");
+  const [secondName, setSecondName] = useState("");
+  const [firstLastName, setFirstLastName] = useState("");
+  const [secondLastName, setSecondLastName] = useState("");
+  const [identityNumber, setIdentityNumber] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [sex, setSex] = useState<"M" | "F" | "">("");
+  const [departamento, setDepartamento] = useState("");
+  const [municipio, setMunicipio] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [enfermedades, setEnfermedades] = useState<string[]>([]);
+  const [otrasDescription, setOtrasDescription] = useState("");
+  const [medicamentos, setMedicamentos] = useState("");
+  const [alergias, setAlergias] = useState("");
+  const [anestesiaReaction, setAnestesiaReaction] = useState("no");
+  const [lastVisitDate, setLastVisitDate] = useState("");
+  const [motivoConsulta, setMotivoConsulta] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingPatient, setIsLoadingPatient] = useState(false);
+
+  const displayCode = isEditMode && patientId ? `PAC-${String(patientId).padStart(6, "0")}` : "Se generará al guardar";
+  const municipioOptions = departamento ? PATIENT_MUNICIPALITIES[departamento] ?? [] : [];
+  const otrasChecked = enfermedades.includes("otras");
+
+  const age = useMemo(() => {
+    if (!birthDate) {
+      return "";
+    }
+
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let years = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      years -= 1;
+    }
+
+    return years >= 0 ? String(years) : "";
+  }, [birthDate]);
+
+  const handleDepartamentoChange = (value: string) => {
+    setDepartamento(value);
+    setMunicipio("");
+  };
+
+  const getDepartamentoFromPersona = useCallback((persona: PersonaDetail) => {
+    const departamentoId =
+      persona.municipio?.id_departamento ??
+      persona.municipio?.departamento?.id_departamento;
+
+    if (departamentoId) return String(departamentoId);
+
+    const match = Object.entries(PATIENT_MUNICIPALITIES).find(([, municipios]) =>
+      municipios.some((option) => Number(option.value) === persona.id_municipio),
+    );
+
+    return match?.[0] ?? "";
+  }, []);
+
+  const loadPatient = useCallback(async (currentPatientId: number) => {
+    try {
+      setIsLoadingPatient(true);
+      setSaveStatus("idle");
+      const response = await api.get<PersonaDetail>(`/persona/${currentPatientId}`);
+      const persona = response.data;
+
+      setFirstName(persona.primer_nombre ?? "");
+      setSecondName(persona.segundo_nombre ?? "");
+      setFirstLastName(persona.primer_apellido ?? "");
+      setSecondLastName(persona.segundo_apellido ?? "");
+      setIdentityNumber(persona.numero_identidad ?? "");
+      setBirthDate((persona.fecha_nacimiento ?? "").slice(0, 10));
+      setSex(persona.sexo ?? "");
+      setDepartamento(getDepartamentoFromPersona(persona));
+      setMunicipio(String(persona.id_municipio ?? ""));
+      setPhone(persona.telefono ?? "");
+      setEmail(persona.correo_electronico ?? "");
+    } catch (error) {
+      const apiError = error as { message?: string };
+      setSaveStatus("error");
+      setMessage(apiError.message ?? "No se pudo cargar el paciente.");
+    } finally {
+      setIsLoadingPatient(false);
+    }
+  }, [getDepartamentoFromPersona]);
+
+  useEffect(() => {
+    if (patientId) {
+      queueMicrotask(() => {
+        loadPatient(patientId).catch(() => undefined);
+      });
+    }
+  }, [loadPatient, patientId]);
+
+  const handleSave = async () => {
+    const identityDigits = identityNumber.replace(/\D/g, "");
+    const requiredFilled =
+      firstName &&
+      firstLastName &&
+      identityDigits.length === 13 &&
+      birthDate &&
+      (sex === "M" || sex === "F") &&
+      municipio &&
+      phone;
+
+    if (!requiredFilled) {
+      setSaveStatus("error");
+      setMessage("Completa los campos requeridos. La identidad debe tener 13 dígitos.");
+      return;
+    }
+
+    if (sex !== "M" && sex !== "F") {
+      setSaveStatus("error");
+      setMessage("Selecciona el sexo del paciente.");
+      return;
+    }
+
+    const payload: PatientPayload = {
+      numero_identidad: identityDigits,
+      primer_nombre: firstName.trim(),
+      segundo_nombre: secondName.trim() || undefined,
+      primer_apellido: firstLastName.trim(),
+      segundo_apellido: secondLastName.trim() || undefined,
+      fecha_nacimiento: birthDate,
+      telefono: phone.trim(),
+      correo_electronico: email.trim() || undefined,
+      id_municipio: Number(municipio),
+      sexo: sex,
+    };
+
+    try {
+      setIsSaving(true);
+      if (isEditMode && patientId) {
+        await api.put(`/persona/${patientId}`, payload);
+      } else {
+        await api.post("/persona", payload);
+      }
+      setSaveStatus("success");
+      setMessage(isEditMode ? "Paciente actualizado correctamente." : "Paciente guardado correctamente.");
+      navigate("/patients/list");
+    } catch (error) {
+      const apiError = error as { message?: string };
+      setSaveStatus("error");
+      setMessage(apiError.message ?? "No se pudo guardar el paciente.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
+      {saveStatus !== "idle" ? (
+        <Alert
+          message={message}
+          onClose={() => setSaveStatus("idle")}
+          variant={saveStatus === "success" ? "success" : "error"}
+        />
+      ) : null}
+
+      {isLoadingPatient ? <Alert message="Cargando datos del paciente..." variant="info" /> : null}
+
+      <Card>
+        <SectionHeader
+          icon={<User size={18} />}
+          subtitle="Datos de identificación y contacto del paciente"
+          title="Información personal"
+        />
+
+        <div style={{ marginBottom: 20 }}>
+          <Input
+            badge="required"
+            disabled
+            hint="Generado automáticamente por el sistema"
+            icon={<Hash size={15} />}
+            label="Código del paciente"
+            readOnly
+            value={displayCode}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 16 }}>
+          <Input
+            badge="required"
+            label="Primer nombre"
+            onChange={(event) => setFirstName(event.target.value)}
+            placeholder="Ej: María"
+            value={firstName}
+          />
+          <Input
+            badge="optional"
+            label="Segundo nombre"
+            onChange={(event) => setSecondName(event.target.value)}
+            placeholder="Ej: Fernanda"
+            value={secondName}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 16 }}>
+          <Input
+            badge="required"
+            label="Primer apellido"
+            onChange={(event) => setFirstLastName(event.target.value)}
+            placeholder="Ej: López"
+            value={firstLastName}
+          />
+          <Input
+            badge="optional"
+            label="Segundo apellido"
+            onChange={(event) => setSecondLastName(event.target.value)}
+            placeholder="Ej: García"
+            value={secondLastName}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 16 }}>
+          <Input
+            badge="required"
+            icon={<IdCard size={15} />}
+            label="Número de identidad"
+            onChange={(event) => setIdentityNumber(event.target.value)}
+            placeholder="Ej: 0801-1990-12345"
+            value={identityNumber}
+          />
+          <Input
+            badge="required"
+            icon={<Calendar size={15} />}
+            label="Fecha de nacimiento"
+            onChange={(event) => setBirthDate(event.target.value)}
+            type="date"
+            value={birthDate}
+          />
+          <Input badge="required" disabled hint="Calculada" label="Edad" placeholder="-" readOnly value={age} />
+        </div>
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 16 }}>
+          <Select
+            badge="required"
+            label="Sexo"
+            onChange={(value) => setSex(value === "M" || value === "F" ? value : "")}
+            options={[
+              { value: "M", label: "Masculino" },
+              { value: "F", label: "Femenino" },
+            ]}
+            placeholder="Selecciona..."
+            value={sex}
+          />
+          <Select
+            badge="required"
+            label="Departamento"
+            onChange={handleDepartamentoChange}
+            options={PATIENT_DEPARTMENTS}
+            placeholder="Selecciona..."
+            value={departamento}
+          />
+          <Select
+            badge="required"
+            disabled={!departamento}
+            label="Ciudad / Municipio"
+            onChange={setMunicipio}
+            options={municipioOptions}
+            placeholder={departamento ? "Selecciona..." : "Primero elige un departamento"}
+            value={municipio}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          <Input
+            badge="required"
+            icon={<Phone size={15} />}
+            label="Teléfono"
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="Ej: +504 9876-5432"
+            value={phone}
+          />
+          <Input
+            badge="optional"
+            icon={<Mail size={15} />}
+            label="Correo electrónico"
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Ej: maria@correo.com"
+            type="email"
+            value={email}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          icon={<Stethoscope size={18} />}
+          subtitle="Antecedentes de salud relevantes para el tratamiento dental"
+          title="Información médica"
+        />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <CheckboxGroup
+            badge="optional"
+            label="Enfermedades sistémicas"
+            onChange={setEnfermedades}
+            options={PATIENT_SYSTEMIC_DISEASES}
+            selected={enfermedades}
+          />
+          {otrasChecked ? (
+            <div
+              style={{
+                background: "#FFFBEB",
+                border: "1px solid #FDE68A",
+                borderRadius: 8,
+                padding: 14,
+              }}
+            >
+              <Textarea
+                badge="conditional"
+                hint='Este campo es obligatorio porque seleccionaste "Otras".'
+                label='Descripción de "Otras" enfermedades'
+                onChange={setOtrasDescription}
+                placeholder="Describe las enfermedades sistémicas no listadas..."
+                rows={3}
+                value={otrasDescription}
+              />
+            </div>
+          ) : null}
+          <Textarea
+            badge="optional"
+            label="Medicamentos actuales"
+            onChange={setMedicamentos}
+            placeholder="Lista los medicamentos que el paciente consume actualmente..."
+            rows={3}
+            value={medicamentos}
+          />
+          <Textarea
+            badge="optional"
+            label="Alergias a medicamentos"
+            onChange={setAlergias}
+            placeholder="Describe alergias conocidas a medicamentos..."
+            rows={3}
+            value={alergias}
+          />
+          <RadioGroup
+            badge="optional"
+            label="Historial de anestesia - ¿Ha tenido reacciones a la anestesia?"
+            onChange={setAnestesiaReaction}
+            options={[
+              { value: "no", label: "No ha tenido reacciones" },
+              { value: "si", label: "Sí, ha tenido reacciones" },
+            ]}
+            value={anestesiaReaction}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          icon={<ClipboardList size={18} />}
+          subtitle="Historial previo y motivo de la primera consulta"
+          title="Información odontológica inicial"
+        />
+
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", alignItems: "start" }}>
+          <Input
+            badge="optional"
+            hint="Si viene de otra clínica"
+            icon={<Calendar size={15} />}
+            label="Fecha de última visita previa"
+            onChange={(event) => setLastVisitDate(event.target.value)}
+            type="date"
+            value={lastVisitDate}
+          />
+          <Textarea
+            badge="optional"
+            label="Motivo de consulta inicial"
+            onChange={setMotivoConsulta}
+            placeholder="Describe el motivo principal de la primera visita del paciente..."
+            rows={4}
+            value={motivoConsulta}
+          />
+        </div>
+      </Card>
+
+      <Card style={{ padding: "16px 20px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          <Button disabled={isSaving} onClick={() => navigate("/patients/list")} variant="secondary">
+            <X size={16} />
+            Cancelar
+          </Button>
+          <Button disabled={isLoadingPatient} loading={isSaving} onClick={handleSave} variant="primary">
+            <Save size={16} />
+            {isEditMode ? "Guardar cambios" : "Guardar paciente"}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export default PatientFormScreen;
