@@ -4,6 +4,7 @@ export interface Role {
 }
 
 export interface User {
+  id_usuario: number;
   id_persona: number;
   username: string;
   id_rol: number;

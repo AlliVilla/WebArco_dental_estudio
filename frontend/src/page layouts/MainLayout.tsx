@@ -12,6 +12,11 @@ interface MainLayoutProps {
 const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   dashboard: { title: 'Dashboard', breadcrumbs: ['Inicio', 'Dashboard'] },
   'mi-perfil': { title: 'Mi Perfil', breadcrumbs: ['Inicio', 'Perfil'] },
+  agenda: { title: 'Agenda', breadcrumbs: ['Inicio', 'Agenda'] },
+  'agenda-new': { title: 'Nueva Cita', breadcrumbs: ['Agenda', 'Nueva Cita'] },
+  'agenda-detail': { title: 'Detalle de Cita', breadcrumbs: ['Agenda', 'Detalle'] },
+  'agenda-edit': { title: 'Editar Cita', breadcrumbs: ['Agenda', 'Editar Cita'] },
+  patients: { title: 'Pacientes', breadcrumbs: ['Inicio', 'Pacientes'] },
   'patients-list': { title: 'Registro de Pacientes', breadcrumbs: ['Pacientes', 'Registro'] },
   'patient-new': { title: 'Nuevo Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Nuevo paciente'] },
   'patient-edit': { title: 'Editar Paciente', breadcrumbs: ['Inicio', 'Pacientes', 'Editar paciente'] },
@@ -28,6 +33,8 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   'billing-list': { title: 'Lista Financiera', breadcrumbs: ['Gestión', 'Facturación', 'Listado'] },
   'estado-resultado': { title: 'Estado de Resultado', breadcrumbs: ['Reportes', 'Estado de Resultado'] },
   users: { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
+  'users-list': { title: 'Gestión de Usuarios', breadcrumbs: ['Configuración', 'Usuarios'] },
+  'roles-management': { title: 'Gestión de Roles', breadcrumbs: ['Configuración', 'Usuarios', 'Roles'] },
   treatments: { title: 'Catálogo de Tratamientos', breadcrumbs: ['Configuración', 'Tratamientos'] },
   inventory: { title: 'Control de Inventario', breadcrumbs: ['Configuración', 'Inventario'] },
   settings: { title: 'Configuración', breadcrumbs: ['Inicio', 'Configuración'] },
@@ -44,8 +51,12 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   const getActiveTab = (pathname: string) => {
     if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
     if (pathname === '/mi-perfil') return 'mi-perfil';
-    if (pathname === '/agenda' || pathname === '/appointments') return 'citas';
     if (pathname === '/recordatorios') return 'recordatorios';
+    if (pathname === '/agenda/new') return 'agenda-new';
+    if (pathname.startsWith('/agenda/') && pathname.endsWith('/edit')) return 'agenda-edit';
+    if (pathname.startsWith('/agenda/') && pathname !== '/agenda/new') return 'agenda-detail';
+    if (pathname === '/agenda' || pathname === '/appointments') return 'citas'; // keep sidebar active
+    if (pathname === '/patients') return 'patients';
     if (pathname === '/patients/list') return 'patients-list';
     if (pathname === '/patients/new') return 'patient-new';
     if (pathname.startsWith('/patients/edit/')) return 'patient-edit';
@@ -61,7 +72,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === '/inventory') return 'inventory';
     if (pathname === '/stats') return 'estado-resultado';
     if (pathname === '/settings') return 'settings';
-    if (pathname === '/users') return 'users';
+    if (pathname === '/users') return 'users-list';
+    if (pathname === '/users/roles') return 'roles-management';
     if (pathname === '/design') return 'design';
     return pathname.substring(1);
   };
@@ -72,7 +84,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
   const handleNavigate = (tabId: string) => {
     const routeMap: Record<string, string> = {
       dashboard: '/dashboard',
-      'mi-perfil': '/settings', // Mapped to settings placeholder
       citas: '/agenda',
       recordatorios: '/agenda', // Mapped to agenda placeholder
       patients: '/patients/list',
@@ -88,6 +99,8 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       'billing-list': '/billing/list',
       'estado-resultado': '/stats',
       users: '/users',
+      'users-list': '/users',
+      'roles-management': '/users/roles',
       inventory: '/inventory',
       settings: '/settings',
       design: '/design',

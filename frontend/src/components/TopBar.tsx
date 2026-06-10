@@ -1,4 +1,5 @@
 import { Bell, ChevronRight, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface TopBarProps {
   title: string;
@@ -8,6 +9,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, breadcrumbs, notificationCount = 0, sidebarWidth = 240 }: TopBarProps) {
+  const navigate = useNavigate();
   return (
     <header style={{
       height: 60, background: '#FFFFFF',
@@ -67,14 +69,17 @@ export function TopBar({ title, breadcrumbs, notificationCount = 0, sidebarWidth
       </button>
 
       {/* User quick menu */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+      <button onClick={() => navigate('/mi-perfil')} style={{
+        display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+        background: 'none', border: 'none', padding: 0,
+      }}>
         <div style={{
           width: 32, height: 32, borderRadius: '50%',
           background: '#0BC5DF',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 12, fontWeight: 600, color: '#fff',
         }}>KA</div>
-      </div>
+      </button>
     </header>
   );
 }
