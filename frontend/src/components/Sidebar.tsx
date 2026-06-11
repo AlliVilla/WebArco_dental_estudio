@@ -910,7 +910,7 @@ export function Sidebar({
                             border: "1.5px solid #fff",
                           }}
                         />
-                        )}{item.id === 'citas' && pendingCount > 0 && !collapsed && (
+                        )}{item.id === 'citas' && !collapsed && (
                         <span style={{
                           background: '#0BC5DF', color: '#fff',
                           fontSize: 10, fontWeight: 600,
