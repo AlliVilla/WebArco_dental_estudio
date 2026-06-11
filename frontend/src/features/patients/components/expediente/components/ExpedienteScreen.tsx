@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { NuevaVisita } from './NewVisit';
 import {
   Plus,
@@ -35,16 +36,22 @@ const C = {
 
 export function ExpedienteScreen() {
   useTheme();
+  const location = useLocation();
   const [viewState, setViewState] = useState<'list' | 'detail' | 'new-visit'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const selectedPatientFromQuery = useMemo(() => {
+    const queryPatientId = new URLSearchParams(location.search).get('patientId');
+    const parsedId = Number(queryPatientId);
+    return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+  }, [location.search]);
   
 
   const loadPatients = useCallback(async (page: number, search = "") => {
     setLoading(true);
-    const res = await expedientService.getAll({page,search,includeConsulta: true});
+    const res = await expedientService.getAll({page, limit: 1000, search, includeConsulta: true});
     if(res.success){
       setExpedientes(res.data.data);
     }else {
@@ -56,6 +63,18 @@ export function ExpedienteScreen() {
   useEffect(() =>{
     loadPatients(1);
   },[]);
+
+  useEffect(() => {
+    if (!selectedPatientFromQuery || expedientes.length === 0) {
+      return;
+    }
+
+    const patientExists = expedientes.some((patient) => patient.id_persona === selectedPatientFromQuery);
+    if (patientExists) {
+      setSelectedPatientId(selectedPatientFromQuery);
+      setViewState('detail');
+    }
+  }, [expedientes, selectedPatientFromQuery]);
   
   const totalVisitas = useMemo(() => {
     return expedientes.reduce(

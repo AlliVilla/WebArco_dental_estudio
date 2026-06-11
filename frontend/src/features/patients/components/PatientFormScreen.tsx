@@ -230,13 +230,25 @@ export function PatientFormScreen() {
 
     try {
       setIsSaving(true);
+      const response = isEditMode && patientId
+        ? await api.put(`/persona/${patientId}`, payload)
+        : await api.post("/persona", payload);
+
+      const savedPatientId = response?.data?.id_persona ?? patientId;
+
       if (isEditMode && patientId) {
-        await api.put(`/persona/${patientId}`, payload);
+        setMessage("Paciente actualizado correctamente.");
       } else {
-        await api.post("/persona", payload);
+        setMessage("Paciente guardado correctamente.");
       }
+
       setSaveStatus("success");
-      setMessage(isEditMode ? "Paciente actualizado correctamente." : "Paciente guardado correctamente.");
+
+      if (savedPatientId) {
+        navigate(`/patients/profile/${savedPatientId}`);
+        return;
+      }
+
       navigate("/patients/list");
     } catch (error) {
       const apiError = error as { message?: string };

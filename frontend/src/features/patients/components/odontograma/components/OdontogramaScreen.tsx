@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Check, Loader2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { patientService } from '../../../services/patientService';
 import { odontogramaService, mapToFrontendState } from '../services/odontogramaService';
 import type { ToothState, ToothData, HistoryEntry } from '../types';
@@ -514,7 +515,7 @@ function emptyTeeth(numbers: number[]): Record<number, ToothData> {
 }
 
 export function OdontogramScreen({
-  consultaId,
+  consultaId: _consultaId,
   isEmbedded = false,
   patientName,
   patientIdentidad,
@@ -530,6 +531,7 @@ export function OdontogramScreen({
   onSaveEmbedded?: (updatedTeeth: Record<number, ToothData>, modifiedTeethList: number[]) => void;
   onCancelEmbedded?: () => void;
 }) {
+  const location = useLocation();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(!isEmbedded);
   const [loadingOdontogram, setLoadingOdontogram] = useState(false);
@@ -552,6 +554,12 @@ export function OdontogramScreen({
   );
   const [histFilter, setHistFilter] = useState<number | 'all'>('all');
   const [doctorName, setDoctorName] = useState('');
+  const selectedPatientFromQuery = useMemo(() => {
+    if (isEmbedded) return null;
+    const queryPatientId = new URLSearchParams(location.search).get('patientId');
+    const parsedId = Number(queryPatientId);
+    return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+  }, [isEmbedded, location.search]);
 
   const currentPatient = patients.find(p => p.id === selectedPatientId) || null;
   const patientAge = currentPatient ? getAge(currentPatient.fecha_nacimiento) : 0;
@@ -587,18 +595,19 @@ export function OdontogramScreen({
         direccion: p.direccion_linea || p.direccion,
       }));
       setPatients(mapped);
-      setSelectedPatientId(null);
       setTeeth(emptyTeeth(ADULT_NUMBERS));
       setHistory([]);
-      if (mapped.length > 0) {
-        setSelectedPatientId(mapped[0].id);
-      }
+      const preferredPatient =
+        (selectedPatientFromQuery && mapped.find((patient) => patient.id === selectedPatientFromQuery)?.id) ??
+        mapped[0]?.id ??
+        null;
+      setSelectedPatientId(preferredPatient);
     } catch (err: any) {
       setError(err?.message || 'Error al cargar pacientes');
     } finally {
       setLoadingPatients(false);
     }
-  }, [isEmbedded]);
+  }, [isEmbedded, selectedPatientFromQuery]);
 
   useEffect(() => {
     fetchPatients(mode);
@@ -664,7 +673,7 @@ export function OdontogramScreen({
         };
       });
       rawEntries.sort((a, b) => a._sort - b._sort);
-      const prevMap = new Map<number, string | null>();
+      const prevMap = new Map<number, ToothState | null>();
       const entries: HistoryEntry[] = rawEntries.map(({ _sort, ...e }) => {
         const prev = prevMap.get(e.toothNumber) ?? null;
         prevMap.set(e.toothNumber, e.newState);

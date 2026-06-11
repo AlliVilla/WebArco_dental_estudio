@@ -14,7 +14,7 @@ export const calcularEdad = (fechaNacimiento: string | Date) => {
   return edad;
 };
 
-export const formatDate = (date: Date) => {
+export const formatDate = (date: string | Date) => {
   if (!date) return '';
   return new Date(date).toISOString().split('T')[0];
 };

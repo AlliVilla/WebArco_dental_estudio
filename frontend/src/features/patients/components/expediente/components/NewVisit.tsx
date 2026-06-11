@@ -277,7 +277,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     const [ultimaVisitaOdontologo, setUltimaVisitaOdontologo] = useState('');
     const [tipoVisita, setTipoVisita] = useState('Control');
     const [showOdontogram, setShowOdontogram] = useState(false);
-    const [teethState, setTeethState] = useState<Record<number, { state: string; observation: string }> | null>(null); // To save state from odontogram
+    const [, setTeethState] = useState<Record<number, { state: string; observation: string }> | null>(null); // To save state from odontogram
     const [modifiedTeethCount, setModifiedTeethCount] = useState(0);
 
     // ── STEP 3: Tratamientos y Cobro + Diagnóstico y Archivos ──
@@ -601,7 +601,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Fecha de Nacimiento</FieldLabel>
-                                    <TextInput type="date" value={formatDate(fechaNacimiento)} onChange={(e: any) => setFechaNacimiento(new Date(e.target.value))} placeholder="YYYY-MM-DD" />
+                                    <TextInput type="date" value={formatDate(fechaNacimiento)} onChange={(e: any) => setFechaNacimiento(e.target.value)} placeholder="YYYY-MM-DD" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Teléfono</FieldLabel>

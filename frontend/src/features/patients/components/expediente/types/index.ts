@@ -35,6 +35,9 @@ export type ExpedientePaciente = {
   correo_electronico: string | null;
   direccion_linea: string | null;
   sexo: string;
+  enfermedadBase?: string | null;
+  tomaMedicamento?: string | null;
+  alergias?: string | null;
   consultas: ConsultaHistorica[];
   municipio: {
     id_municipio: number;
