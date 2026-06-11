@@ -1,6 +1,6 @@
 import { Save, X } from "lucide-react";
-import { Alert, Button, Card } from "../../../../../context";
-import type { ConsentFormValues, ConsentRecord, ConsentStep, SignatureTarget } from "./types";
+import { Alert, Button, Card } from "../../../context";
+import type { ConsentFormValues, ConsentRecord, ConsentStep, SignatureTarget } from "../types";
 import { ConsentFormStep } from "./ConsentFormStep";
 import { ConsentCompletedStep, ConsentSignatureStep } from "./ConsentSignatureStep";
 import { Stepper } from "./Stepper";

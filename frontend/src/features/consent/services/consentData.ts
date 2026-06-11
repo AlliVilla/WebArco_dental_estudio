@@ -1,4 +1,4 @@
-import type { ConsentFormValues, ConsentRecord } from "./types";
+import type { ConsentFormValues, ConsentRecord } from "../types";
 
 export const initialConsents: ConsentRecord[] = [
   {

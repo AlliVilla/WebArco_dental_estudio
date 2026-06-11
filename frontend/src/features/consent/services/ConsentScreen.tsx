@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ConfirmModal } from "../../../../../components";
-import { useTheme } from "../../../../../context";
+import { ConfirmModal } from "../../../components";
+import { useTheme } from "../../../context";
 import { ConsentFormFlow } from "./ConsentFormFlow";
 import { ConsentListTable } from "./ConsentListTable";
 import { ConsentPreview } from "./ConsentPreview";
@@ -13,36 +13,37 @@ import type {
   ConsentMode,
   ConsentRecord,
   ConsentScreenProps,
-  ConsentSearchFilters,
   ConsentStatus,
   ConsentStep,
   SignatureTarget,
-} from "./types";
+} from "../types";
 
 export function ConsentScreen({ patientName }: ConsentScreenProps) {
   useTheme();
+
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+
   const mode = (searchParams.get("mode") as ConsentMode | null) ?? "list";
   const selectedId = searchParams.get("id");
 
   const [consents, setConsents] = useState<ConsentRecord[]>(initialConsents);
+
   const [formValues, setFormValues] = useState<ConsentFormValues>({
     ...defaultFormValues,
     paciente: patientName ?? defaultFormValues.paciente,
   });
+
   const [currentStep, setCurrentStep] = useState<ConsentStep>(1);
   const [patientSignature, setPatientSignature] = useState("");
   const [doctorSignature, setDoctorSignature] = useState("");
   const [signatureTarget, setSignatureTarget] = useState<SignatureTarget>("patient");
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
-  const [searchPatient, setSearchPatient] = useState("");
-  const [searchProcedure, setSearchProcedure] = useState("");
-  const [searchDoctor, setSearchDoctor] = useState("");
-  const [searchStatus, setSearchStatus] = useState("");
-  const [hasSearchedConsents, setHasSearchedConsents] = useState(false);
-  const [activeConsentFilters, setActiveConsentFilters] = useState<ConsentSearchFilters>({});
 
   const selectedConsent = useMemo(
     () => consents.find((consent) => consent.id === selectedId) ?? consents[0],
@@ -59,41 +60,42 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     [consents],
   );
 
-  const hasAnyConsentFilter = Boolean(searchPatient || searchProcedure || searchDoctor || searchStatus);
-
-  const filteredConsents = useMemo(() => {
-    const patientFilter = activeConsentFilters.paciente?.toLowerCase() ?? "";
-    const procedureFilter = activeConsentFilters.procedimiento?.toLowerCase() ?? "";
-    const doctorFilter = activeConsentFilters.doctor?.toLowerCase() ?? "";
-    const statusFilter = activeConsentFilters.estado ?? "";
-
-    return consents.filter((consent) => {
-      const matchesPatient = patientFilter ? consent.paciente.toLowerCase().includes(patientFilter) : true;
-      const matchesProcedure = procedureFilter ? consent.procedimiento.toLowerCase().includes(procedureFilter) : true;
-      const matchesDoctor = doctorFilter ? consent.doctor.toLowerCase().includes(doctorFilter) : true;
-      const matchesStatus = statusFilter ? consent.estado === statusFilter : true;
-      return matchesPatient && matchesProcedure && matchesDoctor && matchesStatus;
-    });
-  }, [activeConsentFilters, consents]);
-
   const canContinueForm = Boolean(
-    formValues.paciente && formValues.doctor && formValues.procedimiento && formValues.fechaHora,
+    formValues.paciente &&
+      formValues.doctor &&
+      formValues.procedimiento &&
+      formValues.fechaHora,
   );
 
   function openMode(nextMode: ConsentMode, id?: string) {
     const params = new URLSearchParams(location.search);
+
     if (nextMode === "list") {
       params.delete("mode");
       params.delete("id");
     } else {
       params.set("mode", nextMode);
-      if (id) params.set("id", id);
+
+      if (id) {
+        params.set("id", id);
+      }
     }
-    navigate({ pathname: location.pathname, search: params.toString() }, { replace: false });
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString(),
+      },
+      { replace: false },
+    );
   }
 
   function startNewConsent() {
-    setFormValues({ ...defaultFormValues, paciente: patientName ?? defaultFormValues.paciente });
+    setFormValues({
+      ...defaultFormValues,
+      paciente: patientName ?? defaultFormValues.paciente,
+    });
+
     setPatientSignature("");
     setDoctorSignature("");
     setSignatureTarget("patient");
@@ -111,6 +113,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
       riesgos: consent.riesgos,
       clausula: consent.clausula,
     });
+
     setPatientSignature(consent.patientSignature ?? "");
     setDoctorSignature(consent.doctorSignature ?? "");
     setSignatureTarget(consent.patientSignature ? "doctor" : "patient");
@@ -119,7 +122,10 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   }
 
   function updateFormValue(field: keyof ConsentFormValues, value: string) {
-    setFormValues((current) => ({ ...current, [field]: value }));
+    setFormValues((current) => ({
+      ...current,
+      [field]: value,
+    }));
   }
 
   function handleContinueFromForm() {
@@ -129,6 +135,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
 
   function handleSavePatientSignature() {
     if (!patientSignature) return;
+
     setDoctorSignature("");
     setCurrentStep(3);
     setSignatureTarget("doctor");
@@ -136,7 +143,9 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
 
   function handleSaveDoctorSignature() {
     if (!doctorSignature) return;
-    const status: ConsentStatus = patientSignature && doctorSignature ? "firmado" : "pendiente_doctor";
+
+    const status: ConsentStatus =
+      patientSignature && doctorSignature ? "firmado" : "pendiente_doctor";
 
     if (mode === "edit" && selectedConsent) {
       setConsents((current) =>
@@ -161,6 +170,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
       );
     } else {
       const nextNumber = consents.length + 1;
+
       const newConsent: ConsentRecord = {
         id: `CON-${String(nextNumber).padStart(3, "0")}`,
         paciente: formValues.paciente,
@@ -175,60 +185,28 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         patientSignature,
         doctorSignature,
       };
+
       setConsents((current) => [newConsent, ...current]);
     }
 
     setCurrentStep(4);
   }
 
-  function handleConsentSearch() {
-    if (!hasAnyConsentFilter) return;
-    setHasSearchedConsents(true);
-    setActiveConsentFilters({
-      paciente: searchPatient.trim(),
-      procedimiento: searchProcedure.trim(),
-      doctor: searchDoctor.trim(),
-      estado: searchStatus,
-    });
-  }
-
-  function handleClearConsentFilters() {
-    setSearchPatient("");
-    setSearchProcedure("");
-    setSearchDoctor("");
-    setSearchStatus("");
-    setHasSearchedConsents(false);
-    setActiveConsentFilters({});
-  }
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28, width: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
       {mode === "list" && (
         <>
           <ConsentSearchCard
-            searchPatient={searchPatient}
-            searchProcedure={searchProcedure}
-            searchDoctor={searchDoctor}
-            searchStatus={searchStatus}
             totalConsents={consents.length}
             totalFirmados={totalFirmados}
             totalPendientesDoctor={totalPendientesDoctor}
-            hasAnyConsentFilter={hasAnyConsentFilter}
-            hasSearchedConsents={hasSearchedConsents}
-            onPatientChange={setSearchPatient}
-            onProcedureChange={setSearchProcedure}
-            onDoctorChange={setSearchDoctor}
-            onStatusChange={setSearchStatus}
-            onSearch={handleConsentSearch}
-            onClear={handleClearConsentFilters}
-            onNewConsent={startNewConsent}
           />
+
           <ConsentListTable
             consents={consents}
-            filteredConsents={filteredConsents}
-            hasSearchedConsents={hasSearchedConsents}
             onPreview={(id) => openMode("preview", id)}
             onEdit={startEdit}
+            onNewConsent={startNewConsent}
           />
         </>
       )}
@@ -256,7 +234,12 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         />
       )}
 
-      {mode === "preview" && <ConsentPreview selectedConsent={selectedConsent} onClose={() => openMode("list")} />}
+      {mode === "preview" && (
+        <ConsentPreview
+          selectedConsent={selectedConsent}
+          onClose={() => openMode("list")}
+        />
+      )}
 
       <ConfirmModal
         open={confirmCloseOpen}

@@ -1,4 +1,4 @@
-import type { ConsentStatus, ConsentStep } from "./types";
+import type { ConsentStatus, ConsentStep } from "../types";
 
 export function getStatusMeta(status: ConsentStatus) {
   if (status === "firmado") {

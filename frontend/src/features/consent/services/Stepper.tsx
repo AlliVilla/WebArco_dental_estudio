@@ -1,5 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
-import type { ConsentStep } from "./types";
+import type { ConsentStep } from "../types";
 import { stepLabel } from "./consentUtils";
 
 interface StepperProps {
