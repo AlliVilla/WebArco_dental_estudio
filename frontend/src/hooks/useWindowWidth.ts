@@ -1,36 +1,40 @@
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 
-export function useWindowWidth(debounceMs = 100): number {
-  const [width, setWidth] = useState(window.innerWidth);
+const MOBILE_BP = 768;
+const TABLET_BP = 1024;
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const fn = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => setWidth(window.innerWidth), debounceMs);
-    };
-    window.addEventListener("resize", fn);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", fn);
-    };
-  }, [debounceMs]);
+export const BREAKPOINTS = {
+  mobile: MOBILE_BP,
+  tablet: TABLET_BP,
+} as const;
 
-  return width;
+// useSyncExternalStore: API oficial de React para suscribirse a window.
+// getSnapshot lee window.innerWidth fresco cada vez → nunca queda desactualizado,
+// inmune a problemas de montaje/desmontaje al navegar entre pantallas.
+
+function subscribe(callback: () => void): () => void {
+  window.addEventListener("resize", callback);
+  return () => window.removeEventListener("resize", callback);
 }
 
-// Breakpoints unificados — un solo lugar para cambiarlos
-export const BREAKPOINTS = {
-  mobile: 768, // <= 768 es móvil
-  tablet: 1024, // <= 1024 es tablet
-} as const;
+function getSnapshot(): number {
+  return window.innerWidth;
+}
+
+function getServerSnapshot(): number {
+  return 1280;
+}
+
+export function useWindowWidth(): number {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
 
 export function useResponsive() {
   const w = useWindowWidth();
   return {
-    isMobile: w <= BREAKPOINTS.mobile,
-    isTablet: w > BREAKPOINTS.mobile && w <= BREAKPOINTS.tablet,
-    isDesktop: w > BREAKPOINTS.tablet,
+    isMobile: w <= MOBILE_BP,
+    isTablet: w > MOBILE_BP && w <= TABLET_BP,
+    isDesktop: w > TABLET_BP,
     width: w,
   };
 }

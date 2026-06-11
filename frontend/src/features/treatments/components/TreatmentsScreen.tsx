@@ -12,6 +12,7 @@ import {
 import { Button, Alert } from "../../../context";
 import { ConfirmModal, DataTable } from "../../../components";
 import { formatCurrency } from "../../../utils/formatters";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 import { ESPECIALIDADES, MOCK_TREATMENTS, type Treatment } from "../types";
 
 const C = {
@@ -25,18 +26,6 @@ const C = {
   gray500: "#888F94",
   gray700: "#5F656A",
 };
-
-function useWindowWidth() {
-  const [width, setWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1280
-  );
-  useEffect(() => {
-    const fn = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
-  return width;
-}
 
 function getEstadoColor(estado: string) {
   const map: Record<string, { bg: string; color: string }> = {
@@ -209,8 +198,7 @@ interface DrawerProps {
 }
 
 function Drawer({ open, title, subtitle, onClose, children }: DrawerProps) {
-  const w = useWindowWidth();
-  const isMobile = w <= 640;
+  const { isMobile, width: w } = useResponsive();
 
   const panelStyle: React.CSSProperties = isMobile
     ? {
@@ -335,8 +323,7 @@ export function TreatmentsScreen({
   userRole = "Administrador",
 }: TreatmentsScreenProps) {
   const navigate = useNavigate();
-  const w = useWindowWidth();
-  const isMobile = w <= 640;
+  const { isMobile, isTablet, width: w } = useResponsive();
 
   const [treatments, setTreatments] = useState<Treatment[]>(MOCK_TREATMENTS);
   const [alert, setAlert] = useState<{

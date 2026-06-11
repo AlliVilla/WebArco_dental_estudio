@@ -65,27 +65,32 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
   }
 
   function handleSave() {
+    const precio = formData.precio;
+    const precioInvalido = isNaN(precio) || precio <= 0;
+
     if (
       !formData.especialidad ||
       !formData.nombre ||
       !formData.impactoOdontograma ||
-      formData.precio < 0
+      precioInvalido
     ) {
       setAlert({
         variant: "error",
-        message: "Por favor complete todos los campos obligatorios.",
+        message:
+          "Por favor complete todos los campos obligatorios. El precio debe ser mayor a 0.",
       });
       setTimeout(() => setAlert(null), 4000);
       return;
     }
-    // En producción aquí irá la llamada al service
+    // En producción aquí irá la llamada al service → .then(() => navigate('/treatments'))
     setAlert({
       variant: "success",
       message: `Tratamiento ${
         mode === "create" ? "creado" : "actualizado"
       } correctamente.`,
     });
-    setTimeout(() => navigate("/treatments"), 1500);
+    // Navegamos directo sin setTimeout frágil
+    navigate("/treatments");
   }
 
   const sectionStyle: React.CSSProperties = {
@@ -225,8 +230,16 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
                 inputMode="decimal"
                 value={formData.precio === 0 ? "" : formData.precio}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9.]/g, "");
-                  set("precio", val === "" ? 0 : parseFloat(val));
+                  // Permite solo dígitos y UN punto decimal
+                  let val = e.target.value.replace(/[^0-9.]/g, "");
+                  const dotIndex = val.indexOf(".");
+                  if (dotIndex !== -1) {
+                    val =
+                      val.slice(0, dotIndex + 1) +
+                      val.slice(dotIndex + 1).replace(/\./g, "");
+                  }
+                  const parsed = val === "" ? 0 : parseFloat(val);
+                  set("precio", isNaN(parsed) ? 0 : parsed);
                 }}
                 placeholder="0.00"
                 style={{

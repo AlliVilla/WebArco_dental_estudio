@@ -3,11 +3,10 @@ import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppFooter } from "../components/AppFooter";
+import { useResponsive } from "../hooks/useWindowWidth";
 
 interface MainLayoutProps {
   children?: React.ReactNode;
-  activeTab?: string;
-  setActiveTab?: (tab: string) => void;
 }
 
 const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
@@ -29,7 +28,7 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   },
   "reminders-historial": {
     title: "Historial de confirmaciones",
-    breadcrumbs: ["Agenda", "Recordatorios", "Historial de confirmaciones"],
+    breadcrumbs: ["Agenda", "Recordatorios", "Historial"],
   },
   patients: { title: "Pacientes", breadcrumbs: ["Inicio", "Pacientes"] },
   "patients-list": {
@@ -46,7 +45,7 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   },
   "patient-profile": {
     title: "Perfil del Paciente",
-    breadcrumbs: ["Inicio", "Pacientes", "Perfil del paciente"],
+    breadcrumbs: ["Inicio", "Pacientes", "Perfil"],
   },
   "patient-expediente": {
     title: "Expedientes Clínicos",
@@ -128,53 +127,41 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
 };
 
 export const MainLayout: React.FC<MainLayoutProps> = () => {
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const isMobile = windowWidth <= 768;
-
-  // En móvil empieza cerrado, en desktop empieza abierto
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
-
-  useEffect(() => {
-    const fn = () => {
-      const w = window.innerWidth;
-      setWindowWidth(w);
-      // Al cambiar a móvil → cerrar; al cambiar a desktop → abrir
-      if (w <= 768) setSidebarOpen(false);
-      else setSidebarOpen(true);
-    };
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
-
-  // En desktop: collapsed controla si es 64px o 240px
-  // En móvil: sidebarOpen controla si se muestra o no (siempre 240px)
+  const { isMobile } = useResponsive();
+  const [sidebarOpen, setSidebarOpen] = useState(false); // móvil: empieza cerrado
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  // Al pasar de móvil a desktop, cerrar el menú móvil
+  useEffect(() => {
+    if (!isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
   const sidebarWidth = desktopCollapsed ? 64 : 240;
   const contentMargin = isMobile ? 0 : sidebarWidth;
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  const getActiveTab = (pathname: string) => {
+  const getActiveTab = (pathname: string): string => {
     if (pathname === "/" || pathname === "/dashboard") return "dashboard";
     if (pathname === "/mi-perfil") return "mi-perfil";
     if (pathname === "/agenda/new") return "agenda-new";
-    if (pathname === "/agenda/reminders") return "recordatorios";
     if (pathname === "/agenda/reminders/historial")
       return "reminders-historial";
+    if (pathname === "/agenda/reminders") return "recordatorios";
     if (pathname.startsWith("/agenda/") && pathname.endsWith("/edit"))
       return "agenda-edit";
     if (pathname.startsWith("/agenda/") && pathname !== "/agenda/new")
       return "agenda-detail";
     if (pathname === "/agenda" || pathname === "/appointments") return "citas";
-    if (pathname === "/patients") return "patients";
-    if (pathname === "/patients/list") return "patients-list";
     if (pathname === "/patients/new") return "patient-new";
     if (pathname.startsWith("/patients/edit/")) return "patient-edit";
     if (pathname.startsWith("/patients/profile/")) return "patient-profile";
+    if (pathname === "/patients/list") return "patients-list";
     if (pathname === "/patients/odontogram") return "odontogram";
     if (pathname === "/patients/records") return "patient-expediente";
     if (pathname === "/patients/consent") return "consentimientos-lista";
+    if (pathname === "/patients") return "patients";
     if (pathname === "/treatments/new") return "treatment-new";
     if (pathname.startsWith("/treatments/edit/")) return "treatment-edit";
     if (pathname === "/treatments") return "treatments";
@@ -186,15 +173,15 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname === "/inventory") return "inventory";
     if (pathname === "/stats") return "estado-resultado";
     if (pathname === "/settings") return "settings";
-    if (pathname === "/users") return "users-list";
     if (pathname === "/users/roles/permisos") return "permissions-management";
     if (pathname === "/users/roles") return "roles-management";
+    if (pathname === "/users") return "users-list";
     if (pathname === "/design") return "design";
-    return pathname.substring(1);
+    return pathname.replace(/^\//, "").replace(/\//g, "-");
   };
 
   const activeTab = getActiveTab(location.pathname);
-  const config = screenConfig[activeTab] || {
+  const config = screenConfig[activeTab] ?? {
     title: activeTab,
     breadcrumbs: [],
   };
@@ -225,8 +212,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       settings: "/settings",
       design: "/design",
     };
-    const targetPath = routeMap[tabId] || `/${tabId}`;
-    navigate(targetPath);
+    navigate(routeMap[tabId] ?? `/${tabId}`);
     if (isMobile) setSidebarOpen(false);
   };
 
@@ -239,7 +225,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      {/* Overlay oscuro en móvil cuando sidebar está abierto */}
+      {/* Overlay en móvil */}
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -255,8 +241,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       <Sidebar
         activeItem={activeTab}
         onNavigate={handleNavigate}
-        // En móvil: collapsed=!sidebarOpen (true=oculto, false=visible)
-        // En desktop: collapsed=desktopCollapsed
         collapsed={isMobile ? !sidebarOpen : desktopCollapsed}
         onToggle={() => {
           if (isMobile) setSidebarOpen((v) => !v);
@@ -282,7 +266,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
           showMenuButton={isMobile}
           onMenuClick={() => setSidebarOpen((v) => !v)}
         />
-
         <main
           style={{
             marginTop: 60,
@@ -294,7 +277,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         >
           <Outlet />
         </main>
-
         <AppFooter />
       </div>
     </div>

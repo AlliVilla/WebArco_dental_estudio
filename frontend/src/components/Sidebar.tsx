@@ -4,6 +4,7 @@ import logoImg from "../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { useAuthStore } from "../features/auth/hooks/useAuthStore";
+import { useWindowWidth, BREAKPOINTS } from "../hooks/useWindowWidth";
 
 // ── Nav data (SVG paths wired from Figma import) ──────────────────────────────
 
@@ -587,18 +588,11 @@ export function Sidebar({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
     {}
   );
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth <= BREAKPOINTS.mobile;
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  useEffect(() => {
-    const fn = () => setWindowWidth(window.innerWidth);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, []);
-
-  const isMobile = windowWidth <= 768;
-  // En móvil: siempre 240px pero se oculta con transform cuando collapsed
   const sidebarW = isMobile ? 240 : w;
 
   const handleLogout = useCallback(async () => {
