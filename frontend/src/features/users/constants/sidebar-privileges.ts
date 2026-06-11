@@ -21,7 +21,4 @@ export const SIDEBAR_PRIVILEGES: Partial<Record<NavId, number[]>> = {
 
   'users-list': [6],
   'roles-management': [34],
-
-  treatments: [47],
-  inventory: [52],
 };

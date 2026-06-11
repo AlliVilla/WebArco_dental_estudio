@@ -30,6 +30,7 @@ import { Alert, Card, DesignSystemScreen } from "./context";
 import { Dashboard } from "./page layouts/Dashboard";
 import { MainLayout } from "./page layouts/MainLayout";
 import { AuthGuard, GuestGuard } from "./routes/index";
+import { InventoryHistoryScreen, InventoryScreen } from "./features/inventory";
 import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
 import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
 
@@ -195,30 +196,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/inventory"
-          element={
-            <div style={{ padding: 20 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Inventario
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Módulo de inventario en desarrollo.
-                </p>
-              </Card>
-            </div>
-          }
-        />
+        <Route path="/inventory" element={<InventoryScreen />} />
         <Route
           path="/stats"
           element={
