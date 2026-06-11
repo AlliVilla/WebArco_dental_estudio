@@ -48,9 +48,19 @@ export const TIPO_CITA_OPTIONS = [
 export const VIEW_OPTIONS = [
   { value: 'day', label: 'Día' },
   { value: 'week', label: 'Semana' },
+  { value: 'month', label: 'Mes' },
 ];
 
-export const CALENDAR_START_HOUR = 8;
-export const CALENDAR_END_HOUR = 20;
-export const PX_PER_HOUR = 60;
+// ─── Calendar time-range config ──────────────────────────────────────────────
+// To adjust the visible hour range of the calendar, change ONLY these two values.
+// CALENDAR_START_HOUR: first hour shown (inclusive), e.g. 7 → 07:00
+// CALENDAR_END_HOUR:   last hour boundary (exclusive), e.g. 21 → up to 21:00
+export const CALENDAR_START_HOUR = 7;
+export const CALENDAR_END_HOUR = 21;
+
+// Pixels allocated per hour in the scrollable time body.
+// Increasing this makes the grid taller and citas easier to read.
+export const PX_PER_HOUR = 80;
+
+// Derived — do not edit directly.
 export const VISIBLE_HOURS = CALENDAR_END_HOUR - CALENDAR_START_HOUR;
