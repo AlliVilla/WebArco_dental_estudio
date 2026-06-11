@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Clock, FileText, PenLine, ShieldCheck, UserRound, X } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
 import { Button, Card, Input, Select } from "../../../context";
@@ -33,40 +34,61 @@ function ConsentTextArea({
   formValues: ConsentFormValues;
   onChange: (field: keyof ConsentFormValues, value: string) => void;
 }) {
+  const [focused, setFocused] = useState(false);
+
+  const borderColor = focused ? "#0BC5DF" : "#D3D7DA";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <label style={{ color: "var(--foreground)", fontSize: 13, fontWeight: 500 }}>
         {label}{" "}
-        <span style={{ color: badge === "required" ? "var(--arco-danger)" : "var(--muted-foreground)", fontSize: 11 }}>
+        <span
+          style={{
+            color: badge === "required" ? "var(--arco-danger)" : "var(--muted-foreground)",
+            fontSize: 11,
+          }}
+        >
           {hint}
         </span>
       </label>
+
       <textarea
         readOnly={readOnly}
         value={formValues[field]}
         onChange={(event) => onChange(field, event.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder={field === "riesgos" ? "Describe los riesgos particulares del procedimiento seleccionado..." : undefined}
         rows={rows}
         style={{
           width: "100%",
           resize: readOnly ? "none" : "vertical",
-          border: "1px solid var(--border)",
+          border: `1px solid ${borderColor}`,
           borderRadius: 8,
           background: readOnly ? "var(--arco-gray-50)" : "var(--card)",
           color: "var(--foreground)",
           fontSize: 14,
           lineHeight: "20px",
           padding: 12,
-          outlineColor: "var(--arco-primary)",
+          outline: "none",
           boxSizing: "border-box",
           opacity: readOnly ? 0.92 : 1,
+          transition: "border-color 0.18s ease, box-shadow 0.18s ease",
+          boxShadow: focused ? "0 0 0 3px rgba(11,197,223,0.12)" : "none",
         }}
       />
     </div>
   );
 }
 
-export function ConsentFormStep({ formValues, displayConsentCode, canContinueForm, onChange, onCancel, onContinue }: ConsentFormStepProps) {
+export function ConsentFormStep({
+  formValues,
+  displayConsentCode,
+  canContinueForm,
+  onChange,
+  onCancel,
+  onContinue,
+}: ConsentFormStepProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <FormSection columns={2} icon={<FileText size={18} />} title="Datos del procedimiento">
@@ -75,13 +97,52 @@ export function ConsentFormStep({ formValues, displayConsentCode, canContinueFor
         </SectionDescription>
 
         <FullWidthField>
-          <Input badge="required" disabled hint="Generado automáticamente por el sistema" icon={<FileText size={15} />} label="Código del consentimiento" readOnly value={displayConsentCode} />
+          <Input
+            badge="required"
+            disabled
+            hint="Generado automáticamente por el sistema"
+            icon={<FileText size={15} />}
+            label="Código del consentimiento"
+            readOnly
+            value={displayConsentCode}
+          />
         </FullWidthField>
 
-        <Input badge="required" icon={<UserRound size={15} />} label="Paciente" onChange={(event) => onChange("paciente", event.target.value)} placeholder="Ej: María Fernanda López García" value={formValues.paciente} />
-        <Select badge="required" label="Doctor responsable" onChange={(value) => onChange("doctor", value)} options={doctorOptions} placeholder="Selecciona..." value={formValues.doctor} />
-        <Select badge="required" label="Procedimiento a realizar" onChange={(value) => onChange("procedimiento", value)} options={procedimientoOptions} placeholder="Selecciona..." value={formValues.procedimiento} />
-        <Input badge="required" icon={<Clock size={15} />} label="Fecha y hora" onChange={(event) => onChange("fechaHora", event.target.value)} type="datetime-local" value={formValues.fechaHora} />
+        <Input
+          badge="required"
+          icon={<UserRound size={15} />}
+          label="Paciente"
+          onChange={(event) => onChange("paciente", event.target.value)}
+          placeholder="Ej: María Fernanda López García"
+          value={formValues.paciente}
+        />
+
+        <Select
+          badge="required"
+          label="Doctor responsable"
+          onChange={(value) => onChange("doctor", value)}
+          options={doctorOptions}
+          placeholder="Selecciona..."
+          value={formValues.doctor}
+        />
+
+        <Select
+          badge="required"
+          label="Procedimiento a realizar"
+          onChange={(value) => onChange("procedimiento", value)}
+          options={procedimientoOptions}
+          placeholder="Selecciona..."
+          value={formValues.procedimiento}
+        />
+
+        <Input
+          badge="required"
+          icon={<Clock size={15} />}
+          label="Fecha y hora"
+          onChange={(event) => onChange("fechaHora", event.target.value)}
+          type="datetime-local"
+          value={formValues.fechaHora}
+        />
       </FormSection>
 
       <FormSection columns={1} icon={<ShieldCheck size={18} />} title="Texto legal y riesgos">
@@ -90,13 +151,41 @@ export function ConsentFormStep({ formValues, displayConsentCode, canContinueFor
         </SectionDescription>
 
         <FullWidthField>
-          <ConsentTextArea label="Declaración de veracidad médica" field="declaracion" rows={3} badge="required" hint="(predefinido, no editable)" readOnly formValues={formValues} onChange={onChange} />
+          <ConsentTextArea
+            label="Declaración de veracidad médica"
+            field="declaracion"
+            rows={3}
+            badge="required"
+            hint="(predefinido, no editable)"
+            readOnly
+            formValues={formValues}
+            onChange={onChange}
+          />
         </FullWidthField>
+
         <FullWidthField>
-          <ConsentTextArea label="Descripción de riesgos del procedimiento" field="riesgos" rows={4} badge="required" hint="(editable por doctor)" formValues={formValues} onChange={onChange} />
+          <ConsentTextArea
+            label="Descripción de riesgos del procedimiento"
+            field="riesgos"
+            rows={4}
+            badge="required"
+            hint="(editable por doctor)"
+            formValues={formValues}
+            onChange={onChange}
+          />
         </FullWidthField>
+
         <FullWidthField>
-          <ConsentTextArea label="Cláusula de aceptación" field="clausula" rows={3} badge="required" hint="(predefinida)" readOnly formValues={formValues} onChange={onChange} />
+          <ConsentTextArea
+            label="Cláusula de aceptación"
+            field="clausula"
+            rows={3}
+            badge="required"
+            hint="(predefinida)"
+            readOnly
+            formValues={formValues}
+            onChange={onChange}
+          />
         </FullWidthField>
       </FormSection>
 
@@ -106,6 +195,7 @@ export function ConsentFormStep({ formValues, displayConsentCode, canContinueFor
             <X size={16} />
             Cancelar
           </Button>
+
           <Button type="button" disabled={!canContinueForm} onClick={onContinue}>
             <PenLine size={16} />
             Continuar a firma del paciente
