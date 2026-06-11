@@ -15,7 +15,7 @@ const { insertConsultas } = require("./seeders/consultas");
 const { insertOdontograma } = require("./seeders/odontograma");
 const { insertTratamientos } = require("./seeders/tratamiento");
 const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
-
+const { insertArchivos } = require("./seeders/archivos");
 
 async function insertSeeder(){
     try{
@@ -31,6 +31,7 @@ async function insertSeeder(){
         await insertPersonas();
         await insertUsuarios();
         await insertConsultas();
+        await insertArchivos();
         await insertOdontograma();
         await insertTratamientos();
         await insertConsultaTratamientos();

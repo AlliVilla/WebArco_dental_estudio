@@ -191,7 +191,8 @@ export class PersonaService {
               include: {
                 tratamiento: true,
               }
-            }
+            },
+            archivos : true,
           } 
         };
       }

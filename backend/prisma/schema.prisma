@@ -210,8 +210,24 @@ model Consulta {
   antecedentes AntecedenteRespuesta[]
   odontogramas Odontograma[]
   pagos        PagoPaciente[]
+  archivos Archivo[]
   tratamientos Consulta_Tratamiento[]
   @@map("consulta")
+}
+
+enum TipoArchivo {
+  Tomografia
+  Radiografia
+  Imagen
+}
+model Archivo{
+  id_archivo Int @id @default(autoincrement())
+  id_consulta Int 
+  nombre String @db.VarChar(255)
+  categoria TipoArchivo
+  url String @db.Text
+
+  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
 }
 
 model EstadoHistorial {

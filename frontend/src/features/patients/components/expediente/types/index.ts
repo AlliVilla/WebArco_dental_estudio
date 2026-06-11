@@ -12,6 +12,15 @@ interface ConsultaHistorica {
   firma_doctor_snapshot?: string | null;
   consentimiento: boolean;
   tratamientos: ConsultaTratamiento [];
+  archivos: Archivo[];
+}
+
+export type Archivo = {
+  id_archivo: number;
+  id_consulta: number;
+  nombre: string;
+  url: string;
+  categoria: string;
 }
 
 export type ExpedientePaciente = {
