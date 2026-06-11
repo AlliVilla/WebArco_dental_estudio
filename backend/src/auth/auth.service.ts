@@ -27,11 +27,15 @@ export class AuthService {
 
     const userExists = await this.prisma.usuario.findUnique({
       where: { username },
-      include: { persona: true },
+      include: { persona: true, rol: true },
     });
 
     if (!userExists) {
       throw new UnauthorizedException('Credenciales incorrectas.');
+    }
+
+    if (!userExists.activo) {
+      throw new UnauthorizedException('El usuario se encuentra inactivo.');
     }
 
     const isPasswordValid = await comparePassword(
@@ -42,6 +46,12 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales incorrectas.');
     }
+
+    const rolePrivileges = await this.prisma.rolPrivilegio.findMany({
+      where: { id_rol: userExists.id_rol },
+      select: { id_privilegio: true },
+    });
+    const privilegios = rolePrivileges.map(rp => rp.id_privilegio);
 
     const tokenPayload = {
       sub: userExists.id_usuario,
@@ -56,7 +66,10 @@ export class AuthService {
     return {
       access_token,
       refresh_token,
-      user: userExists,
+      user: {
+        ...userExists,
+        privilegios,
+      },
     };
   }
 
@@ -153,7 +166,7 @@ export class AuthService {
 
     const user = await this.prisma.usuario.findUnique({
       where: { id_usuario: payload.sub },
-      include: { persona: true },
+      include: { persona: true, rol: true },
     });
 
     if (!user || !user.activo) {

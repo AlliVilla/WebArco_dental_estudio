@@ -20,6 +20,22 @@ export const formatDate = (dateString: string): string => {
 };
 
 /**
+ * Calculates age from an ISO date string.
+ */
+export const calculateAge = (dateString: string): number => {
+  const birth = new Date(dateString);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+
+  return age;
+};
+
+/**
  * Formats an identity card number into standard Honduras format (0000-0000-00000)
  */
 export const formatIdentity = (id: string): string => {

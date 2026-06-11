@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Alert, Button, useTheme } from '../../../context';
 import { DeleteRoleModal } from './DeleteRoleModal';
 import { RoleCardItem } from './RoleCardItem';
@@ -11,6 +12,7 @@ export interface RolesScreenProps {}
 
 export function RolesScreen(_: RolesScreenProps) {
   useTheme();
+  const navigate = useNavigate();
 
   const [roles, setRoles] = useState<RoleSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,8 +121,6 @@ export function RolesScreen(_: RolesScreenProps) {
         setRoles((currentRoles) => currentRoles.filter((role) => role.id_rol !== selectedRole.id_rol));
         setSuccessMessage(response.message);
         setErrorMessage(null);
-        setIsDeleteModalOpen(false);
-        setSelectedRole(null);
         window.setTimeout(() => setSuccessMessage(null), 3500);
       } else {
         setErrorMessage(response.message);
@@ -133,6 +133,8 @@ export function RolesScreen(_: RolesScreenProps) {
     }
 
     setIsDeleting(false);
+    setIsDeleteModalOpen(false);
+    setSelectedRole(null);
   }
 
   return (
@@ -200,7 +202,9 @@ export function RolesScreen(_: RolesScreenProps) {
                 setSelectedRole(currentRole);
                 setIsEditModalOpen(true);
               }}
-              onPrivileges={() => undefined}
+              onPrivileges={(currentRole) => {
+                navigate(`/users/roles/permisos?rol=${currentRole.id_rol}`);
+              }}
             />
           ))}
         </div>

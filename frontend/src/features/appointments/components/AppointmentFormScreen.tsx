@@ -7,7 +7,7 @@ import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { PatientSearchInput } from './PatientSearchInput';
 import { appointmentService } from '../services/appointmentService';
 import type { CreateAppointmentInput, UsuarioRecord } from '../types';
-import { TIPO_CITA_OPTIONS } from '../constants';
+import { TIPO_CITA_OPTIONS, CALENDAR_START_HOUR, CALENDAR_END_HOUR } from '../constants';
 
 export function AppointmentFormScreen() {
   const navigate = useNavigate();
@@ -82,7 +82,20 @@ export function AppointmentFormScreen() {
     if (!formData.id_persona) errors.id_persona = 'Seleccione un paciente';
     if (!formData.id_usuario) errors.id_usuario = 'Seleccione un doctor asignado';
     if (!formData.fecha_inicio) errors.fecha_inicio = 'Seleccione una fecha';
+    else {
+      const date = new Date(formData.fecha_inicio);
+      const dayOfWeek = date.getDay(); // 0 = domingo, 6 = sábado
+      if (dayOfWeek === 0) {
+        errors.fecha_inicio = 'No se pueden agendar citas los domingos';
+      }
+    }
     if (!timeStr) errors.timeStr = 'Ingrese la hora de la cita';
+    else {
+      const [hours] = timeStr.split(':').map(Number);
+      if (hours < CALENDAR_START_HOUR || hours >= CALENDAR_END_HOUR) {
+        errors.timeStr = `La hora debe estar entre ${CALENDAR_START_HOUR}:00 y ${CALENDAR_END_HOUR}:00`;
+      }
+    }
     if (!formData.tipo_cita) errors.tipo_cita = 'Seleccione el tipo de cita';
     if (!formData.motivo) errors.motivo = 'Especifique el motivo';
 
@@ -210,6 +223,8 @@ export function AppointmentFormScreen() {
                 type="time"
                 badge="required"
                 value={timeStr}
+                min={`${String(CALENDAR_START_HOUR).padStart(2, '0')}:00`}
+                max={`${String(CALENDAR_END_HOUR).padStart(2, '0')}:00`}
                 onChange={(e) => {
                   setTimeStr(e.target.value);
                   if (formErrors.timeStr) setFormErrors({ ...formErrors, timeStr: '' });

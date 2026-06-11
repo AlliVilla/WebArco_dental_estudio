@@ -1,3 +1,5 @@
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
 const { insertDepartamentos } =   require("./seeders/departamento");
 const { insertMunicipios } = require("./seeders/municipios");
 const { insertRoles } = require("./seeders/roles");
@@ -7,10 +9,16 @@ const { insertPersonas } = require("./seeders/persona");
 const { insertUsuarios } = require("./seeders/usuarios");
 const { insertAntecedentesPreguntas } = require("./seeders/antecendentespreguntas");
 const { insertDientes } = require("./seeders/dientes");  
+const { insertCategoriasInsumo } = require("./seeders/categorias-insumo");
+const { insertUnidadesMedida } = require("./seeders/unidades-medida");
+const { insertConsultas } = require("./seeders/consultas");
+const { insertOdontograma } = require("./seeders/odontograma");
 
 async function insertSeeder(){
     try{
         await insertDientes();
+        await insertCategoriasInsumo();
+        await insertUnidadesMedida();
         await insertAntecedentesPreguntas();
         await insertRoles();
         await insertPrivilegios();
@@ -19,6 +27,8 @@ async function insertSeeder(){
         await insertMunicipios();
         await insertPersonas();
         await insertUsuarios();
+        await insertConsultas();
+        await insertOdontograma();
         console.log("Seeder realizado exitosamente")
     }catch(error){
         console.error("Error:", error);
