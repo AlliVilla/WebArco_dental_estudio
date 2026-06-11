@@ -46,4 +46,8 @@ export const appointmentService = {
     const res: ApiResponse<{ usuarios: UsuarioRecord[] }> = await api.get('/usuario/all');
     return { ...res, data: res.data?.usuarios ?? [] };
   },
+
+  getPendingCount: async (): Promise<ApiResponse<{ count: number }>> => {
+    return api.get('/appointments/pending-count');
+  },
 };

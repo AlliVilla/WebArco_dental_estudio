@@ -4,6 +4,12 @@ export type EstadoEnvio = 'Pendiente' | 'Enviado' | 'Error';
 
 export type RespuestaPaciente = 'Confirmó' | 'Canceló' | 'Sin respuesta';
 
+export interface ReminderAppointmentOption {
+  id: number;
+  paciente: string;
+  fecha_hora: string;
+}
+
 export interface RecordatorioRow {
   id: number;
   id_cita: number;

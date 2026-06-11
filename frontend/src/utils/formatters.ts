@@ -42,3 +42,11 @@ export const formatIdentity = (id: string): string => {
   if (!id || id.length !== 13) return id;
   return `${id.substring(0, 4)}-${id.substring(4, 8)}-${id.substring(8)}`;
 };
+
+/**
+ * Formats an identity card number into standard Honduras format (0000-0000-00000)
+ */
+export const formatInitials = (nombre: string): string => {
+  const [a, b] = nombre.trim().split(' ');
+  return ((a?.[0] ?? '') + (b?.[0] ?? '')).toUpperCase();
+};

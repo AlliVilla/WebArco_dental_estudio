@@ -1,82 +1,23 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { History, Download, RefreshCw, MessageCircle, Mail, Phone } from 'lucide-react';
-import { DataTable } from '../../../components/DataTable';
+import { DataTable } from '../../../components';
 import { Button } from '../../../context';
 import { ReminderService } from '../services/ReminderService';
 import { formatDate } from '../../../utils/formatters';
 import type { HistorialConfirmacionRow, CanalRecordatorio, RespuestaPaciente } from '../types';
+import { formatInitials } from '../../../utils/formatters';
+import { CANAL_CONFIG, RESPUESTA_CONFIG } from '../utils/badgeConfigs';
 
 // --- Tipos --------------------------------------------------------------------
 
 export interface HistorialConfirmacionesScreenProps {}
 
-// --- Configuración de badges --------------------------------------------------
-
-const RESPUESTA_CONFIG: Record<RespuestaPaciente, { color: string; bg: string; dot: string; label: string }> = {
-    Confirmó:      { color: '#1D9E75', bg: '#ECFDF5', dot: '#1D9E75', label: 'Confirmó'      },
-    Canceló:       { color: '#E24B4A', bg: '#FEF2F2', dot: '#E24B4A', label: 'Canceló'       },
-    'Sin respuesta': { color: '#888F94', bg: '#F1F3F4', dot: '#D3D7DA', label: 'Sin respuesta' },
-};
-
-const CANAL_CONFIG: Record<CanalRecordatorio, { icon: React.ReactNode; color: string; bg: string }> = {
-    WhatsApp: { icon: <MessageCircle size={13} />, color: '#1D9E75', bg: '#ECFDF5' },
-    SMS:      { icon: <Phone size={13} />,         color: '#EF9F27', bg: '#FFF8EC' },
-    Correo:   { icon: <Mail size={13} />,          color: '#0BC5DF', bg: '#E6F8FB' },
-};
-
-const MOCK_HISTORIAL: HistorialConfirmacionRow[] = [
-    {
-        id: 1,
-        paciente: 'Juan Pérez',
-        fecha_envio: '2026-06-08T08:00:00',
-        fecha_respuesta: '2026-06-08T08:15:00',
-        respuesta: 'Confirmó',
-        canal: 'WhatsApp',
-    },
-    {
-        id: 2,
-        paciente: 'María López',
-        fecha_envio: '2026-06-08T09:00:00',
-        fecha_respuesta: '2026-06-08T09:45:00',
-        respuesta: 'Canceló',
-        canal: 'SMS',
-    },
-    {
-        id: 3,
-        paciente: 'Carlos Hernández',
-        fecha_envio: '2026-06-08T10:00:00',
-        fecha_respuesta: null,
-        respuesta: 'Sin respuesta',
-        canal: 'Correo',
-    },
-    {
-        id: 4,
-        paciente: 'Ana Martínez',
-        fecha_envio: '2026-06-08T11:00:00',
-        fecha_respuesta: '2026-06-08T11:08:00',
-        respuesta: 'Confirmó',
-        canal: 'WhatsApp',
-    },
-    {
-        id: 5,
-        paciente: 'Luis Gómez',
-        fecha_envio: '2026-06-08T12:00:00',
-        fecha_respuesta: null,
-        respuesta: 'Sin respuesta',
-        canal: 'SMS',
-    },
-];
 
 // --- Helpers ---------------------------------------------------------------------------
 
 function formatFechaHora(iso: string | null) {
     if (!iso) return '—';
     return `${formatDate(iso)} · ${new Date(iso).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' })}`;
-}
-
-function getInitials(nombre: string) {
-    const [a, b] = nombre.trim().split(' ');
-    return ((a?.[0] ?? '') + (b?.[0] ?? '')).toUpperCase();
 }
 
 // --- Badge de respuesta -------------------------------------------------------
@@ -124,13 +65,25 @@ export function HistorialConfirmacionesScreen(_props: HistorialConfirmacionesScr
 
     // -- Carga de datos -----------------------------------------------------------------
     const fetchHistorial = useCallback(async () => {
-        //  -- CARGAR DATOS MOCK_HISTORIAL ---------------------
-        setLoading(true);
+        try {
+            setLoading(true);
+            setError(null);
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
+            const response = await ReminderService.getHistorial();
 
-        setRows(MOCK_HISTORIAL);
-        setLoading(false);
+            if (response.success) {
+                setRows(response.data ?? []);
+            } else {
+                setError(response.message ?? 'Error al cargar el historial');
+                setRows([]);
+            }
+        } catch (err) {
+            console.error(err);
+            setError('Error al cargar el historial');
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchHistorial(); }, [fetchHistorial]);
@@ -163,7 +116,7 @@ export function HistorialConfirmacionesScreen(_props: HistorialConfirmacionesScr
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 600, color: '#0BC5DF',
                 }}>
-                {getInitials(row.paciente as string)}
+                {formatInitials(row.paciente as string)}
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>
                 {row.paciente as string}

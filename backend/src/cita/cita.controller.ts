@@ -65,6 +65,19 @@ export class CitaController {
   }
 
   @Privileges(26)
+  @Get('pending-count')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Contar citas pendientes',
+    description:
+      'Obtiene el conteo de citas pendientes (programadas o confirmadas) para hoy y fechas futuras.',
+  })
+  @ApiOkResponse({ description: 'Conteo de citas pendientes' })
+  async getPendingCount() {
+    return this.citaService.getPendingCount();
+  }
+
+  @Privileges(26)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

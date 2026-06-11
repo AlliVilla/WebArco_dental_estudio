@@ -12,6 +12,7 @@ export interface User {
   firma?: string | null;
   activo?: boolean;
   must_change_password?: boolean;
+  privilegios?: number[];
   rol?: Role;
   persona?: {
     id_persona?: number;
