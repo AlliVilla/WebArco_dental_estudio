@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
-import { Sidebar } from '../components/Sidebar';
-import { TopBar } from '../components/TopBar';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-
+import React, { useState, useEffect } from "react";
+import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useResponsive } from "../hooks/useWindowWidth";
 
 interface MainLayoutProps {
   children?: React.ReactNode;
-  activeTab?: string;
-  setActiveTab?: (tab: string) => void;
 }
 
 const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
@@ -46,47 +44,64 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
 };
 
 export const MainLayout: React.FC<MainLayoutProps> = () => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const sidebarWidth = sidebarCollapsed ? 64 : 240;
+  const { isMobile } = useResponsive();
+  const [sidebarOpen, setSidebarOpen] = useState(false); // móvil: empieza cerrado
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  // Al pasar de móvil a desktop, cerrar el menú móvil
+  useEffect(() => {
+    if (!isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
+  const sidebarWidth = desktopCollapsed ? 64 : 240;
+  const contentMargin = isMobile ? 0 : sidebarWidth;
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  const getActiveTab = (pathname: string) => {
-    if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
-    if (pathname === '/mi-perfil') return 'mi-perfil';
-    if (pathname === '/agenda/new') return 'agenda-new';
-    if (pathname === '/agenda/reminders') return 'recordatorios';
-    if (pathname === '/agenda/reminders/historial') return 'reminders-historial';
-    if (pathname.startsWith('/agenda/') && pathname.endsWith('/edit')) return 'agenda-edit';
-    if (pathname.startsWith('/agenda/') && pathname !== '/agenda/new') return 'agenda-detail';
-    if (pathname === '/agenda' || pathname === '/appointments') return 'citas'; // keep sidebar active
-    if (pathname === '/patients') return 'patients';
-    if (pathname === '/patients/list') return 'patients-list';
-    if (pathname === '/patients/new') return 'patient-new';
-    if (pathname.startsWith('/patients/edit/')) return 'patient-edit';
-    if (pathname.startsWith('/patients/profile/')) return 'patient-profile';
-    if (pathname === '/patients/odontogram') return 'odontogram';
-    if (pathname === '/patients/records') return 'patient-expediente';
-    if (pathname === '/patients/consent') return 'consentimientos-lista';
-    if (pathname === '/treatments') return 'treatments';
-    if (pathname === '/billing/income') return 'billing-income';
-    if (pathname === '/billing/expense') return 'billing-expense';
-    if (pathname === '/billing/list' || pathname.startsWith('/billing/list/')) return 'billing-list';
-    if (pathname === '/billing/closures') return 'billing-closures';
-    if (pathname === '/inventory/history') return 'inventory-history';
-    if (pathname === '/inventory') return 'inventory';
-    if (pathname === '/stats') return 'estado-resultado';
-    if (pathname === '/settings') return 'settings';
-    if (pathname === '/users') return 'users-list';
-    if (pathname === '/users/roles/permisos') return 'permissions-management';
-    if (pathname === '/users/roles') return 'roles-management';
-    if (pathname === '/design') return 'design';
-    return pathname.substring(1);
+  const getActiveTab = (pathname: string): string => {
+    if (pathname === "/" || pathname === "/dashboard") return "dashboard";
+    if (pathname === "/mi-perfil") return "mi-perfil";
+    if (pathname === "/agenda/new") return "agenda-new";
+    if (pathname === "/agenda/reminders/historial")
+      return "reminders-historial";
+    if (pathname === "/agenda/reminders") return "recordatorios";
+    if (pathname.startsWith("/agenda/") && pathname.endsWith("/edit"))
+      return "agenda-edit";
+    if (pathname.startsWith("/agenda/") && pathname !== "/agenda/new")
+      return "agenda-detail";
+    if (pathname === "/agenda" || pathname === "/appointments") return "citas";
+    if (pathname === "/patients/new") return "patient-new";
+    if (pathname.startsWith("/patients/edit/")) return "patient-edit";
+    if (pathname.startsWith("/patients/profile/")) return "patient-profile";
+    if (pathname === "/patients/list") return "patients-list";
+    if (pathname === "/patients/odontogram") return "odontogram";
+    if (pathname === "/patients/records") return "patient-expediente";
+    if (pathname === "/patients/consent") return "consentimientos-lista";
+    if (pathname === "/patients") return "patients";
+    if (pathname === "/treatments/new") return "treatment-new";
+    if (pathname.startsWith("/treatments/edit/")) return "treatment-edit";
+    if (pathname === "/treatments") return "treatments";
+    if (pathname === "/billing/income") return "billing-income";
+    if (pathname === "/billing/expense") return "billing-expense";
+    if (pathname === "/billing/list" || pathname.startsWith("/billing/list/"))
+      return "billing-list";
+    if (pathname === "/billing/closures") return "billing-closures";
+    if (pathname === "/inventory") return "inventory";
+    if (pathname === "/stats") return "estado-resultado";
+    if (pathname === "/settings") return "settings";
+    if (pathname === "/users/roles/permisos") return "permissions-management";
+    if (pathname === "/users/roles") return "roles-management";
+    if (pathname === "/users") return "users-list";
+    if (pathname === "/design") return "design";
+    return pathname.replace(/^\//, "").replace(/\//g, "-");
   };
 
   const activeTab = getActiveTab(location.pathname);
-  const config = screenConfig[activeTab] || { title: activeTab, breadcrumbs: [] };
+  const config = screenConfig[activeTab] ?? {
+    title: activeTab,
+    breadcrumbs: [],
+  };
 
   const handleNavigate = (tabId: string) => {
     const routeMap: Record<string, string> = {
@@ -115,44 +130,74 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       settings: '/settings',
       design: '/design',
     };
-    const targetPath = routeMap[tabId] || `/${tabId}`;
-    navigate(targetPath);
+    navigate(routeMap[tabId] ?? `/${tabId}`);
+    if (isMobile) setSidebarOpen(false);
   };
 
   return (
-    <div style={{ display: 'flex', background: '#F8F9FA', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div
+      style={{
+        display: "flex",
+        background: "#F8F9FA",
+        minHeight: "100vh",
+        fontFamily: "Inter, system-ui, sans-serif",
+      }}
+    >
+      {/* Overlay en móvil */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 49,
+          }}
+        />
+      )}
 
-      {/* Figma styled Sidebar */}
       <Sidebar
         activeItem={activeTab}
         onNavigate={handleNavigate}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
+        collapsed={isMobile ? !sidebarOpen : desktopCollapsed}
+        onToggle={() => {
+          if (isMobile) setSidebarOpen((v) => !v);
+          else setDesktopCollapsed((v) => !v);
+        }}
       />
 
-      {/* Main Container */}
-      <div style={{
-        marginLeft: sidebarWidth,
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'margin-left 0.22s cubic-bezier(0.4,0,0.2,1)',
-        minWidth: 0
-      }}>
-        {/* Figma styled TopBar */}
+      <div
+        style={{
+          marginLeft: contentMargin,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          transition: "margin-left 0.22s cubic-bezier(0.4,0,0.2,1)",
+          minWidth: 0,
+        }}
+      >
         <TopBar
           title={config.title}
           breadcrumbs={config.breadcrumbs}
           notificationCount={2}
-          sidebarWidth={sidebarWidth}
+          sidebarWidth={isMobile ? 0 : sidebarWidth}
+          showMenuButton={isMobile}
+          onMenuClick={() => setSidebarOpen((v) => !v)}
         />
-
-        {/* Page Content area */}
-        <main style={{ marginTop: 60, padding: 24, width: '100%', flex: 1, minHeight: 0 }}>
+        <main
+          style={{
+            marginTop: 60,
+            padding: isMobile ? 16 : 24,
+            width: "100%",
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
           <Outlet />
         </main>
       </div>
     </div>
   );
 };
+
 export default MainLayout;
