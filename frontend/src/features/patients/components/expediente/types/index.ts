@@ -25,25 +25,16 @@ export type Archivo = {
 
 export type ExpedientePaciente = {
   id_persona: number;
-  nombre: string;
   primer_nombre: string;
-  segundo_nombre: string;
+  segundo_nombre: string | null;
   primer_apellido: string;
-  segundo_apellido: string;
+  segundo_apellido: string | null;
   numero_identidad: string;
-  fecha_nacimiento: Date;
-  telefono: string;
-  correo_electronico: string;
-  departamento: string;
-  ciudad: string;
-  direccion: string;
-  sexo: 'M' | 'F';
-  ultimaVisita: string;
-  totalVisitas: number;
-  antecedentes: string;
-  enfermedadBase: string;
-  tomaMedicamento: string;
-  alergias: string;
+  fecha_nacimiento: string;
+  telefono: string | null;
+  correo_electronico: string | null;
+  direccion_linea: string | null;
+  sexo: string;
   consultas: ConsultaHistorica[];
   municipio: {
     id_municipio: number;

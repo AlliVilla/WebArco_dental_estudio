@@ -33,49 +33,6 @@ const C = {
   primaryBg: 'var(--accent, #E6F8FB)',
 };
 
-const getAlertBadges = (patient: ExpedientePaciente) => {
-  const badges: { text: string; color: string; border: string; bg: string }[] = [];
-
-  const addBadge = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const lower = trimmed.toLowerCase();
-    if (lower === 'ninguna' || lower === 'ninguno' || lower === 'ninguno relevante') return;
-
-    if (lower.includes('alergia') || lower.includes('alérgica') || lower.includes('alérgico')) {
-      badges.push({
-        text: trimmed,
-        color: '#E11D48',
-        border: '#FECDD3',
-        bg: '#FFF1F2'
-      });
-    } else if (lower.includes('anestesia') || lower.includes('reacción') || lower.includes('reaccion')) {
-      badges.push({
-        text: trimmed,
-        color: '#EA580C',
-        border: '#FFEDD5',
-        bg: '#FFF7ED'
-      });
-    } else {
-      badges.push({
-        text: trimmed,
-        color: '#B45309',
-        border: '#FDE68A',
-        bg: '#FFFBEB'
-      });
-    }
-  };
-
-  if (patient.enfermedadBase) {
-    patient.enfermedadBase.split(',').forEach(addBadge);
-  }
-  if (patient.alergias) {
-    patient.alergias.split(',').forEach(addBadge);
-  }
-
-  return badges;
-};
-
 export function ExpedienteScreen() {
   useTheme();
   const [viewState, setViewState] = useState<'list' | 'detail' | 'new-visit'>('list');
@@ -88,7 +45,6 @@ export function ExpedienteScreen() {
   const loadPatients = useCallback(async (page: number, search = "") => {
     setLoading(true);
     const res = await expedientService.getAll({page,search,includeConsulta: true});
-    console.log(res);
     if(res.success){
       setExpedientes(res.data.data);
     }else {
@@ -409,66 +365,8 @@ export function ExpedienteScreen() {
                   Última visita: {activePatient.consultas?.[0]?.fecha_fin ? new Date(activePatient.consultas?.[0]?.fecha_fin).toLocaleString('es-HN'): 'N/A'}
                 </div>
 
-                {/* Active medical alerts */}
-                {getAlertBadges(activePatient).length > 0 && (
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#EF9F27', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      Alertas Médicas Activas
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                      {getAlertBadges(activePatient).map((badge, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            background: badge.bg,
-                            border: `1px solid ${badge.border}`,
-                            color: badge.color,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            padding: '4px 12px',
-                            borderRadius: 20,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6
-                          }}
-                        >
-                          <span style={{ fontSize: 8 }}>●</span> {badge.text}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
-
-            {/* Yellow Warning Banner */}
-            {getAlertBadges(activePatient).length > 0 && (
-              <div style={{
-                background: '#FFFDF0',
-                border: '1.5px solid #FCD34D',
-                borderRadius: 12,
-                padding: '16px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#78350F' }}>
-                  <span>⚠️</span>
-                  <span>Este paciente tiene alertas médicas activas. Revisa alergias y enfermedades antes de iniciar cualquier tratamiento.</span>
-                </div>
-                {activePatient.antecedentes && (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#78350F', paddingLeft: 20 }}>
-                    <span style={{ fontSize: 10, marginTop: 2 }}>▲</span>
-                    <span>{activePatient.antecedentes}</span>
-                  </div>
-                )}
-              </div>
-            )}
           </Card>
 
           {/* Visits Timeline */}
@@ -616,7 +514,7 @@ export function ExpedienteScreen() {
                         }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                              <span>🩺</span> Motivo de consulta
+                              Motivo de consulta
                             </div>
                             <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>
                               {visit.motivo}
@@ -624,7 +522,7 @@ export function ExpedienteScreen() {
                           </div>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                              <span>📝</span> Diagnóstico de evolución
+                              Diagnóstico de evolución
                             </div>
                             <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, lineHeight: 1.5 }}>
                               {visit.diagnostico}
@@ -632,7 +530,7 @@ export function ExpedienteScreen() {
                           </div>
                           <div style={{ gridColumn: '1 / -1' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                              <span>📋</span> Notas clínicas
+                              Notas clínicas
                             </div>
                             <div style={{ fontSize: 13.5, color: C.gray700, marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
                               {visit.notas}
@@ -716,7 +614,7 @@ export function ExpedienteScreen() {
                               alignItems: 'center',
                               gap: 6
                             }}>
-                              <span>📎</span> Archivos y Radiografías Adjuntas
+                              Archivos y Radiografías Adjuntas
                             </div>
                             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                               {visit.archivos.map((archivo, idx) => (

@@ -531,13 +531,13 @@ export function OdontogramScreen({
   onCancelEmbedded?: () => void;
 }) {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [loadingPatients, setLoadingPatients] = useState(true);
+  const [loadingPatients, setLoadingPatients] = useState(!isEmbedded);
   const [loadingOdontogram, setLoadingOdontogram] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<'view' | 'consultation'>('view');
+  const [mode, setMode] = useState<'view' | 'consultation'>(isEmbedded ? 'consultation' : 'view');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [dentition, setDentition] = useState<'adult' | 'child'>(initialDentition);
   const [teeth, setTeeth] = useState<Record<number, ToothData>>(emptyTeeth(ADULT_NUMBERS));
@@ -556,7 +556,7 @@ export function OdontogramScreen({
   const currentPatient = patients.find(p => p.id === selectedPatientId) || null;
   const patientAge = currentPatient ? getAge(currentPatient.fecha_nacimiento) : 0;
 
-  const isEditable = mode === 'consultation' && !isEmbedded;
+  const isEditable = mode === 'consultation';
 
   const toothCount = dentition === 'adult' ? 32 : 20;
   const TODAY = new Date().toISOString().split('T')[0];
@@ -711,16 +711,18 @@ export function OdontogramScreen({
     if (!selectedTooth || !pendingState) {
       setAlert({ type: 'error', text: 'Debes seleccionar un estado antes de guardar el cambio.' }); return;
     }
-    if (!selectedPatientId) return;
 
     setSaving(true);
     try {
-      await odontogramaService.saveToothState(
-        selectedPatientId,
-        selectedTooth,
-        pendingState,
-        pendingObs,
-      );
+      if (!isEmbedded && selectedPatientId) {
+        await odontogramaService.saveToothState(
+          selectedPatientId,
+          selectedTooth,
+          pendingState,
+          pendingObs,
+        );
+        await fetchHistory(selectedPatientId);
+      }
 
       setTeeth(prev => ({
         ...prev,
@@ -737,7 +739,6 @@ export function OdontogramScreen({
 
       setAlert({ type: 'success', text: `Cambio guardado correctamente para el diente #${selectedTooth}.` });
       setSelectedTooth(null); setPendingState(''); setPendingObs('');
-      await fetchHistory(selectedPatientId);
     } catch (err: any) {
       setAlert({ type: 'error', text: err?.message || 'Error al guardar el cambio.' });
     } finally {
