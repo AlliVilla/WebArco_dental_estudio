@@ -76,6 +76,46 @@ export class CreatePersonaDto {
   @IsString({ message: 'dirección debe ser texto' })
   direccion_linea?: string;
 
+  @ApiPropertyOptional({
+    description: 'Listado serializado de enfermedades sistémicas seleccionadas',
+    example: '["diabetes","hipertension"]',
+  })
+  @IsOptional()
+  @IsString({ message: 'enfermedades debe ser texto' })
+  enfermedades?: string;
+
+  @ApiPropertyOptional({
+    description: 'Descripción libre de otras enfermedades',
+    example: 'Hipotiroidismo controlado',
+  })
+  @IsOptional()
+  @IsString({ message: 'otras enfermedades debe ser texto' })
+  otras_enfermedades?: string;
+
+  @ApiPropertyOptional({
+    description: 'Medicamentos actuales del paciente',
+    example: 'Losartán 50mg cada mañana',
+  })
+  @IsOptional()
+  @IsString({ message: 'medicamentos debe ser texto' })
+  medicamentos?: string;
+
+  @ApiPropertyOptional({
+    description: 'Alergias registradas del paciente',
+    example: 'Penicilina',
+  })
+  @IsOptional()
+  @IsString({ message: 'alergias debe ser texto' })
+  alergias?: string;
+
+  @ApiPropertyOptional({
+    description: 'Indica si ha tenido reacciones a la anestesia',
+    example: 'no',
+  })
+  @IsOptional()
+  @IsString({ message: 'reacción a anestesia debe ser texto' })
+  reaccion_anestesia?: string;
+
   @ApiProperty({ description: 'Sexo', enum: Sexo, example: 'M' })
   @IsNotEmpty({ message: 'sexo es obligatorio' })
   @IsEnum(Sexo, { message: 'sexo debe ser M (Masculino) o F (Femenino)' })

@@ -26,6 +26,11 @@ type PersonaDetail = {
   telefono: string;
   correo_electronico?: string | null;
   sexo: "M" | "F";
+  enfermedades?: string | null;
+  otras_enfermedades?: string | null;
+  medicamentos?: string | null;
+  alergias?: string | null;
+  reaccion_anestesia?: string | null;
   municipio?: {
     nombre: string;
     departamento?: {
@@ -134,7 +139,45 @@ export function PatientProfileScreen() {
   }, [patient]);
 
   const age = patient?.fecha_nacimiento ? calculateAge(patient.fecha_nacimiento) : null;
+  const enfermedadesList = useMemo(() => {
+    if (!patient?.enfermedades) return [];
+
+    try {
+      const parsed = JSON.parse(patient.enfermedades);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [patient?.enfermedades]);
+
+  const medicalSummary = useMemo(() => {
+    if (!patient) return [];
+
+    const items: string[] = [];
+    if (enfermedadesList.length > 0) items.push(`Enfermedades sistémicas: ${enfermedadesList.join(", ")}`);
+    if (patient.otras_enfermedades) items.push(`Otras enfermedades: ${patient.otras_enfermedades}`);
+    if (patient.medicamentos) items.push(`Medicamentos: ${patient.medicamentos}`);
+    if (patient.alergias) items.push(`Alergias: ${patient.alergias}`);
+    if (patient.reaccion_anestesia) {
+      items.push(
+        patient.reaccion_anestesia === "si"
+          ? "Historial de anestesia: Sí ha tenido reacciones"
+          : "Historial de anestesia: No ha tenido reacciones",
+      );
+    }
+
+    return items;
+  }, [enfermedadesList, patient]);
+
+  const hasMedicalAlerts = medicalSummary.length > 0;
   const code = patient ? `PAC-${String(patient.id_persona).padStart(6, "0")}` : "";
+  const patientQuery = patient
+    ? new URLSearchParams({
+        patientId: String(patient.id_persona),
+        patientName: fullName,
+        patientCode: code,
+      }).toString()
+    : "";
   const location = patient?.municipio
     ? `${patient.municipio.nombre}, ${patient.municipio.departamento?.nombre ?? ""}`.replace(/,\s*$/, "")
     : "Sin ubicación";
@@ -206,9 +249,19 @@ export function PatientProfileScreen() {
                   <AlertTriangle size={14} />
                   ALERTAS MÉDICAS
                 </div>
-                <span style={{ color: "#888F94", fontSize: 12 }}>
-                  Sin alertas médicas registradas para este paciente.
-                </span>
+                {hasMedicalAlerts ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {medicalSummary.map((item) => (
+                      <span key={item} style={{ color: "#5F656A", fontSize: 12 }}>
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ color: "#888F94", fontSize: 12 }}>
+                    Sin alertas médicas registradas para este paciente.
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -218,15 +271,24 @@ export function PatientProfileScreen() {
               <Edit size={15} />
               Editar paciente
             </Button>
-            <Button variant="secondary" onClick={() => navigate("/patients/records")}>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/patients/records${patientQuery ? `?${patientQuery}` : ""}`)}
+            >
               <FileText size={15} />
               Ver expediente
             </Button>
-            <Button variant="secondary" onClick={() => navigate("/patients/odontogram")}>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/patients/odontogram${patientQuery ? `?${patientQuery}` : ""}`)}
+            >
               <Stethoscope size={15} />
               Odontograma
             </Button>
-            <Button variant="secondary" onClick={() => navigate("/patients/consent")}>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/patients/consent${patientQuery ? `?${patientQuery}` : ""}`)}
+            >
               <ShieldCheck size={15} />
               Consentimientos
             </Button>
@@ -234,8 +296,8 @@ export function PatientProfileScreen() {
 
           <div
             style={{
-              background: "var(--arco-gray-50)",
-              border: "1px solid var(--arco-gray-300)",
+              background: hasMedicalAlerts ? "rgba(239, 159, 39, 0.08)" : "var(--arco-gray-50)",
+              border: `1px solid ${hasMedicalAlerts ? "rgba(239, 159, 39, 0.35)" : "var(--arco-gray-300)"}`,
               borderRadius: 8,
               color: "#5F656A",
               gridColumn: "1 / -1",
@@ -244,10 +306,12 @@ export function PatientProfileScreen() {
           >
             <div style={{ alignItems: "center", display: "flex", gap: 8, fontSize: 13, fontWeight: 700 }}>
               <AlertTriangle size={15} />
-              Sin alertas médicas activas registradas.
+              {hasMedicalAlerts ? "Información médica registrada para este paciente." : "Sin alertas médicas activas registradas."}
             </div>
             <p style={{ fontSize: 12, margin: "6px 0 0 24px" }}>
-              Los antecedentes médicos se registran por consulta. Cuando existan respuestas asociadas, aparecerán en el expediente clínico.
+              {hasMedicalAlerts
+                ? "Los antecedentes iniciales fueron guardados en el perfil del paciente y pueden complementarse desde el expediente clínico."
+                : "Los antecedentes médicos se registran por consulta. Cuando existan respuestas asociadas, aparecerán en el expediente clínico."}
             </p>
           </div>
         </div>

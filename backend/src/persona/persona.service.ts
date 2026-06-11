@@ -60,6 +60,11 @@ export class PersonaService {
         id_municipio: createPersonaDto.id_municipio,
         direccion_linea: createPersonaDto.direccion_linea,
         sexo: createPersonaDto.sexo,
+        enfermedades: createPersonaDto.enfermedades ?? null,
+        otras_enfermedades: createPersonaDto.otras_enfermedades ?? null,
+        medicamentos: createPersonaDto.medicamentos ?? null,
+        alergias: createPersonaDto.alergias ?? null,
+        reaccion_anestesia: createPersonaDto.reaccion_anestesia ?? null,
       },
       include: {
         municipio: {
@@ -301,6 +306,16 @@ export class PersonaService {
       updateData.id_municipio = updatePersonaDto.id_municipio;
     if (updatePersonaDto.direccion_linea !== undefined)
       updateData.direccion_linea = updatePersonaDto.direccion_linea;
+    if (updatePersonaDto.enfermedades !== undefined)
+      updateData.enfermedades = updatePersonaDto.enfermedades;
+    if (updatePersonaDto.otras_enfermedades !== undefined)
+      updateData.otras_enfermedades = updatePersonaDto.otras_enfermedades;
+    if (updatePersonaDto.medicamentos !== undefined)
+      updateData.medicamentos = updatePersonaDto.medicamentos;
+    if (updatePersonaDto.alergias !== undefined)
+      updateData.alergias = updatePersonaDto.alergias;
+    if (updatePersonaDto.reaccion_anestesia !== undefined)
+      updateData.reaccion_anestesia = updatePersonaDto.reaccion_anestesia;
     if (updatePersonaDto.sexo !== undefined)
       updateData.sexo = updatePersonaDto.sexo;
 

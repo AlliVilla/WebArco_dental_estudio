@@ -31,12 +31,13 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
 
   const mode = (searchParams.get("mode") as ConsentMode | null) ?? "list";
   const selectedId = searchParams.get("id");
+  const patientNameFromQuery = searchParams.get("patientName") ?? undefined;
 
   const [consents, setConsents] = useState<ConsentRecord[]>(initialConsents);
 
   const [formValues, setFormValues] = useState<ConsentFormValues>({
     ...defaultFormValues,
-    paciente: patientName ?? defaultFormValues.paciente,
+    paciente: patientNameFromQuery ?? patientName ?? defaultFormValues.paciente,
   });
 
   const [currentStep, setCurrentStep] = useState<ConsentStep>(1);
@@ -93,7 +94,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   function startNewConsent() {
     setFormValues({
       ...defaultFormValues,
-      paciente: patientName ?? defaultFormValues.paciente,
+      paciente: patientNameFromQuery ?? patientName ?? defaultFormValues.paciente,
     });
 
     setPatientSignature("");

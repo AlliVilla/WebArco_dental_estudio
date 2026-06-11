@@ -99,6 +99,11 @@ model Persona {
   id_municipio       Int
   direccion_linea    String?  @db.Text
   sexo Sexo
+  enfermedades       String?  @db.Text
+  otras_enfermedades String?  @db.Text
+  medicamentos       String?  @db.Text
+  alergias           String?  @db.Text
+  reaccion_anestesia String?  @db.VarChar(20)
   municipio Municipio @relation(fields: [id_municipio], references: [id_municipio])
   usuarios  Usuario[]
   consultas Consulta[]
