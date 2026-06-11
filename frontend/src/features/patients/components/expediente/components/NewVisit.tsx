@@ -4,9 +4,11 @@ import {
     Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
     Loader2, Tag, Zap, Clock, User, ShieldAlert,
 } from 'lucide-react';
-import { ExpedientePaciente } from './ExpedienteScreen';
+import { ExpedientePaciente } from '../types/index';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
 import { Button, Input } from '../../../../../context';
+import { calcularEdad , formatDate} from '../services/miscelaneousService';
+import { expedientService } from '../services/expedientService';
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -96,17 +98,12 @@ const STEP_LABELS = ['Paciente y Cita', 'Motivo y Odontograma', 'Tratamientos y 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2); }
 
-function mockApiPost<T>(payload: T): Promise<{ success: boolean; data: T; message: string }> {
-    return new Promise((resolve, reject) =>
-        setTimeout(() => {
-            if (Math.random() > 0.02) {
-                resolve({ success: true, data: payload, message: 'Visita registrada correctamente.' });
-            } else {
-                reject({ success: false, data: null, message: 'Error interno del servidor. Intenta de nuevo.' });
-            }
-        }, 1800),
-    );
-}
+const DOCTOR_MAP: Record<string, number> = {
+    'Dra. Karla Arita': 1,
+    'Dr. Miguel Herrera': 2,
+    'Dra. Sofía Munguía': 3,
+    'Dr. Andrés López': 4,
+};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: string) => void }) {
@@ -251,17 +248,17 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     const [toasts, setToasts] = useState<ToastMsg[]>([]);
 
     // ── STEP 1: Paciente y Cita ──
-    const [primerNombre, setPrimerNombre] = useState(patient.primerNombre || '');
-    const [segundoNombre, setSegundoNombre] = useState(patient.segundoNombre || '');
-    const [primerApellido, setPrimerApellido] = useState(patient.primerApellido || '');
-    const [segundoApellido, setSegundoApellido] = useState(patient.segundoApellido || '');
-    const [identidad, setIdentidad] = useState(patient.identidad || '');
-    const [fechaNacimiento, setFechaNacimiento] = useState(patient.fechaNacimiento || '');
+    const [primerNombre, setPrimerNombre] = useState(patient.primer_nombre || '');
+    const [segundoNombre, setSegundoNombre] = useState(patient.segundo_nombre || '');
+    const [primerApellido, setPrimerApellido] = useState(patient.primer_apellido || '');
+    const [segundoApellido, setSegundoApellido] = useState(patient.segundo_apellido || '');
+    const [identidad, setIdentidad] = useState(patient.numero_identidad || '');
+    const [fechaNacimiento, setFechaNacimiento] = useState(patient.fecha_nacimiento || '');
     const [telefono, setTelefono] = useState(patient.telefono || '');
-    const [correo, setCorreo] = useState(patient.correo || '');
-    const [departamento, setDepartamento] = useState(patient.departamento || '');
-    const [ciudad, setCiudad] = useState(patient.ciudad || '');
-    const [direccion, setDireccion] = useState(patient.direccion || '');
+    const [correo, setCorreo] = useState(patient.correo_electronico || '');
+    const [departamento, setDepartamento] = useState(patient.municipio.departamento.nombre || '');
+    const [ciudad, setCiudad] = useState(patient.municipio.nombre || '');
+    const [direccion, setDireccion] = useState(patient.direccion_linea || '');
     const [enfermedadBase, setEnfermedadBase] = useState(patient.enfermedadBase || '');
     const [tomaMedicamento, setTomaMedicamento] = useState(patient.tomaMedicamento || '');
     const [alergias, setAlergias] = useState(patient.alergias || '');
@@ -454,30 +451,24 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         if (archivos.some((a) => a.uploading)) { addToast('error', 'Espera a que terminen de cargarse todas las imágenes.'); return; }
 
         setSaving(true);
+
+        const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
+        const idUsuario = DOCTOR_MAP[doctor] ?? 1;
+
         const payload = {
-            patientId: patient.id,
-            patientName: `${primerNombre} ${primerApellido}`,
-            identidad,
-            fecha,
-            hora,
-            doctor,
-            bajoTratamientoMedico,
-            motivo,
-            ultimaVisitaOdontologo,
-            tipoVisita,
-            diagnostico,
-            notas,
-            archivos: archivos.map((a) => ({ nombre: a.file.name, categoria: a.categoria })),
-            tratamientos: tratamientos.map((t) => ({ id: t.id, nombre: t.nombre, precio: t.precio, cantidad: t.cantidad, descuento: t.descuento })),
-            cobro: { subtotal, descuentoGlobal: descGlobal, total, anticipo: anticipoNum, saldo, metodoPago },
-            odontograma: teethState,
+            id_usuario: idUsuario,
+            fecha_inicio: fechaISO,
+            diagnostico: `${motivo}\n\n${diagnostico}`,
+            notas_adicionales: notas || undefined,
         };
 
         try {
-            const res = await mockApiPost(payload);
+            const res = await expedientService.registrarVisita(patient.id_persona, payload);
             if (res.success) {
-                addToast('success', res.message);
+                addToast('success', res.message || 'Visita registrada exitosamente');
                 setTimeout(onSave, 1000);
+            } else {
+                addToast('error', res.message || 'Error al guardar la visita.');
             }
         } catch (err: unknown) {
             const msg = (err as { message?: string })?.message ?? 'Error al guardar la visita.';
@@ -508,7 +499,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                     isEmbedded={true}
                     patientName={`${primerNombre} ${primerApellido}`}
                     patientIdentidad={identidad}
-                    initialDentition={patient.edad < 12 ? 'child' : 'adult'}
+                    initialDentition={calcularEdad(patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
                     onSaveEmbedded={(updatedTeeth, modifiedList) => {
                         setTeethState(updatedTeeth);
                         setModifiedTeethCount(modifiedList.length);
@@ -542,7 +533,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                     </button>
                     <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>Registrar Nueva Visita</div>
                     <div style={{ fontSize: 13, color: C.gray700 }}>
-                        Paciente seleccionado: <strong style={{ color: C.primary }}>{patient.nombre}</strong>
+                        Paciente seleccionado:     <strong style={{ color: C.primary }}>{[patient.primer_nombre, patient.segundo_nombre, patient.primer_apellido, patient.segundo_apellido].filter(Boolean).join(' ')}</strong>
                     </div>
                 </div>
 
@@ -610,7 +601,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Fecha de Nacimiento</FieldLabel>
-                                    <TextInput type="date" value={fechaNacimiento} onChange={setFechaNacimiento} placeholder="YYYY-MM-DD" />
+                                    <TextInput type="date" value={formatDate(fechaNacimiento)} onChange={(e: any) => setFechaNacimiento(new Date(e.target.value))} placeholder="YYYY-MM-DD" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Teléfono</FieldLabel>

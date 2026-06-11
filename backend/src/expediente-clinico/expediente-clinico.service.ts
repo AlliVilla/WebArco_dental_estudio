@@ -8,7 +8,6 @@ import { ActualizarFirmasDto } from './dto/actualizar-firmas.dto';
 const doctorSelect = {
   id_usuario: true,
   username: true,
-  firma: true,
   persona: {
     select: {
       primer_nombre: true,
@@ -98,7 +97,7 @@ export class ExpedienteClinicoService {
 
     const totalConsultas = consultas.length;
     const firmasPendientes = consultas.filter(
-      (c) => !c.firma_paciente || !c.doctor.firma,
+      (c) => !c.firma_paciente || !c.firma_doctor_snapshot,
     ).length;
 
     return {
@@ -128,7 +127,7 @@ export class ExpedienteClinicoService {
         id_persona: idPaciente,
         OR: [
           { firma_paciente: null },
-          { doctor: { firma: null } },
+          { firma_doctor_snapshot: null },
         ],
       },
       include: visitaInclude,
@@ -190,14 +189,13 @@ export class ExpedienteClinicoService {
         include: visitaInclude,
       }) as Prisma.ConsultaGetPayload<{ include: typeof visitaInclude }>;
 
-      // 2. Actualizar la firma del doctor si se proporcionó
+      // 2. Guardar firma del doctor como snapshot en la consulta
       if (dto.firma_doctor) {
-        await tx.usuario.update({
-          where: { id_usuario: dto.id_usuario },
-          data: { firma: dto.firma_doctor },
+        await tx.consulta.update({
+          where: { id_consulta: nuevaConsulta.id_consulta },
+          data: { firma_doctor_snapshot: dto.firma_doctor },
         });
-        // Reflejar la nueva firma en el objeto doctor de la consulta
-        nuevaConsulta.doctor.firma = dto.firma_doctor;
+        nuevaConsulta.firma_doctor_snapshot = dto.firma_doctor;
       }
 
       return nuevaConsulta;
@@ -279,7 +277,7 @@ export class ExpedienteClinicoService {
         'La firma del paciente ya existe en esta visita y no puede ser sobreescrita',
       );
     }
-    if (dto.firma_doctor && visita.doctor.firma) {
+    if (dto.firma_doctor && visita.firma_doctor_snapshot) {
       throw new BadRequestException(
         'La firma del doctor ya existe y no puede ser sobreescrita',
       );
@@ -287,11 +285,18 @@ export class ExpedienteClinicoService {
 
     // Aplicar actualizaciones en una transacción
     const visitaActualizada = await this.prisma.$transaction(async (tx) => {
-      // 1. Actualizar firma del paciente en la consulta si se proveyó
-      const datosConsulta: { firma_paciente?: string; consentimiento?: boolean } = {};
+      // 1. Actualizar firmas en la consulta
+      const datosConsulta: {
+        firma_paciente?: string;
+        consentimiento?: boolean;
+        firma_doctor_snapshot?: string;
+      } = {};
       if (dto.firma_paciente) {
         datosConsulta.firma_paciente = dto.firma_paciente;
         datosConsulta.consentimiento = true;
+      }
+      if (dto.firma_doctor) {
+        datosConsulta.firma_doctor_snapshot = dto.firma_doctor;
       }
 
       const consultaActualizada = await tx.consulta.update({
@@ -299,17 +304,6 @@ export class ExpedienteClinicoService {
         data: datosConsulta,
         include: visitaInclude,
       });
-
-      // 2. Actualizar firma del doctor en el perfil del usuario si se proveyó
-      if (dto.firma_doctor) {
-        await tx.usuario.update({
-          where: { id_usuario: visita.id_usuario },
-          data: { firma: dto.firma_doctor },
-        });
-        // Reflejar el cambio en el objeto retornado
-        (consultaActualizada.doctor as { firma: string | null }).firma =
-          dto.firma_doctor;
-      }
 
       return consultaActualizada;
     });
@@ -336,11 +330,11 @@ export class ExpedienteClinicoService {
   private mapearConsultaConEstadoFirmas(consulta: {
     id_consulta: number;
     firma_paciente: string | null;
-    doctor: { firma: string | null };
+    firma_doctor_snapshot: string | null;
     [key: string]: unknown;
   }) {
     const firmaPacientePresente = Boolean(consulta.firma_paciente);
-    const firmaDoctorPresente = Boolean(consulta.doctor.firma);
+    const firmaDoctorPresente = Boolean(consulta.firma_doctor_snapshot);
 
     return {
       ...consulta,

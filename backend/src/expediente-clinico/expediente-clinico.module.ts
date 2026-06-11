@@ -5,5 +5,6 @@ import { ExpedienteClinicoService } from './expediente-clinico.service';
 @Module({
   controllers: [ExpedienteClinicoController],
   providers: [ExpedienteClinicoService],
+  exports: [ExpedienteClinicoService],
 })
 export class ExpedienteClinicoModule {}

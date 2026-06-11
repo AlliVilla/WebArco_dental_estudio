@@ -36,7 +36,7 @@ import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
 
 @ApiTags('Expediente Clínico')
-@Controller('clinical-history')
+@Controller('expediente-clinico')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })

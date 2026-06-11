@@ -13,6 +13,9 @@ const { insertCategoriasInsumo } = require("./seeders/categorias-insumo");
 const { insertUnidadesMedida } = require("./seeders/unidades-medida");
 const { insertConsultas } = require("./seeders/consultas");
 const { insertOdontograma } = require("./seeders/odontograma");
+const { insertTratamientos } = require("./seeders/tratamiento");
+const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
+const { insertArchivos } = require("./seeders/archivos");
 
 async function insertSeeder(){
     try{
@@ -28,7 +31,10 @@ async function insertSeeder(){
         await insertPersonas();
         await insertUsuarios();
         await insertConsultas();
+        await insertArchivos();
         await insertOdontograma();
+        await insertTratamientos();
+        await insertConsultaTratamientos();
         console.log("Seeder realizado exitosamente")
     }catch(error){
         console.error("Error:", error);
