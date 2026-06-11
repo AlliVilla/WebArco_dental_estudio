@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { AppFooter } from '../components/AppFooter';
+
 
 interface MainLayoutProps {
   children?: React.ReactNode;
@@ -151,8 +151,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         <main style={{ marginTop: 60, padding: 24, width: '100%', flex: 1, minHeight: 0 }}>
           <Outlet />
         </main>
-
-        <AppFooter />
       </div>
     </div>
   );
