@@ -1,23 +1,38 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { AppointmentsScreen, AppointmentDetailScreen, AppointmentFormScreen, PatientAppointmentHistoryScreen } from './features/appointments';
-import { LoginForm } from './features/auth/components/LoginForm';
-import { ResetPasswordPage } from './features/auth/components/ResetPasswordPage';
-import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
-import { RecordatoriosScreen } from './features/reminders';
-import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
-import { GestionIngresos } from './features/billing/components/GestionIngresos';
-import { InventoryHistoryScreen, InventoryScreen } from './features/inventory';
-import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
-import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
-import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
-import { PatientFormScreen, PatientProfileScreen, PatientsScreen } from './features/patients';
-import { PermissionsManagementScreen, RolesScreen, UsersScreen } from './features/users';
+import { Navigate, Route, Routes } from "react-router-dom";
+import {
+  AppointmentsScreen,
+  AppointmentDetailScreen,
+  AppointmentFormScreen,
+  PatientAppointmentHistoryScreen,
+} from "./features/appointments";
+import { LoginForm } from "./features/auth/components/LoginForm";
+import { ResetPasswordPage } from "./features/auth/components/ResetPasswordPage";
+import { ListaFinanciera } from "./features/billing/components/ListaFinanciera";
+import { RecordatoriosScreen } from "./features/reminders";
+import { HistorialConfirmacionesScreen } from "./features/reminders/components/HistorialConfirmacionesScreen";
+import { GestionIngresos } from "./features/billing/components/GestionIngresos";
+import { ConsentScreen } from "./features/patients/components/consentimientos/components/ConsentScreen";
+import { ExpedienteScreen } from "./features/patients/components/expediente/components/ExpedienteScreen";
+import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
+import {
+  PatientFormScreen,
+  PatientProfileScreen,
+  PatientsScreen,
+} from "./features/patients";
+import {
+  PermissionsManagementScreen,
+  RolesScreen,
+  UsersScreen,
+} from "./features/users";
 
-import { MiPerfil } from './features/users/components/MiPerfil';
-import { Alert, Card, DesignSystemScreen } from './context';
-import { Dashboard } from './page layouts/Dashboard';
-import { MainLayout } from './page layouts/MainLayout';
-import { AuthGuard, GuestGuard } from './routes/index';
+import { MiPerfil } from "./features/users/components/MiPerfil";
+import { Alert, Card, DesignSystemScreen } from "./context";
+import { Dashboard } from "./page layouts/Dashboard";
+import { MainLayout } from "./page layouts/MainLayout";
+import { AuthGuard, GuestGuard } from "./routes/index";
+import { InventoryHistoryScreen, InventoryScreen } from "./features/inventory";
+import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
+import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
 
 function App() {
   return (
@@ -51,11 +66,33 @@ function App() {
         <Route path="/agenda" element={<AppointmentsScreen />} />
         <Route path="/agenda/new" element={<AppointmentFormScreen />} />
         <Route path="/agenda/:id" element={<AppointmentDetailScreen />} />
-        <Route path="/agenda/:id/history" element={<PatientAppointmentHistoryScreen />} />
+        <Route
+          path="/agenda/:id/history"
+          element={<PatientAppointmentHistoryScreen />}
+        />
         <Route path="/agenda/:id/edit" element={<AppointmentFormScreen />} />
         <Route path="/agenda/reminders" element={<RecordatoriosScreen />} />
-        <Route path="/agenda/reminders/historial" element={<HistorialConfirmacionesScreen />} />
+        <Route
+          path="/agenda/reminders/historial"
+          element={<HistorialConfirmacionesScreen />}
+        />
         <Route path="/mi-perfil" element={<MiPerfil />} />
+        {/* Patients sub-routes */}
+        <Route
+          path="/patients"
+          element={<Navigate to="/patients/list" replace />}
+        />
+        <Route path="/patients/list" element={<PatientsScreen />} />
+        <Route path="/patients/new" element={<PatientFormScreen />} />
+        <Route path="/patients/edit/:id" element={<PatientFormScreen />} />
+        <Route
+          path="/patients/profile/:id"
+          element={<PatientProfileScreen />}
+        />
+        <Route
+          path="/patients/odontogram"
+          element={<OdontogramScreen consultaId={18} />}
+        />
 
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
@@ -65,30 +102,69 @@ function App() {
         <Route path="/patients/odontogram" element={<OdontogramScreen />} />
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
-
+        <Route path="/treatments" element={<TreatmentsScreen />} />
+        <Route
+          path="/treatments/new"
+          element={<TreatmentForm mode="create" />}
+        />
+        <Route
+          path="/treatments/edit/:id"
+          element={<TreatmentForm mode="edit" />}
+        />
         <Route
           path="/treatments"
           element={
             <div style={{ padding: 20 }}>
               <Card>
-                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Tratamientos</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Módulo de tratamientos en desarrollo.</p>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: "#203F49",
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Tratamientos
+                </h3>
+                <p
+                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
+                >
+                  Módulo de tratamientos en desarrollo.
+                </p>
               </Card>
             </div>
           }
         />
 
-        <Route path="/billing" element={<Navigate to="/billing/income" replace />} />
+        <Route
+          path="/billing"
+          element={<Navigate to="/billing/income" replace />}
+        />
         <Route path="/billing/income" element={<GestionIngresos />} />
         <Route
           path="/billing/expense"
           element={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <Alert variant="info" message="Módulo de egresos en desarrollo." />
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <Alert
+                variant="info"
+                message="Módulo de egresos en desarrollo."
+              />
               <Card>
-                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Gestión de Egresos</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>
-                  Este módulo te permitirá registrar y administrar los egresos y gastos de la clínica dental.
+                <h3
+                  style={{
+                    margin: 0,
+                    color: "#203F49",
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Gestión de Egresos
+                </h3>
+                <p
+                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
+                >
+                  Este módulo te permitirá registrar y administrar los egresos y
+                  gastos de la clínica dental.
                 </p>
               </Card>
             </div>
@@ -98,25 +174,49 @@ function App() {
         <Route
           path="/billing/closures"
           element={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               <Card>
-                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Cierres de Caja</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Cierres de caja diarios, semanales y mensuales.</p>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: "#203F49",
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Cierres de Caja
+                </h3>
+                <p
+                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
+                >
+                  Cierres de caja diarios, semanales y mensuales.
+                </p>
               </Card>
             </div>
           }
         />
 
         <Route path="/inventory" element={<InventoryScreen />} />
-        <Route path="/inventory/history" element={<InventoryHistoryScreen />} />
-
         <Route
           path="/stats"
           element={
             <div style={{ padding: 20 }}>
               <Card>
-                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Estadísticas</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Módulo de estadísticas en desarrollo.</p>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: "#203F49",
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Estadísticas
+                </h3>
+                <p
+                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
+                >
+                  Módulo de estadísticas en desarrollo.
+                </p>
               </Card>
             </div>
           }
@@ -126,8 +226,21 @@ function App() {
           element={
             <div style={{ padding: 20 }}>
               <Card>
-                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Configuración</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Módulo de configuración en desarrollo.</p>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: "#203F49",
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Configuración
+                </h3>
+                <p
+                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
+                >
+                  Módulo de configuración en desarrollo.
+                </p>
               </Card>
             </div>
           }
@@ -135,8 +248,14 @@ function App() {
 
         <Route path="/users" element={<UsersScreen />} />
         <Route path="/users/roles" element={<RolesScreen />} />
-        <Route path="/users/roles/permisos" element={<PermissionsManagementScreen />} />
-        <Route path="/consent" element={<Navigate to="/patients/consent" replace />} />
+        <Route
+          path="/users/roles/permisos"
+          element={<PermissionsManagementScreen />}
+        />
+        <Route
+          path="/consent"
+          element={<Navigate to="/patients/consent" replace />}
+        />
         <Route path="/design" element={<DesignSystemScreen />} />
       </Route>
 

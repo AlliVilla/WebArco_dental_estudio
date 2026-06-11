@@ -121,8 +121,6 @@ export function RolesScreen(_: RolesScreenProps) {
         setRoles((currentRoles) => currentRoles.filter((role) => role.id_rol !== selectedRole.id_rol));
         setSuccessMessage(response.message);
         setErrorMessage(null);
-        setIsDeleteModalOpen(false);
-        setSelectedRole(null);
         window.setTimeout(() => setSuccessMessage(null), 3500);
       } else {
         setErrorMessage(response.message);
@@ -135,6 +133,8 @@ export function RolesScreen(_: RolesScreenProps) {
     }
 
     setIsDeleting(false);
+    setIsDeleteModalOpen(false);
+    setSelectedRole(null);
   }
 
   return (
