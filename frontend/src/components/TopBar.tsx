@@ -107,34 +107,6 @@ export function TopBar({
         )}
       </div>
 
-      {/* Search — oculto en móvil si hay botón hamburger */}
-      {!showMenuButton && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "#F8F9FA",
-            border: "0.5px solid #D3D7DA",
-            borderRadius: 8,
-            padding: "6px 12px",
-            width: 220,
-          }}
-        >
-          <Search size={14} style={{ color: "#888F94" }} />
-          <input
-            placeholder="Buscar..."
-            style={{
-              border: "none",
-              background: "transparent",
-              outline: "none",
-              fontSize: 13,
-              color: "#203F49",
-              width: "100%",
-            }}
-          />
-        </div>
-      )}
 
       {/* Notifications */}
       <button
@@ -167,7 +139,7 @@ export function TopBar({
       </button>
 
       {/* Avatar */}
-      <button
+      {/* <button
         onClick={() => navigate("/mi-perfil")}
         style={{
           display: "flex",
@@ -196,7 +168,7 @@ export function TopBar({
         >
           KA
         </div>
-      </button>
+      </button>*/}
     </header>
   );
 }
