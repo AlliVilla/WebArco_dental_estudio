@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { AppFooter } from "../components/AppFooter";
 import { useResponsive } from "../hooks/useWindowWidth";
 
 interface MainLayoutProps {
@@ -196,7 +195,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         >
           <Outlet />
         </main>
-        <AppFooter />
       </div>
     </div>
   );
