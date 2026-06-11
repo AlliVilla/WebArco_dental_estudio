@@ -21,6 +21,7 @@ import { InsumoModule } from './insumo/insumo.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.module';
 import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
+import { TratamientoModule } from './tratamiento/tratamiento.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
     InventarioModule,
     CategoriaInsumoModule,
     UnidadMedidaModule,
+    TratamientoModule
   ],
   controllers: [AppController],
   providers: [AppService],

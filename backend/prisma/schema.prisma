@@ -38,22 +38,22 @@ model RolPrivilegio {
 }
 
 model Departamento {
-  id_departamento Int        @id @default(autoincrement())
-  nombre          String     @db.VarChar(255)
+  id_departamento Int    @id @default(autoincrement())
+  nombre          String @db.VarChar(255)
 
-  municipios      Municipio[]
+  municipios Municipio[]
 
   @@map("departamento")
 }
 
 model Municipio {
-  id_municipio     Int          @id @default(autoincrement())
-  nombre           String       @db.VarChar(255)
+  id_municipio Int    @id @default(autoincrement())
+  nombre       String @db.VarChar(255)
 
-  id_departamento   Int
-  departamento     Departamento @relation(fields: [id_departamento], references: [id_departamento])
+  id_departamento Int
+  departamento    Departamento @relation(fields: [id_departamento], references: [id_departamento])
 
-  personas         Persona[]
+  personas Persona[]
 
   @@map("municipio")
 }
@@ -108,30 +108,33 @@ model Persona {
 }
 
 model Usuario {
-  id_usuario Int     @id @default(autoincrement())
-  id_persona Int
-  username   String  @unique @db.VarChar(100)
-  password   String  @db.VarChar(255)
-  id_rol     Int
-  firma      String? @db.Text
-  activo     Boolean @default(true)
-  must_change_password Boolean @default(true) 
 
-  persona           Persona            @relation(fields: [id_persona], references: [id_persona])
-  rol               Rol                @relation(fields: [id_rol], references: [id_rol])
-  consultas         Consulta[]
-  citas             Cita[]
-  historial_estados EstadoHistorial[]
+  id_usuario           Int     @id @default(autoincrement())
+  id_persona           Int
+  username             String  @unique @db.VarChar(100)
+  password             String  @db.VarChar(255)
+  id_rol               Int
+  firma                String? @db.Text
+  activo               Boolean @default(true)
+  must_change_password Boolean @default(true)
+
+  persona                Persona                @relation(fields: [id_persona], references: [id_persona])
+  rol                    Rol                    @relation(fields: [id_rol], references: [id_rol])
+  consultas              Consulta[]
+  citas                  Cita[]
+  historial_estados      EstadoHistorial[]
+  movimientos_inventario MovimientoInventario[]
 
   @@map("usuario")
 }
 
 model AntecedentePregunta {
-  id_pregunta          Int                    @id @default(autoincrement())
-  pregunta             String                 @db.VarChar(255)
+  id_pregunta          Int     @id @default(autoincrement())
+  pregunta             String  @db.VarChar(255)
   orden_num            Int
-  requiere_explicacion Boolean                @default(false)
-  respuestas           AntecedenteRespuesta[]
+  requiere_explicacion Boolean @default(false)
+
+  respuestas AntecedenteRespuesta[]
 
   @@map("antecedente_pregunta")
 }
@@ -207,18 +210,17 @@ model Consulta {
   antecedentes AntecedenteRespuesta[]
   odontogramas Odontograma[]
   pagos        PagoPaciente[]
-  connsultas Consulta_Tratamiento[]
-
+  tratamientos Consulta_Tratamiento[]
   @@map("consulta")
 }
 
 model EstadoHistorial {
-  id_historial    Int        @id @default(autoincrement())
+  id_historial    Int         @id @default(autoincrement())
   id_cita         Int
   estado_anterior EstadoCita?
   estado_nuevo    EstadoCita
   cambiado_por    Int
-  fecha_cambio    DateTime   @default(now())
+  fecha_cambio    DateTime    @default(now())
 
   cita    Cita    @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade)
   usuario Usuario @relation(fields: [cambiado_por], references: [id_usuario])
@@ -228,9 +230,10 @@ model EstadoHistorial {
 }
 
 model Diente {
-  numero_diente Int           @id
-  nombre        String?       @db.VarChar(50)
-  odontogramas  Odontograma[]
+  numero_diente Int     @id
+  nombre        String? @db.VarChar(50)
+
+  odontogramas Odontograma[]
 
   @@map("diente")
 }
@@ -277,6 +280,7 @@ model Tratamiento {
   @@map("tratamiento")
 }
 
+
 model Consulta_Tratamiento {
   id_consulta_tratamiento       Int      @id @default(autoincrement())
   id_tratamiento       Int
@@ -287,3 +291,74 @@ model Consulta_Tratamiento {
   tratamiento Tratamiento @relation(fields: [id_tratamiento], references: [id_tratamiento])
   @@map("consulta_tratamiento")
 }
+
+model CategoriaInsumo {
+  id_categoria Int      @id @default(autoincrement())
+  nombre       String   @unique @db.VarChar(100)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  insumos Insumo[]
+
+  @@map("categoria_insumo")
+}
+
+model UnidadMedida {
+  id_unidad  Int      @id @default(autoincrement())
+  nombre     String   @unique @db.VarChar(100)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  insumos Insumo[]
+
+  @@map("unidad_medida")
+}
+
+model Insumo {
+  id_insumo    Int      @id @default(autoincrement())
+  codigo       String   @unique @db.VarChar(50)
+  nombre       String   @db.VarChar(255)
+  id_categoria Int
+  id_unidad    Int
+  stock_actual Int      @default(0)
+  stock_minimo Int      @default(0)
+  precio_costo Decimal  @db.Decimal(10, 2)
+  activo       Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  categoria   CategoriaInsumo        @relation(fields: [id_categoria], references: [id_categoria])
+  unidad      UnidadMedida           @relation(fields: [id_unidad], references: [id_unidad])
+  movimientos MovimientoInventario[]
+
+  @@index([id_categoria])
+  @@index([id_unidad])
+  @@index([activo])
+  @@map("insumo")
+}
+
+enum TipoMovimiento {
+  Entrada
+  Salida
+}
+
+model MovimientoInventario {
+  id_movimiento Int            @id @default(autoincrement())
+  id_insumo     Int
+  tipo          TipoMovimiento
+  cantidad      Int
+  fecha         DateTime       @default(now()) @db.Timestamp()
+  id_usuario    Int
+  observaciones String?        @db.Text
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+
+  insumo  Insumo  @relation(fields: [id_insumo], references: [id_insumo])
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@index([id_insumo])
+  @@index([id_usuario])
+  @@index([fecha])
+  @@map("movimiento_inventario")
+}
+

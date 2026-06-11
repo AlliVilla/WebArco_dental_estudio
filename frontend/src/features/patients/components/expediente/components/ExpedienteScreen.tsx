@@ -33,21 +33,6 @@ const C = {
   primaryBg: 'var(--accent, #E6F8FB)',
 };
 
-
-const formatLastVisitDate = (dateStr?: string) => {
-  if (!dateStr) return 'Sin visitas registradas';
-  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    const year = parts[0];
-    const monthIndex = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    const monthName = months[monthIndex] || '';
-    return `${day} de ${monthName} de ${year}`;
-  }
-  return dateStr;
-};
-
 const getAlertBadges = (patient: ExpedientePaciente) => {
   const badges: { text: string; color: string; border: string; bg: string }[] = [];
 
@@ -118,7 +103,7 @@ export function ExpedienteScreen() {
   
   const totalVisitas = useMemo(() => {
     return expedientes.reduce(
-      (acc, exp) => acc + (exp.totalVisitas ?? 0),
+      (acc, exp) => acc + (exp.consultas.length ?? 0),
       0
     );
   }, [expedientes]);
@@ -206,7 +191,10 @@ export function ExpedienteScreen() {
 
         return (
           <span style={{ fontWeight: 600, color: 'var(--foreground, #203F49)' }}>
-            {ultimaConsulta?.fecha_fin ?? 'N/A'}
+            {ultimaConsulta?.fecha_fin
+              ? new Date(ultimaConsulta.fecha_fin).toLocaleDateString('es-HN')
+              : 'N/A'
+            }
           </span>
         );
       }
@@ -326,8 +314,8 @@ export function ExpedienteScreen() {
             columns={columns}
             data={expedientes}
             searchable={true}
-            searchPlaceholder="Buscar por nombre o número de identidad..."
-            searchKeys={['nombre', 'numero_identidad']}
+            searchPlaceholder="Buscar por nombre o número de identidad o teléfono..."
+            searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad', 'telefono']}
             getRowKey={(row) => String(row.id_persona)}
             rowActions={getRowActions}
           />
@@ -418,7 +406,7 @@ export function ExpedienteScreen() {
 
                 {/* Last visit */}
                 <div style={{ fontSize: 13, color: '#5F656A', marginTop: 8 }}>
-                  Última visita: {formatLastVisitDate(activePatient.ultimaVisita)}
+                  Última visita: {activePatient.consultas?.[0]?.fecha_fin ? new Date(activePatient.consultas?.[0]?.fecha_fin).toLocaleString('es-HN'): 'N/A'}
                 </div>
 
                 {/* Active medical alerts */}
@@ -487,7 +475,7 @@ export function ExpedienteScreen() {
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Visitas y Consultas</h3>
             
-            {activePatient.consultas.length === 0 ? (
+            {activePatient?.consultas.length === 0 ? (
               <div style={{ border: '2px dashed rgb(11, 197, 223)', borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: 'rgba(11, 197, 223, 0.03)' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'rgb(11, 197, 223)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Sin Visitas Registradas
@@ -500,7 +488,7 @@ export function ExpedienteScreen() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {activePatient.consultas.map((visit) => {
                   const isExpanded = !!expandedVisits[visit.id_consulta];
-                  const totalCosto = visit.tratamiento.reduce((sum, t) => sum + t.costo, 0);
+                  const totalCosto = visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
                   return (
                     <div
                       key={visit.id_consulta}
@@ -552,7 +540,11 @@ export function ExpedienteScreen() {
                             transition: 'background 0.25s',
                             boxShadow: isExpanded ? '0 0 8px #0BC5DF' : 'none'
                           }} />
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{visit.fecha_inicio} - {visit.fecha_fin}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>
+                            {visit.fecha_fin
+                              ? new Date(visit.fecha_fin).toLocaleDateString('es-HN')
+                              : 'N/A'}
+                            </span>
                           <span style={{ fontSize: 13, color: C.gray500 }}>
                             · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.id_usuario}</strong>
                           </span>
@@ -683,9 +675,9 @@ export function ExpedienteScreen() {
                                     borderBottom: `1px solid ${C.gray100}`
                                   }}
                                 >
-                                  <span style={{ fontWeight: 500 }}>{t.nombre}</span>
+                                  <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
                                   <span style={{ fontWeight: 600, color: C.navy }}>
-                                    L. {t.costo.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                    L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                   </span>
                                 </div>
                               ))}
@@ -711,7 +703,7 @@ export function ExpedienteScreen() {
                         )}
 
                         {/* Multimedia attachments */}
-                        {visit.archivos.length > 0 && (
+                        {visit?.archivos?.length > 0 && (
                           <div>
                             <div style={{
                               fontSize: 11,

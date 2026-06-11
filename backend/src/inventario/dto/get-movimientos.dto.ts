@@ -1,41 +1,27 @@
-import { IsOptional, IsInt, IsEnum, IsDateString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { TipoMovimiento } from './create-movimiento.dto';
+import { Type } from 'class-transformer';
+import { IsDateString, IsEnum, IsInt, IsOptional } from 'class-validator';
+import { TipoMovimiento } from '@prisma/client';
 
 export class GetMovimientosDto {
-  @ApiPropertyOptional({ description: 'ID del insumo' })
+  @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsInt({ message: 'El ID del insumo debe ser un número entero' })
   id_insumo?: number;
 
-  @ApiPropertyOptional({ description: 'Tipo de movimiento', enum: TipoMovimiento })
+  @ApiPropertyOptional({ enum: TipoMovimiento, example: TipoMovimiento.Entrada })
   @IsOptional()
-  @IsEnum(TipoMovimiento)
+  @IsEnum(TipoMovimiento, { message: 'Tipo de movimiento inválido' })
   tipo?: TipoMovimiento;
 
-  @ApiPropertyOptional({ description: 'Fecha de inicio (YYYY-MM-DD)' })
+  @ApiPropertyOptional({ example: '2026-06-01' })
   @IsOptional()
-  @IsDateString()
-  fecha_inicio?: string;
+  @IsDateString({}, { message: 'La fecha inicial debe tener formato válido' })
+  fechaInicio?: string;
 
-  @ApiPropertyOptional({ description: 'Fecha de fin (YYYY-MM-DD)' })
+  @ApiPropertyOptional({ example: '2026-06-10' })
   @IsOptional()
-  @IsDateString()
-  fecha_fin?: string;
-
-  @ApiPropertyOptional({ default: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @ApiPropertyOptional({ default: 10 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number = 10;
+  @IsDateString({}, { message: 'La fecha final debe tener formato válido' })
+  fechaFin?: string;
 }

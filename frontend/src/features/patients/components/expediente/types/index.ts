@@ -11,6 +11,7 @@ interface ConsultaHistorica {
   firma_paciente?: string | null;
   firma_doctor_snapshot?: string | null;
   consentimiento: boolean;
+  tratamientos: ConsultaTratamiento [];
 }
 
 export type ExpedientePaciente = {
@@ -44,6 +45,22 @@ export type ExpedientePaciente = {
     };
   }
 };
+
+export type ConsultaTratamiento = {
+  id_consulta_tratamiento: number;
+  id_tratamiento: number;
+  id_consulta: number;
+  descuento: number;
+  precio: number;
+  tratamiento : Tratamiento;
+};
+
+export type Tratamiento = {
+  id_tratamiento: number;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+}
 
 export type ExpedientePacienteResponse = {
   data: ExpedientePaciente[];

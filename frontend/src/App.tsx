@@ -6,6 +6,7 @@ import { ListaFinanciera } from './features/billing/components/ListaFinanciera';
 import { RecordatoriosScreen } from './features/reminders';
 import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
+import { InventoryHistoryScreen, InventoryScreen } from './features/inventory';
 import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
@@ -55,13 +56,13 @@ function App() {
         <Route path="/agenda/reminders" element={<RecordatoriosScreen />} />
         <Route path="/agenda/reminders/historial" element={<HistorialConfirmacionesScreen />} />
         <Route path="/mi-perfil" element={<MiPerfil />} />
-        {/* Patients sub-routes */}
+
         <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
         <Route path="/patients/list" element={<PatientsScreen />} />
         <Route path="/patients/new" element={<PatientFormScreen />} />
         <Route path="/patients/edit/:id" element={<PatientFormScreen />} />
         <Route path="/patients/profile/:id" element={<PatientProfileScreen />} />
-        <Route path="/patients/odontogram" element={<OdontogramScreen consultaId={18} />} />
+        <Route path="/patients/odontogram" element={<OdontogramScreen />} />
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
 
@@ -106,17 +107,9 @@ function App() {
           }
         />
 
-        <Route
-          path="/inventory"
-          element={
-            <div style={{ padding: 20 }}>
-              <Card>
-                <h3 style={{ margin: 0, color: '#203F49', fontSize: 16, fontWeight: 600 }}>Inventario</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: '#888F94' }}>Módulo de inventario en desarrollo.</p>
-              </Card>
-            </div>
-          }
-        />
+        <Route path="/inventory" element={<InventoryScreen />} />
+        <Route path="/inventory/history" element={<InventoryHistoryScreen />} />
+
         <Route
           path="/stats"
           element={
