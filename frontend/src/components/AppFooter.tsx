@@ -1,21 +1,5 @@
 import { MapPin, Phone, Mail, Clock } from 'lucide-react';
 
-const responsiveStyle = `
-.footer-grid {
-  display: grid;
-  grid-template-columns: 160px 1fr 1fr 1fr;
-  gap: 32px;
-  margin-bottom: 20px;
-  align-items: start;
-}
-@media (max-width: 768px) {
-  .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-}
-`;
-
 export function AppFooter() {
   const year = new Date().getFullYear();
 
@@ -26,18 +10,19 @@ export function AppFooter() {
       padding: '24px 24px 20px',
       marginTop: 'auto',
     }}>
-    <style>{responsiveStyle}</style>
-    <div className="footer-grid">
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '160px 1fr 1fr 1fr',
+      gap: 32,
+      marginBottom: 20,
+      alignItems: 'start',
+    }}>
 
     {/* Logo placeholder */}
     <div style={{
-      width: 120,
-      height: 80,
-      borderRadius: 10,
+      width: 120, height: 80, borderRadius: 10,
       border: '1.5px dashed #5F656A',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexShrink: 0,
     }}>
     <span style={{ fontSize: 10, color: '#5F656A', textAlign: 'center', lineHeight: '14px' }}>
@@ -58,10 +43,7 @@ export function AppFooter() {
 
     {/* Columna 2 — Contacto */}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    <p style={{
-      margin: '0 0 4px', fontSize: 11, fontWeight: 600,
-      color: '#0BC5DF', textTransform: 'uppercase', letterSpacing: '0.6px',
-    }}>
+    <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 600, color: '#0BC5DF', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
     Contacto
     </p>
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
@@ -86,10 +68,7 @@ export function AppFooter() {
 
     {/* Columna 3 — Horario */}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    <p style={{
-      margin: '0 0 4px', fontSize: 11, fontWeight: 600,
-      color: '#0BC5DF', textTransform: 'uppercase', letterSpacing: '0.6px',
-    }}>
+    <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 600, color: '#0BC5DF', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
     Horario de atención
     </p>
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
@@ -98,14 +77,11 @@ export function AppFooter() {
     {[
       { dias: 'Lunes – Viernes', horas: '8:00 AM – 6:00 PM' },
       { dias: 'Sábado',          horas: '8:00 AM – 1:00 PM' },
-      { dias: 'Domingo',         horas: 'Cerrado' },
+      { dias: 'Domingo',         horas: 'Cerrado'            },
     ].map(({ dias, horas }) => (
       <div key={dias} style={{ display: 'flex', gap: 8, fontSize: 12 }}>
       <span style={{ minWidth: 130, color: '#D3D7DA' }}>{dias}</span>
-      <span style={{
-        color: horas === 'Cerrado' ? '#E24B4A' : '#fff',
-        fontWeight: horas === 'Cerrado' ? 400 : 500,
-      }}>
+      <span style={{ color: horas === 'Cerrado' ? '#E24B4A' : '#fff', fontWeight: horas === 'Cerrado' ? 400 : 500 }}>
       {horas}
       </span>
       </div>
@@ -116,14 +92,8 @@ export function AppFooter() {
 
     </div>
 
-    {/* Línea de copyright */}
-    <div style={{
-      borderTop: '1px solid #2e5563',
-      paddingTop: 14,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    }}>
+    {/* Copyright */}
+    <div style={{ borderTop: '1px solid #2e5563', paddingTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
     <span style={{ fontSize: 11, color: '#888F94' }}>
     © {year} ARCO Dental Studio. Todos los derechos reservados.
     </span>
@@ -132,5 +102,6 @@ export function AppFooter() {
     </span>
     </div>
     </footer>
+
   );
 }

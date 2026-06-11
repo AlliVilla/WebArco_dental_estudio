@@ -1,33 +1,18 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Bell, Send, RotateCcw, Phone, Mail, MessageCircle, Clock, RefreshCw, Plus, X} from 'lucide-react';
-import { DataTable, FormSection, FullWidthField } from '../../../components';
-import { Avatar, Button, Input, Select } from '../../../context';
+import {  Send, RotateCcw, Clock, RefreshCw, Plus } from 'lucide-react';
+import { DataTable } from '../../../components';
+import { Avatar } from '../../../context';
 import { ReminderService } from '../services/ReminderService';
-import { formatDate } from '../../../utils/formatters';
+import { formatDate, formatInitials } from '../../../utils/formatters';
 import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio } from '../types';
+import { CANAL_CONFIG, ESTADO_CONFIG } from '../utils/badgeConfigs';
+import { NuevoRecordatorioForm } from './NuevoRecordatorioForm';
+
+const AUTO_REFRESH_INTERVAL = 24 * 60 * 60 * 1000
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface RecordatoriosScreenProps {}
-
-// ─── Helpers locales ──────────────────────────────────────────────────────────
-
-const CANAL_CONFIG: Record<CanalRecordatorio, { icon: React.ReactNode; color: string; bg: string }> = {
-  WhatsApp: { icon: <MessageCircle size={13} />, color: '#1D9E75', bg: '#ECFDF5' },
-  SMS:      { icon: <Phone size={13} />,         color: '#EF9F27', bg: '#FFF8EC' },
-  Correo:   { icon: <Mail size={13} />,          color: '#0BC5DF', bg: '#E6F8FB' },
-};
-
-const ESTADO_CONFIG: Record<EstadoEnvio, { color: string; bg: string; dot: string }> = {
-  Pendiente: { color: '#EF9F27', bg: '#FFF8EC',  dot: '#EF9F27' },
-  Enviado:   { color: '#1D9E75', bg: '#ECFDF5',  dot: '#1D9E75' },
-  Error:     { color: '#E24B4A', bg: '#FEF2F2',  dot: '#E24B4A' },
-};
-
-function getInitials(nombre: string) {
-  const [a, b] = nombre.trim().split(' ');
-  return ((a?.[0] ?? '') + (b?.[0] ?? '')).toUpperCase();
-}
 
 function formatHoraCita(iso: string) {
   return new Date(iso).toLocaleTimeString('es-HN', {
@@ -93,159 +78,6 @@ function UrgenteBadge() {
   );
 }
 
-// ─── Formulario modal ─────────────────────────────────────────────────────────
-
-interface NuevoRecordatorioFormProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-interface FormState {
-  id_cita: string;
-  canal: CanalRecordatorio | '';
-}
-
-const FORM_INITIAL: FormState = { id_cita: '', canal: '' };
-
-function NuevoRecordatorioForm({ open, onClose, onCreated }: NuevoRecordatorioFormProps) {
-  const [form, setForm] = useState<FormState>(FORM_INITIAL);
-  const [errors, setErrors] = useState<Partial<FormState>>({});
-  const [loading, setLoading] = useState(false);
-
-  if (!open) return null;
-
-  function validate(): boolean {
-    const next: Partial<FormState> = {};
-    if (!form.id_cita.trim()) next.id_cita = 'Requerido';
-    if (!form.canal)          next.canal   = 'Requerido' as CanalRecordatorio;
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  }
-
-  async function handleSubmit() {
-    if (!validate()) return;
-    setLoading(true);
-    try {
-      await ReminderService.send({
-        id_cita: Number(form.id_cita),
-                                 canal: form.canal as CanalRecordatorio,
-      });
-      setForm(FORM_INITIAL);
-      setErrors({});
-      onCreated();
-      onClose();
-    } catch {
-      setErrors({ id_cita: 'Error al crear el recordatorio. Intenta de nuevo.' });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleClose() {
-    setForm(FORM_INITIAL);
-    setErrors({});
-    onClose();
-  }
-
-  return (
-    <div
-    style={{
-      position: 'fixed', inset: 0,
-      background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)',
-          zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-    }}
-    onClick={handleClose}
-    >
-    <div
-    style={{
-      background: '#fff', borderRadius: 14, width: '100%', maxWidth: 480,
-      boxShadow: '0px 10px 30px rgba(0,0,0,0.15)', zIndex: 51,
-          display: 'flex', flexDirection: 'column', gap: 0,
-    }}
-    onClick={(e) => e.stopPropagation()}
-    >
-    {/* Header */}
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '20px 24px', borderBottom: '1px solid #F1F3F4',
-    }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-    <div style={{
-      width: 36, height: 36, borderRadius: 10, background: '#E6F8FB',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-    <Bell size={18} style={{ color: '#0BC5DF' }} />
-    </div>
-    <div>
-    <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#203F49' }}>
-    Nuevo recordatorio
-    </p>
-    <p style={{ margin: 0, fontSize: 12, color: '#888F94' }}>
-    Enviar recordatorio de cita al paciente
-    </p>
-    </div>
-    </div>
-    <button
-    onClick={handleClose}
-    style={{
-      background: 'none', border: 'none', cursor: 'pointer',
-      color: '#888F94', display: 'flex', alignItems: 'center', padding: 4,
-    }}
-    >
-    <X size={18} />
-    </button>
-    </div>
-
-    {/* Body */}
-    <div style={{ padding: '20px 24px' }}>
-    <FormSection title="Datos del recordatorio" icon={<Bell size={18} />} columns={1}>
-    <FullWidthField>
-    <Input
-    label="ID de cita"
-    badge="required"
-    placeholder="Ej. 1042"
-    type="number"
-    value={form.id_cita}
-    onChange={(e) => setForm((p) => ({ ...p, id_cita: e.target.value }))}
-    error={errors.id_cita}
-    />
-    </FullWidthField>
-    <FullWidthField>
-    <Select
-    label="Canal de envío"
-    badge="required"
-    placeholder="Selecciona un canal"
-    value={form.canal}
-    onChange={(v) => setForm((p) => ({ ...p, canal: v as CanalRecordatorio }))}
-    error={errors.canal}
-    options={[
-      { value: 'WhatsApp', label: '💬 WhatsApp' },
-      { value: 'SMS',      label: '📱 SMS'      },
-      { value: 'Correo',   label: '✉️ Correo'   },
-    ]}
-    />
-    </FullWidthField>
-    </FormSection>
-    </div>
-
-    {/* Footer */}
-    <div style={{
-      display: 'flex', gap: 10, justifyContent: 'flex-end',
-      padding: '16px 24px', borderTop: '1px solid #F1F3F4',
-    }}>
-    <Button variant="secondary" onClick={handleClose}>
-    Cancelar
-    </Button>
-    <Button variant="primary" onClick={handleSubmit} loading={loading}>
-    Enviar recordatorio
-    </Button>
-    </div>
-    </div>
-    </div>
-  );
-}
-
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
@@ -279,12 +111,21 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
 
   // Carga inicial
   useEffect(() => {
+    const id = 'reminders-spin-keyframe';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }, [fetchQueue]);
+
+  useEffect(() => {
     fetchQueue();
   }, [fetchQueue]);
 
   // Auto-refresh cada 24 horas
   useEffect(() => {
-    const interval = setInterval(fetchQueue, 24 * 60 * 60 * 1000);
+    const interval = setInterval(fetchQueue, AUTO_REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchQueue]);
 
@@ -338,7 +179,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       width: '25%',
       render: (_: unknown, row: Row) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar initials={getInitials(row.paciente as string)} size={32} />
+          <Avatar initials={formatInitials(row.paciente as string)} size={32} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>
               {row.paciente as string}
@@ -504,7 +345,6 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
 
 
       {/* Spinner keyframe (solo necesario una vez en el DOM) */}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
