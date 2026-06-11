@@ -345,7 +345,7 @@ export function AppointmentsScreen() {
           display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
         }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted, textTransform: 'uppercase' }}>
-            Leyenda:
+            Estados:
           </span>
           {Object.entries(STATUS_COLORS).map(([status, color]) => (
             <div key={status} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

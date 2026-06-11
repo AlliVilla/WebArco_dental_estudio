@@ -33,9 +33,9 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     programada: { label: 'Programada', bg: '#E6F8FB', color: '#0BC5DF' },
     confirmada: { label: 'Confirmada', bg: '#ECFDF5', color: '#1D9E75' },
     cancelada: { label: 'Cancelada', bg: '#FEF2F2', color: '#E24B4A' },
-    atendida: { label: 'Atendida', bg: '#F1F3F4', color: '#5F656A' },
+    atendida: { label: 'Atendida', bg: '#F1F3F4', color: '#203F49' },
     ausente: { label: 'Ausente', bg: '#FFFBEB', color: '#EF9F27' },
-    reprogramada: { label: 'Reprogramada', bg: '#F5F3FF', color: '#7C3AED' },
+    reprogramada: { label: 'Reprogramada', bg: '#EFF6FF', color: '#3B82F6' },
   };
   const s = map[status];
   return (

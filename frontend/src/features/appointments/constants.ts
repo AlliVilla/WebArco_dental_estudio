@@ -24,10 +24,10 @@ export const STATUS_COLORS: Record<string, string> = {
 
 export const STATUS_STYLES: Record<string, { bg: string; border: string; text: string; label: string }> = {
   programada: { bg: '#E6F8FB', border: '#B2EDF5', text: '#0BC5DF', label: 'Programada' },
-  confirmada: { bg: '#F5F3FF', border: '#DDD6FE', text: '#8B5CF6', label: 'Confirmada' },
-  atendida: { bg: '#ECFDF5', border: '#A7F3D0', text: '#10B981', label: 'Atendida' },
-  cancelada: { bg: '#FEF2F2', border: '#FECACA', text: '#EF4444', label: 'Cancelada' },
-  ausente: { bg: '#FFF7ED', border: '#FFEDD5', text: '#F97316', label: 'Ausente' },
+  confirmada: { bg: '#ECFDF5', border: '#A7F3D0', text: '#1D9E75', label: 'Confirmada' },
+  atendida: { bg: '#F1F3F4', border: '#D3D7DA', text: '#203F49', label: 'Atendida' },
+  cancelada: { bg: '#FEF2F2', border: '#FECACA', text: '#E24B4A', label: 'Cancelada' },
+  ausente: { bg: '#FFFBEB', border: '#FDE68A', text: '#EF9F27', label: 'Ausente' },
   reprogramada: { bg: '#EFF6FF', border: '#BFDBFE', text: '#3B82F6', label: 'Reprogramada' },
 };
 

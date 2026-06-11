@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { COLORS } from '../constants';
+import { COLORS, STATUS_COLORS } from '../constants';
 import type { Appointment } from '../types';
 import { formatDateISO } from '../utils';
 
@@ -188,7 +188,7 @@ export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMo
                         fontSize: 9,
                         padding: '2px 4px',
                         borderRadius: 2,
-                        background: COLORS.primary,
+                        background: STATUS_COLORS[apt.estado] ?? COLORS.primary,
                         color: '#fff',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
