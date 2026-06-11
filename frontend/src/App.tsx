@@ -92,6 +92,13 @@ function App() {
           path="/patients/odontogram"
           element={<OdontogramScreen consultaId={18} />}
         />
+
+        <Route path="/patients" element={<Navigate to="/patients/list" replace />} />
+        <Route path="/patients/list" element={<PatientsScreen />} />
+        <Route path="/patients/new" element={<PatientFormScreen />} />
+        <Route path="/patients/edit/:id" element={<PatientFormScreen />} />
+        <Route path="/patients/profile/:id" element={<PatientProfileScreen />} />
+        <Route path="/patients/odontogram" element={<OdontogramScreen />} />
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
         <Route path="/treatments" element={<TreatmentsScreen />} />

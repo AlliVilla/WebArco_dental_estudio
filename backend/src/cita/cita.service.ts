@@ -455,6 +455,21 @@ export class CitaService {
     }
   }
 
+  async getPendingCount() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.toISOString();
+
+    const count = await this.prisma.cita.count({
+      where: {
+        fecha_inicio: { gte: todayStart },
+        estado: { in: ['programada', 'confirmada'] },
+      },
+    });
+
+    return { count };
+  }
+
   private async assertUsuarioExists(id: number) {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id_usuario: id },

@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useEffect } from "react";
-import svgPaths from "../imports/Sidebar/svg-zii4vktzzu";
-import logoImg from "../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221.png";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
-import { useAuthStore } from "../features/auth/hooks/useAuthStore";
 import { useWindowWidth, BREAKPOINTS } from "../hooks/useWindowWidth";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import svgPaths from '../imports/Sidebar/svg-zii4vktzzu';
+import logoImg from '../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221.png';
+import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { appointmentService } from '../features/appointments/services/appointmentService';
+import { useAuthStore } from '../features/auth/hooks/useAuthStore';
 
 // ── Nav data (SVG paths wired from Figma import) ──────────────────────────────
 
@@ -585,11 +587,29 @@ export function Sidebar({
   onToggle,
 }: SidebarProps) {
   const w = collapsed ? 64 : 240;
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
-    {}
-  );
   const windowWidth = useWindowWidth();
   const isMobile = windowWidth <= BREAKPOINTS.mobile;
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  const location = useLocation();
+
+  useEffect(() => {
+    const loadPendingCount = async () => {
+      try {
+        const res = await appointmentService.getPendingCount();
+        if (res.success && res.data !== null && res.data !== undefined) {
+          const count = res.data.count ?? 0;
+          setPendingCount(count);
+        } else {
+          setPendingCount(0);
+        }
+      } catch (error) {
+        console.error('Error loading pending count:', error);
+        setPendingCount(0);
+      }
+    };
+    loadPendingCount();
+  }, [location]);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
@@ -858,6 +878,23 @@ export function Sidebar({
                             border: "1.5px solid #fff",
                           }}
                         />
+                        )}{item.id === 'citas' && pendingCount > 0 && !collapsed && (
+                        <span style={{
+                          background: '#0BC5DF', color: '#fff',
+                          fontSize: 10, fontWeight: 600,
+                          borderRadius: 10, padding: '1px 6px',
+                          minWidth: 18, textAlign: 'center',
+                          lineHeight: '15px',
+                        }}>
+                          {pendingCount}
+                        </span>
+                      )}
+                      {item.id === 'citas' && pendingCount > 0 && collapsed && (
+                        <span style={{
+                          position: 'absolute', top: 7, right: 8,
+                          width: 7, height: 7, borderRadius: '50%',
+                          background: '#0BC5DF', border: '1.5px solid #fff',
+                        }} />
                       )}
                     </button>
 
