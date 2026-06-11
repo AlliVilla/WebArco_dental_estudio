@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Clock, PenLine, RotateCcw } from "lucide-react";
-import { Button } from "../../../../../context";
+import { Button } from "../../../context";
 
 interface SignaturePadProps {
   title: string;

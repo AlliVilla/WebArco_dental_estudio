@@ -1,15 +1,40 @@
-export interface ConsentTemplate {
-  id: number;
-  titulo: string;
-  contenido: string; // The legal text template
-  activo: boolean;
-}
+export type ConsentStatus = "firmado" | "pendiente_doctor" | "pendiente_paciente";
+export type ConsentMode = "list" | "new" | "edit" | "preview";
+export type ConsentStep = 1 | 2 | 3 | 4;
+export type SignatureTarget = "patient" | "doctor";
 
-export interface PatientConsent {
-  id_consentimiento: number;
-  id_consulta: number;
-  firmado: boolean;
-  firma_imagen?: string; // Base64 signature
-  fecha_firma: string;
-  paciente_nombre: string;
+export type ConsentRecord = Record<string, unknown> & {
+  id: string;
+  fecha: string;
+  paciente: string;
+  procedimiento: string;
+  doctor: string;
+  estado: ConsentStatus;
+  hora: string;
+  declaracion: string;
+  riesgos: string;
+  clausula: string;
+  patientSignature?: string;
+  doctorSignature?: string;
+};
+
+export type ConsentFormValues = {
+  paciente: string;
+  doctor: string;
+  procedimiento: string;
+  fechaHora: string;
+  declaracion: string;
+  riesgos: string;
+  clausula: string;
+};
+
+export type ConsentSearchFilters = {
+  paciente?: string;
+  procedimiento?: string;
+  doctor?: string;
+  estado?: string;
+};
+
+export interface ConsentScreenProps {
+  patientName?: string;
 }

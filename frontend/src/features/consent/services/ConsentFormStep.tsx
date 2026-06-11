@@ -1,8 +1,8 @@
 import { Clock, FileText, PenLine, ShieldCheck, UserRound, X } from "lucide-react";
-import { FormSection, FullWidthField } from "../../../../../components";
-import { Button, Card, Input, Select } from "../../../../../context";
+import { FormSection, FullWidthField } from "../../../components";
+import { Button, Card, Input, Select } from "../../../context";
 import { doctorOptions, procedimientoOptions } from "./consentData";
-import type { ConsentFormValues } from "./types";
+import type { ConsentFormValues } from "../types";
 import { SectionDescription } from "./SectionDescription";
 
 interface ConsentFormStepProps {

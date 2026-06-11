@@ -1,7 +1,7 @@
 import { Download, Edit3, Eye, Printer } from "lucide-react";
-import { DataTable } from "../../../../../components";
-import type { Column, RowAction } from "../../../../../components";
-import type { ConsentRecord, ConsentStatus } from "./types";
+import { DataTable } from "../../../components";
+import type { Column, RowAction } from "../../../components";
+import type { ConsentRecord, ConsentStatus } from "../types";
 import { getStatusMeta } from "./consentUtils";
 import { printConsentDocuments } from "./printConsentDocuments";
 

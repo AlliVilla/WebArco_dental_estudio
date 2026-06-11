@@ -1,7 +1,7 @@
 import { CheckCircle2, Clock, Info, Printer, X } from "lucide-react";
-import { FormSection } from "../../../../../components";
-import { Button, Card, Input } from "../../../../../context";
-import type { ConsentRecord } from "./types";
+import { FormSection } from "../../../components";
+import { Button, Card, Input } from "../../../context";
+import type { ConsentRecord } from "../types";
 import { printConsentDocuments } from "./printConsentDocuments";
 
 interface ConsentPreviewProps {

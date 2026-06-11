@@ -1,5 +1,5 @@
 import { FileText, Plus, Search, ShieldCheck, UserRound, X } from "lucide-react";
-import { Button, Card, Input, Select } from "../../../../../context";
+import { Button, Card, Input, Select } from "../../../context";
 import { statusOptions } from "./consentData";
 
 interface ConsentSearchCardProps {

@@ -1,2 +1,2 @@
-export * from './services/consentService';
-export * from './types';
+export * from "./services/ConsentScreen";
+export * from "./types";

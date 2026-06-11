@@ -1,4 +1,4 @@
-import type { ConsentRecord, ConsentStatus } from "./types";
+import type { ConsentRecord, ConsentStatus } from "../types";
 import { getStatusMeta } from "./consentUtils";
 
 function escapePrintText(value?: string) {

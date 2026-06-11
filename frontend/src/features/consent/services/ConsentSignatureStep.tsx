@@ -1,7 +1,7 @@
 import { CheckCircle2, Clock, FileText, PenLine, ShieldCheck, UserRound } from "lucide-react";
-import { FormSection, FullWidthField } from "../../../../../components";
-import { Alert } from "../../../../../context";
-import type { ConsentFormValues, SignatureTarget } from "./types";
+import { FormSection, FullWidthField } from "../../../components";
+import { Alert } from "../../../context";
+import type { ConsentFormValues, SignatureTarget } from "../types";
 import { SignaturePad } from "./SignaturePad";
 
 interface ConsentSignatureStepProps {

@@ -1,4 +1,4 @@
-import { FullWidthField } from "../../../../../components";
+import { FullWidthField } from "../../../components";
 
 export function SectionDescription({ children }: { children: string }) {
   return (

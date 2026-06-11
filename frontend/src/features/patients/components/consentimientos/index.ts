@@ -1,1 +1,1 @@
-export * from './components/ConsentScreen';
+export * from "../../../consent";

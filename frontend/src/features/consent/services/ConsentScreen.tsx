@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ConfirmModal } from "../../../../../components";
-import { useTheme } from "../../../../../context";
+import { ConfirmModal } from "../../../components";
+import { useTheme } from "../../../context";
 import { ConsentFormFlow } from "./ConsentFormFlow";
 import { ConsentListTable } from "./ConsentListTable";
 import { ConsentPreview } from "./ConsentPreview";
@@ -17,7 +17,7 @@ import type {
   ConsentStatus,
   ConsentStep,
   SignatureTarget,
-} from "./types";
+} from "../types";
 
 export function ConsentScreen({ patientName }: ConsentScreenProps) {
   useTheme();

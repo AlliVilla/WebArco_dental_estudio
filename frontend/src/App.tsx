@@ -7,7 +7,7 @@ import { RecordatoriosScreen } from './features/reminders';
 import { HistorialConfirmacionesScreen } from './features/reminders/components/HistorialConfirmacionesScreen';
 import { GestionIngresos } from './features/billing/components/GestionIngresos';
 import { InventoryHistoryScreen, InventoryScreen } from './features/inventory';
-import { ConsentScreen } from './features/patients/components/consentimientos/components/ConsentScreen';
+import { ConsentScreen } from "./features/consent";
 import { ExpedienteScreen } from './features/patients/components/expediente/components/ExpedienteScreen';
 import { OdontogramScreen } from './features/patients/components/odontograma/components/OdontogramaScreen';
 import { PatientFormScreen, PatientProfileScreen, PatientsScreen } from './features/patients';
