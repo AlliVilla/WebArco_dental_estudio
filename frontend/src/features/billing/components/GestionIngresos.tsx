@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, Alert, Avatar } from "../../../context";
 import {
   DollarSign,
@@ -14,9 +14,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
+import billingService from "../services/billingService";
+import type { CreatePaymentInput, PatientPayment } from "../types";
 
 interface IncomeRecord {
   id: string;
+  idConsulta: number;
   fecha: string;
   paciente: string;
   tratamiento: string;
@@ -24,214 +27,36 @@ interface IncomeRecord {
   metodoPago: "Efectivo" | "Tarjeta" | "Transferencia";
   doctor: string;
   estado: "Pagado" | "Pendiente" | "Parcial";
+  observacion?: string;
 }
 
-const mockData: IncomeRecord[] = [
-  {
-    id: "1",
-    fecha: "2026-06-03",
-    paciente: "María González",
-    tratamiento: "Limpieza dental",
-    monto: 1200,
-    metodoPago: "Tarjeta",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "2",
-    fecha: "2026-06-02",
-    paciente: "Juan Pérez",
-    tratamiento: "Ortodoncia - Consulta",
-    monto: 2500,
+const mapPaymentToIncomeRecord = (payment: PatientPayment): IncomeRecord => {
+  const patientName = payment.consulta?.persona
+    ? `${payment.consulta.persona.nombre} ${payment.consulta.persona.apellido}`.trim()
+    : `Consulta #${payment.id_consulta}`;
+
+  return {
+    id: String(payment.id_pago),
+    idConsulta: payment.id_consulta,
+    fecha: payment.fecha,
+    paciente: patientName,
+    tratamiento:
+      payment.consulta?.tratamiento ||
+      payment.consulta?.diagnostico ||
+      `Pago de consulta #${payment.id_consulta}`,
+    monto: Number(payment.abono),
     metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pendiente",
-  },
-  {
-    id: "3",
-    fecha: "2026-06-01",
-    paciente: "Ana Rodríguez",
-    tratamiento: "Endodoncia",
-    monto: 3800,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
+    doctor: "—",
     estado: "Pagado",
-  },
-  {
-    id: "4",
-    fecha: "2026-06-01",
-    paciente: "Carlos Méndez",
-    tratamiento: "Extracción",
-    monto: 800,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "5",
-    fecha: "2026-05-31",
-    paciente: "Sofía Torres",
-    tratamiento: "Implante dental",
-    monto: 15000,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Parcial",
-  },
-  {
-    id: "6",
-    fecha: "2026-06-03",
-    paciente: "María González",
-    tratamiento: "Limpieza dental",
-    monto: 1200,
-    metodoPago: "Tarjeta",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "7",
-    fecha: "2026-06-02",
-    paciente: "Juan Pérez",
-    tratamiento: "Ortodoncia - Consulta",
-    monto: 2500,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pendiente",
-  },
-  {
-    id: "8",
-    fecha: "2026-06-01",
-    paciente: "Ana Rodríguez",
-    tratamiento: "Endodoncia",
-    monto: 3800,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "9",
-    fecha: "2026-06-01",
-    paciente: "Carlos Méndez",
-    tratamiento: "Extracción",
-    monto: 800,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "10",
-    fecha: "2026-05-31",
-    paciente: "Sofía Torres",
-    tratamiento: "Implante dental",
-    monto: 15000,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Parcial",
-  },
-  {
-    id: "11",
-    fecha: "2026-06-03",
-    paciente: "María González",
-    tratamiento: "Limpieza dental",
-    monto: 1200,
-    metodoPago: "Tarjeta",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "12",
-    fecha: "2026-06-02",
-    paciente: "Juan Pérez",
-    tratamiento: "Ortodoncia - Consulta",
-    monto: 2500,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pendiente",
-  },
-  {
-    id: "13",
-    fecha: "2026-06-01",
-    paciente: "Ana Rodríguez",
-    tratamiento: "Endodoncia",
-    monto: 3800,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "14",
-    fecha: "2026-06-01",
-    paciente: "Carlos Méndez",
-    tratamiento: "Extracción",
-    monto: 800,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "15",
-    fecha: "2026-05-31",
-    paciente: "Sofía Torres",
-    tratamiento: "Implante dental",
-    monto: 15000,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Parcial",
-  },
-  {
-    id: "16",
-    fecha: "2026-06-03",
-    paciente: "María González",
-    tratamiento: "Limpieza dental",
-    monto: 1200,
-    metodoPago: "Tarjeta",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "17",
-    fecha: "2026-06-02",
-    paciente: "Juan Pérez",
-    tratamiento: "Ortodoncia - Consulta",
-    monto: 2500,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pendiente",
-  },
-  {
-    id: "18",
-    fecha: "2026-06-01",
-    paciente: "Ana Rodríguez",
-    tratamiento: "Endodoncia",
-    monto: 3800,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "19",
-    fecha: "2026-06-01",
-    paciente: "Carlos Méndez",
-    tratamiento: "Extracción",
-    monto: 800,
-    metodoPago: "Efectivo",
-    doctor: "Dr. Karla Arita",
-    estado: "Pagado",
-  },
-  {
-    id: "20",
-    fecha: "2026-05-31",
-    paciente: "Sofía Torres",
-    tratamiento: "Implante dental",
-    monto: 15000,
-    metodoPago: "Transferencia",
-    doctor: "Dr. Karla Arita",
-    estado: "Parcial",
-  },
-];
+    observacion: payment.observacion,
+  };
+};
 
 export function GestionIngresos() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [records, setRecords] = useState<IncomeRecord[]>(mockData);
+  const [records, setRecords] = useState<IncomeRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Deletion confirm states
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -239,39 +64,74 @@ export function GestionIngresos() {
 
   // Form states
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
-  const [paciente, setPaciente] = useState("");
-  const [tratamiento, setTratamiento] = useState("");
+  const [idConsulta, setIdConsulta] = useState("");
   const [monto, setMonto] = useState("");
   const [metodoPago, setMetodoPago] = useState<
     "Efectivo" | "Tarjeta" | "Transferencia"
   >("Efectivo");
   const [observaciones, setObservaciones] = useState("");
 
+  const loadPayments = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await billingService.getAll();
+      setRecords((response.data || []).map(mapPaymentToIncomeRecord));
+    } catch (error: any) {
+      setErrorMessage(error?.message || "No se pudo cargar el historial de ingresos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPayments();
+  }, []);
+
+  const totals = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const currentMonth = today.slice(0, 7);
+    const monthRecords = records.filter((record) => record.fecha?.startsWith(currentMonth));
+    const todayRecords = records.filter((record) => record.fecha === today);
+    const monthTotal = monthRecords.reduce((sum, record) => sum + record.monto, 0);
+    const dayTotal = todayRecords.reduce((sum, record) => sum + record.monto, 0);
+
+    return {
+      monthTotal,
+      dayTotal,
+      average: monthRecords.length ? monthTotal / monthRecords.length : 0,
+    };
+  }, [records]);
+
+  const formatCurrency = (value: number) =>
+    `L ${value.toLocaleString("es-HN", { minimumFractionDigits: 2 })}`;
+
   const kpis = [
     {
       label: "Ingresos del Mes",
-      value: "$45,230.00",
+      value: formatCurrency(totals.monthTotal),
       icon: DollarSign,
       color: "#0BC5DF",
       bg: "#E6F8FB",
     },
     {
-      label: "Total Pendiente",
-      value: "$12,450.00",
+      label: "Pagos Registrados",
+      value: String(records.length),
       icon: TrendingUp,
       color: "#EF9F27",
       bg: "#FFFBEB",
     },
     {
       label: "Ingresos del Día",
-      value: "$3,200.00",
+      value: formatCurrency(totals.dayTotal),
       icon: Calendar,
       color: "#1D9E75",
       bg: "#ECFDF5",
     },
     {
       label: "Promedio por Paciente",
-      value: "$1,850.00",
+      value: formatCurrency(totals.average),
       icon: Users,
       color: "#203F49",
       bg: "#F1F3F4",
@@ -318,34 +178,36 @@ export function GestionIngresos() {
     );
   };
 
-  const handleRegisterIncome = (e: React.FormEvent) => {
+  const handleRegisterIncome = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paciente || !tratamiento || !monto) {
-      alert("Por favor complete los campos requeridos");
+    if (!idConsulta || !monto || !fecha) {
+      setErrorMessage("Por favor complete los campos requeridos");
       return;
     }
 
-    const newRecord: IncomeRecord = {
-      id: String(records.length + 1),
+    const payload: CreatePaymentInput = {
+      id_consulta: Number(idConsulta),
       fecha,
-      paciente,
-      tratamiento,
-      monto: Number(monto),
-      metodoPago,
-      doctor: "Dr. Karla Arita",
-      estado: "Pagado",
+      abono: Number(monto),
+      observacion: observaciones || undefined,
     };
 
-    setRecords([newRecord, ...records]);
-    setIsDialogOpen(false);
-    setPaciente("");
-    setTratamiento("");
-    setMonto("");
-    setObservaciones("");
+    try {
+      setErrorMessage(null);
+      const response = await billingService.create(payload);
+      setRecords([mapPaymentToIncomeRecord(response.data), ...records]);
+      setIsDialogOpen(false);
+      setIdConsulta("");
+      setMonto("");
+      setObservaciones("");
+    } catch (error: any) {
+      setErrorMessage(error?.message || "No se pudo registrar el ingreso");
+    }
   };
 
   const columns = [
     { key: "fecha", label: "Fecha", width: 110 },
+    { key: "idConsulta", label: "Consulta", width: 90 },
     {
       key: "paciente",
       label: "Paciente",
@@ -368,7 +230,7 @@ export function GestionIngresos() {
       label: "Monto",
       render: (val: unknown) => (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#1D9E75" }}>
-          ${Number(val).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+          L {Number(val).toLocaleString("es-HN", { minimumFractionDigits: 2 })}
         </span>
       ),
     },
@@ -415,6 +277,8 @@ export function GestionIngresos() {
         variant="info"
         message="Los ingresos se registran automáticamente en el historial del paciente."
       />
+      {errorMessage && <Alert variant="error" message={errorMessage} />}
+      {isLoading && <Alert variant="info" message="Cargando ingresos..." />}
 
       {/* KPIs */}
       <div
@@ -662,13 +526,15 @@ export function GestionIngresos() {
                   <label
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
-                    Paciente
+                    ID Consulta
                   </label>
                   <input
-                    placeholder="Nombre del paciente..."
+                    type="number"
+                    min="1"
+                    placeholder="Ej. 12"
                     required
-                    value={paciente}
-                    onChange={(e) => setPaciente(e.target.value)}
+                    value={idConsulta}
+                    onChange={(e) => setIdConsulta(e.target.value)}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -686,13 +552,11 @@ export function GestionIngresos() {
                 <label
                   style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                 >
-                  Tratamiento / Concepto
+                  Concepto
                 </label>
                 <input
-                  placeholder="Ej. Limpieza dental, Resina..."
-                  required
-                  value={tratamiento}
-                  onChange={(e) => setTratamiento(e.target.value)}
+                  disabled
+                  value="Pago de paciente asociado a la consulta"
                   style={{
                     width: "100%",
                     padding: "10px 12px",
