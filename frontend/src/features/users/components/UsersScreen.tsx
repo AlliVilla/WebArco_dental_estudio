@@ -26,7 +26,6 @@ import {
   Input,
   PasswordInput,
   Select,
-  Card,
   Alert,
   Toggle,
   useTheme,
@@ -546,6 +545,38 @@ export function UsersScreen() {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function scrollModalToTop() {
+    setTimeout(() => {
+      if (modalContainerRef.current) modalContainerRef.current.scrollTop = 0;
+    }, 0);
+  }
+
+  function scrollToFirstError(errors: Record<string, string>) {
+    setTimeout(() => {
+      if (!modalContainerRef.current || !formRef.current) return;
+      // Si hay error de servidor (form), ir al top donde está el Alert
+      if (errors.form) {
+        modalContainerRef.current.scrollTop = 0;
+        return;
+      }
+      // Para errores de campo: buscar el primer elemento con data-field-error
+      const firstError =
+        formRef.current.querySelector<HTMLElement>("[data-field-error]");
+      if (firstError) {
+        const containerRect = modalContainerRef.current.getBoundingClientRect();
+        const errorRect = firstError.getBoundingClientRect();
+        const relativeTop =
+          errorRect.top -
+          containerRect.top +
+          modalContainerRef.current.scrollTop -
+          80;
+        modalContainerRef.current.scrollTop = Math.max(0, relativeTop);
+      }
+    }, 0);
+  }
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [statusTargetUser, setStatusTargetUser] = useState<Usuario | null>(
     null
@@ -586,19 +617,28 @@ export function UsersScreen() {
     return String(doctorRole?.id_rol ?? roles[0]?.id_rol ?? 4);
   }, [roles]);
 
+  // Fix: ref para evitar setState en componente desmontado
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const fetchStats = useCallback(async () => {
     try {
       const res = await userService.getStats();
-      if (res.success) setStats(res.data);
+      if (mountedRef.current && res.success) setStats(res.data);
     } catch {
-      /* silencioso — no exponer en consola en producción */
+      /* silencioso */
     }
   }, []);
 
   const fetchRoles = useCallback(async () => {
     try {
       const res = await roleService.getAll();
-      if (res.success) setRoles(res.data);
+      if (mountedRef.current && res.success) setRoles(res.data);
     } catch {
       /* silencioso */
     }
@@ -616,6 +656,7 @@ export function UsersScreen() {
         nombre: serverParams.search || undefined,
         rol: rolFilter || undefined,
       });
+      if (!mountedRef.current) return;
       if (res.success) {
         setUsers(res.data.usuarios);
         setTotalRecords(res.data.total);
@@ -624,9 +665,10 @@ export function UsersScreen() {
         setErrorMessage(res.message);
       }
     } catch (err: unknown) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Error al cargar los usuarios."
-      );
+      if (mountedRef.current)
+        setErrorMessage(
+          err instanceof Error ? err.message : "Error al cargar los usuarios."
+        );
     }
   }, [serverParams]);
 
@@ -735,6 +777,7 @@ export function UsersScreen() {
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
+      scrollToFirstError(errors);
       setIsSubmitLoading(false);
       return;
     }
@@ -766,6 +809,7 @@ export function UsersScreen() {
           addTimer(() => setSuccessMessage(null), 4000);
         } else {
           setFormErrors({ form: res.message });
+          scrollToFirstError({ form: res.message });
         }
       } else {
         const payload: CreateUsuarioInput = {
@@ -796,15 +840,14 @@ export function UsersScreen() {
           addTimer(() => setSuccessMessage(null), 5000);
         } else {
           setFormErrors({ form: res.message });
+          scrollToFirstError({ form: res.message });
         }
       }
     } catch (err: unknown) {
-      setFormErrors({
-        form:
-          err instanceof Error
-            ? err.message
-            : "Ocurrió un error en el servidor.",
-      });
+      const msg =
+        err instanceof Error ? err.message : "Ocurrió un error en el servidor.";
+      setFormErrors({ form: msg });
+      scrollToFirstError({ form: msg });
     } finally {
       setIsSubmitLoading(false);
     }
@@ -982,6 +1025,7 @@ export function UsersScreen() {
 
   // Búsqueda local para vista móvil (misma lógica que serverParams)
   const [mobileSearch, setMobileSearch] = useState("");
+  const [mobileFilterRol, setMobileFilterRol] = useState("");
   const normalize = (s: string) =>
     s
       .normalize("NFD")
@@ -989,16 +1033,17 @@ export function UsersScreen() {
       .toLowerCase();
   const filteredUsers = useMemo(
     () =>
-      !mobileSearch
-        ? users
-        : users.filter(
-            (u) =>
-              normalize(
-                `${u.persona.primer_nombre} ${u.persona.primer_apellido}`
-              ).includes(normalize(mobileSearch)) ||
-              normalize(u.username).includes(normalize(mobileSearch))
-          ),
-    [users, mobileSearch]
+      users.filter((u) => {
+        const matchSearch =
+          !mobileSearch ||
+          normalize(
+            `${u.persona.primer_nombre} ${u.persona.primer_apellido}`
+          ).includes(normalize(mobileSearch)) ||
+          normalize(u.username).includes(normalize(mobileSearch));
+        const matchRol = !mobileFilterRol || u.rol.nombre === mobileFilterRol;
+        return matchSearch && matchRol;
+      }),
+    [users, mobileSearch, mobileFilterRol]
   );
 
   return (
@@ -1126,28 +1171,25 @@ export function UsersScreen() {
       {/* Móvil: cards / Tablet+Desktop: DataTable */}
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Acciones */}
+          {/* Búsqueda + Nuevo */}
           <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1, position: "relative" }}>
-              <input
-                value={mobileSearch}
-                onChange={(e) => setMobileSearch(e.target.value)}
-                placeholder="Buscar usuario..."
-                style={{
-                  width: "100%",
-                  height: 42,
-                  paddingLeft: 12,
-                  paddingRight: 12,
-                  border: "1px solid #D3D7DA",
-                  borderRadius: 8,
-                  background: "#F5F7FA",
-                  fontSize: 13,
-                  color: "#203F49",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
+            <input
+              value={mobileSearch}
+              onChange={(e) => setMobileSearch(e.target.value)}
+              placeholder="Buscar usuario..."
+              style={{
+                flex: 1,
+                height: 42,
+                padding: "0 12px",
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#F5F7FA",
+                fontSize: 13,
+                color: "#203F49",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
             <Button
               variant="primary"
               onClick={() => handleOpenForm()}
@@ -1161,6 +1203,29 @@ export function UsersScreen() {
               <UserPlus size={15} /> Nuevo
             </Button>
           </div>
+          {/* Filtro por rol */}
+          <select
+            value={mobileFilterRol}
+            onChange={(e) => setMobileFilterRol(e.target.value)}
+            style={{
+              width: "100%",
+              height: 42,
+              padding: "0 10px",
+              border: "1px solid #D3D7DA",
+              borderRadius: 8,
+              background: "#fff",
+              fontSize: 13,
+              color: mobileFilterRol ? "#203F49" : "#888F94",
+              outline: "none",
+            }}
+          >
+            <option value="">Todos los roles</option>
+            {roles.map((r) => (
+              <option key={r.id_rol} value={r.nombre}>
+                {r.nombre}
+              </option>
+            ))}
+          </select>
           {filteredUsers.map((u) => (
             <UserCard
               key={u.id_usuario}
@@ -1231,6 +1296,7 @@ export function UsersScreen() {
           }}
         >
           <div
+            ref={modalContainerRef}
             style={{
               background: "var(--bg-surface)",
               borderRadius: isMobile ? "16px 16px 0 0" : 12,
@@ -1308,6 +1374,7 @@ export function UsersScreen() {
 
             {/* Form */}
             <form
+              ref={formRef}
               onSubmit={handleSubmit}
               style={{
                 padding: isMobile ? "16px 16px" : 24,
@@ -1325,14 +1392,20 @@ export function UsersScreen() {
                 title="Información Personal"
                 columns={isMobile ? 1 : 2}
               >
-                <Input
-                  label="Primer Nombre"
-                  badge="required"
-                  placeholder="Ej: Juan"
-                  value={primerNombre}
-                  onChange={(e) => setPrimerNombre(e.target.value)}
-                  error={formErrors.primerNombre}
-                />
+                <div
+                  {...(formErrors.primerNombre
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Input
+                    label="Primer Nombre"
+                    badge="required"
+                    placeholder="Ej: Juan"
+                    value={primerNombre}
+                    onChange={(e) => setPrimerNombre(e.target.value)}
+                    error={formErrors.primerNombre}
+                  />
+                </div>
                 <Input
                   label="Segundo Nombre"
                   badge="optional"
@@ -1340,14 +1413,20 @@ export function UsersScreen() {
                   value={segundoNombre}
                   onChange={(e) => setSegundoNombre(e.target.value)}
                 />
-                <Input
-                  label="Primer Apellido"
-                  badge="required"
-                  placeholder="Ej: Pérez"
-                  value={primerApellido}
-                  onChange={(e) => setPrimerApellido(e.target.value)}
-                  error={formErrors.primerApellido}
-                />
+                <div
+                  {...(formErrors.primerApellido
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Input
+                    label="Primer Apellido"
+                    badge="required"
+                    placeholder="Ej: Pérez"
+                    value={primerApellido}
+                    onChange={(e) => setPrimerApellido(e.target.value)}
+                    error={formErrors.primerApellido}
+                  />
+                </div>
                 <Input
                   label="Segundo Apellido"
                   badge="optional"
@@ -1355,23 +1434,35 @@ export function UsersScreen() {
                   value={segundoApellido}
                   onChange={(e) => setSegundoApellido(e.target.value)}
                 />
-                <Input
-                  label="Número de Identidad"
-                  badge="required"
-                  placeholder="Sin guiones, ej: 0801199012345"
-                  value={numeroIdentidad}
-                  onChange={(e) => setNumeroIdentidad(e.target.value)}
-                  error={formErrors.numeroIdentidad}
-                  maxLength={13}
-                />
-                <Input
-                  label="Fecha de Nacimiento"
-                  badge="required"
-                  type="date"
-                  value={fechaNacimiento}
-                  onChange={(e) => setFechaNacimiento(e.target.value)}
-                  error={formErrors.fechaNacimiento}
-                />
+                <div
+                  {...(formErrors.numeroIdentidad
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Input
+                    label="Número de Identidad"
+                    badge="required"
+                    placeholder="Sin guiones, ej: 0801199012345"
+                    value={numeroIdentidad}
+                    onChange={(e) => setNumeroIdentidad(e.target.value)}
+                    error={formErrors.numeroIdentidad}
+                    maxLength={13}
+                  />
+                </div>
+                <div
+                  {...(formErrors.fechaNacimiento
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Input
+                    label="Fecha de Nacimiento"
+                    badge="required"
+                    type="date"
+                    value={fechaNacimiento}
+                    onChange={(e) => setFechaNacimiento(e.target.value)}
+                    error={formErrors.fechaNacimiento}
+                  />
+                </div>
                 <Select
                   label="Sexo"
                   badge="required"
@@ -1386,14 +1477,18 @@ export function UsersScreen() {
                 title="Contacto y Ubicación"
                 columns={isMobile ? 1 : 2}
               >
-                <Input
-                  label="Teléfono"
-                  badge="required"
-                  placeholder="Ej: 99999999"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
-                  error={formErrors.telefono}
-                />
+                <div
+                  {...(formErrors.telefono ? { "data-field-error": true } : {})}
+                >
+                  <Input
+                    label="Teléfono"
+                    badge="required"
+                    placeholder="Ej: 99999999"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                    error={formErrors.telefono}
+                  />
+                </div>
                 <Input
                   label="Correo Electrónico"
                   badge="optional"
@@ -1413,20 +1508,26 @@ export function UsersScreen() {
                   }}
                   placeholder="Seleccione..."
                 />
-                <Select
-                  label="Ciudad / Municipio"
-                  badge="required"
-                  options={selectedMunicipios}
-                  value={idMunicipio}
-                  onChange={(v) => setIdMunicipio(v)}
-                  disabled={!idDepartamento}
-                  placeholder={
-                    idDepartamento
-                      ? "Seleccione..."
-                      : "Primero elija departamento"
-                  }
-                  error={formErrors.idMunicipio}
-                />
+                <div
+                  {...(formErrors.idMunicipio
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Select
+                    label="Ciudad / Municipio"
+                    badge="required"
+                    options={selectedMunicipios}
+                    value={idMunicipio}
+                    onChange={(v) => setIdMunicipio(v)}
+                    disabled={!idDepartamento}
+                    placeholder={
+                      idDepartamento
+                        ? "Seleccione..."
+                        : "Primero elija departamento"
+                    }
+                    error={formErrors.idMunicipio}
+                  />
+                </div>
                 <FullWidthField>
                   <Input
                     label="Dirección"
@@ -1443,14 +1544,18 @@ export function UsersScreen() {
                 title="Seguridad y Acceso"
                 columns={isMobile ? 1 : 2}
               >
-                <Input
-                  label="Nombre de Usuario (Username)"
-                  badge="required"
-                  placeholder="Ej: jperez"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  error={formErrors.username}
-                />
+                <div
+                  {...(formErrors.username ? { "data-field-error": true } : {})}
+                >
+                  <Input
+                    label="Nombre de Usuario (Username)"
+                    badge="required"
+                    placeholder="Ej: jperez"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    error={formErrors.username}
+                  />
+                </div>
                 <Select
                   label="Rol del Usuario"
                   badge="required"
@@ -1461,14 +1566,20 @@ export function UsersScreen() {
                 {!editingUser && (
                   <>
                     <FullWidthField>
-                      <PasswordInput
-                        label="Contraseña Temporal"
-                        badge="required"
-                        placeholder="Mínimo 8 caracteres"
-                        value={passwordTemporal}
-                        onChange={(e) => setPasswordTemporal(e.target.value)}
-                        error={formErrors.passwordTemporal}
-                      />
+                      <div
+                        {...(formErrors.passwordTemporal
+                          ? { "data-field-error": true }
+                          : {})}
+                      >
+                        <PasswordInput
+                          label="Contraseña Temporal"
+                          badge="required"
+                          placeholder="Mínimo 8 caracteres"
+                          value={passwordTemporal}
+                          onChange={(e) => setPasswordTemporal(e.target.value)}
+                          error={formErrors.passwordTemporal}
+                        />
+                      </div>
                     </FullWidthField>
                     <FullWidthField>
                       <div
