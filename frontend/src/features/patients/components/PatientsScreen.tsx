@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FileText,
+  Edit,
+  Eye,
   Hash,
   IdCard,
-  Pencil,
   Phone,
   Plus,
   Search,
@@ -114,9 +114,10 @@ export function PatientsScreen({
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchVersion, setSearchVersion] = useState(0);
 
   const hasAnyFilter = Boolean(
-    searchName || searchIdentity || searchPhone || searchCode,
+    searchName.trim() || searchIdentity.trim() || searchPhone.trim() || searchCode.trim(),
   );
 
   useEffect(() => {
@@ -173,6 +174,7 @@ export function PatientsScreen({
       telefono: searchPhone.replace(/\D/g, ""),
       codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""),
     });
+    setSearchVersion((v) => v + 1);
     setCurrentPage(1);
   };
 
@@ -185,6 +187,7 @@ export function PatientsScreen({
     setSearchCode("");
     setHasSearched(false);
     setActiveFilters({});
+    setSearchVersion((v) => v + 1);
     setCurrentPage(1);
   };
 
@@ -222,7 +225,7 @@ export function PatientsScreen({
       render: (_value, patient) => (
         <PatientNameButton
           name={patient.fullName}
-          onClick={() => navigate(`/patients/profile/${patient.id}`)}
+          onClick={() => onViewPatient?.(patient.id)}
         />
       ),
     },
@@ -331,7 +334,7 @@ export function PatientsScreen({
       </Card>
 
       <DataTable<Patient>
-        key={hasSearched ? JSON.stringify(activeFilters) : "all-patients"}
+        key={`patients-table-${searchVersion}`}
         columns={columns}
         data={isLoading ? [] : searchResults}
         description={
@@ -348,12 +351,12 @@ export function PatientsScreen({
         pageSize={DEFAULT_PAGE_SIZE}
         rowActions={(patient) => [
           {
-            icon: <Pencil size={14} />,
+            icon: <Edit size={14} />,
             label: "Editar paciente",
             onClick: () => handleEditPatient(patient.id),
           },
           {
-            icon: <FileText size={14} />,
+            icon: <Eye size={14} />,
             label: "Ver información médica",
             onClick: () => handleViewPatient(patient),
           },
@@ -395,6 +398,11 @@ function MedicalInfoModal({
   const reaccionAnestesia = patient.reaccion_anestesia as string | null;
 
   const hasMedicalInfo = enfermedadesList.length > 0 || otrasEnfermedades || medicamentos || alergias || reaccionAnestesia;
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
 
   return (
     <div
@@ -470,7 +478,7 @@ function MedicalInfoModal({
           <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "60vh", overflowY: "auto", paddingRight: 4 }}>
             {enfermedadesList.length > 0 && (
               <div>
-                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 6 }}>Enfermedades sistémicas:</strong>
+                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Enfermedades sistémicas:</strong>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {enfermedadesList.map((disease) => {
                     const matched = PATIENT_SYSTEMIC_DISEASES.find(d => d.id === disease);
@@ -570,7 +578,6 @@ function PatientNameButton({
         textAlign: "left",
         textDecoration: isHovered ? "underline" : "none",
         textUnderlineOffset: 3,
-        transition: "color 0.15s ease",
       }}
       title="Abrir perfil del paciente"
     >
