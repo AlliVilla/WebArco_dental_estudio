@@ -26,6 +26,7 @@ import { UploadModule } from './upload/upload.module';
 
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';  
+import { CierreModule } from './cierre/cierre.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { join } from 'path';
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/static',
     }),
+    CierreModule,
   ],
   controllers: [AppController],
   providers: [AppService],

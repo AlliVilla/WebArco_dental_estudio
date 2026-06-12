@@ -129,6 +129,8 @@ model Usuario {
   citas                  Cita[]
   historial_estados      EstadoHistorial[]
   movimientos_inventario MovimientoInventario[]
+  cierres                Cierre[]
+  egresos                Egreso[]
 
   @@map("usuario")
 }
@@ -383,3 +385,28 @@ model MovimientoInventario {
   @@map("movimiento_inventario")
 }
 
+model Egreso {
+  id_egreso   Int      @id @default(autoincrement())
+  concepto    String   @db.VarChar(255)
+  monto       Decimal  @db.Decimal(10, 2)
+  fecha       DateTime @default(now()) @db.Date
+  categoria   String   @db.VarChar(100)
+  id_usuario  Int
+
+  usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@map("egreso")
+}
+
+model Cierre {
+  id_cierre   Int      @id @default(autoincrement())
+  fecha       DateTime @default(now()) @db.Date
+  ingresos    Decimal  @db.Decimal(10, 2)
+  egresos     Decimal  @db.Decimal(10, 2)
+  saldo       Decimal  @db.Decimal(10, 2)
+  id_usuario  Int
+
+  usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@map("cierre")
+}
