@@ -341,12 +341,16 @@ export function TreatmentsScreen({
   const isAdmin = userRole === "Administrador";
 
   // Filtrado para la vista móvil de cards
+  const normalize = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
   const filtered = useMemo(
     () =>
       treatments.filter((t) => {
-        const matchSearch = t.nombre
-          .toLowerCase()
-          .includes(search.toLowerCase());
+        const matchSearch = normalize(t.nombre).includes(normalize(search));
         const matchEsp = filterEsp === "all" || t.especialidad === filterEsp;
         return matchSearch && matchEsp;
       }),

@@ -756,21 +756,80 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 hint="Define el umbral de alerta"
               />
               <div style={{ gridColumn: "1 / -1" }}>
-                <Input
-                  label="Precio unitario de costo"
-                  badge="required"
-                  placeholder="0.00"
-                  value={itemForm.precio_costo}
-                  onChange={(e) => {
-                    // Solo dígitos y un punto decimal, sin negativos
-                    let v = e.target.value.replace(/[^0-9.]/g, "");
-                    const parts = v.split(".");
-                    if (parts.length > 2)
-                      v = parts[0] + "." + parts.slice(1).join("");
-                    setItemForm((prev) => ({ ...prev, precio_costo: v }));
+                <label
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#203F49",
+                    display: "block",
+                    marginBottom: 6,
                   }}
-                  hint="Dos decimales, valor positivo"
-                />
+                >
+                  Precio unitario de costo{" "}
+                  <span style={{ color: "#E24B4A" }}>*</span>
+                </label>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    height: 41,
+                    border: "1px solid #D3D7DA",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    background: "#fff",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 12px",
+                      height: "100%",
+                      background: "#F8F9FA",
+                      borderRight: "1px solid #D3D7DA",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#203F49",
+                      flexShrink: 0,
+                    }}
+                  >
+                    L
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={itemForm.precio_costo}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^0-9.]/g, "");
+                      const parts = v.split(".");
+                      if (parts.length > 2)
+                        v = parts[0] + "." + parts.slice(1).join("");
+                      setItemForm((prev) => ({ ...prev, precio_costo: v }));
+                    }}
+                    style={{
+                      flex: 1,
+                      height: "100%",
+                      border: "none",
+                      outline: "none",
+                      padding: "0 12px",
+                      fontSize: 14,
+                      color: "#203F49",
+                      background: "transparent",
+                    }}
+                  />
+                </div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "#888F94",
+                    marginTop: 4,
+                    display: "block",
+                  }}
+                >
+                  Dos decimales, valor positivo
+                </span>
               </div>
             </div>
           </SectionBlock>
