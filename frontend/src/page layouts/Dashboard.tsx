@@ -510,7 +510,14 @@ export function Dashboard() {
               Agenda de hoy
             </div>
             <div style={{ fontSize: 11, color: "#888F94", marginTop: 2 }}>
-              Miércoles 3 de junio, 2026
+              {new Date()
+                .toLocaleDateString("es-HN", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+                .replace(/^\w/, (c) => c.toUpperCase())}
             </div>
           </div>
           <button

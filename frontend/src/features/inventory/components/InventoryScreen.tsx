@@ -65,7 +65,7 @@ const emptyItemForm: ItemFormState = {
   unidad_medida: "",
   stock_actual: "0",
   stock_minimo: "0",
-  precio_costo: "",
+  precio_costo: "0.00",
 };
 
 const categoryOptions = [
@@ -105,10 +105,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  // Filtros para vista móvil
-  const [mobileSearch, setMobileSearch] = useState("");
-  const [mobileFilterCat, setMobileFilterCat] = useState("");
-  const [mobileFilterEstado, setMobileFilterEstado] = useState("");
+  // Un solo estado de filtros compartido entre vista móvil y DataTable
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState("");
+  const [filterEstado, setFilterEstado] = useState("");
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -244,7 +244,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     setMovementForm({
       tipo: "",
       id_insumo: item ? String(item.id_insumo) : "",
-      cantidad: "",
+      cantidad: "1",
       fecha: todayInputValue(),
       observaciones: "",
     });
@@ -330,19 +330,23 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const metricCols =
     isMobile || isTablet ? "repeat(2, 1fr)" : "repeat(4, minmax(150px, 1fr))";
 
-  // Items filtrados para vista móvil
-  const filteredMobile = useMemo(() => {
+  // Items filtrados (compartido entre móvil y DataTable)
+  const filteredItems = useMemo(() => {
+    const normalize = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
     return items.filter((item) => {
       const matchSearch =
-        !mobileSearch ||
-        item.nombre.toLowerCase().includes(mobileSearch.toLowerCase()) ||
-        item.codigo.toLowerCase().includes(mobileSearch.toLowerCase());
-      const matchCat = !mobileFilterCat || item.categoria === mobileFilterCat;
-      const matchEstado =
-        !mobileFilterEstado || item.estado === mobileFilterEstado;
+        !search ||
+        normalize(item.nombre).includes(normalize(search)) ||
+        normalize(item.codigo).includes(normalize(search));
+      const matchCat = !filterCat || item.categoria === filterCat;
+      const matchEstado = !filterEstado || item.estado === filterEstado;
       return matchSearch && matchCat && matchEstado;
     });
-  }, [items, mobileSearch, mobileFilterCat, mobileFilterEstado]);
+  }, [items, search, filterCat, filterEstado]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -427,8 +431,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               }}
             />
             <input
-              value={mobileSearch}
-              onChange={(e) => setMobileSearch(e.target.value)}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar nombre o código..."
               style={{
                 width: "100%",
@@ -448,8 +452,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           {/* Filtros */}
           <div style={{ display: "flex", gap: 8 }}>
             <select
-              value={mobileFilterCat}
-              onChange={(e) => setMobileFilterCat(e.target.value)}
+              value={filterCat}
+              onChange={(e) => setFilterCat(e.target.value)}
               style={{
                 flex: 1,
                 height: 42,
@@ -458,7 +462,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 borderRadius: 8,
                 background: "#fff",
                 fontSize: 12,
-                color: mobileFilterCat ? "#203F49" : "#888F94",
+                color: filterCat ? "#203F49" : "#888F94",
                 outline: "none",
               }}
             >
@@ -470,8 +474,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               ))}
             </select>
             <select
-              value={mobileFilterEstado}
-              onChange={(e) => setMobileFilterEstado(e.target.value)}
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
               style={{
                 flex: 1,
                 height: 42,
@@ -480,7 +484,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 borderRadius: 8,
                 background: "#fff",
                 fontSize: 12,
-                color: mobileFilterEstado ? "#203F49" : "#888F94",
+                color: filterEstado ? "#203F49" : "#888F94",
                 outline: "none",
               }}
             >
@@ -550,7 +554,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
             >
               Cargando inventario...
             </p>
-          ) : filteredMobile.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <p
               style={{
                 textAlign: "center",
@@ -562,7 +566,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               No hay insumos que coincidan.
             </p>
           ) : (
-            filteredMobile.map((item) => (
+            filteredItems.map((item) => (
               <InventoryCard
                 key={item.id_insumo}
                 item={item}
@@ -580,7 +584,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           title="Inventario de Insumos"
           description="Gestiona todos los insumos y materiales de la clínica"
           columns={columns}
-          data={items}
+          data={filteredItems}
           pageSize={10}
           searchable
           searchPlaceholder="Buscar nombre o código..."
