@@ -16,7 +16,7 @@ import { Alert, Card, Button, useTheme } from '../../../../../context';
 
 import {expedientService} from '../services/expedientService';
 import {calcularEdad} from '../services/miscelaneousService';
-import {ExpedientePaciente} from '../types/index';
+import {ExpedientePaciente} from '../types/getAllPacientes';
 
 const C = {
   primary: 'var(--arco-primary, #0BC5DF)',
@@ -348,7 +348,7 @@ export function ExpedienteScreen() {
                             {visit.fecha_fin ? new Date(visit.fecha_fin).toLocaleDateString('es-HN') : 'N/A'}
                           </span>
                           <span style={{ fontSize: 13, color: C.gray500 }}>
-                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.id_usuario}</strong>
+                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.doctor.persona.sexo === 'M'? 'Dr. ' : 'Dra. '}{visit.doctor.persona.primer_nombre} {visit.doctor.persona.primer_apellido}</strong>
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

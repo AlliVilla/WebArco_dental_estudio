@@ -49,4 +49,67 @@ export class PrivilegioService {
       throw error;
     }
   }
+
+  async getAllDoctores() {
+    const doctores = await this.prismaService.usuario.findMany({
+      where: {
+        activo: true,
+        rol: {
+          privilegios: {
+            some: {
+              id_privilegio: 62,
+            },
+          },
+        },
+      },
+      select: {
+        id_usuario: true,
+        username: true,
+        firma: true,
+        activo: true,
+        persona: {
+          select: {
+            id_persona: true,
+            primer_nombre: true,
+            segundo_nombre: true,
+            primer_apellido: true,
+            segundo_apellido: true,
+            telefono: true,
+            correo_electronico: true,
+            sexo: true,
+          },
+        },
+        rol: {
+          select: {
+            id_rol: true,
+            nombre: true,
+          },
+        },
+      },
+      orderBy: {
+        persona: {
+          primer_apellido: 'asc',
+        },
+      },
+    });
+
+    return {
+      data: doctores.map((d) => ({
+        id_usuario: d.id_usuario,
+        username: d.username,
+        firma: d.firma,
+        rol: d.rol,
+        fullName: [
+          d.persona.primer_nombre,
+          d.persona.segundo_nombre,
+          d.persona.primer_apellido,
+          d.persona.segundo_apellido,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        ...d.persona,
+      })),
+      total: doctores.length,
+    };
+  }
 }

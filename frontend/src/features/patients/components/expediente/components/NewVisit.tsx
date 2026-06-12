@@ -4,11 +4,13 @@ import {
     Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
     Loader2, Tag, Zap, Clock, User, ShieldAlert,
 } from 'lucide-react';
-import { ExpedientePaciente } from '../types/index';
+import { ExpedientePaciente } from '../types/getAllPacientes';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
 import { Button, Input } from '../../../../../context';
 import { calcularEdad , formatDate} from '../services/miscelaneousService';
 import { expedientService } from '../services/expedientService';
+import { UsuarioDoctor } from '../types/getAllDoctores';
+import { privilegeService } from '../services/privilegeService';
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -56,37 +58,6 @@ interface ToastMsg {
     message: string;
 }
 
-// ── Catalogue mock ────────────────────────────────────────────────────────────
-const catalogoTratamientos: TratamientoCatalogo[] = [
-    { id: 't01', nombre: 'Consulta general', precio: 500 },
-    { id: 't02', nombre: 'Limpieza dental (Profilaxis)', precio: 1200 },
-    { id: 't03', nombre: 'Resina clase I', precio: 900 },
-    { id: 't04', nombre: 'Resina clase II', precio: 1100 },
-    { id: 't05', nombre: 'Resina clase III', precio: 1300 },
-    { id: 't06', nombre: 'Resina clase IV', precio: 1500 },
-    { id: 't07', nombre: 'Extracción simple', precio: 800 },
-    { id: 't08', nombre: 'Extracción quirúrgica', precio: 2200 },
-    { id: 't09', nombre: 'Endodoncia unirradicular', precio: 3200 },
-    { id: 't10', nombre: 'Endodoncia birradicular', precio: 4000 },
-    { id: 't11', nombre: 'Endodoncia multirradicular', precio: 4800 },
-    { id: 't12', nombre: 'Corona metal-porcelana', precio: 5500 },
-    { id: 't13', nombre: 'Corona zirconio', precio: 8500 },
-    { id: 't14', nombre: 'Implante dental', precio: 15000 },
-    { id: 't15', nombre: 'Detartraje supragingival', precio: 800 },
-    { id: 't16', nombre: 'Blanqueamiento dental', precio: 2500 },
-    { id: 't17', nombre: 'Ortodoncia - mensualidad', precio: 1500 },
-    { id: 't18', nombre: 'Radiografía periapical', precio: 350 },
-    { id: 't19', nombre: 'Radiografía panorámica', precio: 650 },
-    { id: 't20', nombre: 'Cirugía periodontal', precio: 6000 },
-];
-
-const DOCTORES = [
-    'Dra. Karla Arita',
-    'Dr. Miguel Herrera',
-    'Dra. Sofía Munguía',
-    'Dr. Andrés López',
-];
-
 const FILE_CATEGORIES: FileCategory[] = [
     'Radiografía Periapical',
     'Radiografía Panorámica',
@@ -97,13 +68,6 @@ const STEP_LABELS = ['Paciente y Cita', 'Motivo y Odontograma', 'Tratamientos y 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2); }
-
-const DOCTOR_MAP: Record<string, number> = {
-    'Dra. Karla Arita': 1,
-    'Dr. Miguel Herrera': 2,
-    'Dra. Sofía Munguía': 3,
-    'Dr. Andrés López': 4,
-};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: string) => void }) {
@@ -259,9 +223,10 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     const [departamento, setDepartamento] = useState(patient.municipio.departamento.nombre || '');
     const [ciudad, setCiudad] = useState(patient.municipio.nombre || '');
     const [direccion, setDireccion] = useState(patient.direccion_linea || '');
-    const [enfermedadBase, setEnfermedadBase] = useState(patient.enfermedadBase || '');
-    const [tomaMedicamento, setTomaMedicamento] = useState(patient.tomaMedicamento || '');
+    const [enfermedadBase, setEnfermedadBase] = useState(patient.enfermedades || '');
+    const [tomaMedicamento, setTomaMedicamento] = useState(patient.medicamentos || '');
     const [alergias, setAlergias] = useState(patient.alergias || '');
+    const [doctores, setDoctores] = useState<UsuarioDoctor[]>([]);
 
     // Editable fields for visit setup
     const [bajoTratamientoMedico, setBajoTratamientoMedico] = useState('');
@@ -270,7 +235,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         const d = new Date();
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     });
-    const [doctor, setDoctor] = useState(DOCTORES[0]);
+    const [doctor, setDoctor] = useState<UsuarioDoctor | null>(null);
 
     // ── STEP 2: Motivo y Odontograma ──
     const [motivo, setMotivo] = useState('');
@@ -298,6 +263,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     const [anticipo, setAnticipo] = useState('');
     const searchRef = useRef<HTMLDivElement>(null);
 
+
     const addToast = useCallback((type: ToastMsg['type'], message: string) => {
         const id = uid();
         setToasts((prev) => [...prev, { id, type, message }]);
@@ -312,6 +278,21 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
+
+    const loadDoctores = useCallback(async() =>{
+        await privilegeService.getAllDoctores().then(
+            (response) => {
+                const list = Array.isArray(response.data?.data) ? response.data.data : [];
+                setDoctores(list);
+                if(list.length > 0)
+                {setDoctor(list[0])}
+            }
+        );
+    },[]);
+
+    useEffect(() =>{
+        loadDoctores();
+    },[]);
 
     // ── File handling ──────────────────────────────────────────────────────────
     const processFiles = useCallback((files: FileList | null) => {
@@ -408,7 +389,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
     };
 
     // ── Treatments search / manual addition ──────────────────────────────────────
-    const suggestions = catalogoTratamientos.filter((t) =>
+    const suggestions = tratamientos.filter((t) =>
         t.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
 
@@ -453,7 +434,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         setSaving(true);
 
         const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
-        const idUsuario = DOCTOR_MAP[doctor] ?? 1;
+        const idUsuario = doctor?.id_usuario ?? 1;
 
         const payload = {
             id_usuario: idUsuario,
@@ -566,11 +547,20 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                                 <div>
                                     <FieldLabel required>Doctor responsable</FieldLabel>
                                     <select
-                                        value={doctor}
-                                        onChange={(e) => setDoctor(e.target.value)}
+                                        value={doctor?.id_usuario}
+                                        onChange={(e) => {
+                                            const id = Number(e.target.value);
+                                            const selected = doctores.find(d => d.id_usuario === id) || null;
+                                            setDoctor(selected);
+                                        }}
                                         style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, background: C.white, outline: 'none', cursor: 'pointer' }}
                                     >
-                                        {DOCTORES.map((d) => <option key={d} value={d}>{d}</option>)}
+                                        {
+                                            doctores.map((d) => 
+                                            <option key={d.id_usuario} value={d.id_usuario}>
+                                                {`${d.sexo === 'M' ? 'Dr. ': 'Dra. '}`}
+                                                {d.primer_nombre} {d.primer_apellido} 
+                                            </option>)}
                                     </select>
                                 </div>
                             </div>

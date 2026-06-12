@@ -192,6 +192,11 @@ export class PersonaService {
             fecha_fin: 'desc', 
           },
           include : {
+            doctor: {
+              include: {
+                persona: true,
+              }
+            },
             tratamientos: {
               include: {
                 tratamiento: true,

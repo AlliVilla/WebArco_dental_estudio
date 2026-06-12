@@ -2,6 +2,7 @@ interface ConsultaHistorica {
   id_consulta: number;
   id_persona: number;
   id_usuario: number;
+  doctor: Doctor;
   fecha_inicio: string;
   fecha_fin?: string | null;
   diagnostico?: string | null;
@@ -13,6 +14,20 @@ interface ConsultaHistorica {
   consentimiento: boolean;
   tratamientos: ConsultaTratamiento [];
   archivos: Archivo[];
+}
+
+export type Doctor = {
+  id_usuario: number;
+  username: string;
+  firma: string | null;
+  persona: Persona;
+}
+
+export type Persona = {
+  id_persona: number;
+  primer_nombre: string;
+  primer_apellido: string;
+  sexo: 'M' | 'F';
 }
 
 export type Archivo = {
@@ -35,8 +50,8 @@ export type ExpedientePaciente = {
   correo_electronico: string | null;
   direccion_linea: string | null;
   sexo: string;
-  enfermedadBase?: string | null;
-  tomaMedicamento?: string | null;
+  enfermedades?: string | null;
+  medicamentos?: string | null;
   alergias?: string | null;
   consultas: ConsultaHistorica[];
   municipio: {
@@ -74,3 +89,4 @@ export type ExpedientePacienteResponse = {
     total: number,
   }
 }
+
