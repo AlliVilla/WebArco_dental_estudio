@@ -16,7 +16,7 @@ const { insertOdontograma } = require("./seeders/odontograma");
 const { insertTratamientos } = require("./seeders/tratamiento");
 const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
 const { insertArchivos } = require("./seeders/archivos");
-
+const { insertCierres } = require("./seeders/cierres");
 async function insertSeeder(){
     try{
         await insertDientes();
@@ -35,6 +35,7 @@ async function insertSeeder(){
         await insertOdontograma();
         await insertTratamientos();
         await insertConsultaTratamientos();
+        await insertCierres();
         console.log("Seeder realizado exitosamente")
     }catch(error){
         console.error("Error:", error);

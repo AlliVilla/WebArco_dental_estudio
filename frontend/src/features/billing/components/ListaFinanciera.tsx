@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import { Calendar, FileSpreadsheet, FileText, Info, RefreshCcw, X, Lock } from 'lucide-react';
-import axios from 'axios';
+import { Calendar, FileSpreadsheet, FileText, Info, RefreshCcw, X } from 'lucide-react';
+
 
 import { DataTable } from '../../../components';
 import type { Column } from '../../../components';
@@ -294,18 +294,6 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
     setCategoriaEgreso('');
   };
 
-  const generarCierreCaja = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:3000/cierre', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert(response.data.message || 'Cierre generado exitosamente');
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Error al generar el cierre');
-    }
-  };
-
   const filteredRecords = useMemo(() => {
     const fechaDesdeIso = parseFilterDate(fechaDesde);
     const fechaHastaIso = parseFilterDate(fechaHasta);
@@ -534,10 +522,6 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
           <Button variant="secondary" size="sm">
             <FileSpreadsheet size={16} />
             Exportar Excel
-          </Button>
-          <Button variant="primary" size="sm" onClick={generarCierreCaja} style={{ background: '#0BC5DF', color: 'white' }}>
-            <Lock size={16} />
-            Generar Cierre de Caja
           </Button>
           <Button variant="secondary" size="sm">
             <FileText size={16} />

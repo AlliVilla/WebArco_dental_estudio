@@ -18,7 +18,7 @@ export class CierreController {
   @ApiResponse({ status: 201, description: 'Cierre de caja generado exitosamente.' })
   @ApiResponse({ status: 400, description: 'Ya existe un cierre de caja para el día de hoy.' })
   createCierre(@Request() req: any) {
-    const userId = req.user.id;
+    const userId = req.user?.id_usuario ?? req.user?.sub;
     return this.cierreService.createCierre(userId);
   }
 
