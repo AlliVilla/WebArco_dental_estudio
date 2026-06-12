@@ -11,6 +11,7 @@ import {
   PackagePlus,
   Plus,
   RotateCcw,
+  Search,
   Trash2,
   TrendingDown,
   X,
@@ -64,7 +65,7 @@ const emptyItemForm: ItemFormState = {
   unidad_medida: "",
   stock_actual: "0",
   stock_minimo: "0",
-  precio_costo: "0.00",
+  precio_costo: "",
 };
 
 const categoryOptions = [
@@ -104,6 +105,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Filtros para vista móvil
+  const [mobileSearch, setMobileSearch] = useState("");
+  const [mobileFilterCat, setMobileFilterCat] = useState("");
+  const [mobileFilterEstado, setMobileFilterEstado] = useState("");
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -239,7 +244,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     setMovementForm({
       tipo: "",
       id_insumo: item ? String(item.id_insumo) : "",
-      cantidad: "0",
+      cantidad: "",
       fecha: todayInputValue(),
       observaciones: "",
     });
@@ -325,6 +330,20 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const metricCols =
     isMobile || isTablet ? "repeat(2, 1fr)" : "repeat(4, minmax(150px, 1fr))";
 
+  // Items filtrados para vista móvil
+  const filteredMobile = useMemo(() => {
+    return items.filter((item) => {
+      const matchSearch =
+        !mobileSearch ||
+        item.nombre.toLowerCase().includes(mobileSearch.toLowerCase()) ||
+        item.codigo.toLowerCase().includes(mobileSearch.toLowerCase());
+      const matchCat = !mobileFilterCat || item.categoria === mobileFilterCat;
+      const matchEstado =
+        !mobileFilterEstado || item.estado === mobileFilterEstado;
+      return matchSearch && matchCat && matchEstado;
+    });
+  }, [items, mobileSearch, mobileFilterCat, mobileFilterEstado]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Alert
@@ -391,100 +410,267 @@ export function InventoryScreen(_props: InventoryScreenProps) {
         />
       </div>
 
-      <DataTable<InventoryItem>
-        title="Inventario de Insumos"
-        description="Gestiona todos los insumos y materiales de la clínica"
-        columns={columns}
-        data={items}
-        pageSize={10}
-        searchable
-        searchPlaceholder="Buscar nombre o código..."
-        searchKeys={["codigo", "nombre"]}
-        filters={[
-          {
-            key: "categoria",
-            placeholder: "Categoría",
-            options: categoryOptions,
-          },
-          {
-            key: "estado",
-            placeholder: "Estado de Stock",
-            options: [
-              { value: "Normal", label: "Normal" },
-              { value: "Stock bajo", label: "Stock bajo" },
-              { value: "Agotado", label: "Agotado" },
-            ],
-          },
-          {
-            key: "estado_registro",
-            placeholder: "Estado del registro",
-            options: [
-              { value: "Activo", label: "Activo" },
-              { value: "Inactivo", label: "Inactivo" },
-            ],
-          },
-        ]}
-        primaryAction={{
-          label: "Nuevo insumo",
-          icon: <Plus size={16} />,
-          onClick: openCreateItem,
-        }}
-        secondaryActions={[
-          {
-            label: "Registrar movimiento",
-            icon: <PackagePlus size={16} />,
-            onClick: () => openMovementModal(),
-          },
-          {
-            label: "Ver historial",
-            icon: <FileText size={16} />,
-            onClick: () => navigate("/inventory/history"),
-          },
-          {
-            label: "Exportar inventario",
-            icon: <Archive size={16} />,
-            onClick: () => exportInventoryCsv(items),
-          },
-        ]}
-        rowActions={(row) =>
-          row.activo
-            ? [
-                {
-                  icon: <Eye size={15} />,
-                  label: "Registrar movimiento",
-                  onClick: () => openMovementModal(row),
-                },
-                {
-                  icon: <Edit2 size={15} />,
-                  label: "Editar",
-                  onClick: () => openEditItem(row),
-                },
-                {
-                  icon: <Trash2 size={15} />,
-                  label: "Eliminar",
-                  danger: true,
-                  onClick: () => setItemToDelete(row),
-                },
-              ]
-            : [
-                {
-                  icon: <RotateCcw size={15} />,
-                  label: "Readmitir",
-                  onClick: () => void restoreItem(row),
-                },
-                {
-                  icon: <Edit2 size={15} />,
-                  label: "Editar",
-                  onClick: () => openEditItem(row),
-                },
-              ]
-        }
-        getRowKey={(row) => String(row.id_insumo)}
-        emptyMessage={
-          loading ? "Cargando inventario..." : "No hay insumos registrados."
-        }
-        footer={<InventoryLegend />}
-      />
+      {isMobile ? (
+        /* ── Vista móvil: cards ── */
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Búsqueda */}
+          <div style={{ position: "relative" }}>
+            <Search
+              size={15}
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#888F94",
+                pointerEvents: "none",
+              }}
+            />
+            <input
+              value={mobileSearch}
+              onChange={(e) => setMobileSearch(e.target.value)}
+              placeholder="Buscar nombre o código..."
+              style={{
+                width: "100%",
+                height: 42,
+                paddingLeft: 36,
+                paddingRight: 12,
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#F5F7FA",
+                fontSize: 13,
+                color: "#203F49",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+          {/* Filtros */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              value={mobileFilterCat}
+              onChange={(e) => setMobileFilterCat(e.target.value)}
+              style={{
+                flex: 1,
+                height: 42,
+                padding: "0 10px",
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#fff",
+                fontSize: 12,
+                color: mobileFilterCat ? "#203F49" : "#888F94",
+                outline: "none",
+              }}
+            >
+              <option value="">Categoría</option>
+              {categoryOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={mobileFilterEstado}
+              onChange={(e) => setMobileFilterEstado(e.target.value)}
+              style={{
+                flex: 1,
+                height: 42,
+                padding: "0 10px",
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#fff",
+                fontSize: 12,
+                color: mobileFilterEstado ? "#203F49" : "#888F94",
+                outline: "none",
+              }}
+            >
+              <option value="">Estado</option>
+              <option value="Normal">Normal</option>
+              <option value="Stock bajo">Stock bajo</option>
+              <option value="Agotado">Agotado</option>
+            </select>
+          </div>
+          {/* Acciones */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={openCreateItem}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                width: "100%",
+              }}
+            >
+              <Plus size={16} /> Nuevo insumo
+            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => openMovementModal()}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <PackagePlus size={15} /> Movimiento
+              </Button>
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => navigate("/inventory/history")}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <FileText size={15} /> Historial
+              </Button>
+            </div>
+          </div>
+
+          {/* Cards */}
+          {loading ? (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#888F94",
+                fontSize: 14,
+                padding: 24,
+              }}
+            >
+              Cargando inventario...
+            </p>
+          ) : filteredMobile.length === 0 ? (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#888F94",
+                fontSize: 14,
+                padding: 24,
+              }}
+            >
+              No hay insumos que coincidan.
+            </p>
+          ) : (
+            filteredMobile.map((item) => (
+              <InventoryCard
+                key={item.id_insumo}
+                item={item}
+                onMove={() => openMovementModal(item)}
+                onEdit={() => openEditItem(item)}
+                onDelete={() => setItemToDelete(item)}
+                onRestore={() => void restoreItem(item)}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+        /* ── Vista tablet/desktop: DataTable ── */
+        <DataTable<InventoryItem>
+          title="Inventario de Insumos"
+          description="Gestiona todos los insumos y materiales de la clínica"
+          columns={columns}
+          data={items}
+          pageSize={10}
+          searchable
+          searchPlaceholder="Buscar nombre o código..."
+          searchKeys={["codigo", "nombre"]}
+          filters={[
+            {
+              key: "categoria",
+              placeholder: "Categoría",
+              options: categoryOptions,
+            },
+            {
+              key: "estado",
+              placeholder: "Estado de Stock",
+              options: [
+                { value: "Normal", label: "Normal" },
+                { value: "Stock bajo", label: "Stock bajo" },
+                { value: "Agotado", label: "Agotado" },
+              ],
+            },
+            {
+              key: "estado_registro",
+              placeholder: "Estado del registro",
+              options: [
+                { value: "Activo", label: "Activo" },
+                { value: "Inactivo", label: "Inactivo" },
+              ],
+            },
+          ]}
+          primaryAction={{
+            label: "Nuevo insumo",
+            icon: <Plus size={16} />,
+            onClick: openCreateItem,
+          }}
+          secondaryActions={[
+            {
+              label: "Registrar movimiento",
+              icon: <PackagePlus size={16} />,
+              onClick: () => openMovementModal(),
+            },
+            {
+              label: "Ver historial",
+              icon: <FileText size={16} />,
+              onClick: () => navigate("/inventory/history"),
+            },
+            {
+              label: "Exportar inventario",
+              icon: <Archive size={16} />,
+              onClick: () => exportInventoryCsv(items),
+            },
+          ]}
+          rowActions={(row) =>
+            row.activo
+              ? [
+                  {
+                    icon: <Eye size={15} />,
+                    label: "Registrar movimiento",
+                    onClick: () => openMovementModal(row),
+                  },
+                  {
+                    icon: <Edit2 size={15} />,
+                    label: "Editar",
+                    onClick: () => openEditItem(row),
+                  },
+                  {
+                    icon: <Trash2 size={15} />,
+                    label: "Eliminar",
+                    danger: true,
+                    onClick: () => setItemToDelete(row),
+                  },
+                ]
+              : [
+                  {
+                    icon: <RotateCcw size={15} />,
+                    label: "Readmitir",
+                    onClick: () => void restoreItem(row),
+                  },
+                  {
+                    icon: <Edit2 size={15} />,
+                    label: "Editar",
+                    onClick: () => openEditItem(row),
+                  },
+                ]
+          }
+          getRowKey={(row) => String(row.id_insumo)}
+          emptyMessage={
+            loading ? "Cargando inventario..." : "No hay insumos registrados."
+          }
+          footer={<InventoryLegend />}
+        />
+      )}
 
       {/* Modal: Nuevo / Editar insumo */}
       {itemModalOpen && (
@@ -551,44 +737,38 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               <Input
                 label="Stock actual"
                 badge="required"
-                type="number"
-                min="0"
+                placeholder="0"
                 value={itemForm.stock_actual}
-                onChange={(e) =>
-                  setItemForm((prev) => ({
-                    ...prev,
-                    stock_actual: e.target.value,
-                  }))
-                }
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setItemForm((prev) => ({ ...prev, stock_actual: v }));
+                }}
               />
               <Input
                 label="Stock mínimo"
                 badge="required"
-                type="number"
-                min="0"
+                placeholder="0"
                 value={itemForm.stock_minimo}
-                onChange={(e) =>
-                  setItemForm((prev) => ({
-                    ...prev,
-                    stock_minimo: e.target.value,
-                  }))
-                }
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setItemForm((prev) => ({ ...prev, stock_minimo: v }));
+                }}
                 hint="Define el umbral de alerta"
               />
               <div style={{ gridColumn: "1 / -1" }}>
                 <Input
                   label="Precio unitario de costo"
                   badge="required"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  placeholder="0.00"
                   value={itemForm.precio_costo}
-                  onChange={(e) =>
-                    setItemForm((prev) => ({
-                      ...prev,
-                      precio_costo: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => {
+                    // Solo dígitos y un punto decimal, sin negativos
+                    let v = e.target.value.replace(/[^0-9.]/g, "");
+                    const parts = v.split(".");
+                    if (parts.length > 2)
+                      v = parts[0] + "." + parts.slice(1).join("");
+                    setItemForm((prev) => ({ ...prev, precio_costo: v }));
+                  }}
                   hint="Dos decimales, valor positivo"
                 />
               </div>
@@ -655,16 +835,13 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               <Input
                 label="Cantidad"
                 badge="required"
-                type="number"
-                min="1"
+                placeholder="1"
                 value={movementForm.cantidad}
-                onChange={(e) =>
-                  setMovementForm((prev) => ({
-                    ...prev,
-                    cantidad: e.target.value,
-                  }))
-                }
-                hint="Valor positivo"
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setMovementForm((prev) => ({ ...prev, cantidad: v }));
+                }}
+                hint="Valor positivo entero"
               />
               <Input
                 label="Fecha"
@@ -761,6 +938,233 @@ export function InventoryScreen(_props: InventoryScreenProps) {
 }
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
+
+function InventoryCard({
+  item,
+  onMove,
+  onEdit,
+  onDelete,
+  onRestore,
+}: {
+  item: InventoryItem;
+  onMove: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onRestore: () => void;
+}) {
+  const C = {
+    navy: "#203F49",
+    gray300: "#D3D7DA",
+    gray50: "#F8F9FA",
+    gray500: "#888F94",
+    danger: "#E24B4A",
+  };
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: `1px solid ${C.gray300}`,
+        padding: 16,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 12,
+          gap: 8,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: C.navy,
+              margin: 0,
+              wordBreak: "break-word",
+            }}
+          >
+            {item.nombre}
+          </p>
+          <p style={{ fontSize: 12, color: C.gray500, margin: "2px 0 0" }}>
+            {item.codigo}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {item.activo ? (
+            <>
+              <button
+                onClick={onMove}
+                title="Registrar movimiento"
+                style={{
+                  padding: 6,
+                  borderRadius: 8,
+                  border: "none",
+                  background: C.gray50,
+                  cursor: "pointer",
+                  color: C.navy,
+                  display: "flex",
+                }}
+              >
+                <Eye size={15} />
+              </button>
+              <button
+                onClick={onEdit}
+                title="Editar"
+                style={{
+                  padding: 6,
+                  borderRadius: 8,
+                  border: "none",
+                  background: C.gray50,
+                  cursor: "pointer",
+                  color: C.navy,
+                  display: "flex",
+                }}
+              >
+                <Edit2 size={15} />
+              </button>
+              <button
+                onClick={onDelete}
+                title="Eliminar"
+                style={{
+                  padding: 6,
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#FEF2F2",
+                  cursor: "pointer",
+                  color: C.danger,
+                  display: "flex",
+                }}
+              >
+                <Trash2 size={15} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onRestore}
+                title="Readmitir"
+                style={{
+                  padding: 6,
+                  borderRadius: 8,
+                  border: "none",
+                  background: C.gray50,
+                  cursor: "pointer",
+                  color: C.navy,
+                  display: "flex",
+                }}
+              >
+                <RotateCcw size={15} />
+              </button>
+              <button
+                onClick={onEdit}
+                title="Editar"
+                style={{
+                  padding: 6,
+                  borderRadius: 8,
+                  border: "none",
+                  background: C.gray50,
+                  cursor: "pointer",
+                  color: C.navy,
+                  display: "flex",
+                }}
+              >
+                <Edit2 size={15} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Filas de datos */}
+      <div style={{ borderTop: `1px solid ${C.gray50}`, paddingTop: 4 }}>
+        <div
+          style={{
+            padding: "7px 0",
+            borderBottom: `1px solid ${C.gray50}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, color: C.gray500 }}>Categoría</span>
+          <CategoryBadge value={item.categoria} />
+        </div>
+        <div
+          style={{
+            padding: "7px 0",
+            borderBottom: `1px solid ${C.gray50}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, color: C.gray500 }}>Unidad</span>
+          <span style={{ fontSize: 13, color: C.navy }}>
+            {item.unidad_medida}
+          </span>
+        </div>
+        <div
+          style={{
+            padding: "7px 0",
+            borderBottom: `1px solid ${C.gray50}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, color: C.gray500 }}>
+            Stock actual / mínimo
+          </span>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color:
+                item.estado === "Agotado"
+                  ? "#E24B4A"
+                  : item.estado === "Stock bajo"
+                  ? "#EF9F27"
+                  : C.navy,
+            }}
+          >
+            {item.stock_actual} / {item.stock_minimo}
+          </span>
+        </div>
+        <div
+          style={{
+            padding: "7px 0",
+            borderBottom: `1px solid ${C.gray50}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, color: C.gray500 }}>Precio costo</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: C.navy }}>
+            {formatCurrency(item.precio_costo)}
+          </span>
+        </div>
+        <div
+          style={{
+            padding: "7px 0",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <InventoryStatusBadge status={item.estado} />
+          <RecordStatusBadge status={item.estado_registro} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MetricCard({
   label,

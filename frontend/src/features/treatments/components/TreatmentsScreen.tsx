@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Layers,
   X,
+  Search,
 } from "lucide-react";
 import { Button, Alert } from "../../../context";
 import { ConfirmModal, DataTable } from "../../../components";
@@ -326,6 +327,8 @@ export function TreatmentsScreen({
   const { isMobile, isTablet, width: w } = useResponsive();
 
   const [treatments, setTreatments] = useState<Treatment[]>(MOCK_TREATMENTS);
+  const [search, setSearch] = useState("");
+  const [filterEsp, setFilterEsp] = useState("all");
   const [alert, setAlert] = useState<{
     variant: "success" | "error";
     message: string;
@@ -336,6 +339,19 @@ export function TreatmentsScreen({
   >(null);
 
   const isAdmin = userRole === "Administrador";
+
+  // Filtrado para la vista móvil de cards
+  const filtered = useMemo(
+    () =>
+      treatments.filter((t) => {
+        const matchSearch = t.nombre
+          .toLowerCase()
+          .includes(search.toLowerCase());
+        const matchEsp = filterEsp === "all" || t.especialidad === filterEsp;
+        return matchSearch && matchEsp;
+      }),
+    [treatments, search, filterEsp]
+  );
 
   const { porEsp, principal } = useMemo(() => {
     const porEsp = treatments.reduce<Record<string, number>>((acc, t) => {
@@ -568,23 +584,78 @@ export function TreatmentsScreen({
       {/* Cards en móvil / DataTable en tablet+desktop */}
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => navigate("/treatments/new")}
+          {/* Búsqueda */}
+          <div style={{ position: "relative" }}>
+            <Search
+              size={15}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                width: "100%",
-                justifyContent: "center",
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: C.gray500,
+                pointerEvents: "none",
               }}
-            >
-              <Plus size={16} /> Nuevo Tratamiento
-            </Button>
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar tratamiento..."
+              style={{
+                width: "100%",
+                height: 42,
+                paddingLeft: 36,
+                paddingRight: 12,
+                border: `1px solid ${C.gray300}`,
+                borderRadius: 8,
+                background: "#F5F7FA",
+                fontSize: 13,
+                color: C.navy,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
           </div>
-          {treatments.length === 0 ? (
+          {/* Filtro especialidad */}
+          <select
+            value={filterEsp}
+            onChange={(e) => setFilterEsp(e.target.value)}
+            style={{
+              width: "100%",
+              height: 42,
+              padding: "0 12px",
+              border: `1px solid ${C.gray300}`,
+              borderRadius: 8,
+              background: "#fff",
+              fontSize: 13,
+              color: filterEsp === "all" ? C.gray500 : C.navy,
+              outline: "none",
+            }}
+          >
+            <option value="all">Todas las especialidades</option>
+            {ESPECIALIDADES.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </select>
+          {/* Botón nuevo */}
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={() => navigate("/treatments/new")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              justifyContent: "center",
+            }}
+          >
+            <Plus size={16} /> Nuevo Tratamiento
+          </Button>
+          {/* Cards */}
+          {filtered.length === 0 ? (
             <div
               style={{
                 padding: 32,
@@ -596,10 +667,10 @@ export function TreatmentsScreen({
                 border: `1px solid ${C.gray300}`,
               }}
             >
-              No hay tratamientos registrados.
+              No hay tratamientos que coincidan.
             </div>
           ) : (
-            treatments.map((t) => (
+            filtered.map((t) => (
               <TreatmentCard
                 key={t.id}
                 t={t}
