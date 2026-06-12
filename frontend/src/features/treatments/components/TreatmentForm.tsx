@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  FileText,
-  Stethoscope,
-  CheckCircle,
-  Plus,
-  Minus,
-} from "lucide-react";
+import { ArrowLeft, FileText, Stethoscope, CheckCircle } from "lucide-react";
 import { Input, Select, Button, Alert } from "../../../context";
 import {
   ESPECIALIDADES,
@@ -190,7 +183,7 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
             onChange={(e) => set("nombre", e.target.value)}
           />
 
-          {/* Precio con prefijo L y botones +/- */}
+          {/* Precio — mismo patrón que inventario */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label
               style={{ fontSize: 13, fontWeight: 500, color: COLORS.navy }}
@@ -228,20 +221,16 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
               <input
                 type="text"
                 inputMode="decimal"
+                placeholder="0.00"
                 value={formData.precio === 0 ? "" : formData.precio}
                 onChange={(e) => {
-                  // Permite solo dígitos y UN punto decimal
-                  let val = e.target.value.replace(/[^0-9.]/g, "");
-                  const dotIndex = val.indexOf(".");
-                  if (dotIndex !== -1) {
-                    val =
-                      val.slice(0, dotIndex + 1) +
-                      val.slice(dotIndex + 1).replace(/\./g, "");
-                  }
-                  const parsed = val === "" ? 0 : parseFloat(val);
+                  let v = e.target.value.replace(/[^0-9.]/g, "");
+                  const parts = v.split(".");
+                  if (parts.length > 2)
+                    v = parts[0] + "." + parts.slice(1).join("");
+                  const parsed = v === "" ? 0 : parseFloat(v);
                   set("precio", isNaN(parsed) ? 0 : parsed);
                 }}
-                placeholder="0.00"
                 style={{
                   flex: 1,
                   height: "100%",
@@ -253,55 +242,6 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
                   background: "transparent",
                 }}
               />
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                  borderLeft: `1px solid ${COLORS.gray300}`,
-                  flexShrink: 0,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    set("precio", Math.max(0, (formData.precio || 0) + 1))
-                  }
-                  style={{
-                    width: 32,
-                    flex: 1,
-                    border: "none",
-                    borderBottom: `1px solid ${COLORS.gray300}`,
-                    background: "#fff",
-                    color: COLORS.gray700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Plus size={11} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    set("precio", Math.max(0, (formData.precio || 0) - 1))
-                  }
-                  style={{
-                    width: 32,
-                    flex: 1,
-                    border: "none",
-                    background: "#fff",
-                    color: COLORS.gray700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Minus size={11} />
-                </button>
-              </div>
             </div>
             <span style={{ fontSize: 11, color: COLORS.gray500 }}>
               Precio base del tratamiento en Lempiras (HNL)

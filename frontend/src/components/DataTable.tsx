@@ -103,8 +103,10 @@ function FilterDropdown({
           fontSize: 12,
           color: value ? "#203F49" : "#6C757D",
           cursor: "pointer",
-          minWidth: 180,
+          minWidth: 120,
+          maxWidth: "100%",
           fontWeight: 400,
+          boxSizing: "border-box",
         }}
       >
         <span>{selected ? selected.label : placeholder}</span>
@@ -269,7 +271,7 @@ function Pagination({
             >
               {p}
             </button>
-          ),
+          )
         )}
 
         <button
@@ -344,7 +346,7 @@ export function DataTable<T extends Record<string, unknown>>({
         return keys.some((k) =>
           String(row[k] ?? "")
             .toLowerCase()
-            .includes(q),
+            .includes(q)
         );
       });
     }
@@ -383,7 +385,7 @@ export function DataTable<T extends Record<string, unknown>>({
         width: "100%",
         borderRadius: 12,
         border: "1px solid #E4E7EC",
-        padding: "24px",
+        padding: "16px",
         boxSizing: "border-box",
         boxShadow: "0px 1px 2px rgba(16, 24, 40, 0.05)",
         ...style,
@@ -412,11 +414,7 @@ export function DataTable<T extends Record<string, unknown>>({
             </div>
           )}
           {primaryAction && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={primaryAction.onClick}
-            >
+            <Button variant="primary" size="sm" onClick={primaryAction.onClick}>
               {primaryAction.icon}
               {primaryAction.label}
             </Button>
@@ -430,66 +428,90 @@ export function DataTable<T extends Record<string, unknown>>({
           style={{
             padding: "0 0 14px 0",
             display: "flex",
-            gap: 20,
-            alignItems: "center",
-            flexWrap: "wrap",
+            flexDirection: "column",
+            gap: 10,
           }}
         >
-          {searchable && (
-            <div style={{ position: "relative", flex: "0 0 230px" }}>
-              <Search
-                size={15}
-                style={{
-                  position: "absolute",
-                  left: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  color: "#98A2B3",
-                  pointerEvents: "none",
-                }}
-              />
-              <input
-                value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                style={{
-                  width: "35vh",
-                  height: 40,
-                  paddingLeft: 36,
-                  paddingRight: 16,
-                  border: "1px solid #E4E7EC",
-                  borderRadius: 8,
-                  background: "#F5F7FA",
-                  fontSize: 12,
-                  color: "#1A202C",
-                  outline: "none",
-                }}
-              />
-            </div>
-          )}
+          {/* Fila 1: búsqueda + acciones secundarias */}
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {searchable && (
+              <div
+                style={{ position: "relative", flex: "1 1 180px", minWidth: 0 }}
+              >
+                <Search
+                  size={15}
+                  style={{
+                    position: "absolute",
+                    left: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#98A2B3",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  value={search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  style={{
+                    width: "100%",
+                    height: 40,
+                    paddingLeft: 36,
+                    paddingRight: 16,
+                    border: "1px solid #E4E7EC",
+                    borderRadius: 8,
+                    background: "#F5F7FA",
+                    fontSize: 12,
+                    color: "#1A202C",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            )}
 
-          {filters.map((f) => (
-            <FilterDropdown
-              key={f.key}
-              placeholder={f.placeholder}
-              options={f.options}
-              value={filterValues[f.key] ?? ""}
-              onChange={(v) => handleFilter(f.key, v)}
-            />
-          ))}
+            {secondaryActions.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  flexShrink: 0,
+                }}
+              >
+                {secondaryActions.map((a, i) => (
+                  <Button
+                    key={i}
+                    variant="secondary"
+                    size="sm"
+                    onClick={a.onClick}
+                  >
+                    {a.icon}
+                    {a.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
 
-          {secondaryActions.length > 0 && (
-            <div style={{ display: "flex", gap: 10, marginLeft: "auto" }}>
-              {secondaryActions.map((a, i) => (
-                <Button
-                  key={i}
-                  variant="secondary"
-                  size="sm"
-                  onClick={a.onClick}
-                >
-                  {a.icon}
-                  {a.label}
-                </Button>
+          {/* Fila 2: filtros (se envuelven solos) */}
+          {filters.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {filters.map((f) => (
+                <FilterDropdown
+                  key={f.key}
+                  placeholder={f.placeholder}
+                  options={f.options}
+                  value={filterValues[f.key] ?? ""}
+                  onChange={(v) => handleFilter(f.key, v)}
+                />
               ))}
             </div>
           )}
@@ -554,89 +576,102 @@ export function DataTable<T extends Record<string, unknown>>({
                 )}
               </tr>
             </thead>
-            <tbody>{pagedData.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={columns.length + (rowActions ? 1 : 0)}
-                  style={{
-                    padding: "48px 16px",
-                    textAlign: "center",
-                    fontSize: 12,
-                    color: "#A0AEC0",
-                  }}
-                >
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              pagedData.map((row, idx) => {
-                const key = getRowKey ? getRowKey(row, idx) : String(idx);
-                const actions = rowActions?.(row) ?? [];
-                return (
-                  <tr
-                    key={key}
+            <tbody>
+              {pagedData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length + (rowActions ? 1 : 0)}
                     style={{
-                      background: "#fff",
-                      height: 46,
-                      transition: "background-color 0.2s",
+                      padding: "48px 16px",
+                      textAlign: "center",
+                      fontSize: 12,
+                      color: "#A0AEC0",
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "#F9FAFB";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fff";
-                    }}
-                  >{columns.map((col) => (
-                    <td
-                      key={col.key}
+                  >
+                    {emptyMessage}
+                  </td>
+                </tr>
+              ) : (
+                pagedData.map((row, idx) => {
+                  const key = getRowKey ? getRowKey(row, idx) : String(idx);
+                  const actions = rowActions?.(row) ?? [];
+                  return (
+                    <tr
+                      key={key}
                       style={{
-                        padding: "11px 14px",
-                        fontSize: 12,
-                        color: "#475467",
-                        textAlign: (col.align ??
-                          "left") as React.CSSProperties["textAlign"],
-                        whiteSpace: "nowrap",
-                        borderBottom: "1px solid #D3D7DA",
+                        background: "#fff",
+                        height: 46,
+                        transition: "background-color 0.2s",
                       }}
-                    >{col.render
-                      ? col.render(row[col.key], row)
-                      : String(row[col.key] ?? "")}</td>
-                  ))}{rowActions && (
-                    <td
-                      style={{
-                        padding: "8px 14px",
-                        textAlign: "center",
-                        borderBottom: "1px solid #F0F2F5",
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#F9FAFB";
                       }}
-                    ><div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        justifyContent: "center",
-                        alignItems: "center",
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fff";
                       }}
-                    >{actions.map((action, ai) => (
-                      <button
-                        key={ai}
-                        title={action.label}
-                        onClick={() => action.onClick(row)}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: action.danger ? "#F04438" : "#667085",
-                          padding: 2,
-                          transition: "color 0.2s",
-                        }}
-                      >{action.icon}</button>
-                    ))}</div></td>
-                  )}</tr>
-                );
-              })
-            )}</tbody>
+                    >
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          style={{
+                            padding: "11px 14px",
+                            fontSize: 12,
+                            color: "#475467",
+                            textAlign: (col.align ??
+                              "left") as React.CSSProperties["textAlign"],
+                            whiteSpace: "nowrap",
+                            borderBottom: "1px solid #D3D7DA",
+                          }}
+                        >
+                          {col.render
+                            ? col.render(row[col.key], row)
+                            : String(row[col.key] ?? "")}
+                        </td>
+                      ))}
+                      {rowActions && (
+                        <td
+                          style={{
+                            padding: "8px 14px",
+                            textAlign: "center",
+                            borderBottom: "1px solid #F0F2F5",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            {actions.map((action, ai) => (
+                              <button
+                                key={ai}
+                                title={action.label}
+                                onClick={() => action.onClick(row)}
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: action.danger ? "#F04438" : "#667085",
+                                  padding: 2,
+                                  transition: "color 0.2s",
+                                }}
+                              >
+                                {action.icon}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
             {footer}
           </table>
         </div>
@@ -648,7 +683,8 @@ export function DataTable<T extends Record<string, unknown>>({
           page={safePage}
           totalPages={totalPages}
           total={totalCount}
-          pageSize={pageSize} onPage={setPage}
+          pageSize={pageSize}
+          onPage={setPage}
         />
       )}
     </div>
