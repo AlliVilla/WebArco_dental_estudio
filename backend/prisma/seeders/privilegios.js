@@ -81,6 +81,7 @@ async function insertPrivilegios() {
     { nombre: "UNIDAD_MEDIDA_ELIMINAR" },
 
     { nombre: "ES_DOCTOR"},
+    { nombre: "FINANZAS_RESULTADO"}
   ];
 
   await prisma.privilegio.createMany({

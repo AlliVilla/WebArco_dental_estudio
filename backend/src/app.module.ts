@@ -23,6 +23,7 @@ import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.modul
 import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
 import { TratamientoModule } from './tratamiento/tratamiento.module';
 import { UploadModule } from './upload/upload.module';
+import { FinanzasModule } from './finanzas/finanzas.module';
 
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';  
@@ -50,6 +51,7 @@ import { join } from 'path';
     CategoriaInsumoModule,
     UnidadMedidaModule,
     TratamientoModule,
+    FinanzasModule,
     UploadModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),

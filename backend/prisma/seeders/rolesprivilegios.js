@@ -35,6 +35,7 @@ async function insertRolesPrivilegios() {
     { id_rol: 1, id_privilegio: 53 },
     { id_rol: 1, id_privilegio: 54 },
     { id_rol: 1, id_privilegio: 58 },
+    { id_rol: 1, id_privilegio: 62 },
 
     // ADMIN = TODO
     { id_rol: 2, id_privilegio: 1 },
@@ -98,7 +99,8 @@ async function insertRolesPrivilegios() {
     { id_rol: 2, id_privilegio: 59 },
     { id_rol: 2, id_privilegio: 60 },
     { id_rol: 2, id_privilegio: 61 },
-    // SI Admin es doctor{id_rol : 2, id_privilegio : 62},
+    { id_rol: 2, id_privilegio: 62 },
+    { id_rol: 2, id_privilegio: 63 },
 
     // DOCTOR
     { id_rol: 4, id_privilegio: 1 },
@@ -129,7 +131,6 @@ async function insertRolesPrivilegios() {
     { id_rol: 4, id_privilegio: 53 },
     { id_rol: 4, id_privilegio: 54 },
     { id_rol: 4, id_privilegio: 58 },
-    {id_rol : 2, id_privilegio : 62},
 
     // CONTADOR
     { id_rol: 3, id_privilegio: 2 },
@@ -138,6 +139,7 @@ async function insertRolesPrivilegios() {
     { id_rol: 3, id_privilegio: 12 },
     { id_rol: 3, id_privilegio: 13 },
     { id_rol: 3, id_privilegio: 14 },
+    { id_rol: 3, id_privilegio: 63 },
   ];
 
   await prisma.rolPrivilegio.createMany({

@@ -12,6 +12,7 @@ const doctorSelect = {
     select: {
       primer_nombre: true,
       primer_apellido: true,
+      sexo: true,
     },
   },
 } satisfies Prisma.UsuarioSelect;
