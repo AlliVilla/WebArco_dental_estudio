@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, Alert, Button } from "../../../context";
+import { useLocalStorage } from "../../../hooks/useLocalStorage";
 
 const generateUUID = () => {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -56,7 +57,7 @@ export function GestionEgresos() {
   );
 
   const [error, setError] = useState<string | null>(null);
-  const userStored = JSON.parse(localStorage.getItem("webarco_user") || "{}");
+  const [userStored] = useLocalStorage<any>("webarco_user", {});
 
   const nombreAutenticado = useMemo(() => {
     if (userStored.nombre) return userStored.nombre;
@@ -78,6 +79,12 @@ export function GestionEgresos() {
   const [observaciones, setObservaciones] = useState("");
   const [idSeleccionado, setIdSeleccionado] = useState<string | null>(null);
   const [responsable, setResponsable] = useState(nombreAutenticado);
+
+  useEffect(() => {
+    if (modoModal === "crear" && !idSeleccionado) {
+      setResponsable(nombreAutenticado);
+    }
+  }, [nombreAutenticado, modoModal, idSeleccionado]);
 
   const localHoyStr = useMemo(() => {
     const d = new Date();
