@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Card, Alert } from "../../../context";
+import { Card, Alert, Button } from "../../../context";
 
 const generateUUID = () => {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -24,7 +24,12 @@ import {
 import { DataTable, ConfirmModal } from "../../../components";
 
 type CategoriaEgreso = "Insumos" | "Equipos" | "Nómina" | "Servicios";
-const CATEGORIAS: CategoriaEgreso[] = ["Insumos", "Equipos", "Nómina", "Servicios"];
+const CATEGORIAS: CategoriaEgreso[] = [
+  "Insumos",
+  "Equipos",
+  "Nómina",
+  "Servicios",
+];
 
 type RegistroEgreso = {
   id: string;
@@ -42,6 +47,7 @@ export function GestionEgresos() {
     "crear",
   );
   const [registros, setRegistros] = useState<RegistroEgreso[]>([]);
+  const [estaCargando, setEstaCargando] = useState(false);
 
   const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] =
     useState(false);
@@ -98,9 +104,10 @@ export function GestionEgresos() {
       .filter((r) => r.fecha === localHoyStr)
       .reduce((sum, r) => sum + r.monto, 0);
 
-    const egresoPromedio = registros.length > 0
-      ? registros.reduce((sum, r) => sum + r.monto, 0) / registros.length
-      : 0;
+    const egresoPromedio =
+      registros.length > 0
+        ? registros.reduce((sum, r) => sum + r.monto, 0) / registros.length
+        : 0;
 
     const formatMoneda = (val: number) =>
       `$${val.toLocaleString("es-MX", {
@@ -142,7 +149,7 @@ export function GestionEgresos() {
 
   const filtros = useMemo(() => {
     const responsablesUnicos = Array.from(
-      new Set(registros.map((r) => r.responsable).filter(Boolean))
+      new Set(registros.map((r) => r.responsable).filter(Boolean)),
     );
     return [
       {
@@ -240,7 +247,23 @@ export function GestionEgresos() {
       );
     }
 
+    setEstaCargando(false);
     cerrarModal();
+  };
+
+  const manejarConfirmarEliminacion = async () => {
+    if (!registroAEliminar || estaCargando) return;
+
+    setEstaCargando(true);
+    try {
+      setRegistros(registros.filter((r) => r.id !== registroAEliminar));
+      setRegistroAEliminar(null);
+      setEstaModalConfirmacionAbierto(false);
+    } catch (err) {
+      setError("Error al eliminar el registro.");
+    } finally {
+      setEstaCargando(false);
+    }
   };
 
   const cerrarModal = () => {
@@ -380,7 +403,8 @@ export function GestionEgresos() {
       label: "Monto",
       render: (val: unknown) => (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#EF4444" }}>
-          ${Number(val || 0).toLocaleString("es-MX", {
+          $
+          {Number(val || 0).toLocaleString("es-MX", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}
@@ -514,18 +538,13 @@ export function GestionEgresos() {
         title="¿Eliminar registro de egreso?"
         description="Esta acción eliminará el registro permanentemente. Esta operación no se puede deshacer."
         confirmLabel="Eliminar"
+        loading={estaCargando}
         cancelLabel="Cancelar"
         onClose={() => {
           setEstaModalConfirmacionAbierto(false);
           setRegistroAEliminar(null);
         }}
-        onConfirm={() => {
-          if (registroAEliminar) {
-            setRegistros(registros.filter((r) => r.id !== registroAEliminar));
-            setRegistroAEliminar(null);
-          }
-          setEstaModalConfirmacionAbierto(false);
-        }}
+        onConfirm={manejarConfirmarEliminacion}
       />
 
       {estaModalAbierto && (
@@ -685,9 +704,7 @@ export function GestionEgresos() {
                       required
                       value={categoria}
                       onChange={(e) =>
-                        setCategoria(
-                          e.target.value as CategoriaEgreso,
-                        )
+                        setCategoria(e.target.value as CategoriaEgreso)
                       }
                       style={{
                         width: "100%",
@@ -787,30 +804,37 @@ export function GestionEgresos() {
                     }}
                   >
                     <label
-                      style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#203F49",
+                      }}
                     >
                       Responsable
                       {modoModal !== "ver" && (
-                        <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                        <span style={{ color: "#EF9F27", marginLeft: 4 }}>
+                          *
+                        </span>
                       )}
                     </label>
-                    {modoModal === "editar" && responsable !== nombreAutenticado && (
-                      <button
-                        type="button"
-                        onClick={() => setResponsable(nombreAutenticado)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#0BC5DF",
-                          fontSize: 11,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          padding: 0,
-                        }}
-                      >
-                        Asignarme a mí
-                      </button>
-                    )}
+                    {modoModal === "editar" &&
+                      responsable !== nombreAutenticado && (
+                        <button
+                          type="button"
+                          onClick={() => setResponsable(nombreAutenticado)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#0BC5DF",
+                            fontSize: 11,
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            padding: 0,
+                          }}
+                        >
+                          Asignarme a mí
+                        </button>
+                      )}
                   </div>
                   <input
                     disabled={modoModal === "ver"}
@@ -825,7 +849,12 @@ export function GestionEgresos() {
                       border: "1px solid #D3D7DA",
                       outline: "none",
                       fontSize: 14,
-                      background: modoModal === "ver" ? "#F1F3F4" : (responsable ? "#fff" : "#F3F3F5"),
+                      background:
+                        modoModal === "ver"
+                          ? "#F1F3F4"
+                          : responsable
+                            ? "#fff"
+                            : "#F3F3F5",
                       color: "#203F49",
                     }}
                   />
@@ -881,40 +910,20 @@ export function GestionEgresos() {
                   marginTop: 8,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={cerrarModal}
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    border: "1px solid #D3D7DA",
-                    background: "#fff",
-                    color: "#5F656A",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
-                >
+                <Button variant="secondary" onClick={cerrarModal} type="button">
                   Cancelar
-                </button>
+                </Button>
+
                 {modoModal !== "ver" && (
-                  <button
+                  <Button
                     type="submit"
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: "#0BC5DF",
-                      color: "#fff",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                    }}
+                    variant="primary"
+                    loading={estaCargando}
                   >
                     {modoModal === "editar"
                       ? "Guardar Cambios"
                       : "Registrar Egreso"}
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>
