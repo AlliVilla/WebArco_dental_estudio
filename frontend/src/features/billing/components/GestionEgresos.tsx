@@ -25,87 +25,12 @@ type RegistroEgreso = {
   observaciones: string;
 };
 
-const datosMock: RegistroEgreso[] = [
-  {
-    id: "1",
-    fecha: "2026-06-03",
-    concepto: "Compra de guantes látex x500",
-    categoria: "Insumos",
-    monto: 450,
-    responsable: "Dr. Karla Arita",
-    observaciones: "Proveedor: MediSupply",
-  },
-  {
-    id: "2",
-    fecha: "2026-06-02",
-    concepto: "Mantenimiento autoclave",
-    categoria: "Equipos",
-    monto: 1200,
-    responsable: "Dr. Karla Arita",
-    observaciones: "Servicio técnico mensual",
-  },
-  {
-    id: "3",
-    fecha: "2026-06-01",
-    concepto: "Pago nómina asistente",
-    categoria: "Nómina",
-    monto: 8500,
-    responsable: "Dr. Karla Arita",
-    observaciones: "Quincena 1 - Junio",
-  },
-  {
-    id: "4",
-    fecha: "2026-06-01",
-    concepto: "Resinas dentales x10",
-    categoria: "Insumos",
-    monto: 2300,
-    responsable: "Dr. Karla Arita",
-    observaciones: "3M ESPE",
-  },
-  {
-    id: "5",
-    fecha: "2026-05-31",
-    concepto: "Servicio de limpieza",
-    categoria: "Servicios",
-    monto: 800,
-    responsable: "Dr. Juan Miguel Arita",
-    observaciones: "Limpieza profunda mensual",
-  },
-  {
-    id: "6",
-    fecha: "2026-05-30",
-    concepto: "Papel de impresora",
-    categoria: "Insumos",
-    monto: 125,
-    responsable: "Dr. Juan Miguel Arita",
-    observaciones: "Resmas de papel A4",
-  },
-  {
-    id: "7",
-    fecha: "2026-05-28",
-    concepto: "Reparación sillón dental",
-    categoria: "Equipos",
-    monto: 950,
-    responsable: "Dr. Karla Arita",
-    observaciones: "Cambio de motor",
-  },
-  {
-    id: "8",
-    fecha: "2026-05-27",
-    concepto: "Pago nómina recepcionista",
-    categoria: "Nómina",
-    monto: 5500,
-    responsable: "Dr. Juan Miguel Arita",
-    observaciones: "Quincena 2 - Mayo",
-  },
-];
-
 export function GestionEgresos() {
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
     "crear",
   );
-  const [registros, setRegistros] = useState<RegistroEgreso[]>(datosMock);
+  const [registros, setRegistros] = useState<RegistroEgreso[]>([]);
 
   const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] =
     useState(false);
@@ -142,28 +67,28 @@ export function GestionEgresos() {
   const indicadores = [
     {
       label: "Egresos del Mes",
-      value: "$18,450.00",
+      value: "$0.00",
       icon: TrendingDown,
       color: "#EF4444",
       bg: "#FEE2E2",
     },
     {
       label: "Total en Insumos",
-      value: "$8,230.00",
+      value: "$0.00",
       icon: Package,
       color: "#EF9F27",
       bg: "#FFFBEB",
     },
     {
       label: "Egreso del Día",
-      value: "$1,450.00",
+      value: "$0.00",
       icon: Calendar,
       color: "#0BC5DF",
       bg: "#E6F8FB",
     },
     {
       label: "Egreso Promedio",
-      value: "$920.00",
+      value: "$0.00",
       icon: DollarSign,
       color: "#203F49",
       bg: "#F1F3F4",
@@ -572,6 +497,7 @@ export function GestionEgresos() {
                       outline: "none",
                       fontSize: 14,
                       color: "#203F49",
+                      backgroundColor: fecha ? "#fff" : "#F3F3F5",
                     }}
                   />
                 </div>
@@ -621,7 +547,7 @@ export function GestionEgresos() {
                         border: "1px solid #D3D7DA",
                         outline: "none",
                         fontSize: 14,
-                        background: "#fff",
+                        background: categoria ? "#fff" : "#F3F3F5",
                         color: "#203F49",
                       }}
                     >
@@ -657,6 +583,7 @@ export function GestionEgresos() {
                     outline: "none",
                     fontSize: 14,
                     color: "#203F49",
+                    backgroundColor: concepto ? "#fff" : "#F3F3F5",
                   }}
                 />
               </div>
@@ -695,6 +622,7 @@ export function GestionEgresos() {
                       outline: "none",
                       fontSize: 14,
                       color: "#203F49",
+                      backgroundColor: monto ? "#fff" : "#F3F3F5",
                     }}
                   />
                 </div>
@@ -747,7 +675,7 @@ export function GestionEgresos() {
                       border: "1px solid #D3D7DA",
                       outline: "none",
                       fontSize: 14,
-                      background: modoModal === "ver" ? "#F1F3F4" : "#fff",
+                      background: modoModal === "ver" ? "#F1F3F4" : (responsable ? "#fff" : "#F3F3F5"),
                       color: "#203F49",
                     }}
                   />
@@ -790,6 +718,7 @@ export function GestionEgresos() {
                     fontSize: 13,
                     fontFamily: "inherit",
                     resize: "none",
+                    backgroundColor: observaciones ? "#fff" : "#F3F3F5",
                   }}
                 />
               </div>
