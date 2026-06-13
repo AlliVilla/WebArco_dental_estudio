@@ -60,14 +60,20 @@ export function GestionEgresos() {
   const [userStored] = useLocalStorage<any>("webarco_user", {});
 
   const nombreAutenticado = useMemo(() => {
-    if (userStored.nombre) return userStored.nombre;
+    try {
+      if (userStored && typeof userStored === "object") {
+        if (userStored.nombre) return userStored.nombre;
 
-    const p = userStored.persona;
-    const primerNombre = p?.primer_nombre || userStored.primer_nombre;
-    const primerApellido = p?.primer_apellido || userStored.primer_apellido;
+        const p = userStored.persona;
+        const primerNombre = p?.primer_nombre || userStored.primer_nombre;
+        const primerApellido = p?.primer_apellido || userStored.primer_apellido;
 
-    if (primerNombre) {
-      return `${primerNombre} ${primerApellido || ""}`.trim();
+        if (primerNombre) {
+          return `${primerNombre} ${primerApellido || ""}`.trim();
+        }
+      }
+    } catch {
+      return "Usuario Autenticado";
     }
     return "Usuario Autenticado";
   }, [userStored]);
