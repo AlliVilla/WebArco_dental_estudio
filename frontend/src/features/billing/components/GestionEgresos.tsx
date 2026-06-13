@@ -178,13 +178,13 @@ export function GestionEgresos() {
     }
 
     const parsedMonto = Number(monto);
-    if (isNaN(parsedMonto) || parsedMonto < 0) {
-      alert("El monto no debe ser negativo.");
+    if (isNaN(parsedMonto) || parsedMonto <= 0) {
+      alert("El monto debe ser mayor que 0.00");
       return;
     }
 
     const newRecord: ExpenseRecord = {
-      id: String(records.length + 1),
+      id: crypto.randomUUID(),
       fecha,
       concepto,
       categoria,
@@ -500,10 +500,10 @@ export function GestionEgresos() {
                     onChange={(e) =>
                       setCategoria(
                         e.target.value as
-                          | "Insumos"
-                          | "Equipos"
-                          | "Nómina"
-                          | "Servicios",
+                        | "Insumos"
+                        | "Equipos"
+                        | "Nómina"
+                        | "Servicios",
                       )
                     }
                     style={{
