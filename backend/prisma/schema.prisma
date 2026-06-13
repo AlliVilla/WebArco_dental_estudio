@@ -280,6 +280,7 @@ model PagoPaciente {
   id_consulta    Int
   fecha          DateTime @db.Date
   abono          Decimal  @db.Decimal(10, 2)
+  metodo_pago    MetodoPago @default(Efectivo)
   observacion    String?  @db.Text
   firma_paciente String?  @db.Text
 
@@ -399,14 +400,31 @@ model Egreso {
 }
 
 model Cierre {
-  id_cierre   Int      @id @default(autoincrement())
-  fecha       DateTime @default(now()) @db.Date
-  ingresos    Decimal  @db.Decimal(10, 2)
-  egresos     Decimal  @db.Decimal(10, 2)
-  saldo       Decimal  @db.Decimal(10, 2)
+  id_cierre     Int        @id @default(autoincrement())
+  fecha         DateTime   @default(now()) @db.Date
+  tipo_cierre   TipoCierre
+  ingresos      Decimal    @db.Decimal(10, 2)
+  egresos       Decimal    @db.Decimal(10, 2)
+  utilidad      Decimal    @db.Decimal(10, 2)
+  efectivo      Decimal    @db.Decimal(10, 2) @default(0.00)
+  tarjeta       Decimal    @db.Decimal(10, 2) @default(0.00)
+  transferencia Decimal    @db.Decimal(10, 2) @default(0.00)
   id_usuario  Int
 
   usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
 
   @@map("cierre")
+}
+
+enum TipoCierre {
+  Diario
+  Semanal
+  Quincenal
+  Mensual
+}
+
+enum MetodoPago {
+  Efectivo
+  Tarjeta
+  Transferencia
 }
