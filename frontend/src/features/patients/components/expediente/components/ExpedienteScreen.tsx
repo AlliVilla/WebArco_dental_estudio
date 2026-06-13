@@ -320,9 +320,15 @@ export function ExpedienteScreen() {
           <span
             style={{ fontWeight: 600, color: "var(--foreground, #203F49)" }}
           >
-            {uc?.fecha_fin
-              ? new Date(uc.fecha_fin).toLocaleDateString("es-HN")
-              : "N/A"}
+            {uc ? (
+              new Date(uc.fecha_fin ?? uc.fecha_inicio).toLocaleDateString(
+                "es-HN"
+              )
+            ) : (
+              <span style={{ color: "#888F94", fontWeight: 400 }}>
+                Sin visitas
+              </span>
+            )}
           </span>
         );
       },
@@ -391,6 +397,35 @@ export function ExpedienteScreen() {
 
   const kpiCols = isMobile || isTablet ? "1fr 1fr" : "repeat(3, 1fr)";
   const showCards = isMobile || isTablet;
+
+  // Búsqueda para vista móvil/tablet
+  const [mobileSearch, setMobileSearch] = useState("");
+  const normalize = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  const filteredExps = useMemo(
+    () =>
+      !mobileSearch
+        ? expedientes
+        : expedientes.filter((e) => {
+            const nombre = [
+              e.primer_nombre,
+              e.segundo_nombre,
+              e.primer_apellido,
+              e.segundo_apellido,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              normalize(nombre).includes(normalize(mobileSearch)) ||
+              e.numero_identidad.includes(mobileSearch) ||
+              e.telefono.includes(mobileSearch)
+            );
+          }),
+    [expedientes, mobileSearch]
+  );
 
   // Datos para drawers
   const drawerConfigs = [
@@ -507,6 +542,24 @@ export function ExpedienteScreen() {
           {/* Tabla / Cards */}
           {showCards ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Buscador móvil */}
+              <input
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                placeholder="Buscar por nombre, identidad o teléfono..."
+                style={{
+                  width: "100%",
+                  height: 42,
+                  padding: "0 12px",
+                  border: "1px solid #D3D7DA",
+                  borderRadius: 8,
+                  background: "#F5F7FA",
+                  fontSize: 13,
+                  color: "#203F49",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
               {loading ? (
                 <p
                   style={{
@@ -518,7 +571,7 @@ export function ExpedienteScreen() {
                 >
                   Cargando expedientes...
                 </p>
-              ) : expedientes.length === 0 ? (
+              ) : filteredExps.length === 0 ? (
                 <p
                   style={{
                     textAlign: "center",
@@ -527,10 +580,12 @@ export function ExpedienteScreen() {
                     padding: 24,
                   }}
                 >
-                  No hay expedientes registrados.
+                  {mobileSearch
+                    ? "No hay resultados."
+                    : "No hay expedientes registrados."}
                 </p>
               ) : (
-                expedientes.map((exp) => (
+                filteredExps.map((exp) => (
                   <PatientCard
                     key={exp.id_persona}
                     exp={exp}
@@ -718,11 +773,12 @@ export function ExpedienteScreen() {
                 </div>
                 <div style={{ fontSize: 13, color: "#5F656A", marginTop: 6 }}>
                   Última visita:{" "}
-                  {activePatient.consultas?.[0]?.fecha_fin
+                  {activePatient.consultas?.[0]
                     ? new Date(
-                        activePatient.consultas[0].fecha_fin
+                        activePatient.consultas[0].fecha_fin ??
+                          activePatient.consultas[0].fecha_inicio
                       ).toLocaleString("es-HN")
-                    : "N/A"}
+                    : "Sin visitas registradas"}
                 </div>
               </div>
             </div>
@@ -861,11 +917,9 @@ export function ExpedienteScreen() {
                               color: C.navy,
                             }}
                           >
-                            {visit.fecha_fin
-                              ? new Date(visit.fecha_fin).toLocaleDateString(
-                                  "es-HN"
-                                )
-                              : "N/A"}
+                            {new Date(
+                              visit.fecha_fin ?? visit.fecha_inicio
+                            ).toLocaleDateString("es-HN")}
                           </span>
                           {!isMobile && (
                             <span style={{ fontSize: 13, color: C.gray500 }}>
