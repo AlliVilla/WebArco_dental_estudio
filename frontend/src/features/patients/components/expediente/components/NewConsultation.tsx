@@ -47,7 +47,7 @@ interface TratamientoCatalogo {
     precio: number;
 }
 
-interface TratamientoVisita extends TratamientoCatalogo {
+interface TratamientoConsulta extends TratamientoCatalogo {
     cantidad: number;
     descuento: number;
 }
@@ -206,7 +206,7 @@ interface Props {
     onSave: () => void;
 }
 
-export function NuevaVisita({ patient, onBack, onSave }: Props) {
+export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [step, setStep] = useState<Step>(1);
     const [saving, setSaving] = useState(false);
     const [toasts, setToasts] = useState<ToastMsg[]>([]);
@@ -239,8 +239,8 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
 
     // ── STEP 2: Motivo y Odontograma ──
     const [motivo, setMotivo] = useState('');
-    const [ultimaVisitaOdontologo, setUltimaVisitaOdontologo] = useState('');
-    const [tipoVisita, setTipoVisita] = useState('Control');
+    const [ultimaConsultaOdontologo, setUltimaConsultaOdontologo] = useState('');
+    const [tipoConsulta, setTipoConsulta] = useState('Control');
     const [showOdontogram, setShowOdontogram] = useState(false);
     const [, setTeethState] = useState<Record<number, { state: string; observation: string }> | null>(null); // To save state from odontogram
     const [modifiedTeethCount, setModifiedTeethCount] = useState(0);
@@ -255,7 +255,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
 
     const [busqueda, setBusqueda] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [tratamientos, setTratamientos] = useState<TratamientoVisita[]>([]);
+    const [tratamientos, setTratamientos] = useState<TratamientoConsulta[]>([]);
     const [conceptoLibre, setConceptoLibre] = useState('');
     const [precioLibre, setPrecioLibre] = useState('');
     const [metodoPago, setMetodoPago] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
@@ -411,7 +411,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         addToast('info', `Concepto "${nombre}" agregado.`);
     };
 
-    const updateTrat = (id: string, key: keyof TratamientoVisita, val: number) => {
+    const updateTrat = (id: string, key: keyof TratamientoConsulta, val: number) => {
         setTratamientos((prev) => prev.map((t) => t.id === id ? { ...t, [key]: Math.max(0, val) } : t));
     };
 
@@ -444,15 +444,15 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         };
 
         try {
-            const res = await expedientService.registrarVisita(patient.id_persona, payload);
+            const res = await expedientService.registrarConsulta(patient.id_persona, payload);
             if (res.success) {
-                addToast('success', res.message || 'Visita registrada exitosamente');
+                addToast('success', res.message || 'Consulta registrada exitosamente');
                 setTimeout(onSave, 1000);
             } else {
-                addToast('error', res.message || 'Error al guardar la visita.');
+                addToast('error', res.message || 'Error al guardar la consulta.');
             }
         } catch (err: unknown) {
-            const msg = (err as { message?: string })?.message ?? 'Error al guardar la visita.';
+            const msg = (err as { message?: string })?.message ?? 'Error al guardar la consulta.';
             addToast('error', msg);
         } finally {
             setSaving(false);
@@ -469,7 +469,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                         onClick={() => setShowOdontogram(false)}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: C.gray500, fontSize: 13, padding: 0 }}
                     >
-                        <ChevronLeft size={16} /> Volver al formulario de visita
+                        <ChevronLeft size={16} /> Volver al formulario de consulta
                     </button>
                     <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>Odontograma de la Consulta</div>
                     <div style={{ fontSize: 13, color: C.gray700 }}>
@@ -512,7 +512,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                     <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: C.gray500, fontSize: 13, padding: 0 }}>
                         <ChevronLeft size={16} /> Volver al expediente
                     </button>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>Registrar Nueva Visita</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>Registrar Nueva Consulta</div>
                     <div style={{ fontSize: 13, color: C.gray700 }}>
                         Paciente seleccionado:     <strong style={{ color: C.primary }}>{[patient.primer_nombre, patient.segundo_nombre, patient.primer_apellido, patient.segundo_apellido].filter(Boolean).join(' ')}</strong>
                     </div>
@@ -531,14 +531,14 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                         <SectionCard icon={<Clock size={17} />} title="Información de la Cita / Doctor">
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                                 <div>
-                                    <FieldLabel required>Fecha de visita</FieldLabel>
+                                    <FieldLabel required>Fecha de consulta</FieldLabel>
                                     <input
                                         type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}
                                         style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, background: C.white, outline: 'none' }}
                                     />
                                 </div>
                                 <div>
-                                    <FieldLabel required>Hora de visita</FieldLabel>
+                                    <FieldLabel required>Hora de consulta</FieldLabel>
                                     <input
                                         type="time" value={hora} onChange={(e) => setHora(e.target.value)}
                                         style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, background: C.white, outline: 'none' }}
@@ -645,23 +645,23 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                 ══════════════════════════════════════════════════════════════════ */}
                 {step === 2 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <SectionCard icon={<Stethoscope size={17} />} title="Detalles del Motivo de Visita">
+                        <SectionCard icon={<Stethoscope size={17} />} title="Detalles del Motivo de Consulta">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div>
-                                    <FieldLabel required>Motivo de la visita</FieldLabel>
+                                    <FieldLabel required>Motivo de la consulta</FieldLabel>
                                     <Textarea value={motivo} onChange={setMotivo} placeholder="Describa el síntoma principal o razón por la cual asiste el paciente..." rows={3} />
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                                     <div>
-                                        <FieldLabel>¿Cuándo fue su última visita al odontólogo?</FieldLabel>
-                                        <TextInput value={ultimaVisitaOdontologo} onChange={setUltimaVisitaOdontologo} placeholder="Ej: Hace 6 meses, Nunca, etc." />
+                                        <FieldLabel>¿Cuándo fue su última consulta al odontólogo?</FieldLabel>
+                                        <TextInput value={ultimaConsultaOdontologo} onChange={setUltimaConsultaOdontologo} placeholder="Ej: Hace 6 meses, Nunca, etc." />
                                     </div>
                                     <div>
-                                        <FieldLabel>Tipo de visita</FieldLabel>
+                                        <FieldLabel>Tipo de consulta</FieldLabel>
                                         <select
-                                            value={tipoVisita}
-                                            onChange={(e) => setTipoVisita(e.target.value)}
+                                            value={tipoConsulta}
+                                            onChange={(e) => setTipoConsulta(e.target.value)}
                                             style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, background: C.white, outline: 'none', cursor: 'pointer' }}
                                         >
                                             <option value="Control">Control General</option>
@@ -1037,7 +1037,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
                                 loading={saving}
                                 style={{ background: saving ? undefined : 'var(--arco-success, #1D9E75)', borderColor: saving ? undefined : 'var(--arco-success, #1D9E75)' }}
                             >
-                                <Check size={15} /> Guardar Visita
+                                <Check size={15} /> Guardar Consulta
                             </Button>
                         )}
                     </div>

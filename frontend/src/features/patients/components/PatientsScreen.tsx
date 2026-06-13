@@ -225,9 +225,9 @@ export function PatientsScreen({
     { key: "phone", label: "Teléfono", width: 160 },
     {
       key: "lastVisit",
-      label: "Fecha última visita",
+      label: "Fecha última consulta",
       width: 170,
-      render: (_value, patient) => patient.lastVisit ? formatDate(patient.lastVisit) : "Sin visitas",
+      render: (_value, patient) => patient.lastVisit ? formatDate(patient.lastVisit) : "Sin consultas",
     },
   ];
 

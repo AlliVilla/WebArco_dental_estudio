@@ -8,9 +8,9 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class RegistrarVisitaDto {
+export class RegistrarConsultaDto {
   @ApiProperty({
-    description: 'ID del usuario/doctor que atiende la visita',
+    description: 'ID del usuario/doctor que atiende la consulta',
     example: 1,
   })
   @IsNotEmpty({ message: 'id_usuario es obligatorio' })
@@ -19,7 +19,7 @@ export class RegistrarVisitaDto {
   id_usuario: number;
 
   @ApiProperty({
-    description: 'Fecha y hora de inicio de la visita (ISO 8601)',
+    description: 'Fecha y hora de inicio de la consulta (ISO 8601)',
     example: '2026-06-07T10:00:00Z',
   })
   @IsNotEmpty({ message: 'fecha_inicio es obligatoria' })
@@ -27,7 +27,7 @@ export class RegistrarVisitaDto {
   fecha_inicio: string;
 
   @ApiPropertyOptional({
-    description: 'Fecha y hora de fin de la visita (ISO 8601)',
+    description: 'Fecha y hora de fin de la consulta (ISO 8601)',
     example: '2026-06-07T10:45:00Z',
   })
   @IsOptional()
@@ -35,7 +35,7 @@ export class RegistrarVisitaDto {
   fecha_fin?: string;
 
   @ApiPropertyOptional({
-    description: 'Diagnóstico emitido durante la visita',
+    description: 'Diagnóstico emitido durante la consulta',
     example: 'Caries interproximal en molar inferior derecho',
   })
   @IsOptional()
@@ -43,7 +43,7 @@ export class RegistrarVisitaDto {
   diagnostico?: string;
 
   @ApiPropertyOptional({
-    description: 'Tratamiento realizado durante la visita',
+    description: 'Tratamiento realizado durante la consulta',
     example: 'Empaste de resina compuesta en pieza 46',
   })
   @IsOptional()
@@ -51,7 +51,7 @@ export class RegistrarVisitaDto {
   tratamiento?: string;
 
   @ApiPropertyOptional({
-    description: 'Notas adicionales del doctor sobre la visita',
+    description: 'Notas adicionales del doctor sobre la consulta',
     example: 'Paciente con sensibilidad en sector posterior. Control en 2 semanas.',
   })
   @IsOptional()

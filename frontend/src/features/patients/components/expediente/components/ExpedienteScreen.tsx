@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { NuevaVisita } from './NewVisit';
+import { NuevaConsulta } from './NewConsultation';
 import {
   Plus,
   ArrowLeft,
@@ -43,7 +43,7 @@ const PAGE_SIZE = 10;
 
 export function ExpedienteScreen() {
   const location = useLocation();
-  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-visit'>('list');
+  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
   const [error, setError] = useState<string>('');
@@ -51,6 +51,15 @@ export function ExpedienteScreen() {
 
   // Paginación client-side
   const [currentPage, setCurrentPage] = useState(1);
+
+  const pagedExpedientes = useMemo(
+    () => expedientes.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [expedientes, currentPage],
+  );
+
+  const handleTableParamsChange = useCallback((params: { page: number }) => {
+    setCurrentPage(params.page);
+  }, []);
 
   const selectedPatientFromQuery = useMemo(() => {
     const queryPatientId = new URLSearchParams(location.search).get('patientId');
@@ -90,7 +99,7 @@ export function ExpedienteScreen() {
     }
   }, [expedientes, selectedPatientFromQuery]);
   
-  const totalVisitas = useMemo(
+  const totalConsultas = useMemo(
     () => expedientes.reduce((acc, exp) => acc + (exp.consultas?.length ?? 0), 0),
     [expedientes],
   );
@@ -116,21 +125,21 @@ export function ExpedienteScreen() {
 
   const activePatient = expedientes.find((e) => e.id_persona === selectedPatientId);
 
-  const [expandedVisits, setExpandedVisits] = useState<Record<number, boolean>>({});
+  const [expandedConsultas, setExpandedConsultas] = useState<Record<number, boolean>>({});
   const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
 
   useEffect(() => {
     if (activePatient?.consultas.length) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setExpandedVisits({ [activePatient.consultas[0].id_consulta]: true });
+      setExpandedConsultas({ [activePatient.consultas[0].id_consulta]: true });
     } else {
-      setExpandedVisits({});
+      setExpandedConsultas({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPatientId]);
 
-  const toggleVisit = (visitId: number) => {
-    setExpandedVisits((prev) => ({ ...prev, [visitId]: !prev[visitId] }));
+  const toggleConsulta = (consultaId: number) => {
+    setExpandedConsultas((prev) => ({ ...prev, [consultaId]: !prev[consultaId] }));
   };
 
   const handleSelectPatient = (id: number) => {
@@ -143,12 +152,12 @@ export function ExpedienteScreen() {
     loadPatients(1);
   };
 
-  const handleNewVisitSave = () => {
+  const handleNewConsultaSave = () => {
     loadPatients(1);
     setViewState('detail');
   };
 
-  const handleNewVisitBack = () => {
+  const handleNewConsultaBack = () => {
     setViewState('detail');
   };
 
@@ -177,8 +186,8 @@ export function ExpedienteScreen() {
     { key: 'numero_identidad', label: 'Identidad' },
     { key: 'telefono', label: 'Teléfono' },
     {
-      key: 'ultimaVisita',
-      label: 'Última Visita',
+      key: 'ultimaConsulta',
+      label: 'Última Consulta',
       render: (_, row) => {
         const ultimaConsulta = row.consultas?.[0];
         return (
@@ -191,8 +200,8 @@ export function ExpedienteScreen() {
       },
     },
     {
-      key: 'totalVisitas',
-      label: 'Visitas',
+      key: 'totalConsultas',
+      label: 'Consultas',
       align: 'center',
       render: (_, row) => (
         <span style={{ fontWeight: 600, color: C.navy }}>
@@ -246,8 +255,8 @@ export function ExpedienteScreen() {
           {/* Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             <Card style={{ border: '1.5px solid rgba(11, 197, 223, 0.24)', padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-primary, #0BC5DF)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Total Visitas</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>{totalVisitas}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-primary, #0BC5DF)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Total Consultas</span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>{totalConsultas}</span>
             </Card>
             <Card style={{ border: '1.5px solid rgba(29, 158, 117, 0.24)', padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-success, #1D9E75)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Completadas</span>
@@ -295,8 +304,8 @@ export function ExpedienteScreen() {
             >
               <ArrowLeft size={16} /> Volver a expedientes
             </Button>
-            <Button onClick={() => setViewState('new-visit')} variant="primary" size="sm">
-              <Plus size={16} /> Registrar Nueva Visita
+            <Button onClick={() => setViewState('new-consulta')} variant="primary" size="sm">
+              <Plus size={16} /> Registrar Nueva Consulta
             </Button>
           </div>
 
@@ -353,29 +362,29 @@ export function ExpedienteScreen() {
                 </div>
 
                 <div style={{ fontSize: 13, color: C.gray700, marginTop: 8 }}>
-                  Última visita: {activePatient.consultas?.[0]?.fecha_fin ? new Date(activePatient.consultas[0].fecha_fin).toLocaleString('es-HN') : 'N/A'}
+                  Última consulta: {activePatient.consultas?.[0]?.fecha_fin ? new Date(activePatient.consultas[0].fecha_fin).toLocaleString('es-HN') : 'N/A'}
                 </div>
               </div>
             </div>
           </Card>
 
-          {/* Historial de visitas */}
+          {/* Historial de consultas */}
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Visitas y Consultas</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Consultas</h3>
 
             {activePatient?.consultas.length === 0 ? (
               <div style={{ border: `2px dashed ${C.primary}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: C.primary008 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Sin Visitas Registradas
+                  Sin Consultas Registradas
                 </span>
                 <span style={{ fontSize: 12, color: C.gray500, textAlign: 'center' }}>
-                  El cliente no tiene ninguna visita realizada
+                  El cliente no tiene ninguna consulta realizada
                 </span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {activePatient.consultas.map((visit) => {
-                  const isExpanded = !!expandedVisits[visit.id_consulta];
+                  const isExpanded = !!expandedConsultas[visit.id_consulta];
                   const totalCosto = visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
                   return (
                     <div
@@ -401,11 +410,11 @@ export function ExpedienteScreen() {
                       onMouseLeave={() => setHoveredCardId(null)}
                     >
                       <div
-                        onClick={() => toggleVisit(visit.id_consulta)}
+                        onClick={() => toggleConsulta(visit.id_consulta)}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleVisit(visit.id_consulta); }}
-                        aria-label={isExpanded ? 'Colapsar detalles de la visita' : 'Expandir detalles de la visita'}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleConsulta(visit.id_consulta); }}
+                        aria-label={isExpanded ? 'Colapsar detalles de la consulta' : 'Expandir detalles de la consulta'}
                         aria-expanded={isExpanded}
                         style={{
                           display: 'flex',
@@ -420,7 +429,7 @@ export function ExpedienteScreen() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div
-                            aria-label={isExpanded ? 'Visita expandida' : 'Visita colapsada'}
+                            aria-label={isExpanded ? 'Consulta expandida' : 'Consulta colapsada'}
                             style={{
                               width: 10,
                               height: 10,
@@ -556,7 +565,7 @@ export function ExpedienteScreen() {
                                 display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
                                 fontWeight: 700, color: C.navy, paddingTop: 6, marginTop: 4,
                               }}>
-                                <span>Total de la visita</span>
+                                <span>Total de la consulta</span>
                                 <span style={{ color: C.primary, fontSize: 14.5 }}>
                                   L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                 </span>
@@ -615,12 +624,12 @@ export function ExpedienteScreen() {
         </div>
       )}
 
-      {/* ══ VISTA 3: Nueva Visita ════════════════════════════════════════════ */}
-      {viewState === 'new-visit' && activePatient && (
-        <NuevaVisita
+      {/* ══ VISTA 3: Nueva Consulta ════════════════════════════════════════════ */}
+      {viewState === 'new-consulta' && activePatient && (
+        <NuevaConsulta
           patient={activePatient}
-          onBack={handleNewVisitBack}
-          onSave={handleNewVisitSave}
+          onBack={handleNewConsultaBack}
+          onSave={handleNewConsultaSave}
         />
       )}
     </div>

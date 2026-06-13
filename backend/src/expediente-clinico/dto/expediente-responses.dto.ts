@@ -245,15 +245,15 @@ export class AlertaFirmaDetalleDto {
   pendientes: string[];
 }
 
-export class RegistrarVisitaResponseDto {
-  @ApiProperty({ example: 'Visita registrada exitosamente' })
+export class RegistrarConsultaResponseDto {
+  @ApiProperty({ example: 'Consulta registrada exitosamente' })
   message: string;
 
   @ApiProperty({ type: () => AlertaFirmaDetalleDto })
   alerta_firmas: AlertaFirmaDetalleDto;
 
   @ApiProperty({ type: () => ConsultaResponseDto })
-  visita: ConsultaResponseDto;
+  consulta: ConsultaResponseDto;
 }
 
 export class ActualizarFirmasResponseDto {
@@ -264,5 +264,5 @@ export class ActualizarFirmasResponseDto {
   alerta_firmas: AlertaFirmaDetalleDto;
 
   @ApiProperty({ type: () => ConsultaResponseDto })
-  visita: ConsultaResponseDto;
+  consulta: ConsultaResponseDto;
 }

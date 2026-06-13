@@ -1,7 +1,7 @@
 import api from '../../../../../services/api';
 import { ApiResponse } from '../../../../../types/api';
 
-export interface RegistrarVisitaPayload {
+export interface RegistrarConsultaPayload {
   id_usuario: number;
   fecha_inicio: string;
   fecha_fin?: string;
@@ -16,7 +16,7 @@ export const expedientService = {
     getAll: async (params?: Record<string, unknown>): Promise<ApiResponse> => {
         return api.get('/persona', { params });
     },
-    registrarVisita: async (patientId: number, payload: RegistrarVisitaPayload): Promise<ApiResponse> => {
+    registrarConsulta: async (patientId: number, payload: RegistrarConsultaPayload): Promise<ApiResponse> => {
         return api.post(`/expediente-clinico/${patientId}/visits`, payload);
     },
 };

@@ -171,7 +171,7 @@ export function PatientProfileScreen() {
     : "Sin ubicación";
   const lastVisit = appointments[0]?.fecha_inicio
     ? formatDisplayDate(appointments[0].fecha_inicio)
-    : "Sin visitas registradas";
+    : "Sin consultas registradas";
 
   if (!patientId) {
     return <Alert variant="error" message="ID de paciente inválido." />;
@@ -308,7 +308,7 @@ export function PatientProfileScreen() {
             </div>
 
             <p style={{ color: "#5F656A", fontSize: 13, lineHeight: "19.5px", margin: "8px 0 0" }}>
-              Última visita: {lastVisit}
+              Última consulta: {lastVisit}
             </p>
 
             <div style={{ marginTop: 14 }}>

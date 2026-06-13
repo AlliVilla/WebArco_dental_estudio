@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
+import { RegistrarConsultaDto } from './dto/registrar-consulta.dto';
 import { ActualizarFirmasDto } from './dto/actualizar-firmas.dto';
 
 /** Campos del doctor incluidos en cada consulta */
@@ -17,8 +17,8 @@ const doctorSelect = {
   },
 } satisfies Prisma.UsuarioSelect;
 
-/** Include base para visitas dentro del expediente */
-const visitaInclude = {
+/** Include base para consultas dentro del expediente */
+const consultaInclude = {
   doctor: {
     select: doctorSelect,
   },
@@ -92,7 +92,7 @@ export class ExpedienteClinicoService {
 
     const consultas = await this.prisma.consulta.findMany({
       where: { id_persona: idPaciente },
-      include: visitaInclude,
+      include: consultaInclude,
       orderBy: { fecha_inicio: 'desc' },
     });
 
@@ -131,7 +131,7 @@ export class ExpedienteClinicoService {
           { firma_doctor_snapshot: null },
         ],
       },
-      include: visitaInclude,
+      include: consultaInclude,
       orderBy: { fecha_inicio: 'desc' },
     });
 
@@ -146,11 +146,11 @@ export class ExpedienteClinicoService {
   }
 
   /**
-   * Registra una nueva visita/consulta en el expediente del paciente.
+   * Registra una nueva consulta en el expediente del paciente.
    * Si se envía firma_doctor, actualiza también la firma del usuario.
-   * Retorna la visita creada con el estado de firmas calculado.
+   * Retorna la consulta creada con el estado de firmas calculado.
    */
-  async registrarVisita(idPaciente: number, dto: RegistrarVisitaDto) {
+  async registrarConsulta(idPaciente: number, dto: RegistrarConsultaDto) {
     // Verificar que el paciente existe
     await this.assertPacienteExiste(idPaciente);
 
@@ -173,9 +173,9 @@ export class ExpedienteClinicoService {
         : `--- Notas adicionales ---\n${dto.notas_adicionales}`;
     }
 
-    // Crear la visita en una transacción para garantizar consistencia
-    const visita = await this.prisma.$transaction(async (tx) => {
-      // 1. Crear la consulta/visita
+    // Crear la consulta en una transacción para garantizar consistencia
+    const consultaCreada = await this.prisma.$transaction(async (tx) => {
+      // 1. Crear la consulta
       const nuevaConsulta = await tx.consulta.create({
         data: {
           id_persona: idPaciente,
@@ -187,8 +187,8 @@ export class ExpedienteClinicoService {
           firma_paciente: dto.firma_paciente ?? null,
           consentimiento: Boolean(dto.firma_paciente),
         },
-        include: visitaInclude,
-      }) as Prisma.ConsultaGetPayload<{ include: typeof visitaInclude }>;
+        include: consultaInclude,
+      }) as Prisma.ConsultaGetPayload<{ include: typeof consultaInclude }>;
 
       // 2. Guardar firma del doctor como snapshot en la consulta
       if (dto.firma_doctor) {
@@ -202,53 +202,53 @@ export class ExpedienteClinicoService {
       return nuevaConsulta;
     });
 
-    const visitaMapeada = this.mapearConsultaConEstadoFirmas(visita as Parameters<typeof this.mapearConsultaConEstadoFirmas>[0]);
+    const consultaMapeada = this.mapearConsultaConEstadoFirmas(consultaCreada as Parameters<typeof this.mapearConsultaConEstadoFirmas>[0]);
 
     return {
-      message: 'Visita registrada exitosamente',
-      alerta_firmas: !visitaMapeada.estado_firmas.firmas_completas
+      message: 'Consulta registrada exitosamente',
+      alerta_firmas: !consultaMapeada.estado_firmas.firmas_completas
         ? {
             activa: true,
-            pendientes: visitaMapeada.estado_firmas.pendientes,
+            pendientes: consultaMapeada.estado_firmas.pendientes,
           }
         : { activa: false, pendientes: [] },
-      visita: visitaMapeada,
+      consulta: consultaMapeada,
     };
   }
 
   /**
-   * Retorna el detalle completo de una visita específica de un paciente.
+   * Retorna el detalle completo de una consulta específica de un paciente.
    * Incluye estado de firmas calculado.
    */
-  async obtenerDetalleVisita(idPaciente: number, idVisita: number) {
+  async obtenerDetalleConsulta(idPaciente: number, idConsulta: number) {
     await this.assertPacienteExiste(idPaciente);
 
-    const visita = await this.prisma.consulta.findFirst({
+    const consulta = await this.prisma.consulta.findFirst({
       where: {
-        id_consulta: idVisita,
+        id_consulta: idConsulta,
         id_persona: idPaciente,
       },
-      include: visitaInclude,
+      include: consultaInclude,
     });
 
-    if (!visita) {
+    if (!consulta) {
       throw new NotFoundException(
-        `No se encontró la visita con id ${idVisita} para el paciente con id ${idPaciente}`,
+        `No se encontró la consulta con id ${idConsulta} para el paciente con id ${idPaciente}`,
       );
     }
 
-    return this.mapearConsultaConEstadoFirmas(visita);
+    return this.mapearConsultaConEstadoFirmas(consulta);
   }
 
   /**
-   * Actualiza las firmas pendientes (paciente y/o doctor) de una visita existente.
+   * Actualiza las firmas pendientes (paciente y/o doctor) de una consulta existente.
    * - Valida que el body traiga al menos una firma.
    * - No sobreescribe firmas ya existentes (lanza BadRequestException).
    * - Si dto.firma_doctor se provee, actualiza la firma del usuario doctor asociado.
    */
   async actualizarFirmas(
     idPaciente: number,
-    idVisita: number,
+    idConsulta: number,
     dto: ActualizarFirmasDto,
   ) {
     // Debe enviarse al menos una firma
@@ -260,32 +260,32 @@ export class ExpedienteClinicoService {
 
     await this.assertPacienteExiste(idPaciente);
 
-    // Obtener la visita validando que pertenezca al paciente
-    const visita = await this.prisma.consulta.findFirst({
-      where: { id_consulta: idVisita, id_persona: idPaciente },
-      include: visitaInclude,
+    // Obtener la consulta validando que pertenezca al paciente
+    const consulta = await this.prisma.consulta.findFirst({
+      where: { id_consulta: idConsulta, id_persona: idPaciente },
+      include: consultaInclude,
     });
 
-    if (!visita) {
+    if (!consulta) {
       throw new NotFoundException(
-        `No se encontró la visita con id ${idVisita} para el paciente con id ${idPaciente}`,
+        `No se encontró la consulta con id ${idConsulta} para el paciente con id ${idPaciente}`,
       );
     }
 
     // Proteger firmas ya existentes para no sobreescribirlas
-    if (dto.firma_paciente && visita.firma_paciente) {
+    if (dto.firma_paciente && consulta.firma_paciente) {
       throw new BadRequestException(
-        'La firma del paciente ya existe en esta visita y no puede ser sobreescrita',
+        'La firma del paciente ya existe en esta consulta y no puede ser sobreescrita',
       );
     }
-    if (dto.firma_doctor && visita.firma_doctor_snapshot) {
+    if (dto.firma_doctor && consulta.firma_doctor_snapshot) {
       throw new BadRequestException(
         'La firma del doctor ya existe y no puede ser sobreescrita',
       );
     }
 
     // Aplicar actualizaciones en una transacción
-    const visitaActualizada = await this.prisma.$transaction(async (tx) => {
+    const consultaActualizada = await this.prisma.$transaction(async (tx) => {
       // 1. Actualizar firmas en la consulta
       const datosConsulta: {
         firma_paciente?: string;
@@ -301,25 +301,25 @@ export class ExpedienteClinicoService {
       }
 
       const consultaActualizada = await tx.consulta.update({
-        where: { id_consulta: idVisita },
+        where: { id_consulta: idConsulta },
         data: datosConsulta,
-        include: visitaInclude,
+        include: consultaInclude,
       });
 
       return consultaActualizada;
     });
 
-    const visitaMapeada = this.mapearConsultaConEstadoFirmas(visitaActualizada);
+    const consultaMapeada = this.mapearConsultaConEstadoFirmas(consultaActualizada);
 
     return {
       message: 'Firmas actualizadas exitosamente',
-      alerta_firmas: !visitaMapeada.estado_firmas.firmas_completas
+      alerta_firmas: !consultaMapeada.estado_firmas.firmas_completas
         ? {
             activa: true,
-            pendientes: visitaMapeada.estado_firmas.pendientes,
+            pendientes: consultaMapeada.estado_firmas.pendientes,
           }
         : { activa: false, pendientes: [] },
-      visita: visitaMapeada,
+      consulta: consultaMapeada,
     };
   }
 
