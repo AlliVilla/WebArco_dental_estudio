@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, Alert, Button } from "../../../context";
 import { formatCurrency } from "../../../utils/formatters";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
+import { StatsDrawerContent, StatsItem } from "./StatsDrawerContent";
 
 const generateUUID = () => {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -43,6 +44,14 @@ type RegistroEgreso = {
   observaciones: string;
 };
 
+type DrawerIndicadorState = {
+  title: string;
+  items: StatsItem[];
+  icon?: React.ComponentType<{ size: number; style?: React.CSSProperties }>;
+  iconColor?: string;
+  totalValue?: string;
+};
+
 export function GestionEgresos() {
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
@@ -59,6 +68,11 @@ export function GestionEgresos() {
 
   const [error, setError] = useState<string | null>(null);
   const [userStored] = useLocalStorage<any>("webarco_user", {});
+
+  const [estaDrawerAbierto, setEstaDrawerAbierto] = useState(false);
+  const [drawerActual, setDrawerActual] = useState<DrawerIndicadorState | null>(
+    null,
+  );
 
   const nombreAutenticado = useMemo(() => {
     try {
@@ -206,6 +220,68 @@ export function GestionEgresos() {
     );
   };
 
+  const abrirDrawerIndicador = (indicadorLabel: string) => {
+    let statsItems: StatsItem[] = [];
+    const indicador = indicadores.find((ind) => ind.label === indicadorLabel);
+
+    switch (indicadorLabel) {
+      case "Egresos del Mes": {
+        const y = new Date().getFullYear();
+        const m = String(new Date().getMonth() + 1).padStart(2, "0");
+        const prefix = `${y}-${m}`;
+        statsItems = registros
+          .filter((r) => r.fecha.startsWith(prefix))
+          .map((r) => ({
+            nombre: r.concepto,
+            categoría: r.categoria,
+            monto: r.monto,
+            estado: "Pendiente" as const,
+          }));
+        break;
+      }
+      case "Total en Insumos": {
+        statsItems = registros
+          .filter((r) => r.categoria === "Insumos")
+          .map((r) => ({
+            nombre: r.concepto,
+            categoría: r.categoria,
+            monto: r.monto,
+            estado: "Pendiente" as const,
+          }));
+        break;
+      }
+      case "Egreso del Día": {
+        statsItems = registros
+          .filter((r) => r.fecha === localHoyStr)
+          .map((r) => ({
+            nombre: r.concepto,
+            categoría: r.categoria,
+            monto: r.monto,
+            estado: "Pendiente" as const,
+          }));
+        break;
+      }
+      case "Egreso Promedio": {
+        statsItems = registros.map((r) => ({
+          nombre: r.concepto,
+          categoría: r.categoria,
+          monto: r.monto,
+          estado: "Pendiente" as const,
+        }));
+        break;
+      }
+    }
+
+    setDrawerActual({
+      title: indicadorLabel,
+      items: statsItems,
+      icon: indicador?.icon,
+      iconColor: indicador?.color,
+      totalValue: indicador?.value,
+    });
+    setEstaDrawerAbierto(true);
+  };
+
   const manejarGuardarEgreso = (e: React.FormEvent) => {
     e.preventDefault();
     if (modoModal === "ver") return;
@@ -248,14 +324,14 @@ export function GestionEgresos() {
         registros.map((reg) =>
           reg.id === idSeleccionado
             ? {
-              ...reg,
-              fecha,
-              concepto,
-              categoria,
-              monto: parsedMonto,
-              responsable: responsable.trim() || nombreAutenticado,
-              observaciones,
-            }
+                ...reg,
+                fecha,
+                concepto,
+                categoria,
+                monto: parsedMonto,
+                responsable: responsable.trim() || nombreAutenticado,
+                observaciones,
+              }
             : reg,
         ),
       );
@@ -273,7 +349,7 @@ export function GestionEgresos() {
       setRegistros(registros.filter((r) => r.id !== registroAEliminar));
       setRegistroAEliminar(null);
       setEstaModalConfirmacionAbierto(false);
-    } catch (err) {
+    } catch {
       setError("Error al eliminar el registro.");
     } finally {
       setEstaCargando(false);
@@ -456,53 +532,76 @@ export function GestionEgresos() {
         }}
       >
         {indicadores.map((indicador) => (
-          <Card key={indicador.label}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#888F94",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    margin: "0 0 6px 0",
-                  }}
-                >
-                  {indicador.label}
-                </p>
-                <p
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    color: "#203F49",
-                    margin: 0,
-                  }}
-                >
-                  {indicador.value}
-                </p>
-              </div>
+          <div
+            key={indicador.label}
+            onClick={() => abrirDrawerIndicador(indicador.label)}
+            style={{
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+              (e.currentTarget as HTMLDivElement).style.transform =
+                "translateY(-2px)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow =
+                "0 4px 12px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+              (e.currentTarget as HTMLDivElement).style.transform =
+                "translateY(0)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow = "";
+            }}
+          >
+            <Card>
               <div
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 10,
-                  background: indicador.bg,
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  justifyContent: "space-between",
                 }}
               >
-                <indicador.icon size={20} style={{ color: indicador.color }} />
+                <div>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#888F94",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      margin: "0 0 6px 0",
+                    }}
+                  >
+                    {indicador.label}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: "#203F49",
+                      margin: 0,
+                    }}
+                  >
+                    {indicador.value}
+                  </p>
+                </div>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: indicador.bg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <indicador.icon
+                    size={20}
+                    style={{ color: indicador.color }}
+                  />
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         ))}
       </div>
 
@@ -934,6 +1033,17 @@ export function GestionEgresos() {
           </div>
         </div>
       )}
+
+      <StatsDrawerContent
+        open={estaDrawerAbierto}
+        onClose={() => setEstaDrawerAbierto(false)}
+        title={drawerActual?.title || ""}
+        subtitle="Registros"
+        items={drawerActual?.items || []}
+        icon={drawerActual?.icon}
+        iconColor={drawerActual?.iconColor}
+        totalValue={drawerActual?.totalValue}
+      />
     </div>
   );
 }
