@@ -136,8 +136,12 @@ export function GestionEgresos() {
     }
 
     const parsedMonto = Number(monto);
-    if (isNaN(parsedMonto) || parsedMonto <= 0) {
-      setError("El monto debe ser un valor numérico mayor a 0.00");
+    if (!/^\d+(\.\d{1,2})?$/.test(monto)) {
+      setError("Monto inválido: máximo 2 decimales");
+      return;
+    }
+    if (parsedMonto > 999999999.99) {
+      setError("Monto excede el límite permitido");
       return;
     }
 
