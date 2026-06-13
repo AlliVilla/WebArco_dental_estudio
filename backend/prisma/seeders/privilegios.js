@@ -55,6 +55,8 @@ async function insertPrivilegios() {
 
     { id_privilegio: 65, nombre: "TRATAMIENTOS_VER" },
     { id_privilegio: 66, nombre: "TRATAMIENTOS_GESTIONAR" },
+    { id_privilegio: 67, nombre: "ESTADO_ODONTOGRAMA_VER" },
+    { id_privilegio: 68, nombre: "ESTADO_ODONTOGRAMA_GESTIONAR" },
   ];
 
   await prisma.privilegio.createMany({

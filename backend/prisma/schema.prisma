@@ -250,6 +250,14 @@ model EstadoHistorial {
   @@map("estado_historial")
 }
 
+model EstadoOdontograma {
+  id_estado Int    @id @default(autoincrement())
+  nombre    String @unique @db.VarChar(100)
+  color     String @db.VarChar(20)
+
+  @@map("estado_odontograma")
+}
+
 model Diente {
   numero_diente Int     @id
   nombre        String? @db.VarChar(50)

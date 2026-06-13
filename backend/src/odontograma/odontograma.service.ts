@@ -6,6 +6,17 @@ import { UpdateToothStateDto } from './dto/update-tooth-state.dto';
 export class OdontogramaService {
   constructor(private prisma: PrismaService) {}
 
+  private async assertEstadoValido(estado: string) {
+    const exists = await this.prisma.estadoOdontograma.findFirst({
+      where: { nombre: { equals: estado, mode: 'insensitive' } },
+    });
+    if (!exists) {
+      throw new BadRequestException(
+        `Estado inválido: "${estado}". Use un estado registrado en el catálogo.`,
+      );
+    }
+  }
+
   async getPatientOdontogram(patientId: number) {
     await this.assertPatientExists(patientId);
 
@@ -100,6 +111,7 @@ export class OdontogramaService {
   ) {
     await this.assertPatientExists(patientId);
     await this.assertToothExists(toothNumber);
+    await this.assertEstadoValido(dto.estado);
 
     const activeConsulta = await this.prisma.consulta.findFirst({
       where: {
@@ -332,6 +344,11 @@ export class OdontogramaService {
     }
 
     await this.assertPatientExists(consulta.id_persona);
+
+    const estadosUnicos = [...new Set(items.map((i) => i.estado))];
+    for (const est of estadosUnicos) {
+      await this.assertEstadoValido(est);
+    }
 
     const results: Array<{
       id_odontograma: number;

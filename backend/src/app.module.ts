@@ -23,6 +23,7 @@ import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.modul
 import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
 import { TratamientoModule } from './tratamiento/tratamiento.module';
 import { EspecialidadModule } from './especialidad/especialidad.module';
+import { EstadoOdontogramaModule } from './estado-odontograma/estado-odontograma.module';
 import { UploadModule } from './upload/upload.module';
 
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -52,6 +53,7 @@ import { join } from 'path';
     UnidadMedidaModule,
     TratamientoModule,
     EspecialidadModule,
+    EstadoOdontogramaModule,
     UploadModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),

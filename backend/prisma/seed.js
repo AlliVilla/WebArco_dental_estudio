@@ -14,6 +14,7 @@ const { insertUnidadesMedida } = require("./seeders/unidades-medida");
 const { insertConsultas } = require("./seeders/consultas");
 const { insertOdontograma } = require("./seeders/odontograma");
 const { insertEspecialidades } = require("./seeders/especialidad");
+const { insertEstadosOdontograma } = require("./seeders/estado-odontograma");
 const { insertTratamientos } = require("./seeders/tratamiento");
 const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
 const { insertArchivos } = require("./seeders/archivos");
@@ -34,6 +35,7 @@ async function insertSeeder(){
         await insertConsultas();
         await insertArchivos();
         await insertOdontograma();
+        await insertEstadosOdontograma();
         await insertEspecialidades();
         await insertTratamientos();
         await insertConsultaTratamientos();
