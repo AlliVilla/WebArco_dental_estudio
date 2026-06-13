@@ -1,10 +1,15 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { Send, RotateCcw, Clock, RefreshCw, Plus, X } from "lucide-react";
-import { DataTable } from "../../../components";
+import { Send, RotateCcw, Clock, RefreshCw, Plus } from "lucide-react";
+import { DataTable, StatsDrawer } from "../../../components";
 import { Avatar } from "../../../context";
 import { ReminderService } from "../services/ReminderService";
-import { formatDate, formatInitials } from "../../../utils/formatters";
+import {
+  formatDate,
+  formatInitials,
+  normalizeSearch,
+} from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
+import { Z } from "../../../utils/zIndex";
 import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio } from "../types";
 import { CANAL_CONFIG, ESTADO_CONFIG } from "../utils/badgeConfigs";
 import { NuevoRecordatorioForm } from "./NuevoRecordatorioForm";
@@ -280,131 +285,6 @@ function ReminderCard({
   );
 }
 
-// ─── Drawer de stats ──────────────────────────────────────────────────────────
-function StatsDrawer({
-  open,
-  title,
-  subtitle,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  title: string;
-  subtitle: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  const { isMobile, width: w } = useResponsive();
-  const panelStyle: React.CSSProperties = isMobile
-    ? {
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        maxHeight: "85vh",
-        background: "#fff",
-        borderRadius: "20px 20px 0 0",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
-        zIndex: 201,
-        display: "flex",
-        flexDirection: "column",
-        transform: open ? "translateY(0)" : "translateY(100%)",
-        transition: "transform 0.3s ease",
-      }
-    : {
-        position: "fixed",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: Math.min(w - 32, 420),
-        background: "#fff",
-        boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
-        zIndex: 201,
-        display: "flex",
-        flexDirection: "column",
-        transform: open ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 0.25s ease",
-      };
-  return (
-    <>
-      {open && (
-        <div
-          onClick={onClose}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            zIndex: 200,
-          }}
-        />
-      )}
-      <div style={panelStyle}>
-        {isMobile && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              padding: "12px 0 4px",
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 4,
-                borderRadius: 9999,
-                background: "#D3D7DA",
-              }}
-            />
-          </div>
-        )}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            padding: isMobile ? "12px 20px 16px" : "20px 24px",
-            borderBottom: "1px solid #D3D7DA",
-            flexShrink: 0,
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                color: "#203F49",
-                margin: 0,
-              }}
-            >
-              {title}
-            </h3>
-            <p style={{ fontSize: 13, color: "#888F94", margin: "4px 0 0" }}>
-              {subtitle}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: 6,
-              border: "none",
-              background: "none",
-              cursor: "pointer",
-              color: "#888F94",
-              display: "flex",
-              borderRadius: 6,
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-          {children}
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   const { isMobile, isTablet } = useResponsive();
@@ -420,9 +300,14 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
     "pendientes" | "enviados" | "errores" | "urgentes" | null
   >(null);
 
-  // Fix: keyframe inyectado una sola vez al montar
+  // Fix 5: mountedRef cleanup separado del keyframe
   useEffect(() => {
-    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const id = "reminders-spin-keyframe";
     if (!document.getElementById(id)) {
       const style = document.createElement("style");
@@ -431,9 +316,6 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
         "@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }";
       document.head.appendChild(style);
     }
-    return () => {
-      mountedRef.current = false;
-    };
   }, []);
 
   const fetchQueue = useCallback(async () => {
@@ -452,9 +334,12 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
         setRows(sorted);
         setLastSync(new Date());
       }
-    } catch {
-      if (mountedRef.current)
+    } catch (err: unknown) {
+      if (import.meta.env.DEV) console.error("[RecordatoriosScreen]", err);
+      if (mountedRef.current) {
         setError("No se pudo cargar la lista de recordatorios.");
+        setRows([]); // Fix 1: limpiar datos stale para que el emptyMessage sea visible
+      }
     } finally {
       if (mountedRef.current) setLoading(false);
     }
@@ -525,19 +410,13 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   const [mobileFilterEstado, setMobileFilterEstado] = useState("");
   const [mobileFilterCanal, setMobileFilterCanal] = useState("");
 
-  const normalize = (s: string) =>
-    s
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-
   const filteredRows = useMemo(
     () =>
       rows.filter((r) => {
         const matchSearch =
           !mobileSearch ||
-          normalize(r.paciente).includes(normalize(mobileSearch)) ||
-          normalize(r.contacto).includes(normalize(mobileSearch));
+          normalizeSearch(r.paciente).includes(normalizeSearch(mobileSearch)) ||
+          normalizeSearch(r.contacto).includes(normalizeSearch(mobileSearch));
         const matchEstado =
           !mobileFilterEstado || r.estado_envio === mobileFilterEstado;
         const matchCanal = !mobileFilterCanal || r.canal === mobileFilterCanal;
@@ -545,6 +424,9 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       }),
     [rows, mobileSearch, mobileFilterEstado, mobileFilterCanal]
   );
+
+  // Fix 6: cards en móvil Y tablet — DataTable solo en desktop
+  const showCards = isMobile || isTablet;
 
   const columns = useMemo(
     () => [
@@ -731,8 +613,8 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
         </div>
       )}
 
-      {/* Móvil: cards / Tablet+Desktop: DataTable */}
-      {isMobile ? (
+      {/* Móvil+Tablet: cards / Desktop: DataTable */}
+      {showCards ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Botón nuevo */}
           <button
