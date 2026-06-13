@@ -339,15 +339,17 @@ export function DataTable<T extends Record<string, unknown>>({
     if (isServerSide) return data;
     let rows = data;
 
+    const normalize = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
     if (search) {
-      const q = search.toLowerCase();
+      const q = normalize(search);
       rows = rows.filter((row) => {
         const keys = searchKeys ?? (Object.keys(row) as (keyof T)[]);
-        return keys.some((k) =>
-          String(row[k] ?? "")
-            .toLowerCase()
-            .includes(q)
-        );
+        return keys.some((k) => normalize(String(row[k] ?? "")).includes(q));
       });
     }
 

@@ -520,6 +520,32 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
     [rows]
   );
 
+  // Filtros compartidos entre móvil y DataTable
+  const [mobileSearch, setMobileSearch] = useState("");
+  const [mobileFilterEstado, setMobileFilterEstado] = useState("");
+  const [mobileFilterCanal, setMobileFilterCanal] = useState("");
+
+  const normalize = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((r) => {
+        const matchSearch =
+          !mobileSearch ||
+          normalize(r.paciente).includes(normalize(mobileSearch)) ||
+          normalize(r.contacto).includes(normalize(mobileSearch));
+        const matchEstado =
+          !mobileFilterEstado || r.estado_envio === mobileFilterEstado;
+        const matchCanal = !mobileFilterCanal || r.canal === mobileFilterCanal;
+        return matchSearch && matchEstado && matchCanal;
+      }),
+    [rows, mobileSearch, mobileFilterEstado, mobileFilterCanal]
+  );
+
   const columns = useMemo(
     () => [
       {
@@ -708,6 +734,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       {/* Móvil: cards / Tablet+Desktop: DataTable */}
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Botón nuevo */}
           <button
             onClick={() => setModalOpen(true)}
             style={{
@@ -728,6 +755,68 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
           >
             <Plus size={16} /> Nuevo recordatorio
           </button>
+          {/* Búsqueda */}
+          <input
+            value={mobileSearch}
+            onChange={(e) => setMobileSearch(e.target.value)}
+            placeholder="Buscar paciente o contacto..."
+            style={{
+              width: "100%",
+              height: 42,
+              padding: "0 12px",
+              border: "1px solid #D3D7DA",
+              borderRadius: 8,
+              background: "#F5F7FA",
+              fontSize: 13,
+              color: "#203F49",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+          {/* Filtros */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              value={mobileFilterEstado}
+              onChange={(e) => setMobileFilterEstado(e.target.value)}
+              style={{
+                flex: 1,
+                height: 42,
+                padding: "0 10px",
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#fff",
+                fontSize: 12,
+                color: mobileFilterEstado ? "#203F49" : "#888F94",
+                outline: "none",
+              }}
+            >
+              <option value="">Estado</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Enviado">Enviado</option>
+              <option value="Error">Error</option>
+            </select>
+            <select
+              value={mobileFilterCanal}
+              onChange={(e) => setMobileFilterCanal(e.target.value)}
+              style={{
+                flex: 1,
+                height: 42,
+                padding: "0 10px",
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#fff",
+                fontSize: 12,
+                color: mobileFilterCanal ? "#203F49" : "#888F94",
+                outline: "none",
+              }}
+            >
+              <option value="">Canal</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="SMS">SMS</option>
+              <option value="Correo">Correo</option>
+            </select>
+          </div>
+          {/* Cards */}
           {loading ? (
             <p
               style={{
@@ -750,7 +839,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
             >
               {error}
             </p>
-          ) : rows.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             <p
               style={{
                 textAlign: "center",
@@ -759,10 +848,10 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                 padding: 24,
               }}
             >
-              No hay recordatorios pendientes.
+              No hay recordatorios que coincidan.
             </p>
           ) : (
-            rows.map((row) => (
+            filteredRows.map((row) => (
               <ReminderCard
                 key={row.id}
                 row={row}
@@ -776,7 +865,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       ) : (
         <DataTable<Row>
           columns={columns}
-          data={rows as Row[]}
+          data={filteredRows as Row[]}
           title="Cola de recordatorios"
           description="Citas con recordatorio pendiente de envío"
           searchable
