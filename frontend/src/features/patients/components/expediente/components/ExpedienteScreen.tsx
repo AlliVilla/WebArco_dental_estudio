@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NuevaVisita } from "./NewVisit";
 import {
@@ -10,15 +10,16 @@ import {
   DollarSign,
   ChevronRight,
   ChevronDown,
+  X,
 } from "lucide-react";
-import { DataTable, Column } from "../../../../../components";
+import { DataTable, StatsDrawer } from "../../../../../components";
+import type { Column } from "../../../../../components";
 import { Alert, Card, Button, useTheme } from "../../../../../context";
-
 import { expedientService } from "../services/expedientService";
 import { calcularEdad } from "../services/miscelaneousService";
-import { ExpedientePaciente } from "../types/index";
+import type { ExpedientePaciente } from "../types/index";
+import { useResponsive } from "../../../../../hooks/useWindowWidth";
 
-// ── Colors matching the Design System (using variables for theme compatibility) ──
 const C = {
   primary: "var(--arco-primary, #0BC5DF)",
   navy: "var(--foreground, #203F49)",
@@ -34,10 +35,134 @@ const C = {
   primaryBg: "var(--accent, #E6F8FB)",
 };
 
+// ─── Card de paciente para móvil ──────────────────────────────────────────────
+function PatientCard({
+  exp,
+  onClick,
+}: {
+  exp: ExpedientePaciente;
+  onClick: () => void;
+}) {
+  const hasPending = exp.consultas.some(
+    (c) => !c.firma_paciente || !c.firma_doctor_snapshot
+  );
+  const nombre = [
+    exp.primer_nombre,
+    exp.segundo_nombre,
+    exp.primer_apellido,
+    exp.segundo_apellido,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const initials = `${exp.primer_nombre?.[0] ?? ""}${
+    exp.primer_apellido?.[0] ?? ""
+  }`.toUpperCase();
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+        cursor: "pointer",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "#0BC5DF",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#203F49",
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {nombre}
+            </p>
+            <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+              {exp.numero_identidad}
+            </p>
+          </div>
+        </div>
+        <ChevronRight
+          size={16}
+          style={{ color: "#888F94", flexShrink: 0, marginTop: 2 }}
+        />
+      </div>
+      <div
+        style={{
+          borderTop: "1px solid #F8F9FA",
+          paddingTop: 8,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span style={{ fontSize: 12, color: "#888F94" }}>
+          {exp.consultas.length} visita{exp.consultas.length !== 1 ? "s" : ""}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 8px",
+            borderRadius: 12,
+            background: hasPending ? "#FFFBEB" : "#E8F7F2",
+            color: hasPending ? "#D97706" : "#1D9E75",
+          }}
+        >
+          {hasPending ? "Firma pendiente" : "Al día"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function ExpedienteScreen() {
   useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useResponsive();
+  const mountedRef = useRef(true);
+
   const [viewState, setViewState] = useState<"list" | "detail" | "new-visit">(
     "list"
   );
@@ -47,6 +172,17 @@ export function ExpedienteScreen() {
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [openDrawer, setOpenDrawer] = useState<
+    "visitas" | "completadas" | "firmas" | null
+  >(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const selectedPatientFromQuery = useMemo(() => {
     const queryPatientId = new URLSearchParams(location.search).get(
       "patientId"
@@ -55,66 +191,73 @@ export function ExpedienteScreen() {
     return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
   }, [location.search]);
 
-  const loadPatients = useCallback(async (page: number, search = "") => {
+  // Fix: try/catch + isMounted
+  const loadPatients = useCallback(async () => {
     setLoading(true);
-    const res = await expedientService.getAll({
-      page,
-      limit: 1000,
-      search,
-      includeConsulta: true,
-    });
-    if (res.success) {
-      setExpedientes(res.data.data);
-    } else {
-      setError(res.message);
+    setError("");
+    try {
+      const res = await expedientService.getAll({
+        page: 1,
+        limit: 1000,
+        search: "",
+        includeConsulta: true,
+      });
+      if (!mountedRef.current) return;
+      if (res.success) {
+        setExpedientes(res.data.data);
+      } else {
+        setError(res.message);
+      }
+    } catch (err: unknown) {
+      if (mountedRef.current) {
+        if (import.meta.env.DEV) console.error("[ExpedienteScreen]", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar los expedientes."
+        );
+      }
+    } finally {
+      if (mountedRef.current) setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadPatients(1);
-  }, []);
+    void loadPatients();
+  }, [loadPatients]);
 
   useEffect(() => {
-    if (!selectedPatientFromQuery || expedientes.length === 0) {
-      return;
-    }
-
-    const patientExists = expedientes.some(
-      (patient) => patient.id_persona === selectedPatientFromQuery
+    if (!selectedPatientFromQuery || expedientes.length === 0) return;
+    const exists = expedientes.some(
+      (p) => p.id_persona === selectedPatientFromQuery
     );
-    if (patientExists) {
+    if (exists) {
       setSelectedPatientId(selectedPatientFromQuery);
       setViewState("detail");
     }
   }, [expedientes, selectedPatientFromQuery]);
 
-  const totalVisitas = useMemo(() => {
-    return expedientes.reduce(
-      (acc, exp) => acc + (exp.consultas.length ?? 0),
-      0
-    );
-  }, [expedientes]);
+  const totalVisitas = useMemo(
+    () => expedientes.reduce((acc, e) => acc + (e.consultas.length ?? 0), 0),
+    [expedientes]
+  );
+  const completadas = useMemo(
+    () => expedientes.reduce((acc, e) => acc + (e.consultas?.length ?? 0), 0),
+    [expedientes]
+  );
+  const firmasDigitales = useMemo(
+    () =>
+      expedientes.reduce(
+        (acc, e) =>
+          acc +
+          (e.consultas?.filter(
+            (c) => c.firma_paciente && c.firma_doctor_snapshot
+          ).length ?? 0),
+        0
+      ),
+    [expedientes]
+  );
 
-  const completadas = useMemo(() => {
-    return expedientes.reduce(
-      (acc, exp) => acc + (exp.consultas?.length ?? 0),
-      0
-    );
-  }, [expedientes]);
-
-  const firmasDigitales = useMemo(() => {
-    return expedientes.reduce(
-      (acc, exp) =>
-        acc +
-        (exp.consultas?.filter(
-          (c) => c.firma_paciente && c.firma_doctor_snapshot
-        ).length ?? 0),
-      0
-    );
-  }, [expedientes]);
-
-  // Find currently active patient object
   const activePatient = expedientes.find(
     (e) => e.id_persona === selectedPatientId
   );
@@ -126,33 +269,21 @@ export function ExpedienteScreen() {
 
   useEffect(() => {
     if (activePatient && activePatient.consultas.length > 0) {
-      // Expand the most recent visit by default
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedVisits({ [activePatient.consultas[0].id_consulta]: true });
     } else {
       setExpandedVisits({});
     }
   }, [selectedPatientId, activePatient]);
 
-  const toggleVisit = (visitId: number) => {
-    setExpandedVisits((prev) => ({
-      ...prev,
-      [visitId]: !prev[visitId],
-    }));
-  };
+  const toggleVisit = (id: number) =>
+    setExpandedVisits((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const handleSelectPatient = (id: number) => {
     setSelectedPatientId(id);
     setViewState("detail");
   };
-
-  const handleNewVisitSave = () => {
-    setViewState("detail");
-  };
-
-  const handleNewVisitBack = () => {
-    setViewState("detail");
-  };
+  const handleNewVisitSave = () => setViewState("detail");
+  const handleNewVisitBack = () => setViewState("detail");
 
   const columns: Column<ExpedientePaciente>[] = [
     {
@@ -178,26 +309,19 @@ export function ExpedienteScreen() {
         </span>
       ),
     },
-    {
-      key: "numero_identidad",
-      label: "Identidad",
-    },
-    {
-      key: "telefono",
-      label: "Teléfono",
-    },
+    { key: "numero_identidad", label: "Identidad" },
+    { key: "telefono", label: "Teléfono" },
     {
       key: "ultimaVisita",
       label: "Última Visita",
       render: (_, row) => {
-        const ultimaConsulta = row.consultas?.[0];
-
+        const uc = row.consultas?.[0];
         return (
           <span
             style={{ fontWeight: 600, color: "var(--foreground, #203F49)" }}
           >
-            {ultimaConsulta?.fecha_fin
-              ? new Date(ultimaConsulta.fecha_fin).toLocaleDateString("es-HN")
+            {uc?.fecha_fin
+              ? new Date(uc.fecha_fin).toLocaleDateString("es-HN")
               : "N/A"}
           </span>
         );
@@ -220,26 +344,23 @@ export function ExpedienteScreen() {
         const hasPending = row.consultas.some(
           (c) => !c.firma_paciente || !c.firma_doctor_snapshot
         );
-        if (hasPending) {
-          return (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 8px",
-                borderRadius: 12,
-                fontSize: 11,
-                fontWeight: 500,
-                background: "rgba(239, 159, 39, 0.12)",
-                color: "var(--arco-warning, #EF9F27)",
-              }}
-            >
-              Pendientes
-            </span>
-          );
-        }
-        return (
+        return hasPending ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 12,
+              fontSize: 11,
+              fontWeight: 500,
+              background: "rgba(239,159,39,0.12)",
+              color: "var(--arco-warning, #EF9F27)",
+            }}
+          >
+            Pendientes
+          </span>
+        ) : (
           <span
             style={{
               display: "inline-flex",
@@ -268,6 +389,42 @@ export function ExpedienteScreen() {
     },
   ];
 
+  const kpiCols = isMobile || isTablet ? "1fr 1fr" : "repeat(3, 1fr)";
+  const showCards = isMobile || isTablet;
+
+  // Datos para drawers
+  const drawerConfigs = [
+    {
+      key: "visitas" as const,
+      title: "Total Visitas",
+      subtitle: "Todas las visitas registradas",
+      value: totalVisitas,
+      color: "#0BC5DF",
+      border: "rgba(11,197,223,0.24)",
+      items: expedientes.filter((e) => e.consultas.length > 0),
+    },
+    {
+      key: "completadas" as const,
+      title: "Completadas",
+      subtitle: "Consultas completadas",
+      value: completadas,
+      color: "#1D9E75",
+      border: "rgba(29,158,117,0.24)",
+      items: expedientes.filter((e) => e.consultas.length > 0),
+    },
+    {
+      key: "firmas" as const,
+      title: "Firmas Digitales",
+      subtitle: "Consultas con firma completa",
+      value: firmasDigitales,
+      color: "#EF9F27",
+      border: "rgba(239,159,39,0.24)",
+      items: expedientes.filter((e) =>
+        e.consultas.some((c) => c.firma_paciente && c.firma_doctor_snapshot)
+      ),
+    },
+  ];
+
   return (
     <div
       style={{
@@ -276,160 +433,153 @@ export function ExpedienteScreen() {
         boxSizing: "border-box",
       }}
     >
-      {error ? (
+      {error && (
         <Alert variant="error" message={error} onClose={() => setError("")} />
-      ) : null}
-      {/* ══════════════════════════════════════════════════════════════════
-          VISTA 1: Listado de Expedientes Clínicos
-      ══════════════════════════════════════════════════════════════════ */}
+      )}
+
+      {/* ── VISTA 1: Lista ── */}
       {viewState === "list" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Tarjetas de Estadísticas */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? 16 : 20,
+          }}
+        >
+          {/* KPIs clicables */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 16,
+              gridTemplateColumns: kpiCols,
+              gap: isMobile ? 10 : 16,
             }}
           >
-            {/* Total Visitas */}
-            <Card
-              style={{
-                border: "1.5px solid rgba(11, 197, 223, 0.24)",
-                padding: "20px 24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-              }}
-            >
-              <span
+            {drawerConfigs.map((kpi) => (
+              <button
+                key={kpi.key}
+                onClick={() => setOpenDrawer(kpi.key)}
                 style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "var(--arco-primary, #0BC5DF)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.8px",
+                  border: `1.5px solid ${kpi.border}`,
+                  background: "#fff",
+                  borderRadius: 12,
+                  padding: isMobile ? "14px 16px" : "20px 24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "box-shadow 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 16px rgba(0,0,0,0.08)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                Total Visitas
-              </span>
-              <span
-                style={{
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "var(--foreground, #203F49)",
-                  marginTop: 8,
-                  lineHeight: 1,
-                }}
-              >
-                {totalVisitas}
-              </span>
-            </Card>
-
-            {/* Completadas */}
-            <Card
-              style={{
-                border: "1.5px solid rgba(29, 158, 117, 0.24)",
-                padding: "20px 24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "var(--arco-success, #1D9E75)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.8px",
-                }}
-              >
-                Completadas
-              </span>
-              <span
-                style={{
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "var(--foreground, #203F49)",
-                  marginTop: 8,
-                  lineHeight: 1,
-                }}
-              >
-                {completadas}
-              </span>
-            </Card>
-
-            {/* Firmas Digitales */}
-            <Card
-              style={{
-                border: "1.5px solid rgba(239, 159, 39, 0.24)",
-                padding: "20px 24px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "var(--arco-warning, #EF9F27)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.8px",
-                }}
-              >
-                Firmas Digitales
-              </span>
-              <span
-                style={{
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "var(--foreground, #203F49)",
-                  marginTop: 8,
-                  lineHeight: 1,
-                }}
-              >
-                {firmasDigitales}
-              </span>
-            </Card>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: kpi.color,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.8px",
+                  }}
+                >
+                  {kpi.title}
+                </span>
+                <span
+                  style={{
+                    fontSize: isMobile ? 22 : 28,
+                    fontWeight: 700,
+                    color: "#203F49",
+                    marginTop: 8,
+                    lineHeight: 1,
+                  }}
+                >
+                  {kpi.value}
+                </span>
+              </button>
+            ))}
           </div>
 
-          <DataTable<ExpedientePaciente>
-            title="Expedientes Clínicos"
-            description={
-              loading
-                ? "Cargando pacientes registrados..."
-                : `Total de ${expedientes.length} pacientes registrados`
-            }
-            emptyMessage={
-              loading
-                ? "Cargando pacientes..."
-                : "No hay pacientes para mostrar."
-            }
-            columns={columns}
-            data={expedientes}
-            searchable={true}
-            searchPlaceholder="Buscar por nombre o número de identidad o teléfono..."
-            searchKeys={[
-              "primer_nombre",
-              "segundo_nombre",
-              "primer_apellido",
-              "segundo_apellido",
-              "numero_identidad",
-              "telefono",
-            ]}
-            getRowKey={(row) => String(row.id_persona)}
-            rowActions={getRowActions}
-          />
+          {/* Tabla / Cards */}
+          {showCards ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {loading ? (
+                <p
+                  style={{
+                    textAlign: "center",
+                    color: "#888F94",
+                    fontSize: 14,
+                    padding: 24,
+                  }}
+                >
+                  Cargando expedientes...
+                </p>
+              ) : expedientes.length === 0 ? (
+                <p
+                  style={{
+                    textAlign: "center",
+                    color: "#888F94",
+                    fontSize: 14,
+                    padding: 24,
+                  }}
+                >
+                  No hay expedientes registrados.
+                </p>
+              ) : (
+                expedientes.map((exp) => (
+                  <PatientCard
+                    key={exp.id_persona}
+                    exp={exp}
+                    onClick={() => handleSelectPatient(exp.id_persona)}
+                  />
+                ))
+              )}
+            </div>
+          ) : (
+            <DataTable<ExpedientePaciente>
+              title="Expedientes Clínicos"
+              description={
+                loading
+                  ? "Cargando pacientes..."
+                  : `Total de ${expedientes.length} pacientes registrados`
+              }
+              emptyMessage={
+                loading
+                  ? "Cargando pacientes..."
+                  : "No hay pacientes para mostrar."
+              }
+              columns={columns}
+              data={expedientes}
+              searchable
+              searchPlaceholder="Buscar por nombre, identidad o teléfono..."
+              searchKeys={[
+                "primer_nombre",
+                "segundo_nombre",
+                "primer_apellido",
+                "segundo_apellido",
+                "numero_identidad",
+                "telefono",
+              ]}
+              getRowKey={(row) => String(row.id_persona)}
+              rowActions={getRowActions}
+            />
+          )}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          VISTA 2: Detalle de Expediente del Paciente
-      ══════════════════════════════════════════════════════════════════ */}
+      {/* ── VISTA 2: Detalle ── */}
       {viewState === "detail" && activePatient && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? 16 : 20,
+          }}
+        >
           {/* Header */}
           <div
             style={{
@@ -442,11 +592,9 @@ export function ExpedienteScreen() {
           >
             <Button
               onClick={() => {
-                if (selectedPatientFromQuery) {
-                  navigate(`/patients/profile/${selectedPatientFromQuery}`);
-                } else {
-                  setViewState("list");
-                }
+                selectedPatientFromQuery
+                  ? navigate(`/patients/profile/${selectedPatientFromQuery}`)
+                  : setViewState("list");
               }}
               variant="ghost"
               size="sm"
@@ -462,64 +610,62 @@ export function ExpedienteScreen() {
               variant="primary"
               size="sm"
             >
-              <Plus size={16} /> Registrar Nueva Visita
+              <Plus size={16} />{" "}
+              {isMobile ? "Nueva visita" : "Registrar Nueva Visita"}
             </Button>
           </div>
 
-          {/* Patient Profile Section */}
+          {/* Info del paciente */}
           <Card
             style={{
-              padding: 24,
+              padding: isMobile ? 16 : 24,
               borderRadius: 16,
               display: "flex",
               flexDirection: "column",
-              gap: 20,
+              gap: 16,
             }}
           >
             <div
               style={{
                 display: "flex",
-                gap: 24,
+                gap: isMobile ? 12 : 24,
                 alignItems: "flex-start",
                 flexWrap: "wrap",
               }}
             >
-              {/* Avatar Circle */}
               <div
                 style={{
-                  width: 72,
-                  height: 72,
+                  width: isMobile ? 52 : 72,
+                  height: isMobile ? 52 : 72,
                   borderRadius: "50%",
                   background: "#0BC5DF",
-                  color: "#ffffff",
+                  color: "#fff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 22,
+                  fontSize: isMobile ? 18 : 22,
                   fontWeight: 700,
                   flexShrink: 0,
-                  boxShadow: "0 2px 8px rgba(11, 197, 223, 0.16)",
+                  boxShadow: "0 2px 8px rgba(11,197,223,0.16)",
                 }}
               >
-                {`${activePatient.primer_nombre?.[0] || ""}${
-                  activePatient.primer_apellido?.[0] || ""
+                {`${activePatient.primer_nombre?.[0] ?? ""}${
+                  activePatient.primer_apellido?.[0] ?? ""
                 }`.toUpperCase() || "P"}
               </div>
-
-              {/* Profile Info details */}
-              <div style={{ flex: 1, minWidth: 280 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
+                    gap: 10,
                     flexWrap: "wrap",
                   }}
                 >
                   <h2
                     style={{
                       margin: 0,
-                      fontSize: 20,
+                      fontSize: isMobile ? 16 : 20,
                       fontWeight: 700,
                       color: "#203F49",
                     }}
@@ -536,52 +682,45 @@ export function ExpedienteScreen() {
                   <span
                     style={{
                       background: "#E6F8FB",
-                      border: "1px solid rgba(11, 197, 223, 0.4)",
+                      border: "1px solid rgba(11,197,223,0.4)",
                       color: "#0BC5DF",
                       fontSize: 11,
                       fontWeight: 700,
                       padding: "2px 10px",
                       borderRadius: 20,
-                      letterSpacing: "0.5px",
                     }}
                   >
                     # PAC-{String(activePatient.id_persona).padStart(6, "0")}
                   </span>
                 </div>
-
-                {/* Subtitle details */}
                 <div
                   style={{
                     display: "flex",
                     flexWrap: "wrap",
-                    gap: "8px 16px",
+                    gap: "6px 14px",
                     fontSize: 13,
                     color: "#5F656A",
                     marginTop: 8,
-                    alignItems: "center",
                   }}
                 >
                   <span>
                     {calcularEdad(activePatient.fecha_nacimiento)} años ·{" "}
                     {activePatient.sexo === "F" ? "Femenino" : "Masculino"}
                   </span>
-                  <span style={{ opacity: 0.5 }}>·</span>
                   <span>+504 {activePatient.telefono}</span>
-                  <span style={{ opacity: 0.5 }}>·</span>
-                  <span>{activePatient.correo_electronico}</span>
-                  <span style={{ opacity: 0.5 }}>·</span>
+                  {activePatient.correo_electronico && (
+                    <span>{activePatient.correo_electronico}</span>
+                  )}
                   <span>
                     {activePatient.municipio.nombre},{" "}
                     {activePatient.municipio.departamento.nombre}
                   </span>
                 </div>
-
-                {/* Last visit */}
-                <div style={{ fontSize: 13, color: "#5F656A", marginTop: 8 }}>
+                <div style={{ fontSize: 13, color: "#5F656A", marginTop: 6 }}>
                   Última visita:{" "}
                   {activePatient.consultas?.[0]?.fecha_fin
                     ? new Date(
-                        activePatient.consultas?.[0]?.fecha_fin
+                        activePatient.consultas[0].fecha_fin
                       ).toLocaleString("es-HN")
                     : "N/A"}
                 </div>
@@ -589,7 +728,7 @@ export function ExpedienteScreen() {
             </div>
           </Card>
 
-          {/* Visits Timeline */}
+          {/* Timeline de visitas */}
           <div>
             <h3
               style={{
@@ -601,11 +740,10 @@ export function ExpedienteScreen() {
             >
               Historial de Visitas y Consultas
             </h3>
-
-            {activePatient?.consultas.length === 0 ? (
+            {activePatient.consultas.length === 0 ? (
               <div
                 style={{
-                  border: "2px dashed rgb(11, 197, 223)",
+                  border: "2px dashed rgb(11,197,223)",
                   borderRadius: 12,
                   padding: 32,
                   display: "flex",
@@ -613,14 +751,14 @@ export function ExpedienteScreen() {
                   justifyContent: "center",
                   flexDirection: "column",
                   gap: 8,
-                  background: "rgba(11, 197, 223, 0.03)",
+                  background: "rgba(11,197,223,0.03)",
                 }}
               >
                 <span
                   style={{
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "rgb(11, 197, 223)",
+                    color: "rgb(11,197,223)",
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
                   }}
@@ -630,7 +768,7 @@ export function ExpedienteScreen() {
                 <span
                   style={{
                     fontSize: 12,
-                    color: "rgb(136, 143, 148)",
+                    color: "rgb(136,143,148)",
                     textAlign: "center",
                   }}
                 >
@@ -657,18 +795,18 @@ export function ExpedienteScreen() {
                           isExpanded
                             ? "#0BC5DF"
                             : hoveredCardId === visit.id_consulta
-                            ? "rgba(11, 197, 223, 0.4)"
+                            ? "rgba(11,197,223,0.4)"
                             : C.gray300
                         }`,
-                        padding: "20px 24px",
+                        padding: isMobile ? "14px 16px" : "20px 24px",
                         display: "flex",
                         flexDirection: "column",
                         transition:
-                          "border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease",
+                          "border-color 0.25s, box-shadow 0.25s, transform 0.25s",
                         boxShadow: isExpanded
-                          ? "0 10px 20px -5px rgba(11, 197, 223, 0.08), 0 4px 6px -2px rgba(11, 197, 223, 0.04)"
+                          ? "0 10px 20px -5px rgba(11,197,223,0.08)"
                           : hoveredCardId === visit.id_consulta
-                          ? "0 4px 12px rgba(0, 0, 0, 0.04)"
+                          ? "0 4px 12px rgba(0,0,0,0.04)"
                           : "none",
                         transform:
                           hoveredCardId === visit.id_consulta
@@ -678,7 +816,7 @@ export function ExpedienteScreen() {
                       onMouseEnter={() => setHoveredCardId(visit.id_consulta)}
                       onMouseLeave={() => setHoveredCardId(null)}
                     >
-                      {/* Accordion Clickable Header */}
+                      {/* Header del acordeón */}
                       <div
                         onClick={() => toggleVisit(visit.id_consulta)}
                         style={{
@@ -699,17 +837,18 @@ export function ExpedienteScreen() {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 12,
+                            gap: isMobile ? 8 : 12,
+                            flex: 1,
+                            minWidth: 0,
                           }}
                         >
-                          {/* Pulsing or active green/blue dot indicator */}
                           <div
                             style={{
                               width: 10,
                               height: 10,
                               borderRadius: "50%",
                               background: isExpanded ? "#0BC5DF" : "#D3D7DA",
-                              transition: "background 0.25s",
+                              flexShrink: 0,
                               boxShadow: isExpanded
                                 ? "0 0 8px #0BC5DF"
                                 : "none",
@@ -728,66 +867,68 @@ export function ExpedienteScreen() {
                                 )
                               : "N/A"}
                           </span>
-                          <span style={{ fontSize: 13, color: C.gray500 }}>
-                            · Atendido por:{" "}
-                            <strong style={{ color: C.navy, fontWeight: 600 }}>
-                              {visit.id_usuario}
-                            </strong>
-                          </span>
+                          {!isMobile && (
+                            <span style={{ fontSize: 13, color: C.gray500 }}>
+                              · Atendido por:{" "}
+                              <strong
+                                style={{ color: C.navy, fontWeight: 600 }}
+                              >
+                                {visit.id_usuario}
+                              </strong>
+                            </span>
+                          )}
                         </div>
                         <div
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 12,
+                            gap: isMobile ? 6 : 12,
+                            flexShrink: 0,
                           }}
                         >
-                          <div style={{ display: "flex", gap: 6 }}>
-                            {visit.firma_paciente &&
-                            visit.firma_doctor_snapshot ? (
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  padding: "4px 10px",
-                                  borderRadius: 12,
-                                  background: "#E6F8FB",
-                                  color: "#0BC5DF",
-                                  border: "1px solid rgba(11, 197, 223, 0.2)",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
-                                }}
-                              >
-                                Firmado
-                              </span>
-                            ) : (
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  padding: "4px 10px",
-                                  borderRadius: 12,
-                                  background: "#FFFBEB",
-                                  color: "#D97706",
-                                  border: "1px solid rgba(217, 119, 6, 0.2)",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
-                                }}
-                              >
-                                Firma Pendiente
-                              </span>
-                            )}
-                          </div>
+                          {visit.firma_paciente &&
+                          visit.firma_doctor_snapshot ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "4px 10px",
+                                borderRadius: 12,
+                                background: "#E6F8FB",
+                                color: "#0BC5DF",
+                                border: "1px solid rgba(11,197,223,0.2)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                              }}
+                            >
+                              Firmado
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "4px 10px",
+                                borderRadius: 12,
+                                background: "#FFFBEB",
+                                color: "#D97706",
+                                border: "1px solid rgba(217,119,6,0.2)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                              }}
+                            >
+                              Firma Pendiente
+                            </span>
+                          )}
                           <div
                             style={{
                               transform: isExpanded
                                 ? "rotate(180deg)"
                                 : "rotate(0deg)",
                               transition:
-                                "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                                "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
                               color: isExpanded ? "#0BC5DF" : C.gray500,
                               display: "flex",
-                              alignItems: "center",
                             }}
                           >
                             <ChevronDown size={18} />
@@ -795,44 +936,50 @@ export function ExpedienteScreen() {
                         </div>
                       </div>
 
-                      {/* Accordion Expandable Content */}
+                      {/* Contenido expandible */}
                       <div
                         style={{
                           maxHeight: isExpanded ? "1200px" : "0px",
                           opacity: isExpanded ? 1 : 0,
                           overflow: "hidden",
                           transition:
-                            "max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, padding-top 0.4s ease-in-out",
+                            "max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s, padding-top 0.4s",
                           display: "flex",
                           flexDirection: "column",
                           gap: 20,
                           paddingTop: isExpanded ? 16 : 0,
                         }}
                       >
-                        {/* Middle details */}
+                        {isMobile && (
+                          <div style={{ fontSize: 12, color: C.gray500 }}>
+                            Atendido por:{" "}
+                            <strong style={{ color: C.navy }}>
+                              {visit.id_usuario}
+                            </strong>
+                          </div>
+                        )}
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns:
-                              "repeat(auto-fit, minmax(280px, 1fr))",
-                            gap: 20,
+                            gridTemplateColumns: isMobile
+                              ? "1fr"
+                              : "repeat(auto-fit, minmax(280px, 1fr))",
+                            gap: 16,
                             background: "#F8F9FA",
                             borderRadius: 10,
-                            padding: 20,
+                            padding: isMobile ? 14 : 20,
                             border: `1px solid ${C.gray100}`,
                           }}
                         >
                           <div>
                             <div
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
                                 fontSize: 11,
                                 color: C.gray500,
                                 fontWeight: 700,
                                 textTransform: "uppercase",
                                 letterSpacing: "0.8px",
+                                marginBottom: 6,
                               }}
                             >
                               Motivo de consulta
@@ -841,7 +988,6 @@ export function ExpedienteScreen() {
                               style={{
                                 fontSize: 13.5,
                                 color: C.navy,
-                                marginTop: 6,
                                 fontWeight: 500,
                                 lineHeight: 1.5,
                               }}
@@ -852,14 +998,12 @@ export function ExpedienteScreen() {
                           <div>
                             <div
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
                                 fontSize: 11,
                                 color: C.gray500,
                                 fontWeight: 700,
                                 textTransform: "uppercase",
                                 letterSpacing: "0.8px",
+                                marginBottom: 6,
                               }}
                             >
                               Diagnóstico de evolución
@@ -868,7 +1012,6 @@ export function ExpedienteScreen() {
                               style={{
                                 fontSize: 13.5,
                                 color: C.navy,
-                                marginTop: 6,
                                 lineHeight: 1.5,
                               }}
                             >
@@ -878,14 +1021,12 @@ export function ExpedienteScreen() {
                           <div style={{ gridColumn: "1 / -1" }}>
                             <div
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
                                 fontSize: 11,
                                 color: C.gray500,
                                 fontWeight: 700,
                                 textTransform: "uppercase",
                                 letterSpacing: "0.8px",
+                                marginBottom: 6,
                               }}
                             >
                               Notas clínicas
@@ -894,7 +1035,6 @@ export function ExpedienteScreen() {
                               style={{
                                 fontSize: 13.5,
                                 color: C.gray700,
-                                marginTop: 6,
                                 lineHeight: 1.5,
                                 whiteSpace: "pre-line",
                               }}
@@ -904,15 +1044,14 @@ export function ExpedienteScreen() {
                           </div>
                         </div>
 
-                        {/* Treatments performed in this visit */}
                         {visit.tratamientos.length > 0 && (
                           <div
                             style={{
-                              background: "#ffffff",
+                              background: "#fff",
                               borderRadius: 10,
-                              padding: 18,
-                              border: "1.5px solid rgba(11, 197, 223, 0.15)",
-                              boxShadow: "0 2px 8px rgba(11, 197, 223, 0.03)",
+                              padding: isMobile ? 14 : 18,
+                              border: "1.5px solid rgba(11,197,223,0.15)",
+                              boxShadow: "0 2px 8px rgba(11,197,223,0.03)",
                             }}
                           >
                             <div
@@ -929,7 +1068,6 @@ export function ExpedienteScreen() {
                               }}
                             >
                               <DollarSign size={14} /> Tratamientos y Cobros
-                              realizados
                             </div>
                             <div
                               style={{
@@ -953,9 +1091,7 @@ export function ExpedienteScreen() {
                                   <span style={{ fontWeight: 500 }}>
                                     {t.tratamiento.nombre}
                                   </span>
-                                  <span
-                                    style={{ fontWeight: 600, color: C.navy }}
-                                  >
+                                  <span style={{ fontWeight: 600 }}>
                                     L.{" "}
                                     {t.precio.toLocaleString("es-HN", {
                                       minimumFractionDigits: 2,
@@ -963,7 +1099,6 @@ export function ExpedienteScreen() {
                                   </span>
                                 </div>
                               ))}
-                              {/* Total Row */}
                               <div
                                 style={{
                                   display: "flex",
@@ -972,7 +1107,6 @@ export function ExpedienteScreen() {
                                   fontWeight: 700,
                                   color: C.navy,
                                   paddingTop: 6,
-                                  marginTop: 4,
                                 }}
                               >
                                 <span>Total de la visita</span>
@@ -989,7 +1123,6 @@ export function ExpedienteScreen() {
                           </div>
                         )}
 
-                        {/* Multimedia attachments */}
                         {visit?.archivos?.length > 0 && (
                           <div>
                             <div
@@ -1005,7 +1138,7 @@ export function ExpedienteScreen() {
                                 gap: 6,
                               }}
                             >
-                              Archivos y Radiografías Adjuntas
+                              Archivos y Radiografías
                             </div>
                             <div
                               style={{
@@ -1021,14 +1154,12 @@ export function ExpedienteScreen() {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 8,
-                                    background: "#ffffff",
+                                    background: "#fff",
                                     border: `1.5px solid ${C.gray100}`,
                                     borderRadius: 8,
                                     padding: "8px 14px",
                                     fontSize: 12.5,
                                     color: C.navy,
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                                    transition: "border-color 0.2s",
                                     cursor: "pointer",
                                   }}
                                   onMouseEnter={(e) =>
@@ -1052,7 +1183,6 @@ export function ExpedienteScreen() {
                                       color: "#0BC5DF",
                                       padding: "2px 8px",
                                       borderRadius: 4,
-                                      marginLeft: 4,
                                       textTransform: "uppercase",
                                     }}
                                   >
@@ -1074,9 +1204,7 @@ export function ExpedienteScreen() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          VISTA 3: Formulario de Registro de Nueva Visita
-      ══════════════════════════════════════════════════════════════════ */}
+      {/* ── VISTA 3: Nueva visita ── */}
       {viewState === "new-visit" && activePatient && (
         <NuevaVisita
           patient={activePatient}
@@ -1084,6 +1212,108 @@ export function ExpedienteScreen() {
           onSave={handleNewVisitSave}
         />
       )}
+
+      {/* ── Drawers de KPIs ── */}
+      {drawerConfigs.map(({ key, title, subtitle, items }) => (
+        <StatsDrawer
+          key={key}
+          open={openDrawer === key}
+          title={title}
+          subtitle={subtitle}
+          onClose={() => setOpenDrawer(null)}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {items.length === 0 ? (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#888F94",
+                  fontSize: 14,
+                  padding: 24,
+                }}
+              >
+                No hay registros en esta categoría.
+              </p>
+            ) : (
+              items.map((exp) => {
+                const nombre = [
+                  exp.primer_nombre,
+                  exp.segundo_nombre,
+                  exp.primer_apellido,
+                  exp.segundo_apellido,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                const initials = `${exp.primer_nombre?.[0] ?? ""}${
+                  exp.primer_apellido?.[0] ?? ""
+                }`.toUpperCase();
+                return (
+                  <div
+                    key={exp.id_persona}
+                    onClick={() => {
+                      handleSelectPatient(exp.id_persona);
+                      setOpenDrawer(null);
+                    }}
+                    style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      border: "1px solid #D3D7DA",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        background: "#E6F8FB",
+                        color: "#0BC5DF",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#203F49",
+                          margin: 0,
+                        }}
+                      >
+                        {nombre}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#888F94",
+                          margin: "2px 0 0",
+                        }}
+                      >
+                        {exp.consultas.length} visita
+                        {exp.consultas.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={14}
+                      style={{ color: "#888F94", flexShrink: 0 }}
+                    />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </StatsDrawer>
+      ))}
     </div>
   );
 }
