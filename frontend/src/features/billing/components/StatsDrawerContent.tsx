@@ -4,7 +4,9 @@ export interface StatsItem {
   nombre: string;
   categoría: string;
   monto: number;
-  estado: "Pagado" | "Pendiente" | "Parcial";
+  fecha?: string;
+  responsable?: string;
+  observaciones?: string;
 }
 
 export interface StatsDrawerContentProps extends Omit<
@@ -27,17 +29,10 @@ export function StatsDrawerContent({
   totalValue,
   items,
 }: StatsDrawerContentProps) {
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case "Pagado":
-        return { bg: "#ECFDF5", text: "#10B981" };
-      case "Pendiente":
-        return { bg: "#FEF3C7", text: "#EF9F27" };
-      case "Parcial":
-        return { bg: "#DBEAFE", text: "#0BC5DF" };
-      default:
-        return { bg: "#F3F4F6", text: "#6B7280" };
-    }
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split("-");
+    return `${day}/${month}/${year}`;
   };
 
   return (
@@ -116,52 +111,61 @@ export function StatsDrawerContent({
           >
             {items.length > 0 ? (
               items.map((item, index) => {
-                const estadoColor = getEstadoColor(item.estado);
                 return (
                   <div
                     key={index}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: 12,
-                      background: "#F8F9FA",
-                      borderRadius: 8,
-                      border: "1px solid #E5E7EB",
+                      flexDirection: "column",
+                      padding: 16,
+                      background: "#FFFFFF",
+                      borderRadius: 12,
+                      border: "1px solid #EAECEE",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                      gap: 12,
                     }}
                   >
-                    <div>
-                      <p
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 600,
-                          color: "#203F49",
-                          margin: "0 0 2px 0",
-                        }}
-                      >
-                        {item.nombre}
-                      </p>
-                      <p
-                        style={{
-                          fontSize: 12,
-                          color: "#888F94",
-                          margin: 0,
-                        }}
-                      >
-                        {item.categoría}
-                      </p>
-                    </div>
                     <div
                       style={{
                         display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-end",
-                        gap: 4,
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
                       }}
                     >
+                      <div>
+                        <p
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "#203F49",
+                            margin: "0 0 4px 0",
+                          }}
+                        >
+                          {item.nombre}
+                        </p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 500,
+                              color: "#0BC5DF",
+                              background: "#E6F8FB",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {item.categoría}
+                          </span>
+                          {item.fecha && (
+                            <span style={{ fontSize: 12, color: "#888F94" }}>
+                              • {formatDate(item.fecha)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <p
                         style={{
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: 700,
                           color: iconColor || "#203F49",
                           margin: 0,
@@ -173,20 +177,40 @@ export function StatsDrawerContent({
                           maximumFractionDigits: 2,
                         })}
                       </p>
+                    </div>
+                    
+                    {(item.responsable || item.observaciones) && (
                       <div
                         style={{
-                          background: estadoColor.bg,
-                          color: estadoColor.text,
-                          padding: "4px 8px",
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          display: "inline-block",
+                          borderTop: "1px dashed #EAECEE",
+                          paddingTop: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
                         }}
                       >
-                        {item.estado}
+                        {item.responsable && (
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#5F656A" }}>
+                              Responsable:
+                            </span>
+                            <span style={{ fontSize: 12, color: "#203F49" }}>
+                              {item.responsable}
+                            </span>
+                          </div>
+                        )}
+                        {item.observaciones && (
+                          <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#5F656A", minWidth: 85 }}>
+                              Observaciones:
+                            </span>
+                            <span style={{ fontSize: 12, color: "#5F656A", fontStyle: "italic", lineHeight: 1.4 }}>
+                              {item.observaciones}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })

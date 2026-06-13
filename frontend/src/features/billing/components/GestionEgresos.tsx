@@ -235,7 +235,9 @@ export function GestionEgresos() {
             nombre: r.concepto,
             categoría: r.categoria,
             monto: r.monto,
-            estado: "Pendiente" as const,
+            fecha: r.fecha,
+            responsable: r.responsable,
+            observaciones: r.observaciones,
           }));
         break;
       }
@@ -246,7 +248,9 @@ export function GestionEgresos() {
             nombre: r.concepto,
             categoría: r.categoria,
             monto: r.monto,
-            estado: "Pendiente" as const,
+            fecha: r.fecha,
+            responsable: r.responsable,
+            observaciones: r.observaciones,
           }));
         break;
       }
@@ -257,7 +261,9 @@ export function GestionEgresos() {
             nombre: r.concepto,
             categoría: r.categoria,
             monto: r.monto,
-            estado: "Pendiente" as const,
+            fecha: r.fecha,
+            responsable: r.responsable,
+            observaciones: r.observaciones,
           }));
         break;
       }
@@ -266,7 +272,9 @@ export function GestionEgresos() {
           nombre: r.concepto,
           categoría: r.categoria,
           monto: r.monto,
-          estado: "Pendiente" as const,
+          fecha: r.fecha,
+          responsable: r.responsable,
+          observaciones: r.observaciones,
         }));
         break;
       }
