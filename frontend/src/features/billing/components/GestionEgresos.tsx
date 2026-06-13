@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, Alert, Avatar } from "../../../context";
+import { Card, Alert } from "../../../context";
 import {
   TrendingDown,
   Package,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
 
-interface ExpenseRecord {
+type RegistroEgreso = {
   id: string;
   fecha: string;
   concepto: string;
@@ -23,9 +23,9 @@ interface ExpenseRecord {
   monto: number;
   responsable: string;
   observaciones: string;
-}
+};
 
-const mockData: ExpenseRecord[] = [
+const datosMock: RegistroEgreso[] = [
   {
     id: "1",
     fecha: "2026-06-03",
@@ -101,14 +101,15 @@ const mockData: ExpenseRecord[] = [
 ];
 
 export function GestionEgresos() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [records, setRecords] = useState<ExpenseRecord[]>(mockData);
+  const [estaModalAbierto, setEstaModalAbierto] = useState(false);
+  const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">("crear");
+  const [registros, setRegistros] = useState<RegistroEgreso[]>(datosMock);
 
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] = useState(false);
+  const [registroAEliminar, setRegistroAEliminar] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
-  const authenticatedUser = JSON.parse(localStorage.getItem("webarco_user") || '{"nombre": "Usuario Autenticado"}');
+  const usuarioAutenticado = JSON.parse(localStorage.getItem("webarco_user") || '{"nombre": "Usuario Autenticado"}');
 
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [concepto, setConcepto] = useState("");
@@ -117,8 +118,9 @@ export function GestionEgresos() {
   >("Insumos");
   const [monto, setMonto] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  const [idSeleccionado, setIdSeleccionado] = useState<string | null>(null);
 
-  const kpis = [
+  const indicadores = [
     {
       label: "Egresos del Mes",
       value: "$18,450.00",
@@ -149,7 +151,7 @@ export function GestionEgresos() {
     },
   ];
 
-  const getCategoriaBadge = (categoria: string) => {
+  const obtenerBadgeCategoria = (categoria: string) => {
     const variants: Record<string, { bg: string; text: string }> = {
       Insumos: { bg: "#DBEAFE", text: "#1E40AF" },
       Equipos: { bg: "#FCD34D", text: "#78350F" },
@@ -173,12 +175,13 @@ export function GestionEgresos() {
     );
   };
 
-  const handleRegisterExpense = (e: React.FormEvent) => {
+  const manejarGuardarEgreso = (e: React.FormEvent) => {
     e.preventDefault();
+    if (modoModal === "ver") return;
     setError(null);
 
-    const today = new Date().toISOString().split("T")[0];
-    if (fecha > today) {
+    const hoy = new Date().toISOString().split("T")[0];
+    if (fecha > hoy) {
       setError("No se pueden registrar egresos con una fecha futura.");
       return;
     }
@@ -194,31 +197,61 @@ export function GestionEgresos() {
       return;
     }
 
-    const newRecord: ExpenseRecord = {
-      id: crypto.randomUUID(),
-      fecha,
-      concepto,
-      categoria,
-      monto: parsedMonto,
-      responsable: authenticatedUser.nombre,
-      observaciones,
-    };
+    if (modoModal === "crear") {
+      const nuevoRegistro: RegistroEgreso = {
+        id: crypto.randomUUID(),
+        fecha,
+        concepto,
+        categoria,
+        monto: parsedMonto,
+        responsable: usuarioAutenticado.nombre,
+        observaciones,
+      };
+      setRegistros([nuevoRegistro, ...registros]);
+    } else if (modoModal === "editar" && idSeleccionado) {
+      setRegistros(registros.map(reg =>
+        reg.id === idSeleccionado
+          ? { ...reg, fecha, concepto, categoria, monto: parsedMonto, observaciones }
+          : reg
+      ));
+    }
 
-    setRecords([newRecord, ...records]);
-    setIsDialogOpen(false);
+    setEstaModalAbierto(false);
+    limpiarFormulario();
+  };
+
+  const limpiarFormulario = () => {
+    setFecha(new Date().toISOString().split("T")[0]);
     setConcepto("");
     setMonto("");
     setCategoria("Insumos");
     setObservaciones("");
+    setIdSeleccionado(null);
   };
 
-  const columns = [
+  const abrirModal = (modo: "crear" | "editar" | "ver", registro?: RegistroEgreso) => {
+    setError(null);
+    setModoModal(modo);
+    if (registro) {
+      setIdSeleccionado(registro.id);
+      setFecha(registro.fecha);
+      setConcepto(registro.concepto);
+      setCategoria(registro.categoria);
+      setMonto(String(registro.monto));
+      setObservaciones(registro.observaciones);
+    } else {
+      limpiarFormulario();
+    }
+    setEstaModalAbierto(true);
+  };
+
+  const columnas = [
     { key: "fecha", label: "Fecha", width: 100 },
     { key: "concepto", label: "Concepto" },
     {
       key: "categoria",
       label: "Categoría",
-      render: (val: unknown) => getCategoriaBadge(String(val)),
+      render: (val: unknown) => obtenerBadgeCategoria(String(val)),
     },
     {
       key: "monto",
@@ -233,23 +266,23 @@ export function GestionEgresos() {
     { key: "observaciones", label: "Observaciones" },
   ];
 
-  const getRowActions = (record: ExpenseRecord) => [
+  const obtenerAccionesFila = (registro: RegistroEgreso) => [
     {
       icon: <Eye size={14} />,
       label: "Ver Detalles",
-      onClick: () => alert(`Detalles: ${record.concepto}`),
+      onClick: () => abrirModal("ver", registro),
     },
     {
       icon: <Edit size={14} />,
       label: "Editar",
-      onClick: () => alert("Editar próximamente"),
+      onClick: () => abrirModal("editar", registro),
     },
     {
       icon: <Trash2 size={14} />,
       label: "Eliminar",
       onClick: () => {
-        setRecordToDelete(record.id);
-        setIsConfirmOpen(true);
+        setRegistroAEliminar(registro.id);
+        setEstaModalConfirmacionAbierto(true);
       },
       danger: true,
     },
@@ -269,8 +302,8 @@ export function GestionEgresos() {
           gap: 16,
         }}
       >
-        {kpis.map((kpi) => (
-          <Card key={kpi.label}>
+        {indicadores.map((indicador) => (
+          <Card key={indicador.label}>
             <div
               style={{
                 display: "flex",
@@ -289,7 +322,7 @@ export function GestionEgresos() {
                     margin: "0 0 6px 0",
                   }}
                 >
-                  {kpi.label}
+                  {indicador.label}
                 </p>
                 <p
                   style={{
@@ -299,7 +332,7 @@ export function GestionEgresos() {
                     margin: 0,
                   }}
                 >
-                  {kpi.value}
+                  {indicador.value}
                 </p>
               </div>
               <div
@@ -307,24 +340,24 @@ export function GestionEgresos() {
                   width: 44,
                   height: 44,
                   borderRadius: 10,
-                  background: kpi.bg,
+                  background: indicador.bg,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <kpi.icon size={20} style={{ color: kpi.color }} />
+                <indicador.icon size={20} style={{ color: indicador.color }} />
               </div>
             </div>
           </Card>
         ))}
       </div>
 
-      <DataTable<any>
+      <DataTable<RegistroEgreso>
         title="Registros de Egresos"
         description="Gestiona todos los egresos y gastos de la clínica"
-        columns={columns}
-        data={records}
+        columns={columnas}
+        data={registros}
         searchable={true}
         searchPlaceholder="Buscar concepto..."
         searchKeys={["concepto"]}
@@ -343,19 +376,14 @@ export function GestionEgresos() {
             key: "responsable",
             placeholder: "Responsable",
             options: [
-              { value: "Dr. Karla Arita", label: "Dr. Karla Arita" },
-              { value: "Dr. Juan Pérez", label: "Dr. Juan Pérez" },
-              { value: "Dra. María López", label: "Dra. María López" },
+              { value: usuarioAutenticado.nombre, label: usuarioAutenticado.nombre },
             ],
           },
         ]}
         primaryAction={{
           label: "Registrar Egreso",
           icon: <Plus size={16} />,
-          onClick: () => {
-            setError(null);
-            setIsDialogOpen(true);
-          },
+          onClick: () => abrirModal("crear"),
         }}
         secondaryActions={[
           {
@@ -369,31 +397,31 @@ export function GestionEgresos() {
             onClick: () => window.print(),
           },
         ]}
-        rowActions={getRowActions}
-        getRowKey={(row) => row.id}
+        rowActions={obtenerAccionesFila}
+        getRowKey={(fila) => fila.id}
       />
 
       <ConfirmModal
-        open={isConfirmOpen}
+        open={estaModalConfirmacionAbierto}
         variant="danger"
         title="¿Eliminar registro de egreso?"
         description="Esta acción eliminará el registro permanentemente. Esta operación no se puede deshacer."
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         onClose={() => {
-          setIsConfirmOpen(false);
-          setRecordToDelete(null);
+          setEstaModalConfirmacionAbierto(false);
+          setRegistroAEliminar(null);
         }}
         onConfirm={() => {
-          if (recordToDelete) {
-            setRecords(records.filter((r) => r.id !== recordToDelete));
-            setRecordToDelete(null);
+          if (registroAEliminar) {
+            setRegistros(registros.filter((r) => r.id !== registroAEliminar));
+            setRegistroAEliminar(null);
           }
-          setIsConfirmOpen(false);
+          setEstaModalConfirmacionAbierto(false);
         }}
       />
 
-      {isDialogOpen && (
+      {estaModalAbierto && (
         <div
           style={{
             position: "fixed",
@@ -433,7 +461,6 @@ export function GestionEgresos() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <TrendingDown size={18} style={{ color: "#EF4444" }} />
                 <h3
                   style={{
                     margin: 0,
@@ -442,11 +469,12 @@ export function GestionEgresos() {
                     fontWeight: 600,
                   }}
                 >
-                  Registrar Nuevo Egreso
+                  {modoModal === "ver" ? "Detalles del Egreso" : modoModal === "editar" ? "Editar Egreso" : "Registrar Nuevo Egreso"}
                 </h3>
               </div>
               <button
-                onClick={() => setIsDialogOpen(false)}
+                type="button"
+                onClick={() => setEstaModalAbierto(false)}
                 style={{
                   background: "none",
                   border: "none",
@@ -466,7 +494,7 @@ export function GestionEgresos() {
             )}
 
             <form
-              onSubmit={handleRegisterExpense}
+              onSubmit={manejarGuardarEgreso}
               style={{
                 padding: 20,
                 display: "flex",
@@ -488,10 +516,13 @@ export function GestionEgresos() {
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
                     Fecha
-                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    {modoModal !== "ver" && (
+                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    )}
                   </label>
                   <input
-                    type="date"
+                    type={modoModal === "ver" ? "text" : "date"}
+                    disabled={modoModal === "ver"}
                     required
                     value={fecha}
                     onChange={(e) => setFecha(e.target.value)}
@@ -513,36 +544,55 @@ export function GestionEgresos() {
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
                     Categoría
-                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    {modoModal !== "ver" && (
+                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    )}
                   </label>
-                  <select
-                    required
-                    value={categoria}
-                    onChange={(e) =>
-                      setCategoria(
-                        e.target.value as
-                        | "Insumos"
-                        | "Equipos"
-                        | "Nómina"
-                        | "Servicios",
-                      )
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                      outline: "none",
-                      fontSize: 14,
-                      background: "#fff",
-                      color: "#203F49",
-                    }}
-                  >
-                    <option value="Insumos">Insumos</option>
-                    <option value="Equipos">Equipos</option>
-                    <option value="Nómina">Nómina</option>
-                    <option value="Servicios">Servicios</option>
-                  </select>
+                  {modoModal === "ver" ? (
+                    <input
+                      disabled
+                      value={categoria}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #D3D7DA",
+                        outline: "none",
+                        fontSize: 14,
+                        color: "#203F49",
+                        background: "#F1F3F4",
+                      }}
+                    />
+                  ) : (
+                    <select
+                      required
+                      value={categoria}
+                      onChange={(e) =>
+                        setCategoria(
+                          e.target.value as
+                          | "Insumos"
+                          | "Equipos"
+                          | "Nómina"
+                          | "Servicios",
+                        )
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #D3D7DA",
+                        outline: "none",
+                        fontSize: 14,
+                        background: "#fff",
+                        color: "#203F49",
+                      }}
+                    >
+                      <option value="Insumos">Insumos</option>
+                      <option value="Equipos">Equipos</option>
+                      <option value="Nómina">Nómina</option>
+                      <option value="Servicios">Servicios</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -551,11 +601,14 @@ export function GestionEgresos() {
                   style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                 >
                   Concepto
-                  <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                  {modoModal !== "ver" && (
+                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                  )}
                 </label>
                 <input
                   placeholder="Descripción del egreso..."
                   required
+                  disabled={modoModal === "ver"}
                   value={concepto}
                   onChange={(e) => setConcepto(e.target.value)}
                   style={{
@@ -584,12 +637,15 @@ export function GestionEgresos() {
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
                     Monto ($)
-                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    {modoModal !== "ver" && (
+                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    )}
                   </label>
                   <input
-                    type="number"
+                    type={modoModal === "ver" ? "text" : "number"}
                     step="0.01"
                     placeholder="0.00"
+                    disabled={modoModal === "ver"}
                     required
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
@@ -611,11 +667,18 @@ export function GestionEgresos() {
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
                     Responsable
-                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    {modoModal !== "ver" && (
+                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    )}
                   </label>
                   <input
                     disabled
-                    value={authenticatedUser.nombre}
+                    value={
+                      modoModal === "crear"
+                        ? usuarioAutenticado.nombre
+                        : registros.find((r) => r.id === idSeleccionado)
+                          ?.responsable || ""
+                    }
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -637,20 +700,23 @@ export function GestionEgresos() {
                   >
                     Observaciones
                   </label>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: "#5A6370",
-                      background: "#E6E8EC",
-                      padding: "2px 8px",
-                      borderRadius: 12,
-                    }}
-                  >
-                    Opcional
-                  </span>
+                  {modoModal !== "ver" && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "#5A6370",
+                        background: "#E6E8EC",
+                        padding: "2px 8px",
+                        borderRadius: 12,
+                      }}
+                    >
+                      Opcional
+                    </span>
+                  )}
                 </div>
                 <textarea
                   value={observaciones}
+                  disabled={modoModal === "ver"}
                   placeholder="Notas o comentarios adicionales..."
                   onChange={(e) => setObservaciones(e.target.value)}
                   style={{
@@ -677,7 +743,7 @@ export function GestionEgresos() {
               >
                 <button
                   type="button"
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={() => setEstaModalAbierto(false)}
                   style={{
                     padding: "10px 16px",
                     borderRadius: 8,
@@ -691,21 +757,23 @@ export function GestionEgresos() {
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "#0BC5DF",
-                    color: "#fff",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
-                >
-                  Registrar Egreso
-                </button>
+                {modoModal !== "ver" && (
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "#0BC5DF",
+                      color: "#fff",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {modoModal === "editar" ? "Guardar Cambios" : "Registrar Egreso"}
+                  </button>
+                )}
               </div>
             </form>
           </div>
