@@ -201,7 +201,7 @@ export function GestionEgresos() {
       return;
     }
 
-    const parsedMonto = Number(monto);
+    const parsedMonto = Number(Number(monto).toFixed(2));
     if (!/^\d+(\.\d{1,2})?$/.test(monto)) {
       setError("Monto inválido: máximo 2 decimales");
       return;
@@ -271,7 +271,7 @@ export function GestionEgresos() {
       setFecha(registro.fecha);
       setConcepto(registro.concepto);
       setCategoria(registro.categoria);
-      setMonto(String(registro.monto));
+      setMonto(Number(registro.monto).toFixed(2));
       setObservaciones(registro.observaciones);
       setResponsable(registro.responsable);
     } else {
@@ -380,7 +380,10 @@ export function GestionEgresos() {
       label: "Monto",
       render: (val: unknown) => (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#EF4444" }}>
-          ${Number(val).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+          ${Number(val || 0).toLocaleString("es-MX", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </span>
       ),
     },
