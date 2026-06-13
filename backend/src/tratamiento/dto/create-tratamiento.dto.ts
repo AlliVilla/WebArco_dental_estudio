@@ -1,12 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, MaxLength, IsInt } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTratamientoDto {
-  @ApiProperty({ description: 'Especialidad clínica', example: 'Odontología Estética' })
-  @IsString()
+  @ApiProperty({ description: 'ID de la especialidad', example: 1 })
+  @IsInt({ message: 'La especialidad debe ser un número válido' })
   @IsNotEmpty({ message: 'La especialidad es obligatoria' })
-  @MaxLength(120)
-  especialidad: string;
+  idEspecialidad: number;
 
   @ApiProperty({ description: 'Nombre del tratamiento', example: 'Blanqueamiento dental' })
   @IsString()

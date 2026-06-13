@@ -22,6 +22,8 @@ import { InventarioModule } from './inventario/inventario.module';
 import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.module';
 import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
 import { TratamientoModule } from './tratamiento/tratamiento.module';
+import { EspecialidadModule } from './especialidad/especialidad.module';
+import { EstadoOdontogramaModule } from './estado-odontograma/estado-odontograma.module';
 import { UploadModule } from './upload/upload.module';
 import { FinanzasModule } from './finanzas/finanzas.module';
 
@@ -52,6 +54,8 @@ import { join } from 'path';
     UnidadMedidaModule,
     TratamientoModule,
     FinanzasModule,
+    EspecialidadModule,
+    EstadoOdontogramaModule,
     UploadModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),

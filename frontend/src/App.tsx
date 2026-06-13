@@ -30,6 +30,7 @@ import { Alert, Card, DesignSystemScreen } from "./context";
 import { Dashboard } from "./page layouts/Dashboard";
 import { MainLayout } from "./page layouts/MainLayout";
 import { AuthGuard, GuestGuard } from "./routes/index";
+import { CierresView } from "./features/cierres";
 import { InventoryScreen } from "./features/inventory";
 import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
 import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
@@ -93,38 +94,8 @@ function App() {
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
         <Route path="/treatments" element={<TreatmentsScreen />} />
-        <Route
-          path="/treatments/new"
-          element={<TreatmentForm mode="create" />}
-        />
-        <Route
-          path="/treatments/edit/:id"
-          element={<TreatmentForm mode="edit" />}
-        />
-        <Route
-          path="/treatments"
-          element={
-            <div style={{ padding: 20 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Tratamientos
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Módulo de tratamientos en desarrollo.
-                </p>
-              </Card>
-            </div>
-          }
-        />
+        <Route path="/treatments/new" element={<TreatmentForm mode="create" />} />
+        <Route path="/treatments/edit/:id" element={<TreatmentForm mode="edit" />} />
 
         <Route
           path="/billing"
@@ -163,27 +134,7 @@ function App() {
         <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route
           path="/billing/closures"
-          element={
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Cierres de Caja
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Cierres de caja diarios, semanales y mensuales.
-                </p>
-              </Card>
-            </div>
-          }
+          element={<CierresView />}
         />
 
         <Route path="/inventory" element={<InventoryScreen />} />
