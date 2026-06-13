@@ -23,11 +23,14 @@ import {
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
 
+type CategoriaEgreso = "Insumos" | "Equipos" | "Nómina" | "Servicios";
+const CATEGORIAS: CategoriaEgreso[] = ["Insumos", "Equipos", "Nómina", "Servicios"];
+
 type RegistroEgreso = {
   id: string;
   fecha: string;
   concepto: string;
-  categoria: "Insumos" | "Equipos" | "Nómina" | "Servicios";
+  categoria: CategoriaEgreso;
   monto: number;
   responsable: string;
   observaciones: string;
@@ -64,9 +67,7 @@ export function GestionEgresos() {
 
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [concepto, setConcepto] = useState("");
-  const [categoria, setCategoria] = useState<
-    "Insumos" | "Equipos" | "Nómina" | "Servicios"
-  >("Insumos");
+  const [categoria, setCategoria] = useState<CategoriaEgreso>("Insumos");
   const [monto, setMonto] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [idSeleccionado, setIdSeleccionado] = useState<string | null>(null);
@@ -147,12 +148,7 @@ export function GestionEgresos() {
       {
         key: "categoria",
         placeholder: "Categoría",
-        options: [
-          { value: "Insumos", label: "Insumos" },
-          { value: "Equipos", label: "Equipos" },
-          { value: "Nómina", label: "Nómina" },
-          { value: "Servicios", label: "Servicios" },
-        ],
+        options: CATEGORIAS.map((cat) => ({ value: cat, label: cat })),
       },
       {
         key: "responsable",
@@ -630,7 +626,11 @@ export function GestionEgresos() {
                     type={modoModal === "ver" ? "text" : "date"}
                     disabled={modoModal === "ver"}
                     required
-                    value={fecha}
+                    value={
+                      modoModal === "ver" && fecha.includes("-")
+                        ? fecha.split("-").reverse().join("/")
+                        : fecha
+                    }
                     onChange={(e) => setFecha(e.target.value)}
                     style={{
                       width: "100%",
@@ -676,11 +676,7 @@ export function GestionEgresos() {
                       value={categoria}
                       onChange={(e) =>
                         setCategoria(
-                          e.target.value as
-                          | "Insumos"
-                          | "Equipos"
-                          | "Nómina"
-                          | "Servicios",
+                          e.target.value as CategoriaEgreso,
                         )
                       }
                       style={{
@@ -694,10 +690,11 @@ export function GestionEgresos() {
                         color: "#203F49",
                       }}
                     >
-                      <option value="Insumos">Insumos</option>
-                      <option value="Equipos">Equipos</option>
-                      <option value="Nómina">Nómina</option>
-                      <option value="Servicios">Servicios</option>
+                      {CATEGORIAS.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
                     </select>
                   )}
                 </div>
