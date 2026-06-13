@@ -304,6 +304,7 @@ model Tratamiento {
   descripcion          String?  @db.Text
   impacto_odontograma  String   @db.VarChar(60)
   precio               Decimal  @db.Decimal(10, 2)
+  activo               Boolean  @default(true)
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
 

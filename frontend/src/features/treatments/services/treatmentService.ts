@@ -1,5 +1,5 @@
 import api from '../../../services/api';
-import { Treatment, TreatmentInput } from '../types';
+import { TreatmentInput } from '../types';
 
 export const treatmentService = {
   getAll: async (params?: { nombre?: string; especialidad?: string }) => {
@@ -21,10 +21,17 @@ export const treatmentService = {
   delete: async (id: number) => {
     return api.delete(`/tratamiento/${id}`);
   },
+
+  toggleActivo: async (id: number) => {
+    return api.patch(`/tratamiento/${id}/toggle-activo`);
+  },
 };
 
 export const especialidadService = {
   getAll: async () => {
     return api.get('/especialidad');
+  },
+  create: async (nombre: string) => {
+    return api.post('/especialidad', { nombre });
   },
 };

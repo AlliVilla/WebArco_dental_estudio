@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe,
+  Controller, Get, Post, Put, Patch, Delete, Body, Param, ParseIntPipe,
   HttpCode, HttpStatus, UseGuards, Query,
 } from '@nestjs/common';
 import {
@@ -27,12 +27,14 @@ export class TratamientoController {
   @ApiOperation({ summary: 'Listar tratamientos del catálogo' })
   @ApiQuery({ name: 'nombre', required: false, description: 'Filtrar por nombre' })
   @ApiQuery({ name: 'especialidad', required: false, description: 'Filtrar por nombre de especialidad' })
+  @ApiQuery({ name: 'activo', required: false, description: 'Filtrar por estado activo (true/false)' })
   @ApiOkResponse({ description: 'Lista de tratamientos obtenida exitosamente' })
   findAll(
     @Query('nombre') nombre?: string,
     @Query('especialidad') especialidad?: string,
+    @Query('activo') activo?: string,
   ) {
-    return this.tratamientoService.findAll(nombre, especialidad);
+    return this.tratamientoService.findAll(nombre, especialidad, activo);
   }
 
   @Get(':id')
@@ -62,6 +64,16 @@ export class TratamientoController {
   @ApiNotFoundResponse({ description: 'Tratamiento no encontrado' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTratamientoDto) {
     return this.tratamientoService.update(id, dto);
+  }
+
+  @Patch(':id/toggle-activo')
+  @Privileges(66)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Activar o desactivar un tratamiento' })
+  @ApiOkResponse({ description: 'Estado cambiado correctamente' })
+  @ApiNotFoundResponse({ description: 'Tratamiento no encontrado' })
+  toggleActivo(@Param('id', ParseIntPipe) id: number) {
+    return this.tratamientoService.toggleActivo(id);
   }
 
   @Delete(':id')

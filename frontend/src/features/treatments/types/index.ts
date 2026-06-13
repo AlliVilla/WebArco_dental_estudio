@@ -6,6 +6,7 @@ export interface Treatment {
   descripcion?: string;
   impactoOdontograma: string;
   precio: number;
+  activo: boolean;
 }
 
 export type TreatmentInput = {

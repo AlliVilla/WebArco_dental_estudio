@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, FileText, Stethoscope, CheckCircle } from "lucide-react";
-import { Input, Select, Button, Alert } from "../../../context";
+import { Input, Combobox, Button, Alert } from "../../../context";
 import { treatmentService, especialidadService } from "../services/treatmentService";
 import { type TreatmentInput, type Especialidad, ESTADOS_ODONTOGRAMA } from "../types";
 
@@ -31,6 +31,7 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [formData, setFormData] = useState<TreatmentInput>(EMPTY);
+  const [especialidadText, setEspecialidadText] = useState("");
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{ variant: "success" | "error"; message: string } | null>(null);
@@ -55,6 +56,7 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
               impactoOdontograma: t.impactoOdontograma,
               precio: t.precio,
             });
+            setEspecialidadText(t.especialidad);
           }
         })
         .catch(() => {
@@ -68,8 +70,13 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
     setFormData((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSave() {
-    if (!formData.idEspecialidad || !formData.nombre || !formData.impactoOdontograma || formData.precio <= 0) {
+  function stripAccents(str: string): string {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  async function handleSave() {
+    const text = especialidadText.trim();
+    if (!text || !formData.nombre || !formData.impactoOdontograma || formData.precio <= 0) {
       setAlert({
         variant: "error",
         message: "Por favor complete todos los campos obligatorios. El precio debe ser mayor a 0.",
@@ -77,19 +84,35 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
       setTimeout(() => setAlert(null), 4000);
       return;
     }
-
     setSaving(true);
-    const request = mode === "create"
-      ? treatmentService.create(formData)
-      : treatmentService.update(Number(id), formData);
 
-    request
-      .then(() => navigate("/treatments"))
-      .catch((err) => {
-        const msg = err?.message || "Error al guardar el tratamiento.";
-        setAlert({ variant: "error", message: msg });
-      })
-      .finally(() => setSaving(false));
+    try {
+      const plainText = stripAccents(text).toLowerCase();
+      const match = especialidades.find(
+        (e) => stripAccents(e.nombre).toLowerCase() === plainText,
+      );
+      let idEspecialidad = match ? match.id : 0;
+
+      if (!match) {
+        const res = await especialidadService.create(text);
+        const created = res.data?.data ?? res.data;
+        idEspecialidad = created.id;
+        setEspecialidades((prev) => [...prev, created]);
+      }
+
+      const payload = { ...formData, idEspecialidad };
+      const request = mode === "create"
+        ? treatmentService.create(payload)
+        : treatmentService.update(Number(id), payload);
+
+      await request;
+      navigate("/treatments");
+    } catch (err: any) {
+      const msg = err?.message || "Error al guardar el tratamiento.";
+      setAlert({ variant: "error", message: msg });
+    } finally {
+      setSaving(false);
+    }
   }
 
   const sectionStyle: React.CSSProperties = {
@@ -133,12 +156,12 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Select
+          <Combobox
             label="Especialidad clínica"
             badge="required"
-            value={String(formData.idEspecialidad)}
-            onChange={(v) => setField("idEspecialidad", Number(v))}
-            placeholder="Seleccionar especialidad"
+            value={especialidadText}
+            onChange={(v) => setEspecialidadText(v)}
+            placeholder="Seleccionar o escribir nueva especialidad"
             options={especialidades.map((e) => ({ value: String(e.id), label: e.nombre }))}
           />
 
@@ -225,7 +248,7 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
           </div>
         </div>
 
-        <Select
+        <Combobox
           label="Estado a asignar en Odontograma"
           badge="required"
           value={formData.impactoOdontograma}

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTratamientoDto } from './dto/create-tratamiento.dto';
 import { UpdateTratamientoDto } from './dto/update-tratamiento.dto';
@@ -16,10 +16,11 @@ export class TratamientoService {
       descripcion: t.descripcion ?? '',
       impactoOdontograma: t.impacto_odontograma,
       precio: Number(t.precio),
+      activo: t.activo,
     };
   }
 
-  async findAll(nombre?: string, especialidad?: string) {
+  async findAll(nombre?: string, especialidad?: string, activo?: string) {
     const where: any = {};
 
     if (nombre) {
@@ -28,6 +29,12 @@ export class TratamientoService {
 
     if (especialidad) {
       where.especialidad = { nombre: { contains: especialidad, mode: 'insensitive' } };
+    }
+
+    if (activo === 'true') {
+      where.activo = true;
+    } else if (activo === 'false') {
+      where.activo = false;
     }
 
     const items = await this.prisma.tratamiento.findMany({
@@ -77,8 +84,32 @@ export class TratamientoService {
     return this.toResponse(t);
   }
 
+  async toggleActivo(id: number) {
+    const t = await this.prisma.tratamiento.findUnique({
+      where: { id_tratamiento: id },
+    });
+    if (!t) throw new NotFoundException('Tratamiento no encontrado');
+
+    const updated = await this.prisma.tratamiento.update({
+      where: { id_tratamiento: id },
+      data: { activo: !t.activo },
+      include: { especialidad: true },
+    });
+    return this.toResponse(updated);
+  }
+
   async remove(id: number) {
     await this.findOne(id);
+
+    const count = await this.prisma.consulta_Tratamiento.count({
+      where: { id_tratamiento: id },
+    });
+    if (count > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: el tratamiento está asignado a ${count} consulta(s). Elimine primero las consultas asociadas.`,
+      );
+    }
+
     await this.prisma.tratamiento.delete({ where: { id_tratamiento: id } });
     return null;
   }
