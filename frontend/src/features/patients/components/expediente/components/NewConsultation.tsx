@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { ExpedientePaciente } from '../types/getAllPacientes';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
+import type { ToothData } from '../../odontograma/types';
+import { odontogramaService } from '../../odontograma/services/odontogramaService';
+import { loadOdontogramaDraft, clearOdontogramaDraft } from '../../odontograma/services/odontogramaDraftStorage';
 import { Button, Input } from '../../../../../context';
 import api from '../../../../../services/api';
 import { calcularEdad , formatDate} from '../services/miscelaneousService';
@@ -240,7 +243,8 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
     // ── STEP 2: Motivo y Odontograma ──
     const [showOdontogram, setShowOdontogram] = useState(false);
-    const [, setTeethState] = useState<Record<number, { state: string; observation: string }> | null>(null); // To save state from odontogram
+    const [teethState, setTeethState] = useState<Record<number, ToothData> | null>(null);
+    const [modifiedTeethList, setModifiedTeethList] = useState<number[]>([]);
     const [modifiedTeethCount, setModifiedTeethCount] = useState(0);
 
     // ── STEP 3: Tratamientos y Cobro + Diagnóstico y Archivos ──
@@ -296,6 +300,24 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         }).catch(() => {});
     },[]);
 
+    const syncOdontogramDraft = useCallback(() => {
+        const draft = loadOdontogramaDraft(patient.id_persona);
+        if (!draft) return;
+        setTeethState(draft.teeth);
+        setModifiedTeethList(draft.modifiedTeethList);
+        setModifiedTeethCount(draft.modifiedTeethList.length);
+    }, [patient.id_persona]);
+
+    useEffect(() => {
+        syncOdontogramDraft();
+    }, [syncOdontogramDraft]);
+
+    useEffect(() => {
+        if (!showOdontogram) {
+            syncOdontogramDraft();
+        }
+    }, [showOdontogram, syncOdontogramDraft]);
+
 
     // ── File handling ──────────────────────────────────────────────────────────
     const processFiles = useCallback((files: FileList | null) => {
@@ -327,22 +349,24 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     }, [processFiles]);
 
     // ── Mapeo de tratamientos desde odontograma ───────────────────────────────────
-    const autoPopulateTreatments = (updatedTeeth: Record<number, { state: string; observation: string }>, modifiedList: number[]) => {
+    const autoPopulateTreatments = (updatedTeeth: Record<number, ToothData>, modifiedList: number[]) => {
         const newTrats = [...tratamientos];
         
         modifiedList.forEach((num) => {
             const tooth = updatedTeeth[num];
             if (!tooth) return;
+
+            const estado = tooth.state.toLowerCase();
             
             let targetId = '';
             let defaultName = '';
             let defaultPrice = 0;
             
-            if (tooth.state === 'caries' || tooth.state === 'obturacion') {
+            if (estado === 'caries' || estado === 'obturación' || estado === 'obturacion') {
                 targetId = 't03';
                 defaultName = `Resina clase I (Pieza ${num})`;
                 defaultPrice = 900;
-            } else if (tooth.state === 'endodoncia') {
+            } else if (estado === 'endodoncia') {
                 // Determine tooth type (molar vs premolar vs anterior)
                 const isMolar = [18, 17, 16, 26, 27, 28, 48, 47, 46, 36, 37, 38, 55, 54, 64, 65, 85, 84, 74, 75].includes(num);
                 const isPremolar = [15, 14, 24, 25, 45, 44, 34, 35].includes(num);
@@ -359,15 +383,15 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     defaultName = `Endodoncia unirradicular (Pieza ${num})`;
                     defaultPrice = 3200;
                 }
-            } else if (tooth.state === 'corona') {
+            } else if (estado === 'corona') {
                 targetId = 't12';
                 defaultName = `Corona metal-porcelana (Pieza ${num})`;
                 defaultPrice = 5500;
-            } else if (tooth.state === 'implante') {
+            } else if (estado === 'implante') {
                 targetId = 't14';
                 defaultName = `Implante dental (Pieza ${num})`;
                 defaultPrice = 15000;
-            } else if (tooth.state === 'extraccion') {
+            } else if (estado === 'extracción' || estado === 'extraccion') {
                 targetId = 't07';
                 defaultName = `Extracción simple (Pieza ${num})`;
                 defaultPrice = 800;
@@ -513,6 +537,18 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     } catch { /* ignore save error */ }
                 }
 
+                if (consultaId && teethState && modifiedTeethList.length > 0) {
+                    try {
+                        const items = modifiedTeethList.map((num) => ({
+                            id_diente: num,
+                            estado: teethState[num].state,
+                            observacion: teethState[num].observation || undefined,
+                        }));
+                        await odontogramaService.bulkSave(consultaId, items);
+                        clearOdontogramaDraft(patient.id_persona);
+                    } catch { /* ignore odontogram save error */ }
+                }
+
                 addToast('success', res.message || 'Consulta registrada exitosamente');
                 setTimeout(onSave, 1000);
             } else {
@@ -526,6 +562,11 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         }
     };
 
+    const handleCloseOdontogram = useCallback(() => {
+        syncOdontogramDraft();
+        setShowOdontogram(false);
+    }, [syncOdontogramDraft]);
+
     // ── Render ─────────────────────────────────────────────────────────────────
     if (showOdontogram) {
         return (
@@ -533,7 +574,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                 <Toast toasts={toasts} remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: `1px solid ${C.gray100}`, paddingBottom: 12 }}>
                     <button
-                        onClick={() => setShowOdontogram(false)}
+                        onClick={handleCloseOdontogram}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: C.gray500, fontSize: 13, padding: 0 }}
                     >
                         <ChevronLeft size={16} /> Volver al formulario de consulta
@@ -545,19 +586,24 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                 </div>
                 <OdontogramScreen
                     isEmbedded={true}
+                    patientId={patient.id_persona}
                     patientName={`${primerNombre} ${primerApellido}`}
                     patientIdentidad={identidad}
                     initialDentition={calcularEdad(patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
+                    initialTeeth={teethState}
+                    initialModifiedTeeth={modifiedTeethList}
+                    embeddedDoctorName={doctor ? `${doctor.primer_nombre} ${doctor.primer_apellido}` : undefined}
                     onSaveEmbedded={(updatedTeeth, modifiedList) => {
                         setTeethState(updatedTeeth);
+                        setModifiedTeethList(modifiedList);
                         setModifiedTeethCount(modifiedList.length);
                         autoPopulateTreatments(updatedTeeth, modifiedList);
                         setShowOdontogram(false);
-                        addToast('success', `Odontograma actualizado. Se pre-cargaron ${modifiedList.length} tratamientos.`);
+                        addToast('success', modifiedList.length > 0
+                            ? `Odontograma actualizado. Se pre-cargaron ${modifiedList.length} tratamientos.`
+                            : 'Odontograma revisado sin cambios pendientes.');
                     }}
-                    onCancelEmbedded={() => {
-                        setShowOdontogram(false);
-                    }}
+                    onCancelEmbedded={handleCloseOdontogram}
                 />
             </div>
         );
@@ -727,7 +773,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                 </div>
                                 {modifiedTeethCount > 0 && (
                                     <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: C.success, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Check size={14} /> Se modificaron {modifiedTeethCount} piezas dentales en esta sesión.
+                                        <Check size={14} /> Se modificaron {modifiedTeethCount} piezas dentales en esta sesión (guardado localmente).
                                     </div>
                                 )}
                             </div>

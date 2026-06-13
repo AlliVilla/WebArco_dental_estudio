@@ -699,11 +699,11 @@ export function ExpedienteScreen() {
           <OdontogramScreen
             isEmbedded={true}
             isReadOnly={true}
-            consultationId={selectedConsultationForOdontogram.id_consulta}
+            consultaId={selectedConsultationForOdontogram.id_consulta}
+            patientId={selectedConsultationForOdontogram.patient.id_persona}
             patientName={`${selectedConsultationForOdontogram.patient.primer_nombre} ${selectedConsultationForOdontogram.patient.primer_apellido}`}
             patientIdentidad={selectedConsultationForOdontogram.patient.numero_identidad}
             initialDentition={calcularEdad(selectedConsultationForOdontogram.patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
-            onSaveEmbedded={() => {}}
             onCancelEmbedded={handleBackFromOdontogram}
           />
         </div>

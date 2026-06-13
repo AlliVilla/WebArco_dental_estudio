@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } from 'react';
 import { Check, Loader2, Settings } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { patientService } from '../../../services/patientService';
 import { odontogramaService } from '../services/odontogramaService';
+import { loadOdontogramaDraft, saveOdontogramaDraft, applyDraftToToothMap, buildDraftPayload } from '../services/odontogramaDraftStorage';
 import { estadoOdontogramaService, type EstadoOdontograma } from '../services/estadoOdontogramaService';
 import { ManageStatesModal } from './ManageStatesModal';
 import type { ToothData, HistoryEntry } from '../types';
@@ -531,27 +532,70 @@ function emptyTeeth(numbers: number[]): Record<number, ToothData> {
   return m;
 }
 
+function buildInitialEmbeddedState(
+  patientId: number | undefined,
+  dentitionType: 'adult' | 'child',
+  readOnly: boolean,
+  fallbackModified: number[],
+) {
+  const numbers = dentitionType === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS;
+  const baseTeeth = emptyTeeth(numbers);
+  if (!patientId || readOnly) {
+    return {
+      teeth: baseTeeth,
+      modifiedTeethList: fallbackModified,
+      sessionHistory: [] as HistoryEntry[],
+    };
+  }
+
+  const draft = loadOdontogramaDraft(patientId);
+  if (!draft) {
+    return {
+      teeth: baseTeeth,
+      modifiedTeethList: fallbackModified,
+      sessionHistory: [] as HistoryEntry[],
+    };
+  }
+
+  applyDraftToToothMap(baseTeeth, draft);
+  return {
+    teeth: baseTeeth,
+    modifiedTeethList: draft.modifiedTeethList,
+    sessionHistory: draft.sessionHistory ?? [],
+  };
+}
+
 export function OdontogramScreen({
-  consultaId: _consultaId,
+  consultaId,
+  patientId: embeddedPatientId,
   isEmbedded = false,
+  isReadOnly = false,
   patientName,
   patientIdentidad,
   initialDentition = 'adult',
+  initialTeeth,
+  initialModifiedTeeth = [],
+  embeddedDoctorName,
   onSaveEmbedded,
   onCancelEmbedded,
 }: {
   consultaId?: number;
+  patientId?: number;
   isEmbedded?: boolean;
+  isReadOnly?: boolean;
   patientName?: string;
   patientIdentidad?: string;
   initialDentition?: 'adult' | 'child';
+  initialTeeth?: Record<number, ToothData> | null;
+  initialModifiedTeeth?: number[];
+  embeddedDoctorName?: string;
   onSaveEmbedded?: (updatedTeeth: Record<number, ToothData>, modifiedTeethList: number[]) => void;
   onCancelEmbedded?: () => void;
 }) {
   const location = useLocation();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(!isEmbedded);
-  const [loadingOdontogram, setLoadingOdontogram] = useState(false);
+  const [loadingOdontogram, setLoadingOdontogram] = useState(isEmbedded && !!embeddedPatientId);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -561,9 +605,22 @@ export function OdontogramScreen({
   const [mode, setMode] = useState<'view' | 'consultation'>(isEmbedded ? 'consultation' : 'view');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [dentition, setDentition] = useState<'adult' | 'child'>(initialDentition);
-  const [teeth, setTeeth] = useState<Record<number, ToothData>>(emptyTeeth(ADULT_NUMBERS));
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [modifiedTeethList, setModifiedTeethList] = useState<number[]>([]);
+  const [teeth, setTeeth] = useState<Record<number, ToothData>>(() =>
+    buildInitialEmbeddedState(embeddedPatientId, initialDentition, isReadOnly, initialModifiedTeeth).teeth,
+  );
+  const [apiHistory, setApiHistory] = useState<HistoryEntry[]>([]);
+  const [sessionHistory, setSessionHistory] = useState<HistoryEntry[]>(() =>
+    buildInitialEmbeddedState(embeddedPatientId, initialDentition, isReadOnly, initialModifiedTeeth).sessionHistory,
+  );
+  const [modifiedTeethList, setModifiedTeethList] = useState<number[]>(() =>
+    buildInitialEmbeddedState(embeddedPatientId, initialDentition, isReadOnly, initialModifiedTeeth).modifiedTeethList,
+  );
+  const history = useMemo(
+    () => [...sessionHistory, ...apiHistory],
+    [sessionHistory, apiHistory],
+  );
+  const draftRef = useRef({ teeth, modifiedTeethList, sessionHistory });
+  const fetchGenerationRef = useRef(0);
 
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
   const [pendingState, setPendingState] = useState<string>('');
@@ -583,7 +640,42 @@ export function OdontogramScreen({
   const currentPatient = patients.find(p => p.id === selectedPatientId) || null;
   const patientAge = currentPatient ? getAge(currentPatient.fecha_nacimiento) : 0;
 
-  const isEditable = mode === 'consultation';
+  const effectivePatientId = isEmbedded ? (embeddedPatientId ?? null) : selectedPatientId;
+  const isEditable = mode === 'consultation' && !isReadOnly;
+
+  const persistDraft = useCallback((snapshot?: {
+    teeth: Record<number, ToothData>;
+    modifiedTeethList: number[];
+    sessionHistory: HistoryEntry[];
+  }) => {
+    if (!isEmbedded || !embeddedPatientId || isReadOnly) return;
+    const data = snapshot ?? draftRef.current;
+    if (data.modifiedTeethList.length === 0) return;
+    saveOdontogramaDraft(
+      embeddedPatientId,
+      buildDraftPayload(data.teeth, data.modifiedTeethList, data.sessionHistory),
+    );
+  }, [isEmbedded, embeddedPatientId, isReadOnly]);
+
+  useEffect(() => {
+    draftRef.current = { teeth, modifiedTeethList, sessionHistory };
+  }, [teeth, modifiedTeethList, sessionHistory]);
+
+  const handleEmbeddedClose = useCallback(() => {
+    persistDraft();
+    onCancelEmbedded?.();
+  }, [persistDraft, onCancelEmbedded]);
+
+  useEffect(() => {
+    if (!isEmbedded || !embeddedPatientId || isReadOnly) return;
+    const draft = loadOdontogramaDraft(embeddedPatientId);
+    if (draft && draft.modifiedTeethList.length > 0) {
+      setAlert({
+        type: 'info',
+        text: `Borrador recuperado: ${draft.modifiedTeethList.length} pieza(s) con cambios pendientes de esta consulta.`,
+      });
+    }
+  }, [isEmbedded, embeddedPatientId, isReadOnly]);
 
   const toothCount = dentition === 'adult' ? 32 : 20;
   const TODAY = new Date().toISOString().split('T')[0];
@@ -615,7 +707,8 @@ export function OdontogramScreen({
       }));
       setPatients(mapped);
       setTeeth(emptyTeeth(ADULT_NUMBERS));
-      setHistory([]);
+      setApiHistory([]);
+      setSessionHistory([]);
       const preferredPatient =
         (selectedPatientFromQuery && mapped.find((patient) => patient.id === selectedPatientFromQuery)?.id) ??
         mapped[0]?.id ??
@@ -633,20 +726,28 @@ export function OdontogramScreen({
   }, [mode, fetchPatients]);
 
   // ── Fetch odontogram data when patient changes ──
-  const fetchOdontogram = useCallback(async (patientId: number, dentitionType: 'adult' | 'child') => {
+  const fetchOdontogram = useCallback(async (
+    patientId: number,
+    dentitionType: 'adult' | 'child',
+    options?: { consultaId?: number; readOnly?: boolean },
+  ) => {
+    const generation = ++fetchGenerationRef.current;
     setLoadingOdontogram(true);
     setError(null);
     try {
-      const res = await odontogramaService.getByPatientId(patientId);
-      const odontograma = res.data;
       const numbers = dentitionType === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS;
       const toothMap: Record<number, ToothData> = {};
       numbers.forEach(n => { toothMap[n] = { number: n, state: 'Sano', observation: '' }; });
 
-      if (odontograma?.dientes) {
-        odontograma.dientes.forEach((d: any) => {
-          const num = d.numero_diente;
-          if (toothMap[num]) {
+      if (options?.readOnly && options.consultaId) {
+        const res = await odontogramaService.getHistory(patientId);
+        if (generation !== fetchGenerationRef.current) return;
+        const consultaRecords = (res.data?.historial || []).filter(
+          (item) => item.id_consulta === options.consultaId,
+        );
+        consultaRecords.forEach((d) => {
+          const num = d.diente?.numero_diente;
+          if (num && toothMap[num]) {
             toothMap[num] = {
               number: num,
               state: d.estado || 'Sano',
@@ -654,23 +755,64 @@ export function OdontogramScreen({
             };
           }
         });
-      }
-
-      if (odontograma?.dientes) {
-        const firstWithDoctor = odontograma.dientes.find((d: any) => d.doctor);
+        const firstWithDoctor = consultaRecords.find((d) => d.doctor?.nombre);
         if (firstWithDoctor?.doctor?.nombre) {
           setDoctorName(firstWithDoctor.doctor.nombre);
         }
+      } else {
+        const res = await odontogramaService.getByPatientId(patientId);
+        if (generation !== fetchGenerationRef.current) return;
+        const odontograma = res.data;
+
+        if (odontograma?.dientes) {
+          odontograma.dientes.forEach((d) => {
+            const num = d.numero_diente;
+            if (toothMap[num]) {
+              toothMap[num] = {
+                number: num,
+                state: d.estado || 'Sano',
+                observation: d.observacion || '',
+              };
+            }
+          });
+
+          const firstWithDoctor = odontograma.dientes.find((d) => d.doctor);
+          if (firstWithDoctor?.doctor?.nombre) {
+            setDoctorName(firstWithDoctor.doctor.nombre);
+          }
+        }
       }
 
+      if (isEmbedded && embeddedPatientId && !options?.readOnly) {
+        const draft = loadOdontogramaDraft(embeddedPatientId);
+        if (draft) {
+          applyDraftToToothMap(toothMap, draft);
+          if (generation !== fetchGenerationRef.current) return;
+          setModifiedTeethList(draft.modifiedTeethList);
+          setSessionHistory(draft.sessionHistory ?? []);
+        }
+      } else if (initialTeeth) {
+        Object.entries(initialTeeth).forEach(([num, tooth]) => {
+          const parsedNum = Number(num);
+          if (toothMap[parsedNum]) {
+            toothMap[parsedNum] = { ...tooth };
+          }
+        });
+      }
+
+      if (generation !== fetchGenerationRef.current) return;
       setTeeth(toothMap);
-    } catch (err: any) {
-      setError(err?.message || 'Error al cargar odontograma');
+    } catch (err: unknown) {
+      if (generation !== fetchGenerationRef.current) return;
+      const message = err instanceof Error ? err.message : 'Error al cargar odontograma';
+      setError(message);
       setTeeth(emptyTeeth(dentitionType === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS));
     } finally {
-      setLoadingOdontogram(false);
+      if (generation === fetchGenerationRef.current) {
+        setLoadingOdontogram(false);
+      }
     }
-  }, []);
+  }, [isEmbedded, embeddedPatientId, initialTeeth]);
 
   // ── Fetch history when patient changes ──
   const fetchHistory = useCallback(async (patientId: number) => {
@@ -698,27 +840,48 @@ export function OdontogramScreen({
         return { ...e, previousState: prev };
       });
       entries.reverse();
-      setHistory(entries);
+      setApiHistory(entries);
     } catch {
-      setHistory([]);
+      setApiHistory([]);
     } finally {
       setLoadingHistory(false);
     }
   }, []);
 
   useEffect(() => {
-    if (selectedPatientId && !isEmbedded) {
-      const p = patients.find(pj => pj.id === selectedPatientId);
-      let resolvedDentition = dentition;
-      if (p) {
-        const age = getAge(p.fecha_nacimiento);
-        resolvedDentition = age < 12 ? 'child' : 'adult';
-        setDentition(resolvedDentition);
+    if (!effectivePatientId) return;
+
+    if (isEmbedded) {
+      fetchOdontogram(effectivePatientId, dentition, {
+        consultaId,
+        readOnly: isReadOnly,
+      });
+      fetchHistory(effectivePatientId);
+      if (embeddedDoctorName) {
+        setDoctorName(embeddedDoctorName);
       }
-      fetchOdontogram(selectedPatientId, resolvedDentition);
-      fetchHistory(selectedPatientId);
+      return;
     }
-  }, [selectedPatientId, isEmbedded, patients, fetchOdontogram, fetchHistory]);
+
+    const p = patients.find(pj => pj.id === effectivePatientId);
+    let resolvedDentition = dentition;
+    if (p) {
+      const age = getAge(p.fecha_nacimiento);
+      resolvedDentition = age < 12 ? 'child' : 'adult';
+      setDentition(resolvedDentition);
+    }
+    fetchOdontogram(effectivePatientId, resolvedDentition);
+    fetchHistory(effectivePatientId);
+  }, [
+    effectivePatientId,
+    isEmbedded,
+    isReadOnly,
+    consultaId,
+    dentition,
+    fetchOdontogram,
+    fetchHistory,
+    patients,
+  ]);
 
   const handleSelect = (n: number) => {
     if (selectedTooth === n) {
@@ -741,36 +904,94 @@ export function OdontogramScreen({
 
     setSaving(true);
     try {
-      if (!isEmbedded && selectedPatientId) {
+      const canPersistImmediately = !isEmbedded || !!consultaId;
+
+      if (canPersistImmediately && effectivePatientId) {
         await odontogramaService.saveToothState(
-          selectedPatientId,
+          effectivePatientId,
           selectedTooth,
           pendingState,
           pendingObs,
         );
-        await fetchHistory(selectedPatientId);
+        await fetchHistory(effectivePatientId);
       }
 
-      setTeeth(prev => ({
-        ...prev,
+      const updatedTeeth = {
+        ...teeth,
         [selectedTooth]: {
-          ...prev[selectedTooth],
+          ...teeth[selectedTooth],
           state: pendingState,
           observation: pendingObs,
         },
-      }));
+      };
+      const updatedModified = modifiedTeethList.includes(selectedTooth)
+        ? modifiedTeethList
+        : [...modifiedTeethList, selectedTooth];
 
-      if (!modifiedTeethList.includes(selectedTooth)) {
-        setModifiedTeethList(prev => [...prev, selectedTooth]);
+      let updatedSessionHistory = sessionHistory;
+      if (isEmbedded && !consultaId) {
+        const newEntry: HistoryEntry = {
+          id: Date.now(),
+          toothNumber: selectedTooth,
+          previousState: teeth[selectedTooth]?.state ?? null,
+          newState: pendingState,
+          observation: pendingObs,
+          doctor: embeddedDoctorName || doctorName || '—',
+          date: TODAY,
+        };
+        updatedSessionHistory = [newEntry, ...sessionHistory];
+        setSessionHistory(updatedSessionHistory);
+      }
+
+      setTeeth(updatedTeeth);
+      setModifiedTeethList(updatedModified);
+
+      if (isEmbedded && !consultaId) {
+        persistDraft({
+          teeth: updatedTeeth,
+          modifiedTeethList: updatedModified,
+          sessionHistory: updatedSessionHistory,
+        });
       }
 
       setAlert({ type: 'success', text: `Cambio guardado correctamente para el diente #${selectedTooth}.` });
       setSelectedTooth(null); setPendingState(''); setPendingObs('');
-    } catch (err: any) {
-      setAlert({ type: 'error', text: err?.message || 'Error al guardar el cambio.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al guardar el cambio.';
+      setAlert({ type: 'error', text: message });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEmbeddedBulkSave = async () => {
+    persistDraft();
+
+    if (modifiedTeethList.length === 0) {
+      onSaveEmbedded?.(teeth, modifiedTeethList);
+      return;
+    }
+
+    if (consultaId) {
+      setSaving(true);
+      try {
+        const items = modifiedTeethList.map((num) => ({
+          id_diente: num,
+          estado: teeth[num].state,
+          observacion: teeth[num].observation || undefined,
+        }));
+        await odontogramaService.bulkSave(consultaId, items);
+        onSaveEmbedded?.(teeth, modifiedTeethList);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Error al guardar el odontograma.';
+        setAlert({ type: 'error', text: message });
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    onSaveEmbedded?.(teeth, modifiedTeethList);
   };
 
   const handleCancel = () => {
@@ -1296,18 +1517,19 @@ export function OdontogramScreen({
         </>
       )}
 
-      {isEmbedded && (
+      {isEmbedded && !isReadOnly && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, padding: '16px 0', borderTop: `1px solid #D3D7DA` }}>
           <button
-            onClick={() => onSaveEmbedded?.(teeth, modifiedTeethList)}
-            style={{ padding: '12px 24px', borderRadius: 8, background: '#1D9E75', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#17805E'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1D9E75'; }}
+            onClick={handleEmbeddedBulkSave}
+            disabled={saving}
+            style={{ padding: '12px 24px', borderRadius: 8, background: saving ? '#8FD4B8' : '#1D9E75', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = '#17805E'; }}
+            onMouseLeave={e => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = '#1D9E75'; }}
           >
-            <Check size={16} /> Guardar Odontograma de la Consulta
+            <Check size={16} /> {saving ? 'Guardando...' : 'Guardar Odontograma de la Consulta'}
           </button>
           <button
-            onClick={onCancelEmbedded}
+            onClick={handleEmbeddedClose}
             style={{ padding: '12px 20px', borderRadius: 8, background: '#fff', color: '#5F656A', border: '1px solid #D3D7DA', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
           >
             Cancelar y Volver
