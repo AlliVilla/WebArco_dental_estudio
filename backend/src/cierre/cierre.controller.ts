@@ -1,5 +1,5 @@
-import { Controller, Get, Post, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, UseGuards, Request, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CierreService } from './cierre.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
@@ -14,20 +14,24 @@ export class CierreController {
 
   @Post()
   @Privileges(14)
-  @ApiOperation({ summary: 'Realiza el cálculo del saldo y congela el reporte de la jornada' })
+  @ApiOperation({ summary: 'Realiza el cálculo de utilidad y congela el reporte del período' })
+  @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de cierre (Diario, Semanal, Quincenal, Mensual). Por defecto: Diario.' })
   @ApiResponse({ status: 201, description: 'Cierre de caja generado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Ya existe un cierre de caja para el día de hoy.' })
-  createCierre(@Request() req: any) {
+  @ApiResponse({ status: 400, description: 'Faltan parámetros o ya existe un cierre.' })
+  createCierre(@Query('tipo') tipo: any, @Request() req: any) {
     const userId = req.user?.id_usuario ?? req.user?.sub;
-    return this.cierreService.createCierre(userId);
+    const tipoCierre = tipo || 'Diario';
+    return this.cierreService.createCierre(userId, tipoCierre);
   }
 
   @Post('preview')
   @Privileges(14)
-  @ApiOperation({ summary: 'Calcula ingresos menos egresos de la jornada sin cerrarla' })
-  @ApiResponse({ status: 200, description: 'Cálculo de ingresos y egresos actual.' })
-  previewCierre() {
-    return this.cierreService.previewCierre();
+  @ApiOperation({ summary: 'Calcula ingresos, egresos y utilidad del período sin cerrarlo' })
+  @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de cierre (Diario, Semanal, Quincenal, Mensual). Por defecto: Diario.' })
+  @ApiResponse({ status: 200, description: 'Cálculo actual.' })
+  previewCierre(@Query('tipo') tipo: any) {
+    const tipoCierre = tipo || 'Diario';
+    return this.cierreService.previewCierre(tipoCierre);
   }
 
   @Get()
