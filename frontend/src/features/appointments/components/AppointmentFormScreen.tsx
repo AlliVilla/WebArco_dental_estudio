@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { Button, Select, Input, Card, Alert, SectionBlock, FieldBadge } from '../../../context';
+import { Button, Select, Input, Card, Alert, SectionBlock, FieldBadge, Combobox } from '../../../context';
 import { FormSection, FullWidthField } from '../../../components';
 import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { PatientSearchInput } from './PatientSearchInput';
 import { appointmentService } from '../services/appointmentService';
+import { treatmentService, especialidadService } from '../../treatments/services/treatmentService';
+import type { Treatment, Especialidad } from '../../treatments/types';
 import type { CreateAppointmentInput, UsuarioRecord } from '../types';
 import { TIPO_CITA_OPTIONS, CALENDAR_START_HOUR, CALENDAR_END_HOUR } from '../constants';
 
@@ -18,6 +20,8 @@ export function AppointmentFormScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [doctors, setDoctors] = useState<{ value: string; label: string }[]>([]);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
 
   const [formData, setFormData] = useState<Partial<CreateAppointmentInput>>({
     id_persona: 0,
@@ -31,6 +35,7 @@ export function AppointmentFormScreen() {
 
   const [timeStr, setTimeStr] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [initialPatient, setInitialPatient] = useState<{ nombre: string; identidad: string } | null>(null);
 
   useEffect(() => {
     appointmentService.getUsuarios().then((res) => {
@@ -41,6 +46,16 @@ export function AppointmentFormScreen() {
         }));
         setDoctors(mapped);
       }
+    });
+
+    treatmentService.getAll({ activo: 'true' }).then((res) => {
+      const data = res.data?.data ?? res.data ?? [];
+      setTreatments(Array.isArray(data) ? data : []);
+    });
+
+    especialidadService.getAll().then((res) => {
+      const data = res.data?.data ?? res.data ?? [];
+      setEspecialidades(Array.isArray(data) ? data : []);
     });
   }, []);
 
@@ -64,6 +79,12 @@ export function AppointmentFormScreen() {
             estado: apt.estado,
           });
           setTimeStr(apt.fecha_inicio.substring(11, 16));
+          if (apt.persona) {
+            setInitialPatient({
+              nombre: `${apt.persona.primer_nombre} ${apt.persona.primer_apellido}`,
+              identidad: apt.persona.numero_identidad,
+            });
+          }
         } else if (!cancelled) {
           setError(res.message || 'Error al cargar la cita');
         }
@@ -84,7 +105,7 @@ export function AppointmentFormScreen() {
     if (!formData.fecha_inicio) errors.fecha_inicio = 'Seleccione una fecha';
     else {
       const date = new Date(formData.fecha_inicio);
-      const dayOfWeek = date.getDay(); // 0 = domingo, 6 = sábado
+      const dayOfWeek = date.getDay();
       if (dayOfWeek === 0) {
         errors.fecha_inicio = 'No se pueden agendar citas los domingos';
       }
@@ -114,6 +135,27 @@ export function AppointmentFormScreen() {
     setError('');
 
     try {
+      const text = (formData.motivo || '').trim();
+      const match = treatments.find(
+        (t) => t.nombre.toLowerCase() === text.toLowerCase(),
+      );
+      let motivo = text;
+
+      if (!match && text && especialidades.length > 0) {
+        const res = await treatmentService.create({
+          idEspecialidad: especialidades[0].id,
+          nombre: text,
+          descripcion: '',
+          impactoOdontograma: 'Sano',
+          precio: 0,
+        });
+        const created = res.data?.data ?? res.data;
+        if (created) {
+          motivo = created.nombre;
+          setTreatments((prev) => [...prev, created]);
+        }
+      }
+
       const fechaInicio = `${formData.fecha_inicio}T${timeStr}:00`;
       const startDate = new Date(fechaInicio);
       const durationHours = formData.tipo_cita === 'Especialidad' ? 2 : 1;
@@ -127,7 +169,7 @@ export function AppointmentFormScreen() {
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         tipo_cita: formData.tipo_cita,
-        motivo: formData.motivo,
+        motivo,
         notas: formData.notas || undefined,
         estado: formData.estado,
       };
@@ -182,9 +224,11 @@ export function AppointmentFormScreen() {
                 value={formData.id_persona}
                 onChange={(patientId) => {
                   setFormData({ ...formData, id_persona: patientId });
+                  setInitialPatient(null);
                   if (formErrors.id_persona) setFormErrors({ ...formErrors, id_persona: '' });
                 }}
                 error={formErrors.id_persona}
+                initialPatient={initialPatient}
               />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -253,15 +297,16 @@ export function AppointmentFormScreen() {
                 />
               </div>
 
-              <Input
+              <Combobox
                 label="Motivo o tratamiento a realizar"
                 badge="required"
-                placeholder="Ej. Limpieza general, extracción..."
-                value={formData.motivo}
-                onChange={(e) => {
-                  setFormData({ ...formData, motivo: e.target.value });
+                placeholder="Seleccionar o escribir nuevo tratamiento"
+                value={formData.motivo || ''}
+                onChange={(val) => {
+                  setFormData({ ...formData, motivo: val });
                   if (formErrors.motivo) setFormErrors({ ...formErrors, motivo: '' });
                 }}
+                options={treatments.map((t) => ({ value: String(t.id), label: t.nombre }))}
                 error={formErrors.motivo}
               />
             </FormSection>

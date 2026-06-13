@@ -2,7 +2,7 @@ import api from '../../../services/api';
 import { TreatmentInput } from '../types';
 
 export const treatmentService = {
-  getAll: async (params?: { nombre?: string; especialidad?: string }) => {
+  getAll: async (params?: { nombre?: string; especialidad?: string; activo?: string }) => {
     return api.get('/tratamiento', { params });
   },
 
