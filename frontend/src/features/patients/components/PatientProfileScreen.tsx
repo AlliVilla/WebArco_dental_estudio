@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
   Calendar,
   DollarSign,
   Edit,
@@ -12,7 +13,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Spinner } from "../../../components";
-import { Alert, Button, useTheme } from "../../../context";
+import { Alert, Button } from "../../../context";
 import api from "../../../services/api";
 import { calculateAge } from "../../../utils/formatters";
 import { MedicalAlertBadge } from "./MedicalAlertBadge";
@@ -21,7 +22,6 @@ import type { AppointmentHistoryItem, FinancialRow } from "./PatientProfileTabs"
 import {
   buildMedicalAlertBadges,
   buildMedicalWarningDetails,
-  hasMedicalAlerts,
 } from "../utils/patientMedicalAlerts";
 
 type PersonaDetail = {
@@ -75,7 +75,6 @@ type PagoPaciente = {
 };
 
 export function PatientProfileScreen() {
-  useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
   const parsedPatientId = id ? Number(id) : null;
@@ -156,7 +155,7 @@ export function PatientProfileScreen() {
     () => (patient ? buildMedicalWarningDetails(patient) : []),
     [patient],
   );
-  const showMedicalAlerts = patient ? hasMedicalAlerts(patient) : false;
+  const showMedicalAlerts = medicalBadges.length > 0;
 
   const age = patient?.fecha_nacimiento ? calculateAge(patient.fecha_nacimiento) : null;
   const code = patient ? `PAC-${String(patient.id_persona).padStart(6, "0")}` : "";
@@ -192,6 +191,27 @@ export function PatientProfileScreen() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1200, width: "100%" }}>
+      <button
+        onClick={() => navigate(-1)}
+        type="button"
+        style={{
+          alignItems: "center",
+          background: "transparent",
+          border: "none",
+          color: "#5F656A",
+          cursor: "pointer",
+          display: "flex",
+          fontSize: 13,
+          fontWeight: 500,
+          gap: 5,
+          lineHeight: "19.5px",
+          padding: 0,
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft size={16} />
+        Regresar
+      </button>
       {/* Tarjeta de perfil */}
       <div
         style={{
@@ -391,9 +411,9 @@ export function PatientProfileScreen() {
                   Revisa alergias y enfermedades antes de iniciar cualquier tratamiento.
                 </span>
               </p>
-              {medicalWarningDetails.map((detail) => (
+              {medicalWarningDetails.map((detail, index) => (
                 <p
-                  key={detail}
+                  key={`warning-${index}`}
                   style={{
                     color: "#92400E",
                     display: "flex",

@@ -30,8 +30,9 @@ export function parseEnfermedadesList(enfermedades: string | null | undefined): 
 export function parseAlergiasList(alergias: string | null | undefined): string[] {
   if (!alergias?.trim()) return [];
 
+  const separators = /[,;]\s*|\s*,\s*|\s+y\s+/i;
   return alergias
-    .split(/[,;]|\sy\s/i)
+    .split(separators)
     .map((item) => item.trim())
     .filter(Boolean);
 }

@@ -163,7 +163,7 @@ export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
   const totals = rows.reduce(
     (summary, row) => ({
       paid: summary.paid + (row.status === "Pagado" ? row.amount : 0),
-      pending: summary.pending,
+      pending: summary.pending + (row.status !== "Pagado" ? row.amount : 0),
     }),
     { paid: 0, pending: 0 },
   );
@@ -247,6 +247,7 @@ function formatAppointmentStatus(status: string) {
     programada: "Programada",
     confirmada: "Confirmada",
     cancelada: "Cancelada",
+    pendiente: "Pendiente",
     no_asistio: "No asistió",
     atendida: "Atendida",
     ausente: "Ausente",

@@ -37,7 +37,7 @@ export function MedicalAlertBadge({ badge }: MedicalAlertBadgeProps) {
         alignItems: "center",
         background: styles.background,
         border: `1px solid ${styles.border}`,
-        borderRadius: 20,
+        borderRadius: 999,
         color: styles.color,
         display: "inline-flex",
         fontSize: 12,

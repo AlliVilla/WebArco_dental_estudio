@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
-import { Alert, Button, Card, Input, useTheme } from "../../../context";
+import { Alert, Button, Card, Input } from "../../../context";
 import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
 import { formatDate } from "../../../utils/formatters";
@@ -82,11 +82,6 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
     identity: persona.numero_identidad,
     phone: persona.telefono,
     lastVisit: null,
-    enfermedades: persona.enfermedades || null,
-    otras_enfermedades: persona.otras_enfermedades || null,
-    medicamentos: persona.medicamentos || null,
-    alergias: persona.alergias || null,
-    reaccion_anestesia: persona.reaccion_anestesia || null,
   };
 };
 
@@ -95,7 +90,6 @@ export function PatientsScreen({
   onEditPatient,
   onViewPatient,
 }: PatientsScreenProps) {
-  useTheme();
   const navigate = useNavigate();
   const [searchName, setSearchName] = useState("");
   const [searchIdentity, setSearchIdentity] = useState("");
