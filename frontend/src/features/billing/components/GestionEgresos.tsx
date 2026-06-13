@@ -131,6 +131,32 @@ export function GestionEgresos() {
     ];
   }, [registros, localHoyStr]);
 
+  const filtros = useMemo(() => {
+    const responsablesUnicos = Array.from(
+      new Set(registros.map((r) => r.responsable).filter(Boolean))
+    );
+    return [
+      {
+        key: "categoria",
+        placeholder: "Categoría",
+        options: [
+          { value: "Insumos", label: "Insumos" },
+          { value: "Equipos", label: "Equipos" },
+          { value: "Nómina", label: "Nómina" },
+          { value: "Servicios", label: "Servicios" },
+        ],
+      },
+      {
+        key: "responsable",
+        placeholder: "Responsable",
+        options: responsablesUnicos.map((nombre) => ({
+          value: nombre,
+          label: nombre,
+        })),
+      },
+    ];
+  }, [registros]);
+
   const obtenerBadgeCategoria = (categoria: string) => {
     const variants: Record<string, { bg: string; text: string }> = {
       Insumos: { bg: "#DBEAFE", text: "#1E40AF" },
@@ -360,25 +386,7 @@ export function GestionEgresos() {
         searchable={true}
         searchPlaceholder="Buscar concepto..."
         searchKeys={["concepto"]}
-        filters={[
-          {
-            key: "categoria",
-            placeholder: "Categoría",
-            options: [
-              { value: "Insumos", label: "Insumos" },
-              { value: "Equipos", label: "Equipos" },
-              { value: "Nómina", label: "Nómina" },
-              { value: "Servicios", label: "Servicios" },
-            ],
-          },
-          {
-            key: "responsable",
-            placeholder: "Responsable",
-            options: Array.from(new Set(registros.map((r) => r.responsable))).map(
-              (nombre) => ({ value: nombre, label: nombre }),
-            ),
-          },
-        ]}
+        filters={filtros}
         primaryAction={{
           label: "Registrar Egreso",
           icon: <Plus size={16} />,
