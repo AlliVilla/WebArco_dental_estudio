@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, Alert, Button } from "../../../context";
+import { formatCurrency } from "../../../utils/formatters";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 
 const generateUUID = () => {
@@ -123,7 +124,7 @@ export function GestionEgresos() {
         : 0;
 
     const formatMoneda = (val: number) =>
-      `$${val.toLocaleString("es-MX", {
+      `L. ${val.toLocaleString("es-MX", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`;
@@ -329,10 +330,7 @@ export function GestionEgresos() {
         <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.fecha}</td>
         <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.concepto}</td>
         <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.categoria}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: bold; text-align: right;">$${r.monto.toLocaleString(
-          "es-MX",
-          { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: bold; text-align: right;">${formatCurrency(r.monto)}</td>
         <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.responsable}</td>
       </tr>
     `,
@@ -383,10 +381,7 @@ export function GestionEgresos() {
               ${filasHtml}
               <tr class="total-row">
                 <td colspan="3" class="total-cell" style="text-align: right;">Total General:</td>
-                <td class="total-cell" style="text-align: right; color: #EF4444;">$${totalEgresos.toLocaleString(
-      "es-MX",
-      { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-    )}</td>
+                <td class="total-cell" style="text-align: right; color: #EF4444;">${formatCurrency(totalEgresos)}</td>
                 <td class="total-cell"></td>
               </tr>
             </tbody>
@@ -416,11 +411,7 @@ export function GestionEgresos() {
       label: "Monto",
       render: (val: unknown) => (
         <span style={{ fontSize: 13, fontWeight: 600, color: "#EF4444" }}>
-          $
-          {Number(val || 0).toLocaleString("es-MX", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
+          {formatCurrency(Number(val || 0))}
         </span>
       ),
     },
@@ -781,7 +772,7 @@ export function GestionEgresos() {
                   <label
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
-                    Monto ($)
+                    Monto (L.)
                     {modoModal !== "ver" && (
                       <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
                     )}
