@@ -193,6 +193,7 @@ export function ExpedienteScreen() {
 
   // Fix: try/catch + isMounted
   const loadPatients = useCallback(async () => {
+    let isMounted = true;
     setLoading(true);
     setError("");
     try {
@@ -202,24 +203,26 @@ export function ExpedienteScreen() {
         search: "",
         includeConsulta: true,
       });
-      if (!mountedRef.current) return;
+      if (!isMounted) return;
       if (res.success) {
         setExpedientes(res.data.data);
       } else {
         setError(res.message);
       }
     } catch (err: unknown) {
-      if (mountedRef.current) {
-        if (import.meta.env.DEV) console.error("[ExpedienteScreen]", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "No se pudieron cargar los expedientes."
-        );
-      }
+      if (!isMounted) return;
+      if (import.meta.env.DEV) console.error("[ExpedienteScreen]", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron cargar los expedientes."
+      );
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (isMounted) setLoading(false);
     }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
