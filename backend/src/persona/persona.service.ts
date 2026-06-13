@@ -203,6 +203,9 @@ export class PersonaService {
               }
             },
             archivos : true,
+            pagos: {
+              orderBy: { fecha: 'desc' },
+            },
           } 
         };
       }

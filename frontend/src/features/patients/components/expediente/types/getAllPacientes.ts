@@ -12,8 +12,24 @@ interface ConsultaHistorica {
   firma_paciente?: string | null;
   firma_doctor_snapshot?: string | null;
   consentimiento: boolean;
+  estado_firmas?: {
+    firma_paciente_presente: boolean;
+    firma_doctor_presente: boolean;
+    firmas_completas: boolean;
+    pendientes: string[];
+  };
   tratamientos: ConsultaTratamiento [];
   archivos: Archivo[];
+  pagos?: PagoPaciente[];
+}
+
+export type PagoPaciente = {
+  id_pago: number;
+  id_consulta: number;
+  fecha: string;
+  abono: number;
+  observacion: string | null;
+  firma_paciente: string | null;
 }
 
 export type Doctor = {

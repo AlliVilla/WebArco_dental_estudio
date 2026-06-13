@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -205,5 +206,20 @@ export class ExpedienteClinicoController {
       visitId,
       actualizarFirmasDto,
     );
+  }
+
+  @Privileges(21)
+  @Post(':patientId/visits/:visitId/archivos')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Vincular archivos a una consulta' })
+  async agregarArchivos(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('visitId', ParseIntPipe) visitId: number,
+    @Body() body: { archivos: Array<{ nombre: string; url: string; categoria: string }> },
+  ) {
+    if (!body.archivos || body.archivos.length === 0) {
+      throw new BadRequestException('Debe enviar al menos un archivo');
+    }
+    return this.expedienteClinicoService.agregarArchivos(patientId, visitId, body.archivos);
   }
 }

@@ -4,9 +4,45 @@ import {
   IsString,
   IsOptional,
   IsNotEmpty,
+  IsArray,
   Min,
+  ValidateNested,
+  IsNumber,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+class TratamientoItemDto {
+  @ApiProperty({ description: 'ID del tratamiento en catálogo', example: 1 })
+  @IsInt()
+  id_tratamiento: number;
+
+  @ApiProperty({ description: 'Precio aplicado', example: 900 })
+  @IsNumber()
+  precio: number;
+
+  @ApiPropertyOptional({ description: 'Descuento porcentual', example: 0 })
+  @IsOptional()
+  @IsInt()
+  descuento?: number;
+}
+
+class PagoConsultaDto {
+  @ApiProperty({ description: 'Monto del abono/anticipo', example: 500 })
+  @IsNumber()
+  abono: number;
+
+  @ApiPropertyOptional({ description: 'Método de pago', enum: ['Efectivo', 'Tarjeta', 'Transferencia'], example: 'Efectivo' })
+  @IsOptional()
+  @IsString()
+  metodo_pago?: string;
+
+  @ApiPropertyOptional({ description: 'Observación del pago', example: 'Anticipo de consulta' })
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
 
 export class RegistrarConsultaDto {
   @ApiProperty({
@@ -35,6 +71,14 @@ export class RegistrarConsultaDto {
   fecha_fin?: string;
 
   @ApiPropertyOptional({
+    description: 'Motivo de la consulta',
+    example: 'Dolor en muela inferior derecha',
+  })
+  @IsOptional()
+  @IsString({ message: 'motivo debe ser texto' })
+  motivo?: string;
+
+  @ApiPropertyOptional({
     description: 'Diagnóstico emitido durante la consulta',
     example: 'Caries interproximal en molar inferior derecho',
   })
@@ -43,7 +87,7 @@ export class RegistrarConsultaDto {
   diagnostico?: string;
 
   @ApiPropertyOptional({
-    description: 'Tratamiento realizado durante la consulta',
+    description: 'Tratamiento realizado (texto libre)',
     example: 'Empaste de resina compuesta en pieza 46',
   })
   @IsOptional()
@@ -73,4 +117,23 @@ export class RegistrarConsultaDto {
   @IsOptional()
   @IsString({ message: 'firma_doctor debe ser texto en formato base64' })
   firma_doctor?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lista de tratamientos realizados en la consulta',
+    type: [TratamientoItemDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TratamientoItemDto)
+  tratamientos?: TratamientoItemDto[];
+
+  @ApiPropertyOptional({
+    description: 'Información del pago/anticipo',
+    type: PagoConsultaDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PagoConsultaDto)
+  pago?: PagoConsultaDto;
 }

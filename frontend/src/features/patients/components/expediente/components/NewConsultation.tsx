@@ -2,13 +2,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     ChevronLeft, ChevronDown, Upload, X, Search, Plus, Trash2, FileText,
     Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
-    Loader2, Tag, Zap, Clock, User, ShieldAlert,
+    Loader2, Tag, Zap, Clock, User, ShieldAlert, Edit3,
 } from 'lucide-react';
 import { ExpedientePaciente } from '../types/getAllPacientes';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
 import { Button, Input } from '../../../../../context';
+import api from '../../../../../services/api';
 import { calcularEdad , formatDate} from '../services/miscelaneousService';
-import { expedientService } from '../services/expedientService';
+import { expedientService, type PreguntaConsulta, type RespuestaConsulta } from '../services/expedientService';
 import { UsuarioDoctor } from '../types/getAllDoctores';
 import { privilegeService } from '../services/privilegeService';
 
@@ -223,13 +224,16 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [departamento, setDepartamento] = useState(patient.municipio.departamento.nombre || '');
     const [ciudad, setCiudad] = useState(patient.municipio.nombre || '');
     const [direccion, setDireccion] = useState(patient.direccion_linea || '');
-    const [enfermedadBase, setEnfermedadBase] = useState(patient.enfermedades || '');
-    const [tomaMedicamento, setTomaMedicamento] = useState(patient.medicamentos || '');
-    const [alergias, setAlergias] = useState(patient.alergias || '');
     const [doctores, setDoctores] = useState<UsuarioDoctor[]>([]);
+    const [preguntas, setPreguntas] = useState<PreguntaConsulta[]>([]);
+    const [respuestas, setRespuestas] = useState<Record<number, { respuestaBoolean?: boolean; explanation?: string }>>({});
+    const [showNewPregunta, setShowNewPregunta] = useState(false);
+    const [newPreguntaText, setNewPreguntaText] = useState('');
+    const [newPreguntaRequireExplicacion, setNewPreguntaRequireExplicacion] = useState(true);
+    const [newPreguntaCategoria, setNewPreguntaCategoria] = useState('Antecedentes Médicos');
 
     // Editable fields for visit setup
-    const [bajoTratamientoMedico, setBajoTratamientoMedico] = useState('');
+
     const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
     const [hora, setHora] = useState(() => {
         const d = new Date();
@@ -292,7 +296,18 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
     useEffect(() =>{
         loadDoctores();
+        expedientService.getPreguntas().then((res) => {
+            const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+            setPreguntas(data);
+        }).catch(() => {});
     },[]);
+
+    const handleRespuestaChange = (id: number, field: 'respuestaBoolean' | 'explanation', value: boolean | string) => {
+        setRespuestas(prev => ({
+            ...prev,
+            [id]: { ...prev[id], [field]: value },
+        }));
+    };
 
     // ── File handling ──────────────────────────────────────────────────────────
     const processFiles = useCallback((files: FileList | null) => {
@@ -436,16 +451,73 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
         const idUsuario = doctor?.id_usuario ?? 1;
 
+        const tratamientosText = tratamientos.length > 0
+            ? tratamientos.map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}${t.descuento > 0 ? ` (${t.descuento}% desc.)` : ''}`).join('\n')
+            : undefined;
+
         const payload = {
             id_usuario: idUsuario,
             fecha_inicio: fechaISO,
-            diagnostico: `${motivo}\n\n${diagnostico}`,
-            notas_adicionales: notas || undefined,
+            motivo: motivo.trim() || undefined,
+            diagnostico: diagnostico.trim() || undefined,
+            tratamiento: tratamientosText,
+            notas_adicionales: notas.trim() || undefined,
+            pago: total > 0 ? {
+                abono: anticipoNum,
+                metodo_pago: metodoPago,
+            } : undefined,
         };
 
         try {
             const res = await expedientService.registrarConsulta(patient.id_persona, payload);
             if (res.success) {
+                const consultaId = res.data?.consulta?.id_consulta;
+
+                // Subir archivos y vincularlos a la consulta
+                if (consultaId && archivos.length > 0) {
+                    const archivosVinculados: Array<{ nombre: string; url: string; categoria: string }> = [];
+
+                    for (const archivo of archivos) {
+                        const formData = new FormData();
+                        formData.append('file', archivo.file);
+
+                        try {
+                            const uploadRes = await api.post('/upload/single', formData, {
+                                headers: { 'Content-Type': 'multipart/form-data' },
+                            });
+                            if (uploadRes.data?.success) {
+                                archivosVinculados.push({
+                                    nombre: archivo.file.name,
+                                    url: uploadRes.data.data.filename,
+                                    categoria: archivo.categoria,
+                                });
+                            }
+                        } catch { /* ignore single file error */ }
+                    }
+
+                    if (archivosVinculados.length > 0) {
+                        try {
+                            await api.post(`/expediente-clinico/${patient.id_persona}/visits/${consultaId}/archivos`, {
+                                archivos: archivosVinculados,
+                            });
+                        } catch { /* ignore link error */ }
+                    }
+                }
+
+                // Guardar respuestas de antecedentes
+                const respuestasArr: RespuestaConsulta[] = Object.entries(respuestas)
+                    .filter(([_, v]) => v.respuestaBoolean !== undefined || (v.explanation && v.explanation.trim()))
+                    .map(([id, v]) => ({
+                        id_pregunta: Number(id),
+                        respuesta_boolean: v.respuestaBoolean,
+                        explicacion: v.explanation?.trim() || undefined,
+                    }));
+                if (respuestasArr.length > 0 && consultaId) {
+                    try {
+                        await expedientService.saveRespuestas(consultaId, respuestasArr);
+                    } catch { /* ignore save error */ }
+                }
+
                 addToast('success', res.message || 'Consulta registrada exitosamente');
                 setTimeout(onSave, 1000);
             } else {
@@ -616,24 +688,136 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             </div>
                         </SectionCard>
 
-                        {/* 3. Antecedentes y Estado Actual */}
+                        {/* 3. Antecedentes y Estado Salud */}
                         <SectionCard icon={<ShieldAlert size={17} />} title="Historial Clínico y Estado de Salud">
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
-                                <div>
-                                    <FieldLabel>Enfermedad De Base / Explique</FieldLabel>
-                                    <Textarea value={enfermedadBase} onChange={setEnfermedadBase} placeholder="Describa si padece de alguna enfermedad como diabetes, hipertensión, etc." rows={2} />
-                                </div>
-                                <div>
-                                    <FieldLabel>Toma Algún Medicamento / Explique</FieldLabel>
-                                    <Textarea value={tomaMedicamento} onChange={setTomaMedicamento} placeholder="Describa los medicamentos que toma con su dosis habitual..." rows={2} />
-                                </div>
-                                <div>
-                                    <FieldLabel>Alergias A Medicamentos O Comidas / Explique</FieldLabel>
-                                    <Textarea value={alergias} onChange={setAlergias} placeholder="Describa si presenta alergias a penicilina, latex, comidas, etc." rows={2} />
-                                </div>
-                                <div style={{ background: '#FFF8EC', padding: 16, borderRadius: 10, border: `1px solid ${C.warning}` }}>
-                                    <FieldLabel required>¿Actualmente Se Encuentra Bajo Tratamiento Médico? / Explique</FieldLabel>
-                                    <Textarea value={bajoTratamientoMedico} onChange={setBajoTratamientoMedico} placeholder="Explique detalladamente si está en algún tratamiento médico activo en este momento..." rows={2} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {preguntas.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: 20, color: C.gray500, fontSize: 13 }}>Cargando preguntas...</div>
+                                ) : (
+                                    <>
+                                        {Array.from(new Set(preguntas.map(p => p.categoria))).map(categoria => (
+                                            <div key={categoria} style={{ marginBottom: 16 }}>
+                                                <h4 style={{ fontSize: 14, fontWeight: 600, color: C.navy, marginBottom: 12, borderBottom: `1px solid ${C.gray300}`, paddingBottom: 6 }}>{categoria}</h4>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                {preguntas.filter(p => p.categoria === categoria).map((pq) => {
+                                                    const resp = respuestas[pq.id_pregunta] || {};
+                                                    const showExplanation = pq.requiere_explicacion ? resp.respuestaBoolean === true : true;
+                                                    return (
+                                                        <div key={pq.id_pregunta} style={{
+                                                            padding: 14, borderRadius: 10,
+                                                            background: pq.requiere_explicacion ? '#F8F9FA' : '#F8F9FA',
+                                                            border: `1px solid #EAECEE`,
+                                                        }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showExplanation ? 10 : 0 }}>
+                                                                <FieldLabel>{pq.pregunta}</FieldLabel>
+                                                                {pq.requiere_explicacion && (
+                                                                    <div style={{ display: 'flex', gap: 6 }}>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRespuestaChange(pq.id_pregunta, 'respuestaBoolean', true)}
+                                                                            style={{
+                                                                                padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                                                                border: `1.5px solid ${resp.respuestaBoolean === true ? C.success : C.gray300}`,
+                                                                                background: resp.respuestaBoolean === true ? '#E8F7F2' : C.white,
+                                                                                color: resp.respuestaBoolean === true ? C.success : C.gray500,
+                                                                            }}
+                                                                        >Sí</button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRespuestaChange(pq.id_pregunta, 'respuestaBoolean', false)}
+                                                                            style={{
+                                                                                padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                                                                border: `1.5px solid ${resp.respuestaBoolean === false ? C.danger : C.gray300}`,
+                                                                                background: resp.respuestaBoolean === false ? '#FDF0F0' : C.white,
+                                                                                color: resp.respuestaBoolean === false ? C.danger : C.gray500,
+                                                                            }}
+                                                                        >No</button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {showExplanation && (
+                                                                <textarea
+                                                                    value={resp.explanation || ''}
+                                                                    onChange={(e) => handleRespuestaChange(pq.id_pregunta, 'explanation', e.target.value)}
+                                                                    placeholder={pq.requiere_explicacion ? `Explique sobre ${pq.pregunta.toLowerCase()}...` : `Describa ${pq.pregunta.toLowerCase()}...`}
+                                                                    rows={2}
+                                                                    style={{
+                                                                        width: '100%', padding: '8px 10px', border: `1px solid ${C.gray300}`,
+                                                                        borderRadius: 8, fontSize: 13, color: C.navy, background: C.white,
+                                                                        resize: 'vertical', fontFamily: 'inherit', outline: 'none',
+                                                                        boxSizing: 'border-box',
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                                {/* Agregar nueva pregunta */}
+                                <div style={{ marginTop: 8 }}>
+                                    {showNewPregunta ? (
+                                        <div style={{ padding: 14, borderRadius: 10, border: `1.5px dashed ${C.primary}`, background: C.primaryBg }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                <input
+                                                    value={newPreguntaText}
+                                                    onChange={e => setNewPreguntaText(e.target.value)}
+                                                    placeholder="Texto de la nueva pregunta..."
+                                                    style={{ padding: '8px 10px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, outline: 'none' }}
+                                                />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <label style={{ fontSize: 12, color: C.gray700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                        <input type="checkbox" checked={newPreguntaRequireExplicacion} onChange={e => setNewPreguntaRequireExplicacion(e.target.checked)} />
+                                                        Requiere explicación
+                                                    </label>
+                                                    <select
+                                                        value={newPreguntaCategoria}
+                                                        onChange={e => setNewPreguntaCategoria(e.target.value)}
+                                                        style={{ padding: '4px 8px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 12, outline: 'none', marginLeft: 'auto' }}
+                                                    >
+                                                        <option value="Antecedentes Médicos">Antecedentes Médicos</option>
+                                                        <option value="Antecedentes Odontológicos">Antecedentes Odontológicos</option>
+                                                    </select>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: 8 }}>
+                                                    <Button
+                                                        variant="primary"
+                                                        onClick={async () => {
+                                                            if (!newPreguntaText.trim()) return;
+                                                            try {
+                                                                const maxOrden = preguntas.reduce((m, p) => Math.max(m, p.orden_num), 0);
+                                                                await expedientService.crearPregunta({
+                                                                    pregunta: newPreguntaText.trim(),
+                                                                    orden_num: maxOrden + 1,
+                                                                    requiere_explicacion: newPreguntaRequireExplicacion,
+                                                                    categoria: newPreguntaCategoria,
+                                                                });
+                                                                const res = await expedientService.getPreguntas();
+                                                                const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+                                                                setPreguntas(data);
+                                                                setNewPreguntaText('');
+                                                                setNewPreguntaRequireExplicacion(true);
+                                                                setShowNewPregunta(false);
+                                                            } catch { addToast('error', 'Error al crear pregunta'); }
+                                                        }}
+                                                        style={{ fontSize: 12, padding: '6px 14px' }}
+                                                    >Crear</Button>
+                                                    <Button variant="secondary" onClick={() => { setShowNewPregunta(false); setNewPreguntaText(''); }} style={{ fontSize: 12, padding: '6px 14px' }}>Cancelar</Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewPregunta(true)}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: `1.5px dashed ${C.gray300}`, borderRadius: 8, background: 'transparent', color: C.gray500, fontSize: 12, fontWeight: 500, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
+                                        >
+                                            <Plus size={14} /> Agregar pregunta personalizada
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </SectionCard>

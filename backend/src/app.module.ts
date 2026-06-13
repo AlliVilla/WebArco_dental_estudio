@@ -10,7 +10,7 @@ import { UsuarioModule } from './usuario/usuario.module';
 import { ConsultaModule } from './consulta/consulta.module';
 import { OdontogramaModule } from './odontograma/odontograma.module';
 import { PagoPacienteModule } from './pago-paciente/pago-paciente.module';
-import { AntecedentePreguntaModule } from './antecedente-pregunta/antecedente-pregunta.module';
+import { ConsultaPreguntaModule } from './consulta-pregunta/consulta-pregunta.module';
 import { AuthModule } from './auth/auth.module';
 import { CitaModule } from './cita/cita.module';
 import { ExpedienteClinicoModule } from './expediente-clinico/expediente-clinico.module';
@@ -42,7 +42,7 @@ import { join } from 'path';
     ConsultaModule,
     OdontogramaModule,
     PagoPacienteModule,
-    AntecedentePreguntaModule,
+    ConsultaPreguntaModule,
     ConsentimientoModule,
     AuthModule,
     CitaModule,

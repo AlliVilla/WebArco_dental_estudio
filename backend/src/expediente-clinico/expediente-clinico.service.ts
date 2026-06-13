@@ -22,7 +22,7 @@ const consultaInclude = {
   doctor: {
     select: doctorSelect,
   },
-  antecedentes: {
+  respuestas: {
     include: {
       pregunta: {
         select: {
@@ -44,6 +44,12 @@ const consultaInclude = {
       },
     },
   },
+  tratamientos: {
+    include: {
+      tratamiento: true,
+    },
+  },
+  archivos: true,
   pagos: {
     orderBy: { fecha: 'desc' as const },
   },
@@ -151,10 +157,8 @@ export class ExpedienteClinicoService {
    * Retorna la consulta creada con el estado de firmas calculado.
    */
   async registrarConsulta(idPaciente: number, dto: RegistrarConsultaDto) {
-    // Verificar que el paciente existe
     await this.assertPacienteExiste(idPaciente);
 
-    // Verificar que el doctor (usuario) existe
     const doctor = await this.prisma.usuario.findUnique({
       where: { id_usuario: dto.id_usuario },
       select: { id_usuario: true, firma: true },
@@ -165,44 +169,61 @@ export class ExpedienteClinicoService {
       );
     }
 
-    // Construir diagnóstico final (incluye notas_adicionales si se proporcionan)
-    let diagnosticoFinal: string | undefined = dto.diagnostico;
-    if (dto.notas_adicionales) {
-      diagnosticoFinal = diagnosticoFinal
-        ? `${diagnosticoFinal}\n\n--- Notas adicionales ---\n${dto.notas_adicionales}`
-        : `--- Notas adicionales ---\n${dto.notas_adicionales}`;
-    }
-
-    // Crear la consulta en una transacción para garantizar consistencia
     const consultaCreada = await this.prisma.$transaction(async (tx) => {
-      // 1. Crear la consulta
       const nuevaConsulta = await tx.consulta.create({
         data: {
           id_persona: idPaciente,
           id_usuario: dto.id_usuario,
           fecha_inicio: new Date(dto.fecha_inicio),
           fecha_fin: dto.fecha_fin ? new Date(dto.fecha_fin) : null,
-          diagnostico: diagnosticoFinal ?? null,
+          motivo: dto.motivo ?? null,
+          diagnostico: dto.diagnostico ?? null,
           tratamiento: dto.tratamiento ?? null,
+          notas: dto.notas_adicionales ?? null,
           firma_paciente: dto.firma_paciente ?? null,
           consentimiento: Boolean(dto.firma_paciente),
         },
-        include: consultaInclude,
-      }) as Prisma.ConsultaGetPayload<{ include: typeof consultaInclude }>;
+      });
 
-      // 2. Guardar firma del doctor como snapshot en la consulta
       if (dto.firma_doctor) {
         await tx.consulta.update({
           where: { id_consulta: nuevaConsulta.id_consulta },
           data: { firma_doctor_snapshot: dto.firma_doctor },
         });
-        nuevaConsulta.firma_doctor_snapshot = dto.firma_doctor;
       }
 
-      return nuevaConsulta;
+      if (dto.tratamientos && dto.tratamientos.length > 0) {
+        const validTratamientos = dto.tratamientos.filter((t) => t.id_tratamiento > 0);
+        if (validTratamientos.length > 0) {
+          await tx.consulta_Tratamiento.createMany({
+            data: validTratamientos.map((t) => ({
+              id_consulta: nuevaConsulta.id_consulta,
+              id_tratamiento: t.id_tratamiento,
+              precio: t.precio,
+              descuento: t.descuento ?? 0,
+            })),
+          });
+        }
+      }
+
+      if (dto.pago && dto.pago.abono > 0) {
+        await tx.pagoPaciente.create({
+          data: {
+            id_consulta: nuevaConsulta.id_consulta,
+            fecha: new Date(dto.fecha_inicio),
+            abono: dto.pago.abono,
+            observacion: dto.pago.observacion ?? null,
+          },
+        });
+      }
+
+      return tx.consulta.findUnique({
+        where: { id_consulta: nuevaConsulta.id_consulta },
+        include: consultaInclude,
+      }) as Promise<Prisma.ConsultaGetPayload<{ include: typeof consultaInclude }>>;
     });
 
-    const consultaMapeada = this.mapearConsultaConEstadoFirmas(consultaCreada as Parameters<typeof this.mapearConsultaConEstadoFirmas>[0]);
+    const consultaMapeada = this.mapearConsultaConEstadoFirmas(consultaCreada);
 
     return {
       message: 'Consulta registrada exitosamente',
@@ -321,6 +342,33 @@ export class ExpedienteClinicoService {
         : { activa: false, pendientes: [] },
       consulta: consultaMapeada,
     };
+  }
+
+  /**
+   * Vincula archivos subidos a una consulta existente.
+   */
+  async agregarArchivos(
+    idPaciente: number,
+    idConsulta: number,
+    archivos: Array<{ nombre: string; url: string; categoria: string }>,
+  ) {
+    const consulta = await this.prisma.consulta.findFirst({
+      where: { id_consulta: idConsulta, id_persona: idPaciente },
+    });
+    if (!consulta) {
+      throw new NotFoundException('Consulta no encontrada');
+    }
+
+    await this.prisma.archivo.createMany({
+      data: archivos.map((a) => ({
+        id_consulta: idConsulta,
+        nombre: a.nombre,
+        url: a.url,
+        categoria: a.categoria as any,
+      })),
+    });
+
+    return { message: `${archivos.length} archivo(s) vinculados` };
   }
 
   // ─── Helpers privados ───────────────────────────────────────────────────────

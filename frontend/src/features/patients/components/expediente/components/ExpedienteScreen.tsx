@@ -385,7 +385,9 @@ export function ExpedienteScreen() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {activePatient.consultas.map((visit) => {
                   const isExpanded = !!expandedConsultas[visit.id_consulta];
-                  const totalCosto = visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
+                  const totalCosto = visit.tratamientos?.length > 0
+                    ? visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0)
+                    : 0;
                   return (
                     <div
                       key={visit.id_consulta}
@@ -445,7 +447,7 @@ export function ExpedienteScreen() {
                               : 'N/A'}
                           </span>
                           <span style={{ fontSize: 13, color: C.gray500 }}>
-                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>#{visit.id_usuario}</strong>
+                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.doctor?.persona ? `${visit.doctor.persona.primer_nombre} ${visit.doctor.persona.primer_apellido}` : `#${visit.id_usuario}`}</strong>
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -528,7 +530,7 @@ export function ExpedienteScreen() {
                           </div>
                         </div>
 
-                        {visit.tratamientos?.length > 0 && (
+                        {(visit.tratamientos?.length > 0 || visit.tratamiento || (visit.pagos?.length ?? 0) > 0) && (
                           <div style={{
                             background: C.white,
                             borderRadius: 10,
@@ -550,7 +552,7 @@ export function ExpedienteScreen() {
                               <DollarSign size={14} /> Tratamientos y Cobros realizados
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              {visit.tratamientos.map((t, idx) => (
+                              {visit.tratamientos?.map((t, idx) => (
                                 <div key={idx} style={{
                                   display: 'flex', justifyContent: 'space-between', fontSize: 13,
                                   color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
@@ -561,15 +563,35 @@ export function ExpedienteScreen() {
                                   </span>
                                 </div>
                               ))}
-                              <div style={{
-                                display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
-                                fontWeight: 700, color: C.navy, paddingTop: 6, marginTop: 4,
-                              }}>
-                                <span>Total de la consulta</span>
-                                <span style={{ color: C.primary, fontSize: 14.5 }}>
-                                  L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
+                              {visit.tratamiento && (!visit.tratamientos || visit.tratamientos.length === 0) && (
+                                <div style={{ fontSize: 12.5, color: C.gray700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                                  {visit.tratamiento}
+                                </div>
+                              )}
+                              {(visit.tratamientos?.length > 0 || visit.tratamiento) && (
+                                <div style={{
+                                  display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
+                                  fontWeight: 700, color: C.navy, paddingTop: 6, marginTop: 4,
+                                }}>
+                                  <span>Total de la consulta</span>
+                                  <span style={{ color: C.primary, fontSize: 14.5 }}>
+                                    L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              )}
+                              {visit.pagos && visit.pagos.length > 0 && (
+                                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.gray100}` }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: C.success, marginBottom: 6 }}>
+                                    Pagos realizados
+                                  </div>
+                                  {visit.pagos.map((p, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.gray700, paddingBottom: 4 }}>
+                                      <span>{new Date(p.fecha).toLocaleDateString('es-HN')} {p.observacion ? `— ${p.observacion}` : ''}</span>
+                                      <span style={{ fontWeight: 600, color: C.success }}>L. {Number(p.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
