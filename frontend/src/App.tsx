@@ -30,6 +30,7 @@ import { Alert, Card, DesignSystemScreen } from "./context";
 import { Dashboard } from "./page layouts/Dashboard";
 import { MainLayout } from "./page layouts/MainLayout";
 import { AuthGuard, GuestGuard } from "./routes/index";
+import { CierresView } from "./features/cierres";
 import { InventoryScreen } from "./features/inventory";
 import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
 import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
@@ -163,27 +164,7 @@ function App() {
         <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route
           path="/billing/closures"
-          element={
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Cierres de Caja
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Cierres de caja diarios, semanales y mensuales.
-                </p>
-              </Card>
-            </div>
-          }
+          element={<CierresView />}
         />
 
         <Route path="/inventory" element={<InventoryScreen />} />
