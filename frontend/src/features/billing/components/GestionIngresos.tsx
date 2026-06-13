@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Printer,
   Eye,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import { DataTable, ConfirmModal, Modal } from "../../../components";
@@ -17,7 +18,7 @@ import billingService from "../services/billingService";
 import { consultaService } from "../../patients/services/consultaService";
 import type { CreatePaymentInput, PatientPayment } from "../types";
 
-interface IncomeRecord {
+interface IncomeRecord extends Record<string, unknown> {
   id: string;
   idConsulta: number;
   fecha: string;
@@ -45,13 +46,14 @@ const mapPaymentToIncomeRecord = (payment: PatientPayment): IncomeRecord => ({
 
 export function GestionIngresos() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<IncomeRecord | null>(null);
   const [records, setRecords] = useState<IncomeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
   // View detail state
@@ -69,7 +71,7 @@ export function GestionIngresos() {
   const [searchResults, setSearchResults] = useState<Array<{ id_persona: number; primer_nombre: string; segundo_nombre: string | null; primer_apellido: string; segundo_apellido: string | null }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Selected patient and consulta
   const [selectedPatient, setSelectedPatient] = useState<{ id: number; nombre: string } | null>(null);
@@ -215,19 +217,27 @@ export function GestionIngresos() {
       fecha,
       abono: Number(monto),
       metodoPago,
-      observacion: observaciones || undefined,
+      observacion: editingRecord ? observaciones : observaciones || undefined,
     };
     try {
-      const response = await billingService.create(payload);
-      setRecords([mapPaymentToIncomeRecord(response.data!), ...records]);
+      if (editingRecord) {
+        const response = await billingService.update(Number(editingRecord.id), payload);
+        const updatedRecord = mapPaymentToIncomeRecord(response.data!);
+        setRecords(records.map((record) => record.id === updatedRecord.id ? updatedRecord : record));
+      } else {
+        const response = await billingService.create(payload);
+        setRecords([mapPaymentToIncomeRecord(response.data!), ...records]);
+        setTotalRecords((current) => current + 1);
+      }
       setIsDialogOpen(false);
       resetForm();
     } catch (error: any) {
-      setFormError(error?.message || "No se pudo registrar el ingreso");
+      setFormError(error?.message || (editingRecord ? "No se pudo actualizar el ingreso" : "No se pudo registrar el ingreso"));
     }
   };
 
   const resetForm = () => {
+    setEditingRecord(null);
     setFecha(new Date().toISOString().split("T")[0]);
     setSearchQuery("");
     setSearchResults([]);
@@ -241,11 +251,295 @@ export function GestionIngresos() {
     setFormError(null);
   };
 
+  const openEditModal = (record: IncomeRecord) => {
+    setErrorMessage(null);
+    setEditingRecord(record);
+    setFecha(record.fecha);
+    setSearchQuery(record.paciente);
+    setSelectedPatient({ id: 0, nombre: record.paciente });
+    setPatientConsultas([{
+      id_consulta: record.idConsulta,
+      diagnostico: null,
+      tratamiento: record.tratamiento,
+      fecha_inicio: record.fecha,
+      doctor: record.doctor,
+    }]);
+    setSelectedConsultaId(String(record.idConsulta));
+    setMonto(String(record.monto));
+    setMetodoPago(record.metodoPago || "Efectivo");
+    setObservaciones(record.observacion || "");
+    setFormError(null);
+    setShowResults(false);
+    setIsDialogOpen(true);
+  };
+
+  const escapeHtml = (value: unknown) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+  const getTableRows = (rows: IncomeRecord[]) => rows.map((record) => ({
+    Fecha: record.fecha,
+    Paciente: record.paciente,
+    Tratamiento: record.tratamiento,
+    "No. Consulta": `#${record.idConsulta}`,
+    Monto: formatCurrency(record.monto),
+    "Método de pago": record.metodoPago,
+    Doctor: record.doctor,
+    Estado: record.estado,
+    Observaciones: record.observacion || "",
+  }));
+
+  const escapeXml = (value: unknown) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+
+  const getExcelColumnName = (index: number) => {
+    let columnName = "";
+    let current = index;
+
+    while (current >= 0) {
+      columnName = String.fromCharCode((current % 26) + 65) + columnName;
+      current = Math.floor(current / 26) - 1;
+    }
+
+    return columnName;
+  };
+
+  const createCrc32Table = () => {
+    const table = new Uint32Array(256);
+
+    for (let i = 0; i < 256; i += 1) {
+      let value = i;
+      for (let j = 0; j < 8; j += 1) {
+        value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+      }
+      table[i] = value >>> 0;
+    }
+
+    return table;
+  };
+
+  const crc32Table = createCrc32Table();
+
+  const getCrc32 = (data: Uint8Array) => {
+    let crc = 0xffffffff;
+
+    for (let i = 0; i < data.length; i += 1) {
+      crc = crc32Table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+    }
+
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+
+  const createZip = (files: Array<{ name: string; content: string }>) => {
+    const encoder = new TextEncoder();
+    const localParts: Uint8Array[] = [];
+    const centralParts: Uint8Array[] = [];
+    let offset = 0;
+
+    const writeUint16 = (view: DataView, position: number, value: number) => view.setUint16(position, value, true);
+    const writeUint32 = (view: DataView, position: number, value: number) => view.setUint32(position, value, true);
+
+    files.forEach((file) => {
+      const nameBytes = encoder.encode(file.name);
+      const contentBytes = encoder.encode(file.content);
+      const crc = getCrc32(contentBytes);
+      const localHeader = new Uint8Array(30 + nameBytes.length);
+      const localView = new DataView(localHeader.buffer);
+
+      writeUint32(localView, 0, 0x04034b50);
+      writeUint16(localView, 4, 20);
+      writeUint16(localView, 6, 0);
+      writeUint16(localView, 8, 0);
+      writeUint16(localView, 10, 0);
+      writeUint16(localView, 12, 0);
+      writeUint32(localView, 14, crc);
+      writeUint32(localView, 18, contentBytes.length);
+      writeUint32(localView, 22, contentBytes.length);
+      writeUint16(localView, 26, nameBytes.length);
+      writeUint16(localView, 28, 0);
+      localHeader.set(nameBytes, 30);
+
+      localParts.push(localHeader, contentBytes);
+
+      const centralHeader = new Uint8Array(46 + nameBytes.length);
+      const centralView = new DataView(centralHeader.buffer);
+
+      writeUint32(centralView, 0, 0x02014b50);
+      writeUint16(centralView, 4, 20);
+      writeUint16(centralView, 6, 20);
+      writeUint16(centralView, 8, 0);
+      writeUint16(centralView, 10, 0);
+      writeUint16(centralView, 12, 0);
+      writeUint16(centralView, 14, 0);
+      writeUint32(centralView, 16, crc);
+      writeUint32(centralView, 20, contentBytes.length);
+      writeUint32(centralView, 24, contentBytes.length);
+      writeUint16(centralView, 28, nameBytes.length);
+      writeUint16(centralView, 30, 0);
+      writeUint16(centralView, 32, 0);
+      writeUint16(centralView, 34, 0);
+      writeUint16(centralView, 36, 0);
+      writeUint32(centralView, 38, 0);
+      writeUint32(centralView, 42, offset);
+      centralHeader.set(nameBytes, 46);
+
+      centralParts.push(centralHeader);
+      offset += localHeader.length + contentBytes.length;
+    });
+
+    const centralDirectoryOffset = offset;
+    const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.length, 0);
+    const endRecord = new Uint8Array(22);
+    const endView = new DataView(endRecord.buffer);
+
+    writeUint32(endView, 0, 0x06054b50);
+    writeUint16(endView, 4, 0);
+    writeUint16(endView, 6, 0);
+    writeUint16(endView, 8, files.length);
+    writeUint16(endView, 10, files.length);
+    writeUint32(endView, 12, centralDirectorySize);
+    writeUint32(endView, 16, centralDirectoryOffset);
+    writeUint16(endView, 20, 0);
+
+    const allParts = [...localParts, ...centralParts, endRecord];
+    const totalLength = allParts.reduce((sum, part) => sum + part.length, 0);
+    const zipBytes = new Uint8Array(totalLength);
+    let position = 0;
+
+    allParts.forEach((part) => {
+      zipBytes.set(part, position);
+      position += part.length;
+    });
+
+    return zipBytes;
+  };
+
+  const createXlsxFile = (rows: Array<Record<string, unknown>>) => {
+    const headers = Object.keys(rows[0]);
+    const sheetRows = [headers, ...rows.map((row) => headers.map((header) => row[header]))];
+    const columnDefinitions = headers.map((_header, index) => `<col min="${index + 1}" max="${index + 1}" width="20" customWidth="1"/>`).join("");
+    const sheetData = sheetRows.map((row, rowIndex) => {
+      const rowNumber = rowIndex + 1;
+      const cells = row.map((cell, columnIndex) => {
+        const cellReference = `${getExcelColumnName(columnIndex)}${rowNumber}`;
+        const style = rowIndex === 0 ? ' s="1"' : "";
+        return `<c r="${cellReference}" t="inlineStr"${style}><is><t>${escapeXml(cell)}</t></is></c>`;
+      }).join("");
+
+      return `<row r="${rowNumber}">${cells}</row>`;
+    }).join("");
+
+    return createZip([
+      {
+        name: "[Content_Types].xml",
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+      },
+      {
+        name: "_rels/.rels",
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+      },
+      {
+        name: "xl/workbook.xml",
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Ingresos" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      },
+      {
+        name: "xl/_rels/workbook.xml.rels",
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+      },
+      {
+        name: "xl/styles.xml",
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium9" defaultPivotStyle="PivotStyleLight16"/></styleSheet>`,
+      },
+      {
+        name: "xl/worksheets/sheet1.xml",
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${columnDefinitions}</cols><sheetData>${sheetData}</sheetData></worksheet>`,
+      },
+    ]);
+  };
+
+  const handleExportExcel = (rows: IncomeRecord[]) => {
+    if (!rows.length) {
+      alert("No hay ingresos para exportar.");
+      return;
+    }
+
+    const tableRows = getTableRows(rows);
+    const xlsxFile = createXlsxFile(tableRows);
+    const blob = new Blob([xlsxFile], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ingresos_${new Date().toISOString().split("T")[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintTable = (rows: IncomeRecord[]) => {
+    if (!rows.length) {
+      alert("No hay ingresos para imprimir.");
+      return;
+    }
+
+    const tableRows = getTableRows(rows);
+    const headers = Object.keys(tableRows[0]);
+    const tableHtml = `
+      <table>
+        <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${tableRows.map((row) => `<tr>${headers.map((header) => `<td>${escapeHtml(row[header as keyof typeof row])}</td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table>
+    `;
+
+    const printWindow = window.open("", "_blank", "width=1100,height=700");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Registros de Ingresos</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #203F49; padding: 24px; }
+            h1 { font-size: 22px; margin: 0 0 4px 0; }
+            p { margin: 0 0 18px 0; color: #5F656A; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #D3D7DA; padding: 8px; text-align: left; }
+            th { background: #F1F3F4; color: #203F49; }
+            .total { margin-top: 14px; font-weight: 700; text-align: right; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Registros de Ingresos</h1>
+          <p>Fecha de impresión: ${escapeHtml(new Date().toLocaleString("es-HN"))}</p>
+          ${tableHtml}
+          <div class="total">Total: ${escapeHtml(formatCurrency(rows.reduce((sum, row) => sum + row.monto, 0)))}</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  };
+
   const handleDelete = async () => {
     if (!recordToDelete) return;
     try {
       await billingService.delete(Number(recordToDelete));
       setRecords(records.filter((r) => r.id !== recordToDelete));
+      setTotalRecords((current) => Math.max(0, current - 1));
     } catch (error: any) {
       setErrorMessage(error?.message || "No se pudo eliminar el ingreso");
     }
@@ -280,6 +574,7 @@ export function GestionIngresos() {
 
   const getRowActions = (record: IncomeRecord) => [
     { icon: <Eye size={14} />, label: "Ver Detalles", onClick: () => setDetailRecord(record) },
+    { icon: <Pencil size={14} />, label: "Editar", onClick: () => openEditModal(record) },
     {
       icon: <Trash2 size={14} />, label: "Eliminar", danger: true,
       onClick: () => { setRecordToDelete(record.id); setIsConfirmOpen(true); },
@@ -308,7 +603,7 @@ export function GestionIngresos() {
         ))}
       </div>
 
-      <DataTable<any>
+      <DataTable<IncomeRecord>
         title="Registros de Ingresos"
         description="Gestiona todos los ingresos de la clínica"
         columns={columns}
@@ -331,8 +626,8 @@ export function GestionIngresos() {
           onClick: () => { setErrorMessage(null); resetForm(); setIsDialogOpen(true); },
         }}
         secondaryActions={[
-          { label: "Exportar", icon: <FileSpreadsheet size={13} />, onClick: () => alert("Exportando registros a Excel...") },
-          { label: "Imprimir", icon: <Printer size={13} />, onClick: () => window.print() },
+          { label: "Exportar Excel", icon: <FileSpreadsheet size={13} />, onClick: ({ filteredData }) => handleExportExcel(filteredData) },
+          { label: "Imprimir", icon: <Printer size={13} />, onClick: ({ filteredData }) => handlePrintTable(filteredData) },
         ]}
         rowActions={getRowActions}
         getRowKey={(row) => row.id}
@@ -383,7 +678,7 @@ export function GestionIngresos() {
         onConfirm={handleDelete}
       />
 
-      <Modal open={isDialogOpen} onClose={() => { setIsDialogOpen(false); resetForm(); }} title="Registrar Nuevo Ingreso" icon={<DollarSign size={18} style={{ color: "#0BC5DF" }} />}>
+      <Modal open={isDialogOpen} onClose={() => { setIsDialogOpen(false); resetForm(); }} title={editingRecord ? "Editar Ingreso" : "Registrar Nuevo Ingreso"} icon={<DollarSign size={18} style={{ color: "#0BC5DF" }} />}>
         <form onSubmit={handleRegisterIncome} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -499,7 +794,7 @@ export function GestionIngresos() {
             </button>
             <button type="submit"
               style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#0BC5DF", color: "#fff", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>
-              Registrar Ingreso
+              {editingRecord ? "Guardar Cambios" : "Registrar Ingreso"}
             </button>
           </div>
         </form>

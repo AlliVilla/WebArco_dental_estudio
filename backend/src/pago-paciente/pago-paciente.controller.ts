@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -16,6 +16,7 @@ import { PrivilegesGuard } from 'src/guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
 import { PagoPacienteService } from './pago-paciente.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 @ApiTags('Pagos Paciente')
 @Controller('pago-paciente')
@@ -56,6 +57,22 @@ export class PagoPacienteController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
     return this.pagoPacienteService.findAll(pageNum, limitNum);
+  }
+
+
+  @Privileges(10)
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Editar un pago', description: 'Actualiza los datos de un ingreso registrado.' })
+  @ApiParam({ name: 'id', description: 'ID del pago', example: 1 })
+  @ApiOkResponse({ description: 'Pago actualizado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Pago no encontrado' })
+  @ApiBadRequestResponse({ description: 'Datos inválidos o consulta no existente' })
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePaymentDto: UpdatePaymentDto,
+  ) {
+    return this.pagoPacienteService.update(id, updatePaymentDto);
   }
 
   @Privileges(10)

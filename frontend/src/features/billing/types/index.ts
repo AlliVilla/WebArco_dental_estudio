@@ -31,6 +31,8 @@ export interface CreatePaymentInput {
   firma_paciente?: string;
 }
 
+export type UpdatePaymentInput = Partial<CreatePaymentInput>;
+
 export type TransactionKind = 'ingreso' | 'egreso';
 
 export type IncomePaymentMethod = 'Tarjeta' | 'Efectivo' | 'Transferencia';

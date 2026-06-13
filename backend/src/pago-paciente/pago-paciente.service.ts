@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 const paymentInclude = {
   consulta: {
@@ -90,6 +91,40 @@ export class PagoPacienteService {
     if (!consulta) {
       throw new NotFoundException(`No se encontró la consulta con id ${idConsulta}`);
     }
+  }
+
+
+  async update(id: number, updatePaymentDto: UpdatePaymentDto) {
+    const pago = await this.prisma.pagoPaciente.findUnique({
+      where: { id_pago: id },
+      select: { id_pago: true },
+    });
+
+    if (!pago) {
+      throw new NotFoundException(`No se encontró el pago con id ${id}`);
+    }
+
+    if (updatePaymentDto.id_consulta !== undefined) {
+      await this.assertConsultaExists(updatePaymentDto.id_consulta);
+    }
+
+    const updatedPayment = await this.prisma.pagoPaciente.update({
+      where: { id_pago: id },
+      data: {
+        ...(updatePaymentDto.id_consulta !== undefined && { id_consulta: updatePaymentDto.id_consulta }),
+        ...(updatePaymentDto.fecha !== undefined && { fecha: new Date(updatePaymentDto.fecha) }),
+        ...(updatePaymentDto.abono !== undefined && { abono: updatePaymentDto.abono }),
+        ...(updatePaymentDto.metodoPago !== undefined && { metodo_pago: updatePaymentDto.metodoPago }),
+        ...(updatePaymentDto.observacion !== undefined && { observacion: updatePaymentDto.observacion }),
+        ...(updatePaymentDto.firma_paciente !== undefined && { firma_paciente: updatePaymentDto.firma_paciente }),
+      },
+      include: paymentInclude,
+    });
+
+    return {
+      ...this.mapPayment(updatedPayment),
+      message: 'Pago actualizado exitosamente',
+    };
   }
 
   async remove(id: number) {
