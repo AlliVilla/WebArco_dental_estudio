@@ -54,13 +54,13 @@ export function GestionEgresos() {
 
   const nombreAutenticado = useMemo(() => {
     if (userStored.nombre) return userStored.nombre;
-    // El backend (ExpedienteClinicoService) anida los datos en el objeto 'persona'
+
     const p = userStored.persona;
-    if (p?.primer_nombre) {
-      return `${p.primer_nombre} ${p.primer_apellido || ""}`.trim();
-    }
-    if (userStored.primer_nombre) {
-      return `${userStored.primer_nombre} ${userStored.primer_apellido || ""}`.trim();
+    const primerNombre = p?.primer_nombre || userStored.primer_nombre;
+    const primerApellido = p?.primer_apellido || userStored.primer_apellido;
+
+    if (primerNombre) {
+      return `${primerNombre} ${primerApellido || ""}`.trim();
     }
     return "Usuario Autenticado";
   }, [userStored]);
@@ -548,8 +548,9 @@ export function GestionEgresos() {
               borderRadius: 12,
               width: "100%",
               maxWidth: 500,
+              maxHeight: "90vh",
+              overflowY: "auto",
               boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-              overflow: "hidden",
               display: "flex",
               flexDirection: "column",
             }}
