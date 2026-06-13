@@ -1,6 +1,10 @@
-export type ToothState =
-  | 'sano' | 'caries' | 'obturacion' | 'extraccion' | 'ausente'
-  | 'endodoncia' | 'corona' | 'protesis' | 'implante' | 'puente';
+export type ToothState = string;
+
+export interface EstadoOdontograma {
+  id: number;
+  nombre: string;
+  color: string;
+}
 
 export interface ToothData {
   number: number;

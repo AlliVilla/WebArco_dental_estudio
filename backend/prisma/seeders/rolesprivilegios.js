@@ -23,6 +23,8 @@ async function insertRolesPrivilegios() {
     { id_rol: 1, id_privilegio: 43 },
     { id_rol: 1, id_privilegio: 62 },
     { id_rol: 1, id_privilegio: 63 },
+    { id_rol: 1, id_privilegio: 65 },
+    { id_rol: 1, id_privilegio: 67 },
 
     // ADMIN = TODO
     { id_rol: 2, id_privilegio: 1 },
@@ -59,6 +61,10 @@ async function insertRolesPrivilegios() {
     { id_rol: 2, id_privilegio: 62 },
     { id_rol: 2, id_privilegio: 63 },
     { id_rol: 2, id_privilegio: 64 },
+    { id_rol: 2, id_privilegio: 65 },
+    { id_rol: 2, id_privilegio: 66 },
+    { id_rol: 2, id_privilegio: 67 },
+    { id_rol: 2, id_privilegio: 68 },
 
     // DOCTOR — todos los privilegios médicos, excluye usuarios, roles, privilegios y financiero
     { id_rol: 4, id_privilegio: 1 },
@@ -81,6 +87,8 @@ async function insertRolesPrivilegios() {
     { id_rol: 4, id_privilegio: 62 },
     { id_rol: 4, id_privilegio: 63 },
     { id_rol: 4, id_privilegio: 64 },
+    { id_rol: 4, id_privilegio: 65 },
+    { id_rol: 4, id_privilegio: 67 },
 
     // CONTADOR
     { id_rol: 3, id_privilegio: 2 },
