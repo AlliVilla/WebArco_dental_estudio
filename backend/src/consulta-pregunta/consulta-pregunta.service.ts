@@ -6,6 +6,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePreguntaDto } from './dto/create-pregunta.dto';
+import { UpdatePreguntaDto } from './dto/update-pregunta.dto';
 import { RespuestaItemDto } from './dto/save-respuestas.dto';
 
 const preguntaSelect = {
@@ -124,6 +125,44 @@ export class ConsultaPreguntaService {
     if (unique.size !== ids.length) {
       throw new BadRequestException(
         'No se permiten id_pregunta duplicados en la misma petición',
+      );
+    }
+  }
+
+  async update(id_pregunta: number, dto: UpdatePreguntaDto) {
+    await this.assertPreguntaNotUsed(id_pregunta);
+    try {
+      return await this.prisma.consultaPregunta.update({
+        where: { id_pregunta },
+        data: dto,
+        select: preguntaSelect,
+      });
+    } catch (e: any) {
+      if (e.code === 'P2025') throw new NotFoundException(`Pregunta con id ${id_pregunta} no encontrada`);
+      throw e;
+    }
+  }
+
+  async remove(id_pregunta: number) {
+    await this.assertPreguntaNotUsed(id_pregunta);
+    try {
+      return await this.prisma.consultaPregunta.delete({
+        where: { id_pregunta },
+        select: preguntaSelect,
+      });
+    } catch (e: any) {
+      if (e.code === 'P2025') throw new NotFoundException(`Pregunta con id ${id_pregunta} no encontrada`);
+      throw e;
+    }
+  }
+
+  private async assertPreguntaNotUsed(id_pregunta: number) {
+    const usageCount = await this.prisma.consultaRespuesta.count({
+      where: { id_pregunta },
+    });
+    if (usageCount > 0) {
+      throw new BadRequestException(
+        `La pregunta no puede ser modificada ni eliminada porque ya ha sido respondida en ${usageCount} consulta(s).`,
       );
     }
   }

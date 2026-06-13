@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     ChevronLeft, ChevronDown, Upload, X, Search, Plus, Trash2, FileText,
     Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
-    Loader2, Tag, Zap, Clock, User, ShieldAlert, Edit3,
+    Loader2, Tag, Zap, Clock, User, ShieldAlert,
 } from 'lucide-react';
 import { ExpedientePaciente } from '../types/getAllPacientes';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
@@ -12,6 +12,7 @@ import { calcularEdad , formatDate} from '../services/miscelaneousService';
 import { expedientService, type PreguntaConsulta, type RespuestaConsulta } from '../services/expedientService';
 import { UsuarioDoctor } from '../types/getAllDoctores';
 import { privilegeService } from '../services/privilegeService';
+import { ConsultationQuestions } from './ConsultationQuestions';
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -65,7 +66,7 @@ const FILE_CATEGORIES: FileCategory[] = [
     'Fotografía Clínica Intraoral/Extraoral',
 ];
 
-const STEP_LABELS = ['Paciente y Cita', 'Motivo y Odontograma', 'Tratamientos y Cobro'];
+const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Cobro'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2); }
@@ -226,11 +227,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [direccion, setDireccion] = useState(patient.direccion_linea || '');
     const [doctores, setDoctores] = useState<UsuarioDoctor[]>([]);
     const [preguntas, setPreguntas] = useState<PreguntaConsulta[]>([]);
-    const [respuestas, setRespuestas] = useState<Record<number, { respuestaBoolean?: boolean; explanation?: string }>>({});
-    const [showNewPregunta, setShowNewPregunta] = useState(false);
-    const [newPreguntaText, setNewPreguntaText] = useState('');
-    const [newPreguntaRequireExplicacion, setNewPreguntaRequireExplicacion] = useState(true);
-    const [newPreguntaCategoria, setNewPreguntaCategoria] = useState('Antecedentes Médicos');
+    const [respuestas, setRespuestas] = useState<Record<number, { respuestaBoolean?: boolean; explanation?: string }>>({}); 
 
     // Editable fields for visit setup
 
@@ -242,9 +239,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [doctor, setDoctor] = useState<UsuarioDoctor | null>(null);
 
     // ── STEP 2: Motivo y Odontograma ──
-    const [motivo, setMotivo] = useState('');
-    const [ultimaConsultaOdontologo, setUltimaConsultaOdontologo] = useState('');
-    const [tipoConsulta, setTipoConsulta] = useState('Control');
     const [showOdontogram, setShowOdontogram] = useState(false);
     const [, setTeethState] = useState<Record<number, { state: string; observation: string }> | null>(null); // To save state from odontogram
     const [modifiedTeethCount, setModifiedTeethCount] = useState(0);
@@ -302,12 +296,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         }).catch(() => {});
     },[]);
 
-    const handleRespuestaChange = (id: number, field: 'respuestaBoolean' | 'explanation', value: boolean | string) => {
-        setRespuestas(prev => ({
-            ...prev,
-            [id]: { ...prev[id], [field]: value },
-        }));
-    };
 
     // ── File handling ──────────────────────────────────────────────────────────
     const processFiles = useCallback((files: FileList | null) => {
@@ -442,7 +430,14 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
     // ── Save ───────────────────────────────────────────────────────────────────
     const handleSave = async () => {
-        if (!motivo.trim()) { addToast('error', 'El motivo de consulta es requerido.'); setStep(2); return; }
+        // Find "motivo de consulta" in the answered questions
+        const motivoRespuesta = Object.entries(respuestas).find(([id]) => {
+            const q = preguntas.find(p => p.id_pregunta === Number(id));
+            return q?.pregunta.toLowerCase().includes('motivo de consulta');
+        });
+        const motivoFinal = motivoRespuesta ? motivoRespuesta[1].explanation : '';
+
+        if (!motivoFinal?.trim()) { addToast('error', 'El motivo de consulta es requerido en las preguntas del Paso 1.'); setStep(1); return; }
         if (!diagnostico.trim()) { addToast('error', 'El diagnóstico clínico es requerido.'); setStep(3); return; }
         if (archivos.some((a) => a.uploading)) { addToast('error', 'Espera a que terminen de cargarse todas las imágenes.'); return; }
 
@@ -458,7 +453,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         const payload = {
             id_usuario: idUsuario,
             fecha_inicio: fechaISO,
-            motivo: motivo.trim() || undefined,
+            motivo: motivoFinal.trim() || undefined,
             diagnostico: diagnostico.trim() || undefined,
             tratamiento: tratamientosText,
             notas_adicionales: notas.trim() || undefined,
@@ -690,174 +685,26 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
                         {/* 3. Antecedentes y Estado Salud */}
                         <SectionCard icon={<ShieldAlert size={17} />} title="Historial Clínico y Estado de Salud">
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {preguntas.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: 20, color: C.gray500, fontSize: 13 }}>Cargando preguntas...</div>
-                                ) : (
-                                    <>
-                                        {Array.from(new Set(preguntas.map(p => p.categoria))).map(categoria => (
-                                            <div key={categoria} style={{ marginBottom: 16 }}>
-                                                <h4 style={{ fontSize: 14, fontWeight: 600, color: C.navy, marginBottom: 12, borderBottom: `1px solid ${C.gray300}`, paddingBottom: 6 }}>{categoria}</h4>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                                {preguntas.filter(p => p.categoria === categoria).map((pq) => {
-                                                    const resp = respuestas[pq.id_pregunta] || {};
-                                                    const showExplanation = pq.requiere_explicacion ? resp.respuestaBoolean === true : true;
-                                                    return (
-                                                        <div key={pq.id_pregunta} style={{
-                                                            padding: 14, borderRadius: 10,
-                                                            background: pq.requiere_explicacion ? '#F8F9FA' : '#F8F9FA',
-                                                            border: `1px solid #EAECEE`,
-                                                        }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showExplanation ? 10 : 0 }}>
-                                                                <FieldLabel>{pq.pregunta}</FieldLabel>
-                                                                {pq.requiere_explicacion && (
-                                                                    <div style={{ display: 'flex', gap: 6 }}>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleRespuestaChange(pq.id_pregunta, 'respuestaBoolean', true)}
-                                                                            style={{
-                                                                                padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                                                                border: `1.5px solid ${resp.respuestaBoolean === true ? C.success : C.gray300}`,
-                                                                                background: resp.respuestaBoolean === true ? '#E8F7F2' : C.white,
-                                                                                color: resp.respuestaBoolean === true ? C.success : C.gray500,
-                                                                            }}
-                                                                        >Sí</button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleRespuestaChange(pq.id_pregunta, 'respuestaBoolean', false)}
-                                                                            style={{
-                                                                                padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                                                                border: `1.5px solid ${resp.respuestaBoolean === false ? C.danger : C.gray300}`,
-                                                                                background: resp.respuestaBoolean === false ? '#FDF0F0' : C.white,
-                                                                                color: resp.respuestaBoolean === false ? C.danger : C.gray500,
-                                                                            }}
-                                                                        >No</button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {showExplanation && (
-                                                                <textarea
-                                                                    value={resp.explanation || ''}
-                                                                    onChange={(e) => handleRespuestaChange(pq.id_pregunta, 'explanation', e.target.value)}
-                                                                    placeholder={pq.requiere_explicacion ? `Explique sobre ${pq.pregunta.toLowerCase()}...` : `Describa ${pq.pregunta.toLowerCase()}...`}
-                                                                    rows={2}
-                                                                    style={{
-                                                                        width: '100%', padding: '8px 10px', border: `1px solid ${C.gray300}`,
-                                                                        borderRadius: 8, fontSize: 13, color: C.navy, background: C.white,
-                                                                        resize: 'vertical', fontFamily: 'inherit', outline: 'none',
-                                                                        boxSizing: 'border-box',
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </>
-                                )}
-                                {/* Agregar nueva pregunta */}
-                                <div style={{ marginTop: 8 }}>
-                                    {showNewPregunta ? (
-                                        <div style={{ padding: 14, borderRadius: 10, border: `1.5px dashed ${C.primary}`, background: C.primaryBg }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                                <input
-                                                    value={newPreguntaText}
-                                                    onChange={e => setNewPreguntaText(e.target.value)}
-                                                    placeholder="Texto de la nueva pregunta..."
-                                                    style={{ padding: '8px 10px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, outline: 'none' }}
-                                                />
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    <label style={{ fontSize: 12, color: C.gray700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                        <input type="checkbox" checked={newPreguntaRequireExplicacion} onChange={e => setNewPreguntaRequireExplicacion(e.target.checked)} />
-                                                        Requiere explicación
-                                                    </label>
-                                                    <select
-                                                        value={newPreguntaCategoria}
-                                                        onChange={e => setNewPreguntaCategoria(e.target.value)}
-                                                        style={{ padding: '4px 8px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 12, outline: 'none', marginLeft: 'auto' }}
-                                                    >
-                                                        <option value="Antecedentes Médicos">Antecedentes Médicos</option>
-                                                        <option value="Antecedentes Odontológicos">Antecedentes Odontológicos</option>
-                                                    </select>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: 8 }}>
-                                                    <Button
-                                                        variant="primary"
-                                                        onClick={async () => {
-                                                            if (!newPreguntaText.trim()) return;
-                                                            try {
-                                                                const maxOrden = preguntas.reduce((m, p) => Math.max(m, p.orden_num), 0);
-                                                                await expedientService.crearPregunta({
-                                                                    pregunta: newPreguntaText.trim(),
-                                                                    orden_num: maxOrden + 1,
-                                                                    requiere_explicacion: newPreguntaRequireExplicacion,
-                                                                    categoria: newPreguntaCategoria,
-                                                                });
-                                                                const res = await expedientService.getPreguntas();
-                                                                const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-                                                                setPreguntas(data);
-                                                                setNewPreguntaText('');
-                                                                setNewPreguntaRequireExplicacion(true);
-                                                                setShowNewPregunta(false);
-                                                            } catch { addToast('error', 'Error al crear pregunta'); }
-                                                        }}
-                                                        style={{ fontSize: 12, padding: '6px 14px' }}
-                                                    >Crear</Button>
-                                                    <Button variant="secondary" onClick={() => { setShowNewPregunta(false); setNewPreguntaText(''); }} style={{ fontSize: 12, padding: '6px 14px' }}>Cancelar</Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowNewPregunta(true)}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: `1.5px dashed ${C.gray300}`, borderRadius: 8, background: 'transparent', color: C.gray500, fontSize: 12, fontWeight: 500, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
-                                        >
-                                            <Plus size={14} /> Agregar pregunta personalizada
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                            <ConsultationQuestions
+                                preguntas={preguntas}
+                                respuestas={respuestas || {}}
+                                onPreguntasChange={setPreguntas}
+                                onRespuestaChange={(id, field, value) => setRespuestas(prev => ({
+                                    ...prev,
+                                    [id]: { ...prev?.[id], [field]: value },
+                                }))}
+                                onError={msg => addToast('error', msg)}
+                                onSuccess={msg => addToast('success', msg)}
+                            />
                         </SectionCard>
                     </div>
                 )}
 
                 {/* ══════════════════════════════════════════════════════════════════
-                    STEP 2 — Motivo y Odontograma
+                    STEP 2 — Odontograma
                 ══════════════════════════════════════════════════════════════════ */}
                 {step === 2 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <SectionCard icon={<Stethoscope size={17} />} title="Detalles del Motivo de Consulta">
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                <div>
-                                    <FieldLabel required>Motivo de la consulta</FieldLabel>
-                                    <Textarea value={motivo} onChange={setMotivo} placeholder="Describa el síntoma principal o razón por la cual asiste el paciente..." rows={3} />
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                                    <div>
-                                        <FieldLabel>¿Cuándo fue su última consulta al odontólogo?</FieldLabel>
-                                        <TextInput value={ultimaConsultaOdontologo} onChange={setUltimaConsultaOdontologo} placeholder="Ej: Hace 6 meses, Nunca, etc." />
-                                    </div>
-                                    <div>
-                                        <FieldLabel>Tipo de consulta</FieldLabel>
-                                        <select
-                                            value={tipoConsulta}
-                                            onChange={(e) => setTipoConsulta(e.target.value)}
-                                            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, background: C.white, outline: 'none', cursor: 'pointer' }}
-                                        >
-                                            <option value="Control">Control General</option>
-                                            <option value="Urgencia">Urgencia Dental</option>
-                                            <option value="Profilaxis">Limpieza / Profilaxis</option>
-                                            <option value="Tratamiento">Tratamiento Planificado</option>
-                                            <option value="Estética">Odontología Estética</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </SectionCard>
 
                         {/* Odontograma Access Box */}
                         <div style={{
@@ -1210,7 +1057,43 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     <div style={{ display: 'flex', gap: 10 }}>
                         {step < 3 && (
                             <Button
-                                onClick={() => setStep((s) => (s + 1) as Step)}
+                                onClick={() => {
+                                    if (step === 1) {
+                                        // Patient info validation
+                                        if (identidad && !/^\d{13}$/.test(identidad)) {
+                                            addToast('error', 'El número de identidad debe contener exactamente 13 números, sin guiones.');
+                                            return;
+                                        }
+                                        if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+                                            addToast('error', 'El formato del correo electrónico es inválido.');
+                                            return;
+                                        }
+                                        if (telefono && !/^\d{8,}$/.test(telefono.replace(/\D/g, ''))) {
+                                            addToast('error', 'El número de teléfono debe tener al menos 8 dígitos.');
+                                            return;
+                                        }
+                                        // Questions validation
+                                        for (const pq of preguntas) {
+                                            const resp = respuestas[pq.id_pregunta] || {};
+                                            if (pq.requiere_explicacion) {
+                                                if (resp.respuestaBoolean === undefined) {
+                                                    addToast('error', `Falta responder (Sí/No) a: "${pq.pregunta}"`);
+                                                    return;
+                                                }
+                                                if (resp.respuestaBoolean === true && (!resp.explanation || !resp.explanation.trim())) {
+                                                    addToast('error', `Falta brindar explicación en: "${pq.pregunta}"`);
+                                                    return;
+                                                }
+                                            } else {
+                                                if (!resp.explanation || !resp.explanation.trim()) {
+                                                    addToast('error', `Falta responder la pregunta: "${pq.pregunta}"`);
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    setStep((s) => (s + 1) as Step);
+                                }}
                             >
                                 Siguiente →
                             </Button>

@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseArrayPipe,
   ParseIntPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -24,6 +26,7 @@ import {
 } from '@nestjs/swagger';
 import { ConsultaPreguntaService } from './consulta-pregunta.service';
 import { CreatePreguntaDto } from './dto/create-pregunta.dto';
+import { UpdatePreguntaDto } from './dto/update-pregunta.dto';
 import { RespuestaItemDto } from './dto/save-respuestas.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
@@ -68,6 +71,22 @@ La pregunta se insertará con el orden_num especificado y aparecerá en el lista
   @ApiBadRequestResponse({ description: 'Datos inválidos' })
   create(@Body() dto: CreatePreguntaDto) {
     return this.service.create(dto);
+  }
+
+  @Privileges(43)
+  @Patch('consulta-pregunta/:id')
+  @ApiOperation({ summary: 'Actualizar una pregunta', description: 'Actualiza una pregunta siempre y cuando no se haya utilizado en ninguna consulta.' })
+  @ApiParam({ name: 'id', description: 'ID de la pregunta' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePreguntaDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Privileges(43)
+  @Delete('consulta-pregunta/:id')
+  @ApiOperation({ summary: 'Eliminar una pregunta', description: 'Elimina una pregunta de forma definitiva, siempre y cuando no se haya utilizado en ninguna consulta.' })
+  @ApiParam({ name: 'id', description: 'ID de la pregunta' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.service.remove(id);
   }
 
   @Privileges(42)

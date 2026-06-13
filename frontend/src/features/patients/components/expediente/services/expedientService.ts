@@ -54,7 +54,14 @@ export const expedientService = {
     crearPregunta: async (data: { pregunta: string; orden_num: number; requiere_explicacion: boolean; categoria: string }): Promise<ApiResponse<{ id_pregunta: number }>> => {
         return api.post('/consulta-pregunta', data);
     },
+    updatePregunta: async (id: number, data: Partial<{ pregunta: string; orden_num: number; requiere_explicacion: boolean; categoria: string }>): Promise<ApiResponse<PreguntaConsulta>> => {
+        return api.patch(`/consulta-pregunta/${id}`, data);
+    },
+    deletePregunta: async (id: number): Promise<ApiResponse<PreguntaConsulta>> => {
+        return api.delete(`/consulta-pregunta/${id}`);
+    },
     saveRespuestas: async (consultaId: number, respuestas: RespuestaConsulta[]): Promise<ApiResponse> => {
         return api.post(`/consulta/${consultaId}/respuestas`, respuestas);
     },
 };
+
