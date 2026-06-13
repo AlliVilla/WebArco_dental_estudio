@@ -26,6 +26,7 @@ import { Button, Input } from "../../../../../context";
 import { calcularEdad, formatDate } from "../services/miscelaneousService";
 import { expedientService } from "../services/expedientService";
 import { useResponsive } from "../../../../../hooks/useWindowWidth";
+import { normalizeSearch } from "../../../../../utils/formatters";
 
 const C = {
   primary: "var(--arco-primary, #0BC5DF)",
@@ -424,11 +425,12 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  // Fix: useRef para timers de toast — evita memory leak
   const toastTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       toastTimers.current.forEach(clearTimeout);
     };
   }, []);
@@ -536,18 +538,18 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         const id = uid();
         const reader = new FileReader();
         reader.onload = (ev) => {
+          if (!mountedRef.current) return;
           const preview = ev.target?.result as string;
           setArchivos((prev) => [
             ...prev,
             { id, file, preview, categoria: activeCategory, uploading: true },
           ]);
-          const timer = setTimeout(
-            () =>
+          const timer = setTimeout(() => {
+            if (mountedRef.current)
               setArchivos((prev) =>
                 prev.map((a) => (a.id === id ? { ...a, uploading: false } : a))
-              ),
-            1200 + Math.random() * 800
-          );
+              );
+          }, 1200 + Math.random() * 800);
           toastTimers.current.push(timer);
         };
         reader.readAsDataURL(file);
@@ -626,7 +628,7 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
   };
 
   const suggestions = catalogoTratamientos.filter((t) =>
-    t.nombre.toLowerCase().includes(busqueda.toLowerCase())
+    normalizeSearch(t.nombre).includes(normalizeSearch(busqueda))
   );
 
   const addTratamiento = (t: TratamientoCatalogo) => {
@@ -743,12 +745,13 @@ export function NuevaVisita({ patient, onBack, onSave }: Props) {
         addToast("error", res.message || "Error al guardar la visita.");
       }
     } catch (err: unknown) {
+      if (!mountedRef.current) return;
       const msg =
         err instanceof Error ? err.message : "Error al guardar la visita.";
       addToast("error", msg);
       if (import.meta.env.DEV) console.error("[NuevaVisita]", err);
     } finally {
-      setSaving(false);
+      if (mountedRef.current) setSaving(false);
     }
   };
 

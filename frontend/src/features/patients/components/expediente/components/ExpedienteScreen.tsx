@@ -19,6 +19,7 @@ import { expedientService } from "../services/expedientService";
 import { calcularEdad } from "../services/miscelaneousService";
 import type { ExpedientePaciente } from "../types/index";
 import { useResponsive } from "../../../../../hooks/useWindowWidth";
+import { normalizeSearch } from "../../../../../utils/formatters";
 
 const C = {
   primary: "var(--arco-primary, #0BC5DF)",
@@ -177,7 +178,6 @@ export function ExpedienteScreen() {
   >(null);
 
   useEffect(() => {
-    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
@@ -400,11 +400,6 @@ export function ExpedienteScreen() {
 
   // Búsqueda para vista móvil/tablet
   const [mobileSearch, setMobileSearch] = useState("");
-  const normalize = (s: string) =>
-    s
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
   const filteredExps = useMemo(
     () =>
       !mobileSearch
@@ -419,7 +414,7 @@ export function ExpedienteScreen() {
               .filter(Boolean)
               .join(" ");
             return (
-              normalize(nombre).includes(normalize(mobileSearch)) ||
+              normalizeSearch(nombre).includes(normalizeSearch(mobileSearch)) ||
               e.numero_identidad.includes(mobileSearch) ||
               e.telefono.includes(mobileSearch)
             );
