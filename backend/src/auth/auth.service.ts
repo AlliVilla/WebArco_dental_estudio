@@ -60,7 +60,7 @@ export class AuthService {
       id_rol: userExists.id_rol,
     };
 
-    const access_token = generateToken(tokenPayload, '24h');
+    const access_token = generateToken(tokenPayload, '8h');
     const refresh_token = generateRefreshToken(tokenPayload, '7d');
 
     return {
@@ -180,7 +180,7 @@ export class AuthService {
       id_rol: user.id_rol,
     };
 
-    const access_token = generateToken(tokenPayload, '24h');
+    const access_token = generateToken(tokenPayload, '8h');
 
     return { access_token };
   }

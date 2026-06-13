@@ -66,7 +66,7 @@ export class ConsentimientoController {
     return this.consentimientoService.imprimir(id);
   }
 
-  @Privileges(23, 24)
+  @Privileges(22)
   @Patch(':id/signatures')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar firmas faltantes', description: 'Registra la firma del paciente o del doctor de manera independiente. No permite sobreescribir una firma ya existente.' })

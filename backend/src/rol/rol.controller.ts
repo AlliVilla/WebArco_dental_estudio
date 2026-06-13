@@ -80,7 +80,7 @@ export class RolController {
         return this.rolService.createRole(body);
     }
 
-    @Privileges(36)
+    @Privileges(35)
     @Put(':id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
@@ -93,7 +93,7 @@ export class RolController {
         return this.rolService.updateRole(id,body);
     }
 
-    @Privileges(36)
+    @Privileges(35)
     @Delete(':id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
@@ -112,7 +112,7 @@ export class RolController {
       return this.rolService.deleteRole(id);
     }
 
-    @Privileges(36)
+    @Privileges(35)
     @Post(':id/privilegios')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({

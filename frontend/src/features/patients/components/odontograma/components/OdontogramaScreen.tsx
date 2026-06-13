@@ -1,25 +1,47 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
+import { Check, Loader2, Settings } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { patientService } from '../../../services/patientService';
-import { odontogramaService, mapToFrontendState } from '../services/odontogramaService';
-import type { ToothState, ToothData, HistoryEntry } from '../types';
+import { odontogramaService } from '../services/odontogramaService';
+import { estadoOdontogramaService, type EstadoOdontograma } from '../services/estadoOdontogramaService';
+import { ManageStatesModal } from './ManageStatesModal';
+import type { ToothData, HistoryEntry } from '../types';
 import type { Patient } from '../../../types';
 
-// ── State config ──────────────────────────────────────────────────────────────
+// ── Dynamic state config ───────────────────────────────────────────────────────
 
-const STATE_CONFIG: Record<ToothState, { label: string; color: string; bg: string; textColor: string }> = {
-  sano: { label: 'Sano', color: '#A8D5BA', bg: '#D6EFE1', textColor: '#4A8C68' },
-  caries: { label: 'Caries', color: '#F4AFAD', bg: '#FCE4E4', textColor: '#B85755' },
-  obturacion: { label: 'Obturación', color: '#90D0E8', bg: '#D4EDF7', textColor: '#3A88AA' },
-  extraccion: { label: 'Extracción', color: '#B8BEC6', bg: '#E6E8EC', textColor: '#5A6370' },
-  ausente: { label: 'Ausente', color: '#CDD0D5', bg: '#ECEEF1', textColor: '#7A7F88' },
-  endodoncia: { label: 'Endodoncia', color: '#F5CC80', bg: '#FDF0D0', textColor: '#9A7020' },
-  corona: { label: 'Corona', color: '#9ABFD4', bg: '#D8EBF4', textColor: '#3A6E88' },
-  protesis: { label: 'Prótesis', color: '#C4ADED', bg: '#EDE5F7', textColor: '#6A48A0' },
-  implante: { label: 'Implante', color: '#A0B8E8', bg: '#DDE5F7', textColor: '#3A58A0' },
-  puente: { label: 'Puente', color: '#E8BCA0', bg: '#FAE8DC', textColor: '#985030' },
-};
+interface EstadoConfigItem {
+  label: string;
+  color: string;
+  bg: string;
+  textColor: string;
+}
+
+const defaultEstadoConfig: EstadoConfigItem = { label: '—', color: '#CDD0D5', bg: '#ECEEF1', textColor: '#7A7F88' };
+const EstadoConfigCtx = createContext<Record<string, EstadoConfigItem>>({});
+
+function hexToRgb(hex: string) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) } : null;
+}
+
+function lightenColor(hex: string, factor: number): string {
+  const c = hexToRgb(hex);
+  if (!c) return hex;
+  const lr = Math.round(c.r + (255 - c.r) * factor);
+  const lg = Math.round(c.g + (255 - c.g) * factor);
+  const lb = Math.round(c.b + (255 - c.b) * factor);
+  return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`;
+}
+
+function darkenColor(hex: string, factor: number): string {
+  const c = hexToRgb(hex);
+  if (!c) return hex;
+  const dr = Math.round(c.r * (1 - factor));
+  const dg = Math.round(c.g * (1 - factor));
+  const db = Math.round(c.b * (1 - factor));
+  return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+}
 
 // ── Arch geometry ─────────────────────────────────────────────────────────────
 
@@ -145,14 +167,15 @@ interface CrownProps {
   shape: ToothShape;
   w: number;
   h: number;
-  state: ToothState;
+  state: string;
   isSelected: boolean;
 }
 
 function ToothCrown({ shape, w, h, state, isSelected }: CrownProps) {
-  const cfg = STATE_CONFIG[state];
-  const fill = (state === 'ausente' || state === 'extraccion') ? '#E8EAED' : cfg.bg;
-  const stroke = isSelected ? '#0BC5DF' : (state === 'ausente' || state === 'extraccion') ? '#BBBFC5' : cfg.color;
+  const estadosConfig = useContext(EstadoConfigCtx);
+  const cfg = estadosConfig[state.toLowerCase()] || defaultEstadoConfig;
+  const fill = cfg.bg;
+  const stroke = isSelected ? '#0BC5DF' : cfg.color;
   const sw = isSelected ? 2.5 : 1.5;
 
   // ---- absent / extracted ----
@@ -258,59 +281,52 @@ function ToothCrown({ shape, w, h, state, isSelected }: CrownProps) {
 
   // ---- state-specific overlay ----
   let overlay: React.ReactNode = null;
-  switch (state) {
-    case 'caries':
-      overlay = (
-        <ellipse cx={0} cy={-h * 0.05} rx={Math.min(w, h) * 0.28} ry={Math.min(w, h) * 0.26}
-          fill="#6B0000" opacity={0.52} />
-      );
-      break;
-    case 'obturacion':
-      overlay = (
-        <rect x={-w * 0.3} y={-h * 0.32} width={w * 0.6} height={h * 0.62} rx={2}
-          fill={stroke} opacity={0.38} />
-      );
-      break;
-    case 'endodoncia':
-      overlay = (
-        <g>
-          <line x1={0} y1={-h / 2 + 2} x2={0} y2={h / 2 - 2}
-            stroke={stroke} strokeWidth={2.2} opacity={0.7} strokeLinecap="round" />
-          <circle cx={0} cy={0} r={Math.min(w, h) * 0.18} fill={stroke} opacity={0.6} />
-        </g>
-      );
-      break;
-    case 'corona':
-    case 'protesis':
-      overlay = (
-        <>
-          <rect x={-w / 2 + 1.5} y={-h / 2 + 1.5} width={w - 3} height={h - 3} rx={4}
-            fill="none" stroke={stroke} strokeWidth={1.4} strokeDasharray="2.5 1.5" opacity={0.72} />
-          <rect x={-w / 2 + 3.5} y={-h / 2 + 3.5} width={w - 7} height={h - 7} rx={2}
-            fill={stroke} fillOpacity={0.08} />
-        </>
-      );
-      break;
-    case 'implante':
-      overlay = (
-        <g>
-          <circle cx={0} cy={0} r={Math.min(w, h) * 0.27}
-            fill="none" stroke={stroke} strokeWidth={2} opacity={0.78} />
-          <line x1={-w * 0.18} y1={0} x2={w * 0.18} y2={0} stroke={stroke} strokeWidth={1.6} opacity={0.78} />
-          <line x1={0} y1={-h * 0.18} x2={0} y2={h * 0.18} stroke={stroke} strokeWidth={1.6} opacity={0.78} />
-        </g>
-      );
-      break;
-    case 'puente':
-      overlay = (
-        <g>
-          <line x1={-w / 2 + 1} y1={-h / 2 + 2.5} x2={w / 2 - 1} y2={-h / 2 + 2.5}
-            stroke={stroke} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
-          <line x1={-w / 2 + 1} y1={h / 2 - 2.5} x2={w / 2 - 1} y2={h / 2 - 2.5}
-            stroke={stroke} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
-        </g>
-      );
-      break;
+  const s = state.toLowerCase();
+  if (s === 'caries') {
+    overlay = (
+      <ellipse cx={0} cy={-h * 0.05} rx={Math.min(w, h) * 0.28} ry={Math.min(w, h) * 0.26}
+        fill="#6B0000" opacity={0.52} />
+    );
+  } else if (s === 'obturación' || s === 'obturacion') {
+    overlay = (
+      <rect x={-w * 0.3} y={-h * 0.32} width={w * 0.6} height={h * 0.62} rx={2}
+        fill={stroke} opacity={0.38} />
+    );
+  } else if (s === 'endodoncia') {
+    overlay = (
+      <g>
+        <line x1={0} y1={-h / 2 + 2} x2={0} y2={h / 2 - 2}
+          stroke={stroke} strokeWidth={2.2} opacity={0.7} strokeLinecap="round" />
+        <circle cx={0} cy={0} r={Math.min(w, h) * 0.18} fill={stroke} opacity={0.6} />
+      </g>
+    );
+  } else if (s === 'corona' || s === 'prótesis' || s === 'protesis') {
+    overlay = (
+      <>
+        <rect x={-w / 2 + 1.5} y={-h / 2 + 1.5} width={w - 3} height={h - 3} rx={4}
+          fill="none" stroke={stroke} strokeWidth={1.4} strokeDasharray="2.5 1.5" opacity={0.72} />
+        <rect x={-w / 2 + 3.5} y={-h / 2 + 3.5} width={w - 7} height={h - 7} rx={2}
+          fill={stroke} fillOpacity={0.08} />
+      </>
+    );
+  } else if (s === 'implante') {
+    overlay = (
+      <g>
+        <circle cx={0} cy={0} r={Math.min(w, h) * 0.27}
+          fill="none" stroke={stroke} strokeWidth={2} opacity={0.78} />
+        <line x1={-w * 0.18} y1={0} x2={w * 0.18} y2={0} stroke={stroke} strokeWidth={1.6} opacity={0.78} />
+        <line x1={0} y1={-h * 0.18} x2={0} y2={h * 0.18} stroke={stroke} strokeWidth={1.6} opacity={0.78} />
+      </g>
+    );
+  } else if (s === 'puente') {
+    overlay = (
+      <g>
+        <line x1={-w / 2 + 1} y1={-h / 2 + 2.5} x2={w / 2 - 1} y2={-h / 2 + 2.5}
+          stroke={stroke} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
+        <line x1={-w / 2 + 1} y1={h / 2 - 2.5} x2={w / 2 - 1} y2={h / 2 - 2.5}
+          stroke={stroke} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
+      </g>
+    );
   }
 
   // ---- selection ring ----
@@ -463,9 +479,10 @@ function OdontogramSVG({
 
 // ── Shared small components ───────────────────────────────────────────────────
 
-function StateBadge({ state }: { state: ToothState | null }) {
+function StateBadge({ state }: { state: string | null }) {
+  const estadosConfig = useContext(EstadoConfigCtx);
   if (!state) return <span style={{ color: '#888F94', fontSize: 12 }}>—</span>;
-  const cfg = STATE_CONFIG[state];
+  const cfg = estadosConfig[state.toLowerCase()] || defaultEstadoConfig;
   return (
     <span style={{
       display: 'inline-block',
@@ -510,7 +527,7 @@ const PRIMARY_NUMBERS = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65, 85, 84, 83, 82,
 
 function emptyTeeth(numbers: number[]): Record<number, ToothData> {
   const m: Record<number, ToothData> = {};
-  numbers.forEach(n => { m[n] = { number: n, state: 'sano', observation: '' }; });
+  numbers.forEach(n => { m[n] = { number: n, state: 'Sano', observation: '' }; });
   return m;
 }
 
@@ -538,6 +555,8 @@ export function OdontogramScreen({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [estados, setEstados] = useState<EstadoOdontograma[]>([]);
+  const [manageStatesOpen, setManageStatesOpen] = useState(false);
 
   const [mode, setMode] = useState<'view' | 'consultation'>(isEmbedded ? 'consultation' : 'view');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
@@ -547,7 +566,7 @@ export function OdontogramScreen({
   const [modifiedTeethList, setModifiedTeethList] = useState<number[]>([]);
 
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
-  const [pendingState, setPendingState] = useState<ToothState | ''>('');
+  const [pendingState, setPendingState] = useState<string>('');
   const [pendingObs, setPendingObs] = useState('');
   const [alert, setAlert] = useState<{ type: 'info' | 'success' | 'warning' | 'error'; text: string } | null>(
     { type: 'info', text: 'Selecciona un diente del odontograma para ver o editar su estado clínico.' }
@@ -622,7 +641,7 @@ export function OdontogramScreen({
       const odontograma = res.data;
       const numbers = dentitionType === 'adult' ? ADULT_NUMBERS : PRIMARY_NUMBERS;
       const toothMap: Record<number, ToothData> = {};
-      numbers.forEach(n => { toothMap[n] = { number: n, state: 'sano', observation: '' }; });
+      numbers.forEach(n => { toothMap[n] = { number: n, state: 'Sano', observation: '' }; });
 
       if (odontograma?.dientes) {
         odontograma.dientes.forEach((d: any) => {
@@ -630,7 +649,7 @@ export function OdontogramScreen({
           if (toothMap[num]) {
             toothMap[num] = {
               number: num,
-              state: (mapToFrontendState(d.estado) || 'sano') as ToothState,
+              state: d.estado || 'Sano',
               observation: d.observacion || '',
             };
           }
@@ -660,12 +679,11 @@ export function OdontogramScreen({
       const res = await odontogramaService.getHistory(patientId);
       const histData = res.data;
       const rawEntries = (histData?.historial || []).map((item: any, index: number) => {
-        const mappedState = (mapToFrontendState(item.estado) || 'sano') as ToothState;
         return {
           id: item.id_odontograma || index,
           toothNumber: item.diente?.numero_diente || 0,
           previousState: null as string | null,
-          newState: mappedState,
+          newState: item.estado || '',
           observation: item.observacion || '',
           doctor: item.doctor?.nombre || '',
           date: item.fecha_consulta ? item.fecha_consulta.split('T')[0] : '',
@@ -673,7 +691,7 @@ export function OdontogramScreen({
         };
       });
       rawEntries.sort((a, b) => a._sort - b._sort);
-      const prevMap = new Map<number, ToothState | null>();
+      const prevMap = new Map<string, string | null>();
       const entries: HistoryEntry[] = rawEntries.map(({ _sort, ...e }) => {
         const prev = prevMap.get(e.toothNumber) ?? null;
         prevMap.set(e.toothNumber, e.newState);
@@ -737,7 +755,7 @@ export function OdontogramScreen({
         ...prev,
         [selectedTooth]: {
           ...prev[selectedTooth],
-          state: pendingState as ToothState,
+          state: pendingState,
           observation: pendingObs,
         },
       }));
@@ -762,6 +780,31 @@ export function OdontogramScreen({
 
   const visibleHistory = histFilter === 'all' ? history : history.filter(h => h.toothNumber === histFilter);
 
+  // ── Fetch estados odontograma ──
+  const fetchEstados = useCallback(async () => {
+    try {
+      const res = await estadoOdontogramaService.getAll();
+      const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      setEstados(data);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchEstados(); }, [fetchEstados]);
+
+  const estadosConfig = useMemo(() => {
+    const map: Record<string, EstadoConfigItem> = {};
+    estados.forEach(e => {
+      const key = e.nombre.toLowerCase();
+      map[key] = {
+        label: e.nombre,
+        color: e.color,
+        bg: lightenColor(e.color, 0.8),
+        textColor: darkenColor(e.color, 0.35),
+      };
+    });
+    return map;
+  }, [estados]);
+
   const alertStyle: Record<string, { bg: string; border: string; color: string; icon: string }> = {
     info: { bg: '#E6F8FB', border: '#0BC5DF', color: '#0899B0', icon: 'ℹ' },
     success: { bg: '#E8F7F2', border: '#1D9E75', color: '#1D9E75', icon: '✓' },
@@ -772,6 +815,7 @@ export function OdontogramScreen({
   const showLoading = loadingPatients || loadingOdontogram;
 
   return (
+    <EstadoConfigCtx.Provider value={estadosConfig}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Alert */}
@@ -1015,7 +1059,7 @@ export function OdontogramScreen({
             </div>
             {/* Legend chips */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxWidth: 500, justifyContent: 'flex-end', alignItems: 'center' }}>
-              {(Object.entries(STATE_CONFIG) as [ToothState, typeof STATE_CONFIG[ToothState]][]).map(([key, cfg]) => (
+              {Object.entries(estadosConfig).map(([key, cfg]) => (
                 <span key={key} style={{
                   background: cfg.bg,
                   color: cfg.textColor,
@@ -1111,6 +1155,10 @@ export function OdontogramScreen({
                 <div style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 13, color: '#203F49' }}>
                   <StateBadge state={teeth[selectedTooth]?.state} />
                 </div>
+                <button onClick={() => setManageStatesOpen(true)}
+                  style={{ marginTop: 6, padding: '5px 10px', borderRadius: 6, background: 'transparent', color: '#888F94', border: '1px solid #D3D7DA', fontSize: 11, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Settings size={12} /> Gestionar estados
+                </button>
               </div>
 
               {isEditable && (
@@ -1123,15 +1171,15 @@ export function OdontogramScreen({
                     </div>
                     <select
                       value={pendingState}
-                      onChange={e => setPendingState(e.target.value as ToothState)}
+                      onChange={e => setPendingState(e.target.value)}
                       style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #D3D7DA', background: '#F8F9FA', fontSize: 13, color: '#203F49', cursor: 'pointer' }}
                     >
                       <option value="">— Seleccionar estado —</option>
-                      {(Object.entries(STATE_CONFIG) as [ToothState, typeof STATE_CONFIG[ToothState]][]).map(([k, c]) => (
-                        <option key={k} value={k}>{c.label}</option>
+                      {estados.map(e => (
+                        <option key={e.id} value={e.nombre}>{e.nombre}</option>
                       ))}
                     </select>
-                    {pendingState && <div style={{ marginTop: 6 }}><StateBadge state={pendingState as ToothState} /></div>}
+                    {pendingState && <div style={{ marginTop: 6 }}><StateBadge state={pendingState} /></div>}
                   </div>
 
                   {/* Observación */}
@@ -1267,5 +1315,7 @@ export function OdontogramScreen({
         </div>
       )}
     </div>
+    <ManageStatesModal open={manageStatesOpen} onClose={() => { setManageStatesOpen(false); fetchEstados(); }} />
+    </EstadoConfigCtx.Provider>
   );
 }

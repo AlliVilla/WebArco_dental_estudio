@@ -91,7 +91,7 @@ export class ConsultaController {
     return this.consultaService.findOne(id);
   }
 
-  @Privileges(44)
+  @Privileges(43)
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar una consulta', description: 'Actualiza parcial o totalmente los datos de una consulta (diagnóstico, tratamiento, etc.).' })
@@ -106,7 +106,7 @@ export class ConsultaController {
     return this.consultaService.update(id, updateConsultaDto);
   }
 
-  @Privileges(45)
+  @Privileges(43)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar una consulta', description: 'Elimina la consulta si no tiene registros asociados (antecedentes, odontogramas o pagos).' })

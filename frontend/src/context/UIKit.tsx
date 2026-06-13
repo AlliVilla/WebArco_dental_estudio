@@ -1,5 +1,5 @@
-import React from 'react';
-import { Eye, EyeOff, ChevronDown, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Eye, EyeOff, ChevronDown, AlertCircle, CheckCircle, Info, AlertTriangle, Plus } from 'lucide-react';
 
 // ─── Badge Components ────────────────────────────────────────────────────────
 
@@ -280,6 +280,150 @@ export function Select({ label, badge, options, value, onChange, placeholder, di
         <ChevronDown size={15} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#888F94', pointerEvents: 'none' }} />
       </div>
       {error && <span style={{ fontSize: 11, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={11} />{error}</span>}
+    </div>
+  );
+}
+
+// ─── Combobox ─────────────────────────────────────────────────────────────────
+
+interface ComboboxProps {
+  label?: string;
+  badge?: 'required' | 'optional' | 'conditional';
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  onCreateNew?: boolean;
+}
+
+function stripAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function Combobox({ label, badge, options, value, onChange, placeholder, disabled, error }: ComboboxProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const plainValue = stripAccents(value.toLowerCase());
+
+  const filtered = value
+    ? options.filter((o) => stripAccents(o.label.toLowerCase()).includes(plainValue))
+    : options;
+
+  const isExactMatch = options.some(
+    (o) => stripAccents(o.label.toLowerCase()) === plainValue.trim(),
+  );
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        listRef.current && !listRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative' }}>
+      {(label || badge) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {label && <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>{label}</label>}
+          {badge && <FieldBadge type={badge} />}
+        </div>
+      )}
+      <div ref={inputRef} style={{ position: 'relative' }}>
+        <input
+          disabled={disabled}
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setIsOpen(true); }}
+          onFocus={() => { setFocused(true); setIsOpen(true); }}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          style={{
+            width: '100%',
+            border: `1px solid ${error ? '#E24B4A' : focused ? '#0BC5DF' : '#D3D7DA'}`,
+            borderRadius: 8,
+            padding: '10px 36px 10px 12px',
+            fontSize: 14,
+            color: '#203F49',
+            background: disabled ? '#F1F3F4' : '#fff',
+            outline: 'none',
+            boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+        <ChevronDown
+          size={15}
+          style={{
+            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+            color: '#888F94', pointerEvents: 'none',
+          }}
+        />
+      </div>
+      {isOpen && !disabled && (
+        <div
+          ref={listRef}
+          style={{
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+            background: '#fff', border: `1px solid #D3D7DA`, borderRadius: 8,
+            marginTop: 4, maxHeight: 200, overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          }}
+        >
+          {filtered.length > 0 && filtered.map((o) => (
+            <div
+              key={o.value}
+              onClick={() => { onChange(o.label); setIsOpen(false); }}
+              style={{
+                padding: '10px 12px', fontSize: 14, color: '#203F49',
+                cursor: 'pointer', borderBottom: '1px solid #F1F3F4',
+                background: o.label.toLowerCase() === value.toLowerCase()
+                  ? 'rgba(11,197,223,0.08)' : 'transparent',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#F8F9FA'; }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = o.label.toLowerCase() === value.toLowerCase()
+                  ? 'rgba(11,197,223,0.08)' : 'transparent';
+              }}
+            >
+              {o.label}
+            </div>
+          ))}
+          {value.trim() && !isExactMatch && (
+            <div
+              onClick={() => { onChange(value.trim()); setIsOpen(false); }}
+              style={{
+                padding: '10px 12px', fontSize: 14, color: '#0BC5DF',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                borderTop: filtered.length > 0 ? '1px solid #F1F3F4' : 'none',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#F8F9FA'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Plus size={14} />
+              Crear "{value.trim()}"
+            </div>
+          )}
+          {!value.trim() && filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: 13, color: '#888F94' }}>
+              Escriba un nombre para crear una nueva especialidad
+            </div>
+          )}
+        </div>
+      )}
+      {error && (
+        <span style={{ fontSize: 11, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <AlertCircle size={11} />{error}
+        </span>
+      )}
     </div>
   );
 }

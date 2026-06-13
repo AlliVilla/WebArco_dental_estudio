@@ -252,6 +252,14 @@ model EstadoHistorial {
   @@map("estado_historial")
 }
 
+model EstadoOdontograma {
+  id_estado Int    @id @default(autoincrement())
+  nombre    String @unique @db.VarChar(100)
+  color     String @db.VarChar(20)
+
+  @@map("estado_odontograma")
+}
+
 model Diente {
   numero_diente Int     @id
   nombre        String? @db.VarChar(50)
@@ -289,17 +297,30 @@ model PagoPaciente {
   @@map("pago_paciente")
 }
 
+model Especialidad {
+  id_especialidad Int      @id @default(autoincrement())
+  nombre          String   @unique @db.VarChar(120)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tratamientos Tratamiento[]
+
+  @@map("especialidad")
+}
+
 model Tratamiento {
   id_tratamiento       Int      @id @default(autoincrement())
-  especialidad         String   @db.VarChar(120)
+  id_especialidad      Int
   nombre               String   @db.VarChar(150)
   descripcion          String?  @db.Text
   impacto_odontograma  String   @db.VarChar(60)
   precio               Decimal  @db.Decimal(10, 2)
+  activo               Boolean  @default(true)
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
-  
-  connsultas Consulta_Tratamiento[]
+
+  especialidad Especialidad          @relation(fields: [id_especialidad], references: [id_especialidad])
+  connsultas   Consulta_Tratamiento[]
 
   @@map("tratamiento")
 }

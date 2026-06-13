@@ -3,16 +3,14 @@ import { RotateCcw, Save, Shield } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Button, useTheme } from '../../../context';
 import { Spinner } from '../../../components/Spinner';
+import { privilegeService } from '../services/privilegeService';
 import { roleService } from '../services/roleService';
-import type { RoleWithPrivileges } from '../types';
-import { PermissionModuleCard } from './PermissionModuleCard';
+import type { Privilegio, RoleWithPrivileges } from '../types';
+import { PermissionPrivilegeCard } from './PermissionPrivilegeCard';
 import {
-  MODULOS_PERMISOS,
   ORDEN_ROLES_PERMISOS,
-  aplicarCambioModulo,
   construirListaPrivilegios,
-  contarModulosActivos,
-  moduloEstaHabilitado,
+  formatearNombrePrivilegio,
 } from '../constants/modulos-permisos';
 
 function ordenarRoles(roles: RoleWithPrivileges[]): RoleWithPrivileges[] {
@@ -47,10 +45,14 @@ export function PermissionsManagementScreen() {
   const [rolActivoId, setRolActivoId] = useState<number | null>(null);
   const [privilegiosGuardados, setPrivilegiosGuardados] = useState<Set<number>>(new Set());
   const [privilegiosEditados, setPrivilegiosEditados] = useState<Set<number>>(new Set());
+  const [privilegiosDisponibles, setPrivilegiosDisponibles] = useState<Privilegio[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+  const [paginaActual, setPaginaActual] = useState(1);
+  const ITEMS_POR_PAGINA = 24;
 
   const rolActivo = useMemo(
     () => roles.find((rol) => rol.id_rol === rolActivoId) ?? null,
@@ -62,24 +64,45 @@ export function PermissionsManagementScreen() {
     [privilegiosGuardados, privilegiosEditados],
   );
 
-  const modulosActivos = useMemo(
-    () => contarModulosActivos(privilegiosEditados),
-    [privilegiosEditados],
+  const privilegiosFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return privilegiosDisponibles;
+    const termino = busqueda.toLowerCase();
+    return privilegiosDisponibles.filter(p =>
+      formatearNombrePrivilegio(p.nombre).toLowerCase().includes(termino) ||
+      p.nombre.toLowerCase().includes(termino),
+    );
+  }, [privilegiosDisponibles, busqueda]);
+
+  const totalPaginas = Math.max(1, Math.ceil(privilegiosFiltrados.length / ITEMS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  const privilegiosPaginados = useMemo(
+    () => privilegiosFiltrados.slice((paginaSegura - 1) * ITEMS_POR_PAGINA, paginaSegura * ITEMS_POR_PAGINA),
+    [privilegiosFiltrados, paginaSegura],
   );
 
   const cargarRoles = useCallback(async (rolInicial?: number) => {
     setCargando(true);
     try {
-      const response = await roleService.getAllWithPrivileges();
+      const [rolesResponse, privilegiosResponse] = await Promise.all([
+        roleService.getAllWithPrivileges(),
+        privilegeService.getAll(),
+      ]);
 
-      if (!response.success) {
-        setErrorMessage(response.message);
+      if (!rolesResponse.success) {
+        setErrorMessage(rolesResponse.message);
         return;
       }
 
-      const rolesOrdenados = ordenarRoles(response.data);
-      setRoles(rolesOrdenados);
+      if (!privilegiosResponse.success) {
+        setErrorMessage(privilegiosResponse.message);
+        return;
+      }
+
+      setPrivilegiosDisponibles(privilegiosResponse.data);
       setErrorMessage(null);
+
+      const rolesOrdenados = ordenarRoles(rolesResponse.data);
+      setRoles(rolesOrdenados);
 
       const rolParam = rolInicial ?? Number(searchParams.get('rol'));
       const rolSeleccionado =
@@ -119,16 +142,21 @@ export function PermissionsManagementScreen() {
     setPrivilegiosEditados(new Set(ids));
     setSuccessMessage(null);
     setErrorMessage(null);
+    setBusqueda('');
+    setPaginaActual(1);
     navigate(`/users/roles/permisos?rol=${rol.id_rol}`, { replace: true });
   }
 
-  function manejarToggleModulo(moduloId: string, habilitado: boolean) {
-    const modulo = MODULOS_PERMISOS.find((item) => item.id === moduloId);
-    if (!modulo || modulo.siempreActivo) {
-      return;
-    }
-
-    setPrivilegiosEditados((actual) => aplicarCambioModulo(actual, modulo, habilitado));
+  function togglePrivilegio(id: number, habilitado: boolean) {
+    setPrivilegiosEditados((prev) => {
+      const nuevo = new Set(prev);
+      if (habilitado) {
+        nuevo.add(id);
+      } else {
+        nuevo.delete(id);
+      }
+      return nuevo;
+    });
   }
 
   function restablecerValores() {
@@ -142,7 +170,7 @@ export function PermissionsManagementScreen() {
       return;
     }
 
-    const listaPrivilegios = construirListaPrivilegios(privilegiosEditados, privilegiosGuardados);
+    const listaPrivilegios = construirListaPrivilegios(privilegiosEditados);
 
     if (listaPrivilegios.length === 0) {
       setErrorMessage('El rol debe conservar al menos un privilegio asignado.');
@@ -170,6 +198,9 @@ export function PermissionsManagementScreen() {
       setGuardando(false);
     }
   }
+
+  const totalPrivilegios = privilegiosDisponibles.length;
+  const activos = privilegiosEditados.size;
 
   if (cargando) {
     return (
@@ -230,8 +261,7 @@ export function PermissionsManagementScreen() {
             Gestión de Permisos
           </h1>
           <p style={{ margin: 0, fontSize: 14, lineHeight: '21px', color: '#888F94' }}>
-            Gestiona los permisos y el alcance de acceso para cada rol de usuario en el sistema
-            basado en los módulos del sidebar.
+            Activa o desactiva privilegios individuales para cada rol del sistema.
           </p>
         </div>
 
@@ -302,24 +332,6 @@ export function PermissionsManagementScreen() {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: 16,
-        }}
-      >
-        {MODULOS_PERMISOS.map((modulo) => (
-          <PermissionModuleCard
-            key={modulo.id}
-            modulo={modulo}
-            habilitado={moduloEstaHabilitado(modulo, privilegiosEditados)}
-            onToggle={(habilitado) => manejarToggleModulo(modulo.id, habilitado)}
-            deshabilitado={guardando}
-          />
-        ))}
-      </div>
-
-      <div
-        style={{
           background: '#E6F8FB',
           borderRadius: 8,
           padding: '16px 20px',
@@ -348,10 +360,109 @@ export function PermissionsManagementScreen() {
             {rolActivo.nombre}
           </strong>
           <span style={{ fontSize: 13, color: '#888F94' }}>
-            {modulosActivos} de {MODULOS_PERMISOS.length} permisos activos
+            {activos} de {totalPrivilegios} privilegios activos
           </span>
         </div>
       </div>
+
+      <input
+        type="text"
+        placeholder="Buscar privilegio..."
+        value={busqueda}
+        onChange={(e) => {
+          setBusqueda(e.target.value);
+          setPaginaActual(1);
+        }}
+        style={{
+          padding: '10px 14px',
+          borderRadius: 8,
+          border: '0.8px solid #D3D7DA',
+          fontSize: 14,
+          outline: 'none',
+          width: '100%',
+          maxWidth: 400,
+          boxSizing: 'border-box',
+        }}
+      />
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {privilegiosPaginados.map((privilegio) => (
+          <PermissionPrivilegeCard
+            key={privilegio.id_privilegio}
+            privilegio={privilegio}
+            asignado={privilegiosEditados.has(privilegio.id_privilegio)}
+            onToggle={(habilitado) => togglePrivilegio(privilegio.id_privilegio, habilitado)}
+            deshabilitado={guardando}
+          />
+        ))}
+      </div>
+
+      {totalPaginas > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+            disabled={paginaSegura <= 1}
+            style={{
+              border: '0.8px solid #D3D7DA',
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontSize: 13,
+              background: '#FFFFFF',
+              cursor: paginaSegura <= 1 ? 'not-allowed' : 'pointer',
+              opacity: paginaSegura <= 1 ? 0.5 : 1,
+              color: '#203F49',
+            }}
+          >
+            Anterior
+          </button>
+          {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((pag) => (
+            <button
+              key={pag}
+              type="button"
+              onClick={() => setPaginaActual(pag)}
+              style={{
+                border: '0.8px solid transparent',
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontSize: 13,
+                fontWeight: pag === paginaSegura ? 600 : 400,
+                background: pag === paginaSegura ? '#0BC5DF' : '#FFFFFF',
+                color: pag === paginaSegura ? '#FFFFFF' : '#203F49',
+                cursor: 'pointer',
+                minWidth: 32,
+                textAlign: 'center',
+              }}
+            >
+              {pag}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+            disabled={paginaSegura >= totalPaginas}
+            style={{
+              border: '0.8px solid #D3D7DA',
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontSize: 13,
+              background: '#FFFFFF',
+              cursor: paginaSegura >= totalPaginas ? 'not-allowed' : 'pointer',
+              opacity: paginaSegura >= totalPaginas ? 0.5 : 1,
+              color: '#203F49',
+            }}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -39,49 +39,37 @@ Cada endpoint de la API está protegido por privilegios. Los privilegios se defi
 | 1 | DASHBOARD_GENERAL | Dashboard |
 | 2 | DASHBOARD_FINANCIERO | Dashboard |
 | 3 | ODONTOGRAMA_VER | Odontograma |
-| 4 | ODONTOGRAMA_EDITAR | Odontograma |
+| 4 | ODONTOGRAMA_GESTIONAR | Odontograma |
 | 5 | ODONTOGRAMA_HISTORIAL | Odontograma |
 | 6 | USUARIOS_VER | Usuarios |
-| 7 | USUARIOS_CREAR | Usuarios |
-| 8 | USUARIOS_EDITAR | Usuarios |
+| 7 | USUARIOS_GESTIONAR | Usuarios |
 | 9 | USUARIOS_PERFIL | Usuarios |
-| 10 | FINANCIERO_INGRESO_CREAR | Pagos |
-| 11 | FINANCIERO_EGRESO_CREAR | Pagos |
+| 10 | FINANCIERO_GESTIONAR_INGRESOS | Pagos |
+| 11 | FINANCIERO_GESTIONAR_EGRESOS | Pagos |
 | 12 | FINANCIERO_VER_INGRESOS | Pagos |
 | 13 | FINANCIERO_VER_EGRESOS | Pagos |
-| 14 | CIERRES_CREAR | Cierres |
+| 14 | CIERRES_GESTIONAR | Cierres |
 | 15 | CIERRES_VER | Cierres |
 | 16 | PACIENTES_VER | Persona |
-| 17 | PACIENTES_CREAR | Persona |
-| 18 | PACIENTES_EDITAR | Persona |
-| 19 | PACIENTES_BUSCAR | Persona |
+| 17 | PACIENTES_GESTIONAR | Persona |
 | 20 | EXPEDIENTE_VER | Expediente Clínico |
-| 21 | EXPEDIENTE_REGISTRAR_ATENCION | Expediente Clínico |
-| 22 | CONSENTIMIENTOS_CREAR | Consentimientos |
-| 23 | CONSENTIMIENTOS_FIRMAR_PACIENTE | Consentimientos |
-| 24 | CONSENTIMIENTOS_FIRMAR_DOCTOR | Consentimientos |
+| 21 | EXPEDIENTE_GESTIONAR | Expediente Clínico |
+| 22 | CONSENTIMIENTOS_GESTIONAR | Consentimientos |
 | 25 | CONSENTIMIENTOS_VER | Consentimientos |
 | 26 | CITAS_VER | Citas |
-| 27 | CITAS_CREAR | Citas |
-| 28 | CITAS_EDITAR | Citas |
-| 29 | CITAS_DETALLE | Citas |
+| 27 | CITAS_GESTIONAR | Citas |
 | 30 | RECORDATORIOS_VER | Recordatorios |
 | 31 | RECORDATORIOS_HISTORIAL | Recordatorios |
 | 32 | RECORDATORIOS_RESPONDER | Recordatorios |
-| 33 | FOOTER_VER | Footer |
 | 34 | ROL_VER | Roles |
-| 35 | ROL_CREAR | Roles |
-| 36 | ROL_EDITAR | Roles |
+| 35 | ROL_GESTIONAR | Roles |
 | 37 | PRIVILEGIO_VER | Privilegios |
-| 38 | PRIVILEGIO_CREAR | Privilegios |
-| 39 | ANTECEDENTES_VER | Antecedentes |
-| 40 | ANTECEDENTES_CREAR | Antecedentes |
-| 41 | ANTECEDENTES_EDITAR | Antecedentes |
+| 38 | PRIVILEGIO_GESTIONAR | Privilegios |
 | 42 | CONSULTAS_VER | Consultas |
-| 43 | CONSULTAS_CREAR | Consultas |
-| 44 | CONSULTAS_EDITAR | Consultas |
-| 45 | CONSULTAS_ELIMINAR | Consultas |
-| 46 | CITAS_ELIMINAR | Citas |
+| 43 | CONSULTAS_GESTIONAR | Consultas |
+| 62 | ES_DOCTOR | — |
+| 63 | INVENTARIO_VER | Inventario |
+| 64 | INVENTARIO_GESTIONAR | Inventario |
 
 ### Reglas
 - Los IDs de privilegios son inmutables. No reasignar IDs existentes.
