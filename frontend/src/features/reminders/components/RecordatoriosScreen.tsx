@@ -319,10 +319,12 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   }, []);
 
   const fetchQueue = useCallback(async () => {
+    let isMounted = true;
     try {
+      setLoading(true);
       setError(null);
       const res = await ReminderService.getQueue();
-      if (!mountedRef.current) return;
+      if (!isMounted) return;
       if (res.success) {
         const sorted = [...res.data].sort((a, b) => {
           if (a.es_proximas_24h !== b.es_proximas_24h)
@@ -336,13 +338,16 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       }
     } catch (err: unknown) {
       if (import.meta.env.DEV) console.error("[RecordatoriosScreen]", err);
-      if (mountedRef.current) {
+      if (isMounted) {
         setError("No se pudo cargar la lista de recordatorios.");
-        setRows([]); // Fix 1: limpiar datos stale para que el emptyMessage sea visible
+        setRows([]);
       }
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (isMounted) setLoading(false);
     }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
