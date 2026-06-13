@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -26,6 +27,11 @@ export class CreatePaymentDto {
   @IsNumber({ maxDecimalPlaces: 2 }, { message: 'abono debe ser un número válido' })
   @Min(0.01, { message: 'abono debe ser mayor a 0' })
   abono: number;
+
+  @ApiPropertyOptional({ description: 'Método de pago', example: 'Efectivo', enum: ['Efectivo', 'Tarjeta', 'Transferencia'] })
+  @IsOptional()
+  @IsIn(['Efectivo', 'Tarjeta', 'Transferencia'], { message: 'metodoPago debe ser Efectivo, Tarjeta o Transferencia' })
+  metodoPago?: string;
 
   @ApiPropertyOptional({ description: 'Observación o nota del pago', example: 'Pago en efectivo' })
   @IsOptional()

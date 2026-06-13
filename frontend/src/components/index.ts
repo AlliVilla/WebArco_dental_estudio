@@ -7,4 +7,5 @@ export * from './TopBar';
 export * from './DatePickerCalendar';
 export * from './FormSection';
 export * from './FullWidthField';
+export * from './Modal';
 

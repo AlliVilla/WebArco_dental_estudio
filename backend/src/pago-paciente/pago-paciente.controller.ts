@@ -1,10 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -43,7 +46,26 @@ export class PagoPacienteController {
     description: 'Retorna el historial de ingresos registrados por pagos de pacientes.',
   })
   @ApiOkResponse({ description: 'Historial de pagos obtenido exitosamente' })
-  async findAll() {
-    return this.pagoPacienteService.findAll();
+  @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 20)', example: '20' })
+  async findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.pagoPacienteService.findAll(pageNum, limitNum);
+  }
+
+  @Privileges(10)
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar un pago', description: 'Elimina un registro de pago por su ID.' })
+  @ApiParam({ name: 'id', description: 'ID del pago', example: 1 })
+  @ApiOkResponse({ description: 'Pago eliminado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Pago no encontrado' })
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.pagoPacienteService.remove(id);
   }
 }

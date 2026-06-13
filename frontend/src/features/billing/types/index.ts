@@ -3,16 +3,22 @@ export interface PatientPayment {
   id_consulta: number;
   fecha: string;
   abono: number;
+  metodoPago: string;
+  estado: string;
   observacion?: string;
   firma_paciente?: string;
-  consulta?: {
+  consulta: {
     id_consulta: number;
     diagnostico?: string;
     tratamiento?: string;
-    persona?: {
+    persona: {
       nombre: string;
       apellido: string;
     };
+    doctor: {
+      id_usuario: number;
+      nombre: string;
+    } | null;
   };
 }
 
@@ -20,6 +26,7 @@ export interface CreatePaymentInput {
   id_consulta: number;
   fecha: string;
   abono: number;
+  metodoPago?: string;
   observacion?: string;
   firma_paciente?: string;
 }
