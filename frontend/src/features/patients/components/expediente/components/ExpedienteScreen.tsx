@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
-import { NuevaVisita } from './NewVisit';
+/* eslint-disable react-refresh/only-export-components */
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { NuevaVisita } from "./NewVisit";
 import {
   Plus,
   ArrowLeft,
@@ -8,214 +9,367 @@ import {
   CheckCircle,
   DollarSign,
   ChevronRight,
-  ChevronDown
-} from 'lucide-react';
-import { DataTable, Column } from '../../../../../components';
-import { Alert, Card, Button } from '../../../../../context';
+  ChevronDown,
+  X,
+} from "lucide-react";
+import { DataTable, StatsDrawer } from "../../../../../components";
+import type { Column } from "../../../../../components";
+import { Alert, Card, Button, useTheme } from "../../../../../context";
+import { expedientService } from "../services/expedientService";
+import { calcularEdad } from "../services/miscelaneousService";
+import type { ExpedientePaciente } from "../types/index";
+import { useResponsive } from "../../../../../hooks/useWindowWidth";
+import { normalizeSearch } from "../../../../../utils/formatters";
 
-import {expedientService} from '../services/expedientService';
-import {calcularEdad} from '../services/miscelaneousService';
-import {ExpedientePaciente} from '../types/index';
+const C: Record<string, string> = {};
 
-const C = {
-  primary: 'var(--arco-primary, #0BC5DF)',
-  navy: 'var(--foreground, #203F49)',
-  success: 'var(--arco-success, #1D9E75)',
-  warning: 'var(--arco-warning, #EF9F27)',
-  danger: 'var(--arco-danger, #E24B4A)',
-  gray50: 'var(--background, #F8F9FA)',
-  gray100: 'var(--arco-gray-100, #F1F3F4)',
-  gray300: 'var(--border, #D3D7DA)',
-  gray500: 'var(--muted-foreground, #888F94)',
-  gray700: 'var(--arco-gray-700, #5F656A)',
-  white: 'var(--card, #ffffff)',
-  primaryBg: 'var(--accent, #E6F8FB)',
-  primary008: 'rgba(11, 197, 223, 0.08)',
-  primary015: 'rgba(11, 197, 223, 0.15)',
-  primary025: 'rgba(11, 197, 223, 0.25)',
-  primary04: 'rgba(11, 197, 223, 0.40)',
-  primaryShadow: 'rgba(11, 197, 223, 0.16)',
-};
+// ─── Card de paciente para móvil ──────────────────────────────────────────────
+function PatientCard({
+  exp,
+  onClick,
+}: {
+  exp: ExpedientePaciente;
+  onClick: () => void;
+}) {
+  const hasPending = exp.consultas.some(
+    (c) => !c.firma_paciente || !c.firma_doctor_snapshot
+  );
+  const nombre = [
+    exp.primer_nombre,
+    exp.segundo_nombre,
+    exp.primer_apellido,
+    exp.segundo_apellido,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const initials = `${exp.primer_nombre?.[0] ?? ""}${
+    exp.primer_apellido?.[0] ?? ""
+  }`.toUpperCase();
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+        cursor: "pointer",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "#0BC5DF",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#203F49",
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {nombre}
+            </p>
+            <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+              {exp.numero_identidad}
+            </p>
+          </div>
+        </div>
+        <ChevronRight
+          size={16}
+          style={{ color: "#888F94", flexShrink: 0, marginTop: 2 }}
+        />
+      </div>
+      <div
+        style={{
+          borderTop: "1px solid #F8F9FA",
+          paddingTop: 8,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span style={{ fontSize: 12, color: "#888F94" }}>
+          {exp.consultas.length} visita{exp.consultas.length !== 1 ? "s" : ""}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 8px",
+            borderRadius: 12,
+            background: hasPending ? "#FFFBEB" : "#E8F7F2",
+            color: hasPending ? "#D97706" : "#1D9E75",
+          }}
+        >
+          {hasPending ? "Firma pendiente" : "Al día"}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export function ExpedienteScreen() {
+  useTheme();
   const location = useLocation();
-  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-visit'>('list');
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const { isMobile, isTablet } = useResponsive();
+  const mountedRef = useRef(true);
+
+  const [viewState, setViewState] = useState<"list" | "detail" | "new-visit">(
+    "list"
+  );
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
+    null
+  );
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [openDrawer, setOpenDrawer] = useState<
+    "visitas" | "completadas" | "firmas" | null
+  >(null);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const selectedPatientFromQuery = useMemo(() => {
-    const queryPatientId = new URLSearchParams(location.search).get('patientId');
+    const queryPatientId = new URLSearchParams(location.search).get(
+      "patientId"
+    );
     const parsedId = Number(queryPatientId);
     return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
   }, [location.search]);
-  
 
-  const loadPatients = useCallback(async (page: number, search = '') => {
+  // Fix: try/catch + isMounted
+  const loadPatients = useCallback(async () => {
+    let isMounted = true;
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const res = await expedientService.getAll({page, limit: 1000, search, includeConsulta: true});
+      const res = await expedientService.getAll({
+        page: 1,
+        limit: 1000,
+        search: "",
+        includeConsulta: true,
+      });
+      if (!isMounted) return;
       if (res.success) {
         setExpedientes(res.data.data);
       } else {
         setError(res.message);
-        setExpedientes([]);
       }
-    } catch {
-      setError('Error al cargar los expedientes');
-      setExpedientes([]);
+    } catch (err: unknown) {
+      if (!isMounted) return;
+      if (import.meta.env.DEV) console.error("[ExpedienteScreen]", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron cargar los expedientes."
+      );
+    } finally {
+      if (isMounted) setLoading(false);
     }
-    setLoading(false);
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPatients(1);
+    void loadPatients();
   }, [loadPatients]);
 
   useEffect(() => {
     if (!selectedPatientFromQuery || expedientes.length === 0) return;
-    if (expedientes.some((p) => p.id_persona === selectedPatientFromQuery)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    const exists = expedientes.some(
+      (p) => p.id_persona === selectedPatientFromQuery
+    );
+    if (exists) {
       setSelectedPatientId(selectedPatientFromQuery);
-      setViewState('detail');
+      setViewState("detail");
     }
   }, [expedientes, selectedPatientFromQuery]);
-  
+
   const totalVisitas = useMemo(
-    () => expedientes.reduce((acc, exp) => acc + (exp.consultas?.length ?? 0), 0),
-    [expedientes],
+    () => expedientes.reduce((acc, e) => acc + (e.consultas.length ?? 0), 0),
+    [expedientes]
   );
-
   const completadas = useMemo(
-    () =>
-      expedientes.reduce(
-        (acc, exp) => acc + (exp.consultas?.filter((c) => c.fecha_fin).length ?? 0),
-        0,
-      ),
-    [expedientes],
+    () => expedientes.reduce((acc, e) => acc + (e.consultas?.length ?? 0), 0),
+    [expedientes]
   );
-
   const firmasDigitales = useMemo(
     () =>
       expedientes.reduce(
-        (acc, exp) =>
-          acc + (exp.consultas?.filter((c) => c.firma_paciente && c.firma_doctor_snapshot).length ?? 0),
-        0,
+        (acc, e) =>
+          acc +
+          (e.consultas?.filter(
+            (c) => c.firma_paciente && c.firma_doctor_snapshot
+          ).length ?? 0),
+        0
       ),
-    [expedientes],
+    [expedientes]
   );
 
-  const activePatient = expedientes.find((e) => e.id_persona === selectedPatientId);
+  const activePatient = expedientes.find(
+    (e) => e.id_persona === selectedPatientId
+  );
 
-  const [expandedVisits, setExpandedVisits] = useState<Record<number, boolean>>({});
+  const [expandedVisits, setExpandedVisits] = useState<Record<number, boolean>>(
+    {}
+  );
   const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (activePatient?.consultas.length) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (activePatient && activePatient.consultas.length > 0) {
       setExpandedVisits({ [activePatient.consultas[0].id_consulta]: true });
     } else {
       setExpandedVisits({});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPatientId]);
+  }, [selectedPatientId, activePatient]);
 
-  const toggleVisit = (visitId: number) => {
-    setExpandedVisits(prev => ({
-      ...prev,
-      [visitId]: !prev[visitId]
-    }));
-  };
+  const toggleVisit = (id: number) =>
+    setExpandedVisits((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const handleSelectPatient = (id: number) => {
     setSelectedPatientId(id);
-    setViewState('detail');
+    setViewState("detail");
   };
-
-  const handleBackToList = () => {
-    setViewState('list');
-    loadPatients(1);
-  };
-
-  const handleNewVisitSave = () => {
-    loadPatients(1);
-    setViewState('detail');
-  };
-
-  const handleNewVisitBack = () => {
-    setViewState('detail');
-  };
-
-  const categoriaLabel = (categoria: string): string => {
-    const parts = categoria.split(' ');
-    return parts.length > 1 ? parts.slice(1).join(' ') : categoria;
-  };
+  const handleNewVisitSave = () => setViewState("detail");
+  const handleNewVisitBack = () => setViewState("detail");
 
   const columns: Column<ExpedientePaciente>[] = [
     {
-      key: 'nombre',
-      label: 'Paciente',
+      key: "nombre",
+      label: "Paciente",
       render: (_, row) => (
         <span
           onClick={() => handleSelectPatient(row.id_persona)}
-          style={{ fontWeight: 600, color: C.primary, cursor: 'pointer' }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectPatient(row.id_persona); }}
-          aria-label={`Ver expediente de ${[row.primer_nombre, row.segundo_nombre, row.primer_apellido, row.segundo_apellido].filter(Boolean).join(' ')}`}
+          style={{
+            fontWeight: 600,
+            color: "var(--arco-primary, #0BC5DF)",
+            cursor: "pointer",
+          }}
         >
-          {[row.primer_nombre, row.segundo_nombre, row.primer_apellido, row.segundo_apellido].filter(Boolean).join(' ')}
+          {[
+            row.primer_nombre,
+            row.segundo_nombre,
+            row.primer_apellido,
+            row.segundo_apellido,
+          ]
+            .filter(Boolean)
+            .join(" ")}
         </span>
       ),
     },
-    { key: 'numero_identidad', label: 'Identidad' },
-    { key: 'telefono', label: 'Teléfono' },
+    { key: "numero_identidad", label: "Identidad" },
+    { key: "telefono", label: "Teléfono" },
     {
-      key: 'ultimaVisita',
-      label: 'Última Visita',
+      key: "ultimaVisita",
+      label: "Última Visita",
       render: (_, row) => {
-        const ultimaConsulta = row.consultas?.[0];
+        const uc = row.consultas?.[0];
         return (
-          <span style={{ fontWeight: 600, color: C.navy }}>
-            {ultimaConsulta?.fecha_fin
-              ? new Date(ultimaConsulta.fecha_fin).toLocaleDateString('es-HN')
-              : 'N/A'}
+          <span
+            style={{ fontWeight: 600, color: "var(--foreground, #203F49)" }}
+          >
+            {uc ? (
+              new Date(uc.fecha_fin ?? uc.fecha_inicio).toLocaleDateString(
+                "es-HN"
+              )
+            ) : (
+              <span style={{ color: "#888F94", fontWeight: 400 }}>
+                Sin visitas
+              </span>
+            )}
           </span>
         );
       },
     },
     {
-      key: 'totalVisitas',
-      label: 'Visitas',
-      align: 'center',
+      key: "totalVisitas",
+      label: "Visitas",
+      align: "center",
       render: (_, row) => (
-        <span style={{ fontWeight: 600, color: C.navy }}>
-          {row.consultas?.length ?? 0}
+        <span style={{ fontWeight: 600, color: "var(--foreground, #203F49)" }}>
+          {row.consultas.length}
         </span>
       ),
     },
     {
-      key: 'firmas',
-      label: 'Firmas',
+      key: "firmas",
+      label: "Firmas",
       render: (_, row) => {
-        const hasPending = row.consultas?.some((c) => !c.firma_paciente || !c.firma_doctor_snapshot);
-        if (hasPending) {
-          return (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
-              background: 'rgba(239, 159, 39, 0.12)', color: C.warning,
-            }}>
-              Pendientes
-            </span>
-          );
-        }
-        return (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
-            background: '#E8F7F2', color: C.success,
-          }}>
+        const hasPending = row.consultas.some(
+          (c) => !c.firma_paciente || !c.firma_doctor_snapshot
+        );
+        return hasPending ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 12,
+              fontSize: 11,
+              fontWeight: 500,
+              background: "rgba(239,159,39,0.12)",
+              color: "var(--arco-warning, #EF9F27)",
+            }}
+          >
+            Pendientes
+          </span>
+        ) : (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 12,
+              fontSize: 11,
+              fontWeight: 500,
+              background: "#E8F7F2",
+              color: "var(--arco-success, #1D9E75)",
+            }}
+          >
             <CheckCircle size={10} /> Al día
           </span>
         );
@@ -226,197 +380,452 @@ export function ExpedienteScreen() {
   const getRowActions = (row: ExpedientePaciente) => [
     {
       icon: <ChevronRight size={16} />,
-      label: 'Ver Expediente',
+      label: "Ver Expediente",
       onClick: () => handleSelectPatient(row.id_persona),
     },
   ];
 
+  const kpiCols = isMobile || isTablet ? "1fr 1fr" : "repeat(3, 1fr)";
+  const showCards = isMobile || isTablet;
+
+  // Búsqueda para vista móvil/tablet
+  const [mobileSearch, setMobileSearch] = useState("");
+  const filteredExps = useMemo(
+    () =>
+      !mobileSearch
+        ? expedientes
+        : expedientes.filter((e) => {
+            const nombre = [
+              e.primer_nombre,
+              e.segundo_nombre,
+              e.primer_apellido,
+              e.segundo_apellido,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              normalizeSearch(nombre).includes(normalizeSearch(mobileSearch)) ||
+              e.numero_identidad.includes(mobileSearch) ||
+              e.telefono.includes(mobileSearch)
+            );
+          }),
+    [expedientes, mobileSearch]
+  );
+
+  // Datos para drawers
+  const drawerConfigs = [
+    {
+      key: "visitas" as const,
+      title: "Total Visitas",
+      subtitle: "Todas las visitas registradas",
+      value: totalVisitas,
+      color: "#0BC5DF",
+      border: "rgba(11,197,223,0.24)",
+      items: expedientes.filter((e) => e.consultas.length > 0),
+    },
+    {
+      key: "completadas" as const,
+      title: "Completadas",
+      subtitle: "Consultas completadas",
+      value: completadas,
+      color: "#1D9E75",
+      border: "rgba(29,158,117,0.24)",
+      items: expedientes.filter((e) => e.consultas.length > 0),
+    },
+    {
+      key: "firmas" as const,
+      title: "Firmas Digitales",
+      subtitle: "Consultas con firma completa",
+      value: firmasDigitales,
+      color: "#EF9F27",
+      border: "rgba(239,159,39,0.24)",
+      items: expedientes.filter((e) =>
+        e.consultas.some((c) => c.firma_paciente && c.firma_doctor_snapshot)
+      ),
+    },
+  ];
+
   return (
-    <div style={{ background: '#F8F9FA', minHeight: 'calc(100vh - 110px)', boxSizing: 'border-box' }}>
-      {error ? <Alert variant="error" message={error} onClose={() => setError("")} /> : null}
-      {/* ══════════════════════════════════════════════════════════════════
-          VISTA 1: Listado de Expedientes Clínicos
-      ══════════════════════════════════════════════════════════════════ */}
-      {viewState === 'list' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Tarjetas de Estadísticas */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            {/* Total Visitas */}
-            <Card style={{
-              border: '1.5px solid rgba(11, 197, 223, 0.24)',
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-primary, #0BC5DF)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                Total Visitas
-              </span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>
-                {totalVisitas}
-              </span>
-            </Card>
+    <div
+      style={{
+        background: "#F8F9FA",
+        minHeight: "calc(100vh - 110px)",
+        boxSizing: "border-box",
+      }}
+    >
+      {error && (
+        <Alert variant="error" message={error} onClose={() => setError("")} />
+      )}
 
-            {/* Completadas */}
-            <Card style={{
-              border: '1.5px solid rgba(29, 158, 117, 0.24)',
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-success, #1D9E75)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                Completadas
-              </span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>
-                {completadas}
-              </span>
-            </Card>
-
-            {/* Firmas Digitales */}
-            <Card style={{
-              border: '1.5px solid rgba(239, 159, 39, 0.24)',
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-warning, #EF9F27)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                Firmas Digitales
-              </span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>
-                {firmasDigitales}
-              </span>
-            </Card>
+      {/* ── VISTA 1: Lista ── */}
+      {viewState === "list" && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? 16 : 20,
+          }}
+        >
+          {/* KPIs clicables */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: kpiCols,
+              gap: isMobile ? 10 : 16,
+            }}
+          >
+            {drawerConfigs.map((kpi) => (
+              <button
+                key={kpi.key}
+                onClick={() => setOpenDrawer(kpi.key)}
+                style={{
+                  border: `1.5px solid ${kpi.border}`,
+                  background: "#fff",
+                  borderRadius: 12,
+                  padding: isMobile ? "14px 16px" : "20px 24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "box-shadow 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 16px rgba(0,0,0,0.08)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: kpi.color,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.8px",
+                  }}
+                >
+                  {kpi.title}
+                </span>
+                <span
+                  style={{
+                    fontSize: isMobile ? 22 : 28,
+                    fontWeight: 700,
+                    color: "#203F49",
+                    marginTop: 8,
+                    lineHeight: 1,
+                  }}
+                >
+                  {kpi.value}
+                </span>
+              </button>
+            ))}
           </div>
 
-          <DataTable<ExpedientePaciente>
-            title="Expedientes Clínicos"
-            description={
-              loading
-                ? "Cargando pacientes registrados..."
+          {/* Tabla / Cards */}
+          {showCards ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Buscador móvil */}
+              <input
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                placeholder="Buscar por nombre, identidad o teléfono..."
+                style={{
+                  width: "100%",
+                  height: 42,
+                  padding: "0 12px",
+                  border: "1px solid #D3D7DA",
+                  borderRadius: 8,
+                  background: "#F5F7FA",
+                  fontSize: 13,
+                  color: "#203F49",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+              {loading ? (
+                <p
+                  style={{
+                    textAlign: "center",
+                    color: "#888F94",
+                    fontSize: 14,
+                    padding: 24,
+                  }}
+                >
+                  Cargando expedientes...
+                </p>
+              ) : filteredExps.length === 0 ? (
+                <p
+                  style={{
+                    textAlign: "center",
+                    color: "#888F94",
+                    fontSize: 14,
+                    padding: 24,
+                  }}
+                >
+                  {mobileSearch
+                    ? "No hay resultados."
+                    : "No hay expedientes registrados."}
+                </p>
+              ) : (
+                filteredExps.map((exp) => (
+                  <PatientCard
+                    key={exp.id_persona}
+                    exp={exp}
+                    onClick={() => handleSelectPatient(exp.id_persona)}
+                  />
+                ))
+              )}
+            </div>
+          ) : (
+            <DataTable<ExpedientePaciente>
+              title="Expedientes Clínicos"
+              description={
+                loading
+                  ? "Cargando pacientes..."
                   : `Total de ${expedientes.length} pacientes registrados`
-            }
-             emptyMessage={loading ? "Cargando pacientes..." : "No hay pacientes para mostrar."}  
-            columns={columns}
-            data={expedientes}
-            searchable={true}
-            searchPlaceholder="Buscar por nombre o número de identidad o teléfono..."
-            searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad', 'telefono']}
-            getRowKey={(row) => String(row.id_persona)}
-            rowActions={getRowActions}
-          />
+              }
+              emptyMessage={
+                loading
+                  ? "Cargando pacientes..."
+                  : "No hay pacientes para mostrar."
+              }
+              columns={columns}
+              data={expedientes}
+              searchable
+              searchPlaceholder="Buscar por nombre, identidad o teléfono..."
+              searchKeys={[
+                "primer_nombre",
+                "segundo_nombre",
+                "primer_apellido",
+                "segundo_apellido",
+                "numero_identidad",
+                "telefono",
+              ]}
+              getRowKey={(row) => String(row.id_persona)}
+              rowActions={getRowActions}
+            />
+          )}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          VISTA 2: Detalle de Expediente del Paciente
-      ══════════════════════════════════════════════════════════════════ */}
-      {viewState === 'detail' && activePatient && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* ── VISTA 2: Detalle ── */}
+      {viewState === "detail" && activePatient && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? 16 : 20,
+          }}
+        >
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
             <Button
-              onClick={handleBackToList}
+              onClick={() => {
+                selectedPatientFromQuery
+                  ? navigate(`/patients/profile/${selectedPatientFromQuery}`)
+                  : setViewState("list");
+              }}
               variant="ghost"
               size="sm"
               style={{ color: C.gray500 }}
             >
-              <ArrowLeft size={16} /> Volver a expedientes
+              <ArrowLeft size={16} />{" "}
+              {selectedPatientFromQuery
+                ? "Volver al perfil"
+                : "Volver a expedientes"}
             </Button>
             <Button
-              onClick={() => setViewState('new-visit')}
+              onClick={() => setViewState("new-visit")}
               variant="primary"
               size="sm"
             >
-              <Plus size={16} /> Registrar Nueva Visita
+              <Plus size={16} />{" "}
+              {isMobile ? "Nueva visita" : "Registrar Nueva Visita"}
             </Button>
           </div>
 
-          {/* Patient Profile Section */}
-          <Card style={{
-            padding: 24,
-            borderRadius: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 20,
-          }}>
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* Info del paciente */}
+          <Card
+            style={{
+              padding: isMobile ? 16 : 24,
+              borderRadius: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: isMobile ? 12 : 24,
+                alignItems: "flex-start",
+                flexWrap: "wrap",
+              }}
+            >
               <div
-                aria-label="Iniciales del paciente"
                 style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: '50%',
-                  background: C.primary,
-                  color: C.white,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 22,
+                  width: isMobile ? 52 : 72,
+                  height: isMobile ? 52 : 72,
+                  borderRadius: "50%",
+                  background: "#0BC5DF",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: isMobile ? 18 : 22,
                   fontWeight: 700,
                   flexShrink: 0,
-                  boxShadow: '0 2px 8px rgba(11, 197, 223, 0.16)'
+                  boxShadow: "0 2px 8px rgba(11,197,223,0.16)",
                 }}
               >
-                {`${activePatient.primer_nombre?.[0] || ''}${activePatient.primer_apellido?.[0] || ''}`.toUpperCase() || 'P'}
+                {`${activePatient.primer_nombre?.[0] ?? ""}${
+                  activePatient.primer_apellido?.[0] ?? ""
+                }`.toUpperCase() || "P"}
               </div>
-
-              <div style={{ flex: 1, minWidth: 280 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.navy }}>
-                    {[activePatient.primer_nombre, activePatient.segundo_nombre, activePatient.primer_apellido, activePatient.segundo_apellido].filter(Boolean).join(' ')}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: isMobile ? 16 : 20,
+                      fontWeight: 700,
+                      color: "#203F49",
+                    }}
+                  >
+                    {[
+                      activePatient.primer_nombre,
+                      activePatient.segundo_nombre,
+                      activePatient.primer_apellido,
+                      activePatient.segundo_apellido,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                   </h2>
-                  <span style={{
-                    background: C.primaryBg,
-                    border: `1px solid ${C.primary}40`,
-                    color: C.primary,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: '2px 10px',
-                    borderRadius: 20,
-                    letterSpacing: '0.5px',
-                  }}>
-                    # PAC-{String(activePatient.id_persona).padStart(6, '0')}
+                  <span
+                    style={{
+                      background: "#E6F8FB",
+                      border: "1px solid rgba(11,197,223,0.4)",
+                      color: "#0BC5DF",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "2px 10px",
+                      borderRadius: 20,
+                    }}
+                  >
+                    # PAC-{String(activePatient.id_persona).padStart(6, "0")}
                   </span>
                 </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 13, color: C.gray700, marginTop: 8, alignItems: 'center' }}>
-                  <span>{calcularEdad(activePatient.fecha_nacimiento)} años · {activePatient.sexo === 'F' ? 'Femenino' : 'Masculino'}</span>
-                  <span style={{ opacity: 0.5 }}>·</span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "6px 14px",
+                    fontSize: 13,
+                    color: "#5F656A",
+                    marginTop: 8,
+                  }}
+                >
+                  <span>
+                    {calcularEdad(activePatient.fecha_nacimiento)} años ·{" "}
+                    {activePatient.sexo === "F" ? "Femenino" : "Masculino"}
+                  </span>
                   <span>+504 {activePatient.telefono}</span>
-                  <span style={{ opacity: 0.5 }}>·</span>
-                  <span>{activePatient.correo_electronico}</span>
-                  <span style={{ opacity: 0.5 }}>·</span>
-                  <span>{activePatient.municipio?.departamento?.nombre ? `${activePatient.municipio.nombre}, ${activePatient.municipio.departamento.nombre}` : activePatient.municipio?.nombre || ''}</span>
+                  {activePatient.correo_electronico && (
+                    <span>{activePatient.correo_electronico}</span>
+                  )}
+                  <span>
+                    {activePatient.municipio.nombre},{" "}
+                    {activePatient.municipio.departamento.nombre}
+                  </span>
                 </div>
-
-                <div style={{ fontSize: 13, color: C.gray700, marginTop: 8 }}>
-                  Última visita: {activePatient.consultas?.[0]?.fecha_fin ? new Date(activePatient.consultas[0].fecha_fin).toLocaleString('es-HN') : 'N/A'}
+                <div style={{ fontSize: 13, color: "#5F656A", marginTop: 6 }}>
+                  Última visita:{" "}
+                  {activePatient.consultas?.[0]
+                    ? new Date(
+                        activePatient.consultas[0].fecha_fin ??
+                          activePatient.consultas[0].fecha_inicio
+                      ).toLocaleString("es-HN")
+                    : "Sin visitas registradas"}
                 </div>
-
               </div>
             </div>
           </Card>
 
-          {/* Visits Timeline */}
+          {/* Timeline de visitas */}
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Visitas y Consultas</h3>
-
-            {activePatient?.consultas.length === 0 ? (
-              <div style={{ border: `2px dashed ${C.primary}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: C.primary008 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <h3
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: C.navy,
+                marginBottom: 16,
+              }}
+            >
+              Historial de Visitas y Consultas
+            </h3>
+            {activePatient.consultas.length === 0 ? (
+              <div
+                style={{
+                  border: "2px dashed rgb(11,197,223)",
+                  borderRadius: 12,
+                  padding: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: 8,
+                  background: "rgba(11,197,223,0.03)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "rgb(11,197,223)",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
                   Sin Visitas Registradas
                 </span>
-                <span style={{ fontSize: 12, color: C.gray500, textAlign: 'center' }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "rgb(136,143,148)",
+                    textAlign: "center",
+                  }}
+                >
                   El cliente no tiene ninguna visita realizada
                 </span>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
                 {activePatient.consultas.map((visit) => {
                   const isExpanded = !!expandedVisits[visit.id_consulta];
-                  const totalCosto = visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
+                  const totalCosto = visit.tratamientos.reduce(
+                    (sum, t) => sum + Number(t.precio),
+                    0
+                  );
                   return (
                     <div
                       key={visit.id_consulta}
@@ -425,236 +834,399 @@ export function ExpedienteScreen() {
                         borderRadius: 12,
                         border: `1.5px solid ${
                           isExpanded
-                            ? C.primary
+                            ? "#0BC5DF"
                             : hoveredCardId === visit.id_consulta
-                              ? C.primary04
-                              : C.gray300
+                            ? "rgba(11,197,223,0.4)"
+                            : C.gray300
                         }`,
-                        padding: '20px 24px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
+                        padding: isMobile ? "14px 16px" : "20px 24px",
+                        display: "flex",
+                        flexDirection: "column",
+                        transition:
+                          "border-color 0.25s, box-shadow 0.25s, transform 0.25s",
                         boxShadow: isExpanded
-                          ? '0 10px 20px -5px rgba(11, 197, 223, 0.08), 0 4px 6px -2px rgba(11, 197, 223, 0.04)'
+                          ? "0 10px 20px -5px rgba(11,197,223,0.08)"
                           : hoveredCardId === visit.id_consulta
-                            ? '0 4px 12px rgba(0, 0, 0, 0.04)'
-                            : 'none',
-                        transform: hoveredCardId === visit.id_consulta ? 'translateY(-2px)' : 'none',
+                          ? "0 4px 12px rgba(0,0,0,0.04)"
+                          : "none",
+                        transform:
+                          hoveredCardId === visit.id_consulta
+                            ? "translateY(-2px)"
+                            : "none",
                       }}
                       onMouseEnter={() => setHoveredCardId(visit.id_consulta)}
                       onMouseLeave={() => setHoveredCardId(null)}
                     >
+                      {/* Header del acordeón */}
                       <div
                         onClick={() => toggleVisit(visit.id_consulta)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleVisit(visit.id_consulta); }}
-                        aria-label={isExpanded ? 'Colapsar detalles de la visita' : 'Expandir detalles de la visita'}
-                        aria-expanded={isExpanded}
                         style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          userSelect: 'none',
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          userSelect: "none",
                           paddingBottom: isExpanded ? 16 : 0,
-                          borderBottom: isExpanded ? `1.5px solid ${C.gray100}` : '1.5px solid transparent',
-                          transition: 'padding-bottom 0.25s, border-bottom-color 0.25s'
+                          borderBottom: isExpanded
+                            ? `1.5px solid ${C.gray100}`
+                            : "1.5px solid transparent",
+                          transition:
+                            "padding-bottom 0.25s, border-bottom-color 0.25s",
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: isMobile ? 8 : 12,
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
                           <div
-                            aria-label={isExpanded ? 'Visita expandida' : 'Visita colapsada'}
                             style={{
                               width: 10,
                               height: 10,
-                              borderRadius: '50%',
-                              background: isExpanded ? C.primary : C.gray300,
-                              transition: 'background 0.25s',
-                              boxShadow: isExpanded ? '0 0 8px rgba(11, 197, 223, 0.6)' : 'none',
+                              borderRadius: "50%",
+                              background: isExpanded ? "#0BC5DF" : "#D3D7DA",
+                              flexShrink: 0,
+                              boxShadow: isExpanded
+                                ? "0 0 8px #0BC5DF"
+                                : "none",
                             }}
                           />
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>
-                            {visit.fecha_fin
-                              ? new Date(visit.fecha_fin).toLocaleDateString('es-HN')
-                              : 'N/A'}
+                          <span
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: C.navy,
+                            }}
+                          >
+                            {new Date(
+                              visit.fecha_fin ?? visit.fecha_inicio
+                            ).toLocaleDateString("es-HN")}
                           </span>
-                          <span style={{ fontSize: 13, color: C.gray500 }}>
-                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>#{visit.id_usuario}</strong>
-                          </span>
+                          {!isMobile && (
+                            <span style={{ fontSize: 13, color: C.gray500 }}>
+                              · Atendido por:{" "}
+                              <strong
+                                style={{ color: C.navy, fontWeight: 600 }}
+                              >
+                                {visit.id_usuario}
+                              </strong>
+                            </span>
+                          )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            {visit.firma_paciente && visit.firma_doctor_snapshot ? (
-                              <span style={{
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: isMobile ? 6 : 12,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {visit.firma_paciente &&
+                          visit.firma_doctor_snapshot ? (
+                            <span
+                              style={{
                                 fontSize: 10,
                                 fontWeight: 700,
-                                padding: '4px 10px',
+                                padding: "4px 10px",
                                 borderRadius: 12,
-                                background: C.primaryBg,
-                                color: C.primary,
-                                border: `1px solid ${C.primary}33`,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                              }}>
-                                Firmado
-                              </span>
-                            ) : (
-                              <span style={{
+                                background: "#E6F8FB",
+                                color: "#0BC5DF",
+                                border: "1px solid rgba(11,197,223,0.2)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                              }}
+                            >
+                              Firmado
+                            </span>
+                          ) : (
+                            <span
+                              style={{
                                 fontSize: 10,
                                 fontWeight: 700,
-                                padding: '4px 10px',
+                                padding: "4px 10px",
                                 borderRadius: 12,
-                                background: '#FFFBEB',
-                                color: '#D97706',
-                                border: '1px solid rgba(217, 119, 6, 0.2)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                              }}>
-                                Firma Pendiente
-                              </span>
-                            )}
-                          </div>
-                          <div style={{
-                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                            color: isExpanded ? C.primary : C.gray500,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}>
+                                background: "#FFFBEB",
+                                color: "#D97706",
+                                border: "1px solid rgba(217,119,6,0.2)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                              }}
+                            >
+                              Firma Pendiente
+                            </span>
+                          )}
+                          <div
+                            style={{
+                              transform: isExpanded
+                                ? "rotate(180deg)"
+                                : "rotate(0deg)",
+                              transition:
+                                "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
+                              color: isExpanded ? "#0BC5DF" : C.gray500,
+                              display: "flex",
+                            }}
+                          >
                             <ChevronDown size={18} />
                           </div>
                         </div>
                       </div>
 
+                      {/* Contenido expandible */}
                       <div
-                        aria-hidden={!isExpanded}
                         style={{
-                          maxHeight: isExpanded ? '3000px' : '0px',
+                          maxHeight: isExpanded ? "1200px" : "0px",
                           opacity: isExpanded ? 1 : 0,
-                          overflow: 'hidden',
-                          transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out',
-                          display: 'flex',
-                          flexDirection: 'column',
+                          overflow: "hidden",
+                          transition:
+                            "max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s, padding-top 0.4s",
+                          display: "flex",
+                          flexDirection: "column",
                           gap: 20,
                           paddingTop: isExpanded ? 16 : 0,
                         }}
                       >
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                          gap: 20,
-                          background: C.gray50,
-                          borderRadius: 10,
-                          padding: 20,
-                          border: `1px solid ${C.gray100}`,
-                        }}>
+                        {isMobile && (
+                          <div style={{ fontSize: 12, color: C.gray500 }}>
+                            Atendido por:{" "}
+                            <strong style={{ color: C.navy }}>
+                              {visit.id_usuario}
+                            </strong>
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile
+                              ? "1fr"
+                              : "repeat(auto-fit, minmax(280px, 1fr))",
+                            gap: 16,
+                            background: "#F8F9FA",
+                            borderRadius: 10,
+                            padding: isMobile ? 14 : 20,
+                            border: `1px solid ${C.gray100}`,
+                          }}
+                        >
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: C.gray500,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.8px",
+                                marginBottom: 6,
+                              }}
+                            >
                               Motivo de consulta
                             </div>
-                            <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>
+                            <div
+                              style={{
+                                fontSize: 13.5,
+                                color: C.navy,
+                                fontWeight: 500,
+                                lineHeight: 1.5,
+                              }}
+                            >
                               {visit.motivo}
                             </div>
                           </div>
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: C.gray500,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.8px",
+                                marginBottom: 6,
+                              }}
+                            >
                               Diagnóstico de evolución
                             </div>
-                            <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, lineHeight: 1.5 }}>
+                            <div
+                              style={{
+                                fontSize: 13.5,
+                                color: C.navy,
+                                lineHeight: 1.5,
+                              }}
+                            >
                               {visit.diagnostico}
                             </div>
                           </div>
-                          <div style={{ gridColumn: '1 / -1' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: C.gray500,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.8px",
+                                marginBottom: 6,
+                              }}
+                            >
                               Notas clínicas
                             </div>
-                            <div style={{ fontSize: 13.5, color: C.gray700, marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                            <div
+                              style={{
+                                fontSize: 13.5,
+                                color: C.gray700,
+                                lineHeight: 1.5,
+                                whiteSpace: "pre-line",
+                              }}
+                            >
                               {visit.notas}
                             </div>
                           </div>
                         </div>
 
-                        {visit.tratamientos?.length > 0 && (
-                          <div style={{
-                            background: C.white,
-                            borderRadius: 10,
-                            padding: 18,
-                            border: `1.5px solid ${C.primary015}`,
-                            boxShadow: '0 2px 8px rgba(11, 197, 223, 0.03)',
-                          }}>
-                            <div style={{
-                              fontSize: 12,
-                              color: C.primary,
-                              fontWeight: 700,
-                              marginBottom: 12,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px',
-                            }}>
-                              <DollarSign size={14} /> Tratamientos y Cobros realizados
+                        {visit.tratamientos.length > 0 && (
+                          <div
+                            style={{
+                              background: "#fff",
+                              borderRadius: 10,
+                              padding: isMobile ? 14 : 18,
+                              border: "1.5px solid rgba(11,197,223,0.15)",
+                              boxShadow: "0 2px 8px rgba(11,197,223,0.03)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "#0BC5DF",
+                                fontWeight: 700,
+                                marginBottom: 12,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                              }}
+                            >
+                              <DollarSign size={14} /> Tratamientos y Cobros
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 10,
+                              }}
+                            >
                               {visit.tratamientos.map((t, idx) => (
-                                <div key={idx} style={{
-                                  display: 'flex', justifyContent: 'space-between', fontSize: 13,
-                                  color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
-                                }}>
-                                  <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
-                                  <span style={{ fontWeight: 600, color: C.navy }}>
-                                    L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                <div
+                                  key={idx}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    fontSize: 13,
+                                    color: C.navy,
+                                    paddingBottom: 8,
+                                    borderBottom: `1px solid ${C.gray100}`,
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 500 }}>
+                                    {t.tratamiento.nombre}
+                                  </span>
+                                  <span style={{ fontWeight: 600 }}>
+                                    L.{" "}
+                                    {t.precio.toLocaleString("es-HN", {
+                                      minimumFractionDigits: 2,
+                                    })}
                                   </span>
                                 </div>
                               ))}
-                              <div style={{
-                                display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
-                                fontWeight: 700, color: C.navy, paddingTop: 6, marginTop: 4,
-                              }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  fontSize: 13.5,
+                                  fontWeight: 700,
+                                  color: C.navy,
+                                  paddingTop: 6,
+                                }}
+                              >
                                 <span>Total de la visita</span>
-                                <span style={{ color: C.primary, fontSize: 14.5 }}>
-                                  L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                <span
+                                  style={{ color: "#0BC5DF", fontSize: 14.5 }}
+                                >
+                                  L.{" "}
+                                  {totalCosto.toLocaleString("es-HN", {
+                                    minimumFractionDigits: 2,
+                                  })}
                                 </span>
                               </div>
                             </div>
                           </div>
                         )}
 
-                        {visit.archivos?.length > 0 && (
+                        {visit?.archivos?.length > 0 && (
                           <div>
-                            <div style={{
-                              fontSize: 11, color: C.gray500, fontWeight: 700,
-                              textTransform: 'uppercase', letterSpacing: '0.8px',
-                              marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
-                            }}>
-                              Archivos y Radiografías Adjuntas
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: C.gray500,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.8px",
+                                marginBottom: 10,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              Archivos y Radiografías
                             </div>
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 10,
+                                flexWrap: "wrap",
+                              }}
+                            >
                               {visit.archivos.map((archivo, idx) => (
                                 <div
                                   key={idx}
                                   style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    background: C.white, border: `1.5px solid ${C.gray100}`,
-                                    borderRadius: 8, padding: '8px 14px', fontSize: 12.5,
-                                    color: C.navy, boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                                    transition: 'border-color 0.2s', cursor: 'pointer',
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    background: "#fff",
+                                    border: `1.5px solid ${C.gray100}`,
+                                    borderRadius: 8,
+                                    padding: "8px 14px",
+                                    fontSize: 12.5,
+                                    color: C.navy,
+                                    cursor: "pointer",
                                   }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.gray100; }}
-                                  role="button"
-                                  tabIndex={0}
-                                  aria-label={`Archivo adjunto: ${archivo.nombre}`}
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.borderColor =
+                                      "#0BC5DF")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.borderColor =
+                                      C.gray100)
+                                  }
                                 >
                                   <Paperclip size={13} color={C.gray500} />
-                                  <span style={{ fontWeight: 500 }}>{archivo.nombre}</span>
-                                  <span style={{
-                                    fontSize: 10, fontWeight: 700, background: C.primaryBg,
-                                    color: C.primary, padding: '2px 8px', borderRadius: 4,
-                                    marginLeft: 4, textTransform: 'uppercase',
-                                  }}>
-                                    {categoriaLabel(archivo.categoria)}
+                                  <span style={{ fontWeight: 500 }}>
+                                    {archivo.nombre}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      background: "#E6F8FB",
+                                      color: "#0BC5DF",
+                                      padding: "2px 8px",
+                                      borderRadius: 4,
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
+                                    {archivo.categoria.split(" ")[1] ||
+                                      archivo.categoria}
                                   </span>
                                 </div>
                               ))}
@@ -671,16 +1243,116 @@ export function ExpedienteScreen() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          VISTA 3: Formulario de Registro de Nueva Visita
-      ══════════════════════════════════════════════════════════════════ */}
-      {viewState === 'new-visit' && activePatient && (
+      {/* ── VISTA 3: Nueva visita ── */}
+      {viewState === "new-visit" && activePatient && (
         <NuevaVisita
           patient={activePatient}
           onBack={handleNewVisitBack}
           onSave={handleNewVisitSave}
         />
       )}
+
+      {/* ── Drawers de KPIs ── */}
+      {drawerConfigs.map(({ key, title, subtitle, items }) => (
+        <StatsDrawer
+          key={key}
+          open={openDrawer === key}
+          title={title}
+          subtitle={subtitle}
+          onClose={() => setOpenDrawer(null)}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {items.length === 0 ? (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#888F94",
+                  fontSize: 14,
+                  padding: 24,
+                }}
+              >
+                No hay registros en esta categoría.
+              </p>
+            ) : (
+              items.map((exp) => {
+                const nombre = [
+                  exp.primer_nombre,
+                  exp.segundo_nombre,
+                  exp.primer_apellido,
+                  exp.segundo_apellido,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                const initials = `${exp.primer_nombre?.[0] ?? ""}${
+                  exp.primer_apellido?.[0] ?? ""
+                }`.toUpperCase();
+                return (
+                  <div
+                    key={exp.id_persona}
+                    onClick={() => {
+                      handleSelectPatient(exp.id_persona);
+                      setOpenDrawer(null);
+                    }}
+                    style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      border: "1px solid #D3D7DA",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        background: "#E6F8FB",
+                        color: "#0BC5DF",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#203F49",
+                          margin: 0,
+                        }}
+                      >
+                        {nombre}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#888F94",
+                          margin: "2px 0 0",
+                        }}
+                      >
+                        {exp.consultas.length} visita
+                        {exp.consultas.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={14}
+                      style={{ color: "#888F94", flexShrink: 0 }}
+                    />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </StatsDrawer>
+      ))}
     </div>
   );
 }
