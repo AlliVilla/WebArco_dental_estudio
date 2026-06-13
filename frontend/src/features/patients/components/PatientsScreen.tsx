@@ -245,7 +245,6 @@ export function PatientsScreen({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
