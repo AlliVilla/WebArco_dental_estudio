@@ -1,8 +1,12 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { History, Download, RefreshCw, X } from "lucide-react";
-import { DataTable } from "../../../components";
+import { History, Download, RefreshCw } from "lucide-react";
+import { DataTable, StatsDrawer } from "../../../components";
 import { ReminderService } from "../services/ReminderService";
-import { formatDate, formatInitials } from "../../../utils/formatters";
+import {
+  formatDate,
+  formatInitials,
+  normalizeSearch,
+} from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import type {
   HistorialConfirmacionRow,
@@ -21,12 +25,6 @@ function formatFechaHora(iso: string | null) {
     minute: "2-digit",
   })}`;
 }
-
-const normalize = (s: string) =>
-  s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
 
 // ─── Badges ───────────────────────────────────────────────────────────────────
 function RespuestaBadge({ respuesta }: { respuesta: RespuestaPaciente }) {
@@ -192,131 +190,6 @@ function HistorialCard({ row }: { row: HistorialConfirmacionRow }) {
   );
 }
 
-// ─── Drawer de stats ──────────────────────────────────────────────────────────
-function StatsDrawer({
-  open,
-  title,
-  subtitle,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  title: string;
-  subtitle: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  const { isMobile, width: w } = useResponsive();
-  const panelStyle: React.CSSProperties = isMobile
-    ? {
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        maxHeight: "85vh",
-        background: "#fff",
-        borderRadius: "20px 20px 0 0",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
-        zIndex: 201,
-        display: "flex",
-        flexDirection: "column",
-        transform: open ? "translateY(0)" : "translateY(100%)",
-        transition: "transform 0.3s ease",
-      }
-    : {
-        position: "fixed",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: Math.min(w - 32, 420),
-        background: "#fff",
-        boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
-        zIndex: 201,
-        display: "flex",
-        flexDirection: "column",
-        transform: open ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 0.25s ease",
-      };
-  return (
-    <>
-      {open && (
-        <div
-          onClick={onClose}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            zIndex: 200,
-          }}
-        />
-      )}
-      <div style={panelStyle}>
-        {isMobile && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              padding: "12px 0 4px",
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 4,
-                borderRadius: 9999,
-                background: "#D3D7DA",
-              }}
-            />
-          </div>
-        )}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            padding: isMobile ? "12px 20px 16px" : "20px 24px",
-            borderBottom: "1px solid #D3D7DA",
-            flexShrink: 0,
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                color: "#203F49",
-                margin: 0,
-              }}
-            >
-              {title}
-            </h3>
-            <p style={{ fontSize: 13, color: "#888F94", margin: "4px 0 0" }}>
-              {subtitle}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: 6,
-              border: "none",
-              background: "none",
-              cursor: "pointer",
-              color: "#888F94",
-              display: "flex",
-              borderRadius: 6,
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-          {children}
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export function HistorialConfirmacionesScreen(
   _props: HistorialConfirmacionesScreenProps
@@ -356,6 +229,8 @@ export function HistorialConfirmacionesScreen(
         setRows([]);
       }
     } catch (err: unknown) {
+      if (import.meta.env.DEV)
+        console.error("[HistorialConfirmacionesScreen]", err);
       if (mountedRef.current) {
         setError(
           err instanceof Error ? err.message : "Error al cargar el historial"
@@ -390,7 +265,7 @@ export function HistorialConfirmacionesScreen(
       rows.filter((r) => {
         const matchSearch =
           !mobileSearch ||
-          normalize(r.paciente).includes(normalize(mobileSearch));
+          normalizeSearch(r.paciente).includes(normalizeSearch(mobileSearch));
         const matchResp =
           !mobileFilterRespuesta || r.respuesta === mobileFilterRespuesta;
         const matchCanal = !mobileFilterCanal || r.canal === mobileFilterCanal;
@@ -398,6 +273,9 @@ export function HistorialConfirmacionesScreen(
       }),
     [rows, mobileSearch, mobileFilterRespuesta, mobileFilterCanal]
   );
+
+  // Fix 6: cards en móvil Y tablet — DataTable solo en desktop
+  const showCards = isMobile || isTablet;
 
   type Row = HistorialConfirmacionRow & Record<string, unknown>;
 
@@ -630,8 +508,8 @@ export function HistorialConfirmacionesScreen(
         </span>
       </div>
 
-      {/* Móvil: cards / Tablet+Desktop: DataTable */}
-      {isMobile ? (
+      {/* Móvil+Tablet: cards / Desktop: DataTable */}
+      {showCards ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Búsqueda */}
           <input

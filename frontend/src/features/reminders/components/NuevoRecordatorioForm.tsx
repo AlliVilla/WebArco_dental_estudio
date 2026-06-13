@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ReminderService } from "../services/ReminderService";
 import { CanalRecordatorio } from "../types/types";
-import { Bell, X } from "lucide-react";
+import { Bell, X, MessageSquare, Phone, Mail } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
 import { Button, Select } from "../../../context";
 import { useResponsive } from "../../../hooks/useWindowWidth";
+import { Z } from "../../../utils/zIndex";
 
 interface NuevoRecordatorioFormProps {
   open: boolean;
@@ -135,7 +136,7 @@ export function NuevoRecordatorioForm({
         inset: 0,
         background: "rgba(0,0,0,0.35)",
         backdropFilter: "blur(2px)",
-        zIndex: 200,
+        zIndex: Z.MODAL_OVERLAY,
         display: "flex",
         alignItems: isMobile ? "flex-end" : "center",
         justifyContent: "center",
@@ -264,9 +265,9 @@ export function NuevoRecordatorioForm({
                 }
                 error={errors.canal}
                 options={[
-                  { value: "WhatsApp", label: "💬 WhatsApp" },
-                  { value: "SMS", label: "📱 SMS" },
-                  { value: "Correo", label: "✉️ Correo" },
+                  { value: "WhatsApp", label: "WhatsApp" },
+                  { value: "SMS", label: "SMS" },
+                  { value: "Correo", label: "Correo electrónico" },
                 ]}
               />
             </FullWidthField>
