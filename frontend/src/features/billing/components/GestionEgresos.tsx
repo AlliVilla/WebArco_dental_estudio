@@ -64,36 +64,72 @@ export function GestionEgresos() {
   const [idSeleccionado, setIdSeleccionado] = useState<string | null>(null);
   const [responsable, setResponsable] = useState(nombreAutenticado);
 
-  const indicadores = [
-    {
-      label: "Egresos del Mes",
-      value: "$0.00",
-      icon: TrendingDown,
-      color: "#EF4444",
-      bg: "#FEE2E2",
-    },
-    {
-      label: "Total en Insumos",
-      value: "$0.00",
-      icon: Package,
-      color: "#EF9F27",
-      bg: "#FFFBEB",
-    },
-    {
-      label: "Egreso del Día",
-      value: "$0.00",
-      icon: Calendar,
-      color: "#0BC5DF",
-      bg: "#E6F8FB",
-    },
-    {
-      label: "Egreso Promedio",
-      value: "$0.00",
-      icon: DollarSign,
-      color: "#203F49",
-      bg: "#F1F3F4",
-    },
-  ];
+  const localHoyStr = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const r = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${r}`;
+  }, []);
+
+  const indicadores = useMemo(() => {
+    const y = new Date().getFullYear();
+    const m = String(new Date().getMonth() + 1).padStart(2, "0");
+    const prefix = `${y}-${m}`;
+
+    const egresosDelMes = registros
+      .filter((r) => r.fecha.startsWith(prefix))
+      .reduce((sum, r) => sum + r.monto, 0);
+
+    const totalInsumos = registros
+      .filter((r) => r.categoria === "Insumos")
+      .reduce((sum, r) => sum + r.monto, 0);
+
+    const egresoDelDia = registros
+      .filter((r) => r.fecha === localHoyStr)
+      .reduce((sum, r) => sum + r.monto, 0);
+
+    const egresoPromedio = registros.length > 0
+      ? registros.reduce((sum, r) => sum + r.monto, 0) / registros.length
+      : 0;
+
+    const formatMoneda = (val: number) =>
+      `$${val.toLocaleString("es-MX", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+
+    return [
+      {
+        label: "Egresos del Mes",
+        value: formatMoneda(egresosDelMes),
+        icon: TrendingDown,
+        color: "#EF4444",
+        bg: "#FEE2E2",
+      },
+      {
+        label: "Total en Insumos",
+        value: formatMoneda(totalInsumos),
+        icon: Package,
+        color: "#EF9F27",
+        bg: "#FFFBEB",
+      },
+      {
+        label: "Egreso del Día",
+        value: formatMoneda(egresoDelDia),
+        icon: Calendar,
+        color: "#0BC5DF",
+        bg: "#E6F8FB",
+      },
+      {
+        label: "Egreso Promedio",
+        value: formatMoneda(egresoPromedio),
+        icon: DollarSign,
+        color: "#203F49",
+        bg: "#F1F3F4",
+      },
+    ];
+  }, [registros, localHoyStr]);
 
   const obtenerBadgeCategoria = (categoria: string) => {
     const variants: Record<string, { bg: string; text: string }> = {
