@@ -137,6 +137,7 @@ export function GestionEgresos() {
   const [monto, setMonto] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [idSeleccionado, setIdSeleccionado] = useState<string | null>(null);
+  const [responsable, setResponsable] = useState(nombreAutenticado);
 
   const indicadores = [
     {
@@ -222,7 +223,7 @@ export function GestionEgresos() {
         concepto,
         categoria,
         monto: parsedMonto,
-        responsable: nombreAutenticado,
+        responsable: responsable.trim() || nombreAutenticado,
         observaciones,
       };
       setRegistros([nuevoRegistro, ...registros]);
@@ -236,6 +237,7 @@ export function GestionEgresos() {
               concepto,
               categoria,
               monto: parsedMonto,
+              responsable: responsable.trim() || nombreAutenticado,
               observaciones,
             }
             : reg,
@@ -253,6 +255,7 @@ export function GestionEgresos() {
     setMonto("");
     setCategoria("Insumos");
     setObservaciones("");
+    setResponsable(nombreAutenticado);
     setIdSeleccionado(null);
   };
 
@@ -269,6 +272,7 @@ export function GestionEgresos() {
       setCategoria(registro.categoria);
       setMonto(String(registro.monto));
       setObservaciones(registro.observaciones);
+      setResponsable(registro.responsable);
     } else {
       limpiarFormulario();
     }
@@ -697,22 +701,45 @@ export function GestionEgresos() {
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 6 }}
                 >
-                  <label
-                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
                   >
-                    Responsable
-                    {modoModal !== "ver" && (
-                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                    <label
+                      style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+                    >
+                      Responsable
+                      {modoModal !== "ver" && (
+                        <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                      )}
+                    </label>
+                    {modoModal === "editar" && responsable !== nombreAutenticado && (
+                      <button
+                        type="button"
+                        onClick={() => setResponsable(nombreAutenticado)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#0BC5DF",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        Asignarme a mí
+                      </button>
                     )}
-                  </label>
+                  </div>
                   <input
-                    disabled
-                    value={
-                      modoModal === "crear"
-                        ? nombreAutenticado
-                        : registros.find((r) => r.id === idSeleccionado)
-                          ?.responsable || ""
-                    }
+                    disabled={modoModal === "ver"}
+                    value={responsable}
+                    onChange={(e) => setResponsable(e.target.value)}
+                    required
+                    placeholder="Nombre del responsable"
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -720,7 +747,7 @@ export function GestionEgresos() {
                       border: "1px solid #D3D7DA",
                       outline: "none",
                       fontSize: 14,
-                      background: "#F1F3F4",
+                      background: modoModal === "ver" ? "#F1F3F4" : "#fff",
                       color: "#203F49",
                     }}
                   />
