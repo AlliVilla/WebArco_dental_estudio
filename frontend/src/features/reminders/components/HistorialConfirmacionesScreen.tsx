@@ -776,7 +776,7 @@ export function HistorialConfirmacionesScreen(
       ) : (
         <DataTable<Row>
           columns={columns}
-          data={rows as Row[]}
+          data={filteredRows as Row[]}
           title="Historial de confirmaciones"
           description="Registro de todos los recordatorios enviados y sus respuestas"
           searchable
