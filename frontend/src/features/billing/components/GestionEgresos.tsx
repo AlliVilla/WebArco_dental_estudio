@@ -26,6 +26,25 @@ import {
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
 
+const obtenerHoyLocal = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+};
+
+const escapeHtml = (text: string) => {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (c) => map[c]);
+};
+
 type CategoriaEgreso = "Insumos" | "Equipos" | "Nómina" | "Servicios";
 const CATEGORIAS: CategoriaEgreso[] = [
   "Insumos",
@@ -57,7 +76,7 @@ export function GestionEgresos() {
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
     "crear",
   );
-  const [registros, setRegistros] = useState<RegistroEgreso[]>([]);
+  const [registros, setRegistros] = useLocalStorage<RegistroEgreso[]>("webarco_egresos", []);
   const [estaCargando, setEstaCargando] = useState(false);
 
   const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] =
@@ -93,7 +112,7 @@ export function GestionEgresos() {
     return "Usuario Autenticado";
   }, [userStored]);
 
-  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [fecha, setFecha] = useState(obtenerHoyLocal());
   const [concepto, setConcepto] = useState("");
   const [categoria, setCategoria] = useState<CategoriaEgreso>("Insumos");
   const [monto, setMonto] = useState("");
@@ -107,13 +126,7 @@ export function GestionEgresos() {
     }
   }, [nombreAutenticado, modoModal, idSeleccionado]);
 
-  const localHoyStr = useMemo(() => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const r = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${r}`;
-  }, []);
+  const localHoyStr = obtenerHoyLocal();
 
   const indicadores = useMemo(() => {
     const y = new Date().getFullYear();
@@ -138,7 +151,7 @@ export function GestionEgresos() {
         : 0;
 
     const formatMoneda = (val: number) =>
-      `L. ${val.toLocaleString("es-MX", {
+      `L. ${val.toLocaleString("es-HN", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`;
@@ -295,8 +308,7 @@ export function GestionEgresos() {
     if (modoModal === "ver") return;
     setError(null);
 
-    const hoy = new Date().toISOString().split("T")[0];
-    if (fecha > hoy) {
+    if (fecha > obtenerHoyLocal()) {
       setError("No se pueden registrar egresos con una fecha futura.");
       return;
     }
@@ -306,11 +318,11 @@ export function GestionEgresos() {
       return;
     }
 
-    const parsedMonto = Number(Number(monto).toFixed(2));
     if (!/^\d+(\.\d{1,2})?$/.test(monto)) {
       setError("Monto inválido: máximo 2 decimales");
       return;
     }
+    const parsedMonto = Number(Number(monto).toFixed(2));
     if (parsedMonto > 999999999.99) {
       setError("Monto excede el límite permitido");
       return;
@@ -371,7 +383,7 @@ export function GestionEgresos() {
   };
 
   const limpiarFormulario = () => {
-    setFecha(new Date().toISOString().split("T")[0]);
+    setFecha(obtenerHoyLocal());
     setConcepto("");
     setMonto("");
     setCategoria("Insumos");
@@ -411,11 +423,11 @@ export function GestionEgresos() {
       .map(
         (r) => `
       <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.fecha}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.concepto}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.categoria}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.fecha)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.concepto)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.categoria)}</td>
         <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: bold; text-align: right;">${formatCurrency(r.monto)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${r.responsable}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.responsable)}</td>
       </tr>
     `,
       )
@@ -447,7 +459,7 @@ export function GestionEgresos() {
               <p class="subtitle">Reporte de Control de Egresos y Gastos</p>
             </div>
             <div class="meta">
-              <p style="margin: 0;">Fecha de impresión: ${new Date().toLocaleDateString("es-MX")}</p>
+              <p style="margin: 0;">Fecha de impresión: ${new Date().toLocaleDateString("es-HN")}</p>
               <p style="margin: 5px 0 0 0;">Total Registros: ${registros.length}</p>
             </div>
           </div>
@@ -471,10 +483,10 @@ export function GestionEgresos() {
             </tbody>
           </table>
           <script>
-            window.onload = function() {
-              window.print();
+            window.onafterprint = function() {
               window.close();
             };
+            window.print();
           </script>
         </body>
       </html>
