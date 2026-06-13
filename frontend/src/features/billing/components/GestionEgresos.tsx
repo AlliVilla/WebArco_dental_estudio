@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, Alert } from "../../../context";
 import {
   TrendingDown,
@@ -68,7 +68,7 @@ const datosMock: RegistroEgreso[] = [
     concepto: "Servicio de limpieza",
     categoria: "Servicios",
     monto: 800,
-    responsable: "Dr. Karla Arita",
+    responsable: "Dr. Juan Miguel Arita",
     observaciones: "Limpieza profunda mensual",
   },
   {
@@ -77,7 +77,7 @@ const datosMock: RegistroEgreso[] = [
     concepto: "Papel de impresora",
     categoria: "Insumos",
     monto: 125,
-    responsable: "Dr. Karla Arita",
+    responsable: "Dr. Juan Miguel Arita",
     observaciones: "Resmas de papel A4",
   },
   {
@@ -95,21 +95,39 @@ const datosMock: RegistroEgreso[] = [
     concepto: "Pago nómina recepcionista",
     categoria: "Nómina",
     monto: 5500,
-    responsable: "Dr. Karla Arita",
+    responsable: "Dr. Juan Miguel Arita",
     observaciones: "Quincena 2 - Mayo",
   },
 ];
 
 export function GestionEgresos() {
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
-  const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">("crear");
+  const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
+    "crear",
+  );
   const [registros, setRegistros] = useState<RegistroEgreso[]>(datosMock);
 
-  const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] = useState(false);
-  const [registroAEliminar, setRegistroAEliminar] = useState<string | null>(null);
+  const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] =
+    useState(false);
+  const [registroAEliminar, setRegistroAEliminar] = useState<string | null>(
+    null,
+  );
 
   const [error, setError] = useState<string | null>(null);
-  const usuarioAutenticado = JSON.parse(localStorage.getItem("webarco_user") || '{"nombre": "Usuario Autenticado"}');
+  const userStored = JSON.parse(localStorage.getItem("webarco_user") || "{}");
+
+  const nombreAutenticado = useMemo(() => {
+    if (userStored.nombre) return userStored.nombre;
+    // El backend (ExpedienteClinicoService) anida los datos en el objeto 'persona'
+    const p = userStored.persona;
+    if (p?.primer_nombre) {
+      return `${p.primer_nombre} ${p.primer_apellido || ""}`.trim();
+    }
+    if (userStored.primer_nombre) {
+      return `${userStored.primer_nombre} ${userStored.primer_apellido || ""}`.trim();
+    }
+    return "Usuario Autenticado";
+  }, [userStored]);
 
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [concepto, setConcepto] = useState("");
@@ -204,16 +222,25 @@ export function GestionEgresos() {
         concepto,
         categoria,
         monto: parsedMonto,
-        responsable: usuarioAutenticado.nombre,
+        responsable: nombreAutenticado,
         observaciones,
       };
       setRegistros([nuevoRegistro, ...registros]);
     } else if (modoModal === "editar" && idSeleccionado) {
-      setRegistros(registros.map(reg =>
-        reg.id === idSeleccionado
-          ? { ...reg, fecha, concepto, categoria, monto: parsedMonto, observaciones }
-          : reg
-      ));
+      setRegistros(
+        registros.map((reg) =>
+          reg.id === idSeleccionado
+            ? {
+              ...reg,
+              fecha,
+              concepto,
+              categoria,
+              monto: parsedMonto,
+              observaciones,
+            }
+            : reg,
+        ),
+      );
     }
 
     setEstaModalAbierto(false);
@@ -229,7 +256,10 @@ export function GestionEgresos() {
     setIdSeleccionado(null);
   };
 
-  const abrirModal = (modo: "crear" | "editar" | "ver", registro?: RegistroEgreso) => {
+  const abrirModal = (
+    modo: "crear" | "editar" | "ver",
+    registro?: RegistroEgreso,
+  ) => {
     setError(null);
     setModoModal(modo);
     if (registro) {
@@ -375,9 +405,9 @@ export function GestionEgresos() {
           {
             key: "responsable",
             placeholder: "Responsable",
-            options: [
-              { value: usuarioAutenticado.nombre, label: usuarioAutenticado.nombre },
-            ],
+            options: Array.from(new Set(registros.map((r) => r.responsable))).map(
+              (nombre) => ({ value: nombre, label: nombre }),
+            ),
           },
         ]}
         primaryAction={{
@@ -469,7 +499,11 @@ export function GestionEgresos() {
                     fontWeight: 600,
                   }}
                 >
-                  {modoModal === "ver" ? "Detalles del Egreso" : modoModal === "editar" ? "Editar Egreso" : "Registrar Nuevo Egreso"}
+                  {modoModal === "ver"
+                    ? "Detalles del Egreso"
+                    : modoModal === "editar"
+                      ? "Editar Egreso"
+                      : "Registrar Nuevo Egreso"}
                 </h3>
               </div>
               <button
@@ -675,7 +709,7 @@ export function GestionEgresos() {
                     disabled
                     value={
                       modoModal === "crear"
-                        ? usuarioAutenticado.nombre
+                        ? nombreAutenticado
                         : registros.find((r) => r.id === idSeleccionado)
                           ?.responsable || ""
                     }
@@ -771,7 +805,9 @@ export function GestionEgresos() {
                       cursor: "pointer",
                     }}
                   >
-                    {modoModal === "editar" ? "Guardar Cambios" : "Registrar Egreso"}
+                    {modoModal === "editar"
+                      ? "Guardar Cambios"
+                      : "Registrar Egreso"}
                   </button>
                 )}
               </div>
