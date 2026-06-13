@@ -107,6 +107,9 @@ export function GestionEgresos() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+  const authenticatedUser = JSON.parse(localStorage.getItem("webarco_user") || '{"nombre": "Usuario Autenticado"}');
+
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [concepto, setConcepto] = useState("");
   const [categoria, setCategoria] = useState<
@@ -172,14 +175,22 @@ export function GestionEgresos() {
 
   const handleRegisterExpense = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    const today = new Date().toISOString().split("T")[0];
+    if (fecha > today) {
+      setError("No se pueden registrar egresos con una fecha futura.");
+      return;
+    }
+
     if (!concepto || !monto) {
-      alert("Por favor complete los campos requeridos");
+      setError("Por favor complete todos los campos obligatorios.");
       return;
     }
 
     const parsedMonto = Number(monto);
     if (isNaN(parsedMonto) || parsedMonto <= 0) {
-      alert("El monto debe ser mayor que 0.00");
+      setError("El monto debe ser un valor numérico mayor a 0.00");
       return;
     }
 
@@ -189,7 +200,7 @@ export function GestionEgresos() {
       concepto,
       categoria,
       monto: parsedMonto,
-      responsable: "Dr. Karla Arita",
+      responsable: authenticatedUser.nombre,
       observaciones,
     };
 
@@ -341,7 +352,10 @@ export function GestionEgresos() {
         primaryAction={{
           label: "Registrar Egreso",
           icon: <Plus size={16} />,
-          onClick: () => setIsDialogOpen(true),
+          onClick: () => {
+            setError(null);
+            setIsDialogOpen(true);
+          },
         }}
         secondaryActions={[
           {
@@ -445,6 +459,12 @@ export function GestionEgresos() {
               </button>
             </div>
 
+            {error && (
+              <div style={{ padding: "16px 20px 0 20px" }}>
+                <Alert variant="error" message={error} />
+              </div>
+            )}
+
             <form
               onSubmit={handleRegisterExpense}
               style={{
@@ -496,6 +516,7 @@ export function GestionEgresos() {
                     <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
                   </label>
                   <select
+                    required
                     value={categoria}
                     onChange={(e) =>
                       setCategoria(
@@ -594,7 +615,7 @@ export function GestionEgresos() {
                   </label>
                   <input
                     disabled
-                    value="Dr. Karla Arita"
+                    value={authenticatedUser.nombre}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
