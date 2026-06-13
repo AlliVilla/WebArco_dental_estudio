@@ -3,7 +3,7 @@ import { Card, Alert, Avatar } from "../../../context";
 import {
   TrendingDown,
   Package,
-  Wrench,
+  Calendar,
   DollarSign,
   Plus,
   FileSpreadsheet,
@@ -133,14 +133,14 @@ export function GestionEgresos() {
     {
       label: "Egreso del Día",
       value: "$1,450.00",
-      icon: DollarSign,
+      icon: Calendar,
       color: "#0BC5DF",
       bg: "#E6F8FB",
     },
     {
       label: "Egreso Promedio",
       value: "$920.00",
-      icon: Wrench,
+      icon: DollarSign,
       color: "#203F49",
       bg: "#F1F3F4",
     },
@@ -177,12 +177,18 @@ export function GestionEgresos() {
       return;
     }
 
+    const parsedMonto = Number(monto);
+    if (isNaN(parsedMonto) || parsedMonto < 0) {
+      alert("El monto no debe ser negativo.");
+      return;
+    }
+
     const newRecord: ExpenseRecord = {
       id: String(records.length + 1),
       fecha,
       concepto,
       categoria,
-      monto: Number(monto),
+      monto: parsedMonto,
       responsable: "Dr. Karla Arita",
       observaciones,
     };
@@ -462,6 +468,7 @@ export function GestionEgresos() {
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
                     Fecha
+                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
                   </label>
                   <input
                     type="date"
@@ -486,6 +493,7 @@ export function GestionEgresos() {
                     style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                   >
                     Categoría
+                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
                   </label>
                   <select
                     value={categoria}
@@ -495,7 +503,7 @@ export function GestionEgresos() {
                           | "Insumos"
                           | "Equipos"
                           | "Nómina"
-                          | "Servicios"
+                          | "Servicios",
                       )
                     }
                     style={{
@@ -522,6 +530,7 @@ export function GestionEgresos() {
                   style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
                 >
                   Concepto
+                  <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
                 </label>
                 <input
                   placeholder="Descripción del egreso..."
@@ -540,59 +549,85 @@ export function GestionEgresos() {
                 />
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label
-                  style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
                 >
-                  Monto ($)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  required
-                  value={monto}
-                  onChange={(e) => setMonto(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #D3D7DA",
-                    outline: "none",
-                    fontSize: 14,
-                    color: "#203F49",
-                  }}
-                />
+                  <label
+                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+                  >
+                    Monto ($)
+                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                    value={monto}
+                    onChange={(e) => setMonto(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #D3D7DA",
+                      outline: "none",
+                      fontSize: 14,
+                      color: "#203F49",
+                    }}
+                  />
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
+                  <label
+                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+                  >
+                    Responsable
+                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
+                  </label>
+                  <input
+                    disabled
+                    value="Dr. Karla Arita"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #D3D7DA",
+                      outline: "none",
+                      fontSize: 14,
+                      background: "#F1F3F4",
+                      color: "#203F49",
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label
-                  style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                >
-                  Responsable
-                </label>
-                <input
-                  disabled
-                  value="Dr. Karla Arita"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #D3D7DA",
-                    outline: "none",
-                    fontSize: 14,
-                    background: "#F1F3F4",
-                    color: "#203F49",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label
-                  style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                >
-                  Observaciones
-                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <label
+                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
+                  >
+                    Observaciones
+                  </label>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#5A6370",
+                      background: "#E6E8EC",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                    }}
+                  >
+                    Opcional
+                  </span>
+                </div>
                 <textarea
                   value={observaciones}
                   placeholder="Notas o comentarios adicionales..."
