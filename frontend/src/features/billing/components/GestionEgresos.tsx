@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { Card, Alert } from "../../../context";
 import {
   TrendingDown,
@@ -209,7 +210,7 @@ export function GestionEgresos() {
 
     if (modoModal === "crear") {
       const nuevoRegistro: RegistroEgreso = {
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         fecha,
         concepto,
         categoria,
