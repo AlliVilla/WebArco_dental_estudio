@@ -14,6 +14,7 @@ import {
   LineChart
 } from 'lucide-react';
 import { Alert, Button, Card, Input, Select } from '../../context';
+import { formatCurrency } from '../../utils/formatters';
 
 // Constants for UI colors matching the design system
 const COLORS = {
@@ -30,53 +31,27 @@ export function CierresView() {
   const [fechaCierre, setFechaCierre] = useState(
     new Date().toISOString().split('T')[0]
   );
+  const [tipoPeriodo, setTipoPeriodo] = useState('semanal');
 
-  // Mock data as requested by the UI design layout
-  const summaryData = {
-    totalIngresos: 12450.0,
-    ingresosEfectivo: 4200.0,
-    ingresosTarjeta: 5800.0,
-    ingresosTransferencia: 2450.0,
-    totalEgresos: 3200.0,
-    utilidadNeta: 9250.0,
-  };
+  // Estados listos para ser conectados con el backend
+  const [summaryData, setSummaryData] = useState({
+    totalIngresos: 0,
+    ingresosEfectivo: 0,
+    ingresosTarjeta: 0,
+    ingresosTransferencia: 0,
+    totalEgresos: 0,
+    utilidadNeta: 0,
+  });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  const [periodicSummary, setPeriodicSummary] = useState({
+    ingresos: 0,
+    egresos: 0,
+    utilidad: 0,
+    comparativa: 0
+  });
 
-  const periodicSummary = {
-    ingresos: 87450.00,
-    egresos: 22100.00,
-    utilidad: 65350.00,
-    comparativa: 12.5
-  };
-
-  const periodicData = [
-    {
-      id: 1,
-      periodo: 'Semanal',
-      fecha: '27/05/2026 - 02/06/2026',
-      ingresos: 87450.00,
-      egresos: 22100.00,
-      utilidad: 65350.00,
-      desglose: { efectivo: 35, tarjeta: 45, transfer: 20 },
-      comparativa: 12.5,
-    },
-    {
-      id: 2,
-      periodo: 'Semanal',
-      fecha: '20/05/2026 - 26/05/2026',
-      ingresos: 78200.00,
-      egresos: 19800.00,
-      utilidad: 58400.00,
-      desglose: { efectivo: 38, tarjeta: 42, transfer: 20 },
-      comparativa: -5.2,
-    }
-  ];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [periodicData, setPeriodicData] = useState<any[]>([]);
 
   return (
     <div
@@ -164,7 +139,6 @@ export function CierresView() {
                   variant="secondary"
                   size="sm"
                   style={{
-                    marginLeft: 8,
                     borderRadius: 8,
                     padding: '4px 12px',
                   }}
@@ -415,8 +389,8 @@ export function CierresView() {
                   { value: 'quincenal', label: 'Quincenal' },
                   { value: 'mensual', label: 'Mensual' },
                 ]}
-                value="semanal"
-                onChange={() => {}}
+                value={tipoPeriodo}
+                onChange={setTipoPeriodo}
               />
               <Input
                 type="date"
@@ -475,10 +449,12 @@ export function CierresView() {
               <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
                 <div>
                   <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Comparativo vs periodo anterior</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.success }}>+{periodicSummary.comparativa}%</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: periodicSummary.comparativa > 0 ? COLORS.success : COLORS.danger }}>
+                    {periodicSummary.comparativa > 0 ? '+' : ''}{periodicSummary.comparativa}%
+                  </div>
                 </div>
-                <div style={{ background: '#ECFDF5', padding: 12, borderRadius: 8, display: 'flex' }}>
-                  <TrendingUp size={24} color={COLORS.success} />
+                <div style={{ background: periodicSummary.comparativa > 0 ? '#ECFDF5' : '#FEF2F2', padding: 12, borderRadius: 8, display: 'flex' }}>
+                  {periodicSummary.comparativa > 0 ? <TrendingUp size={24} color={COLORS.success} /> : <TrendingDown size={24} color={COLORS.danger} />}
                 </div>
               </div>
             </div>
@@ -507,21 +483,23 @@ export function CierresView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {periodicData.map((row, index) => (
-                    <tr key={row.id} style={{ borderBottom: index < periodicData.length - 1 ? `1px solid ${COLORS.borderLight}` : 'none' }}>
-                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{row.periodo}</td>
-                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text }}>{row.fecha}</td>
-                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.primary, fontWeight: 600 }}>{formatCurrency(row.ingresos)}</td>
-                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.danger, fontWeight: 600 }}>{formatCurrency(row.egresos)}</td>
-                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.success, fontWeight: 600 }}>{formatCurrency(row.utilidad)}</td>
-                      <td style={{ padding: '16px 20px', fontSize: 12, color: COLORS.text }}>
+                  {periodicData.map((row, index) => {
+                    const borderBottomStyle = index < periodicData.length - 1 ? { borderBottom: `1px solid ${COLORS.borderLight}` } : {};
+                    return (
+                    <tr key={row.id}>
+                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, fontWeight: 500, ...borderBottomStyle }}>{row.periodo}</td>
+                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, ...borderBottomStyle }}>{row.fecha}</td>
+                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.primary, fontWeight: 600, ...borderBottomStyle }}>{formatCurrency(row.ingresos)}</td>
+                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.danger, fontWeight: 600, ...borderBottomStyle }}>{formatCurrency(row.egresos)}</td>
+                      <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.success, fontWeight: 600, ...borderBottomStyle }}>{formatCurrency(row.utilidad)}</td>
+                      <td style={{ padding: '16px 20px', fontSize: 12, color: COLORS.text, ...borderBottomStyle }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                           <span>Efectivo: {row.desglose.efectivo}%</span>
                           <span>Tarjeta: {row.desglose.tarjeta}%</span>
                           <span>Transfer: {row.desglose.transfer}%</span>
                         </div>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
+                      <td style={{ padding: '16px 20px', ...borderBottomStyle }}>
                         <div style={{ 
                           display: 'inline-flex', alignItems: 'center', gap: 4, 
                           padding: '4px 8px', borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -532,13 +510,14 @@ export function CierresView() {
                           {row.comparativa > 0 ? '+' : ''}{row.comparativa}%
                         </div>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
+                      <td style={{ padding: '16px 20px', ...borderBottomStyle }}>
                         <button style={{ background: 'none', border: 'none', color: COLORS.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
                           Ver detalle
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
