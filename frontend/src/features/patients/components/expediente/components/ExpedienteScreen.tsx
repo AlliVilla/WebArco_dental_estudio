@@ -9,11 +9,15 @@ import {
   DollarSign,
   ChevronRight,
   ChevronDown,
+  Zap,
+  X,
 } from 'lucide-react';
 import { DataTable, Column } from '../../../../../components';
 import { Alert, Card, Button } from '../../../../../context';
 
 import {expedientService} from '../services/expedientService';
+import {odontogramaService} from '../../odontograma/services/odontogramaService';
+import {OdontogramScreen} from '../../odontograma/components/OdontogramaScreen';
 import {calcularEdad} from '../services/miscelaneousService';
 import {ExpedientePaciente} from '../types/getAllPacientes';
 
@@ -43,11 +47,15 @@ const PAGE_SIZE = 10;
 
 export function ExpedienteScreen() {
   const location = useLocation();
-  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta'>('list');
+  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta' | 'odontograma-view'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [selectedConsultationForOdontogram, setSelectedConsultationForOdontogram] = useState<{
+    id_consulta: number,
+    patient: ExpedientePaciente
+  } | null>(null);
 
   // Paginación client-side
   const [currentPage, setCurrentPage] = useState(1);
@@ -159,6 +167,17 @@ export function ExpedienteScreen() {
 
   const handleNewConsultaBack = () => {
     setViewState('detail');
+  };
+
+  const handleViewOdontogram = (consultaId: number) => {
+    if (!activePatient) return;
+    setSelectedConsultationForOdontogram({ id_consulta: consultaId, patient: activePatient });
+    setViewState('odontograma-view');
+  };
+
+  const handleBackFromOdontogram = () => {
+    setViewState('detail');
+    setSelectedConsultationForOdontogram(null);
   };
 
   const categoriaLabel = (categoria: string): string => {
@@ -495,27 +514,37 @@ export function ExpedienteScreen() {
                       </div>
 
                       <div
-                        aria-hidden={!isExpanded}
-                        style={{
-                          maxHeight: isExpanded ? '3000px' : '0px',
-                          opacity: isExpanded ? 1 : 0,
-                          overflow: 'hidden',
-                          transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 20,
-                          paddingTop: isExpanded ? 16 : 0,
-                        }}
-                      >
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                          gap: 20,
-                          background: C.gray50,
-                          borderRadius: 10,
-                          padding: 20,
-                          border: `1px solid ${C.gray100}`,
-                        }}>
+                          aria-hidden={!isExpanded}
+                          style={{
+                            maxHeight: isExpanded ? '3000px' : '0px',
+                            opacity: isExpanded ? 1 : 0,
+                            overflow: 'hidden',
+                            transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 20,
+                            paddingTop: isExpanded ? 16 : 0,
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleViewOdontogram(visit.id_consulta)}
+                              style={{ fontSize: 12 }}
+                            >
+                              <Zap size={14} /> Ver Odontograma de la Consulta
+                            </Button>
+                          </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: 20,
+                            background: C.gray50,
+                            borderRadius: 10,
+                            padding: 20,
+                            border: `1px solid ${C.gray100}`,
+                          }}>
                           <div>
                             <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Motivo de consulta</div>
                             <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>{visit.motivo}</div>
@@ -653,6 +682,31 @@ export function ExpedienteScreen() {
           onBack={handleNewConsultaBack}
           onSave={handleNewConsultaSave}
         />
+      )}
+
+      {/* ══ VISTA 4: Ver Odontograma de Consulta ════════════════════════════════ */}
+      {viewState === 'odontograma-view' && selectedConsultationForOdontogram && (
+        <div style={{ background: '#F8F9FA', minHeight: 'calc(100vh - 110px)', boxSizing: 'border-box', padding: '16px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '0 8px' }}>
+            <Button onClick={handleBackFromOdontogram} variant="ghost" size="sm" style={{ color: C.gray500 }}>
+              <ArrowLeft size={16} /> Volver al expediente
+            </Button>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>
+              Odontograma de la Consulta — {selectedConsultationForOdontogram.patient.primer_nombre} {selectedConsultationForOdontogram.patient.primer_apellido}
+            </div>
+            <div style={{ width: 120 }} />
+          </div>
+          <OdontogramScreen
+            isEmbedded={true}
+            isReadOnly={true}
+            consultationId={selectedConsultationForOdontogram.id_consulta}
+            patientName={`${selectedConsultationForOdontogram.patient.primer_nombre} ${selectedConsultationForOdontogram.patient.primer_apellido}`}
+            patientIdentidad={selectedConsultationForOdontogram.patient.numero_identidad}
+            initialDentition={calcularEdad(selectedConsultationForOdontogram.patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
+            onSaveEmbedded={() => {}}
+            onCancelEmbedded={handleBackFromOdontogram}
+          />
+        </div>
       )}
     </div>
   );
