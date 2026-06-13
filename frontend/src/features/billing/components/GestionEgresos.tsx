@@ -240,7 +240,12 @@ export function GestionEgresos() {
       );
     }
 
+    cerrarModal();
+  };
+
+  const cerrarModal = () => {
     setEstaModalAbierto(false);
+    setError(null);
     limpiarFormulario();
   };
 
@@ -251,6 +256,7 @@ export function GestionEgresos() {
     setCategoria("Insumos");
     setObservaciones("");
     setResponsable(nombreAutenticado);
+    setError(null);
     setIdSeleccionado(null);
   };
 
@@ -576,7 +582,7 @@ export function GestionEgresos() {
               </div>
               <button
                 type="button"
-                onClick={() => setEstaModalAbierto(false)}
+                onClick={cerrarModal}
                 style={{
                   background: "none",
                   border: "none",
@@ -873,7 +879,7 @@ export function GestionEgresos() {
               >
                 <button
                   type="button"
-                  onClick={() => setEstaModalAbierto(false)}
+                  onClick={cerrarModal}
                   style={{
                     padding: "10px 16px",
                     borderRadius: 8,
