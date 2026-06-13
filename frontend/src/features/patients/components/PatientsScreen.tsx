@@ -14,7 +14,7 @@ import {
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
-import { DEFAULT_PAGE_SIZE, PATIENT_SYSTEMIC_DISEASES } from "../../../config/constants";
+import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
 import { formatDate } from "../../../utils/formatters";
 
@@ -82,11 +82,6 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
     identity: persona.numero_identidad,
     phone: persona.telefono,
     lastVisit: null,
-    enfermedades: persona.enfermedades || null,
-    otras_enfermedades: persona.otras_enfermedades || null,
-    medicamentos: persona.medicamentos || null,
-    alergias: persona.alergias || null,
-    reaccion_anestesia: persona.reaccion_anestesia || null,
   };
 };
 
@@ -101,8 +96,6 @@ export function PatientsScreen({
   const [searchPhone, setSearchPhone] = useState("");
   const [searchCode, setSearchCode] = useState("");
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [selectedMedicalPatient, setSelectedMedicalPatient] =
-    useState<Patient | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeFilters, setActiveFilters] = useState<PatientSearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -196,9 +189,9 @@ export function PatientsScreen({
     if (!onEditPatient) navigate(`/patients/edit/${id}`);
   };
 
-  const handleViewPatient = (patient: Patient) => {
-    onViewPatient?.(patient.id);
-    setSelectedMedicalPatient(patient);
+  const handleViewMedicalInfo = (patientId: number) => {
+    onViewPatient?.(patientId);
+    navigate(`/patients/profile/${patientId}`);
   };
 
   const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
@@ -225,7 +218,7 @@ export function PatientsScreen({
       render: (_value, patient) => (
         <PatientNameButton
           name={patient.fullName}
-          onClick={() => onViewPatient?.(patient.id)}
+          onClick={() => handleViewMedicalInfo(patient.id)}
         />
       ),
     },
@@ -358,7 +351,7 @@ export function PatientsScreen({
           {
             icon: <Eye size={14} />,
             label: "Ver información médica",
-            onClick: () => handleViewPatient(patient),
+            onClick: () => handleViewMedicalInfo(patient.id),
           },
         ]}
         searchable={false}
@@ -366,188 +359,6 @@ export function PatientsScreen({
         totalRecords={pagination.total}
       />
 
-      {selectedMedicalPatient ? (
-        <MedicalInfoModal
-          patient={selectedMedicalPatient}
-          onClose={() => setSelectedMedicalPatient(null)}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function MedicalInfoModal({
-  onClose,
-  patient,
-}: {
-  onClose: () => void;
-  patient: Patient;
-}) {
-  const enfermedadesStr = patient.enfermedades as string | null;
-  let enfermedadesList: string[] = [];
-  try {
-    if (enfermedadesStr) {
-      enfermedadesList = JSON.parse(enfermedadesStr);
-    }
-  } catch {
-    // Fail-safe
-  }
-  const otrasEnfermedades = patient.otras_enfermedades as string | null;
-  const medicamentos = patient.medicamentos as string | null;
-  const alergias = patient.alergias as string | null;
-  const reaccionAnestesia = patient.reaccion_anestesia as string | null;
-
-  const hasMedicalInfo = enfermedadesList.length > 0 || otrasEnfermedades || medicamentos || alergias || reaccionAnestesia;
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  return (
-    <div
-      style={{
-        alignItems: "center",
-        background: "rgba(32, 63, 73, 0.28)",
-        bottom: 0,
-        display: "flex",
-        justifyContent: "center",
-        left: 0,
-        padding: 24,
-        position: "fixed",
-        right: 0,
-        top: 0,
-        zIndex: 50,
-      }}
-    >
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid var(--arco-gray-300)",
-          borderRadius: 12,
-          boxShadow: "0 24px 70px rgba(32, 63, 73, 0.18)",
-          maxWidth: 720,
-          padding: 20,
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            alignItems: "flex-start",
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 18,
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                color: "var(--arco-navy)",
-                fontSize: 18,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
-              Información médica
-            </h3>
-            <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "4px 0 0" }}>
-              {patient.fullName} · {patient.code}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              alignItems: "center",
-              background: "#FFFFFF",
-              border: "1px solid var(--arco-gray-300)",
-              borderRadius: 6,
-              color: "var(--arco-gray-500)",
-              cursor: "pointer",
-              display: "flex",
-              height: 32,
-              justifyContent: "center",
-              width: 32,
-            }}
-            type="button"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {hasMedicalInfo ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "60vh", overflowY: "auto", paddingRight: 4 }}>
-            {enfermedadesList.length > 0 && (
-              <div>
-                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Enfermedades sistémicas:</strong>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {enfermedadesList.map((disease) => {
-                    const matched = PATIENT_SYSTEMIC_DISEASES.find(d => d.id === disease);
-                    return (
-                      <span key={disease} style={{ background: "var(--arco-primary-light)", color: "var(--arco-primary)", fontSize: 12, fontWeight: 500, padding: "4px 10px", borderRadius: 20 }}>
-                        {matched?.label || disease}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {otrasEnfermedades && (
-              <div>
-                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Otras enfermedades:</strong>
-                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
-                  {otrasEnfermedades}
-                </p>
-              </div>
-            )}
-
-            {medicamentos && (
-              <div>
-                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Medicamentos actuales:</strong>
-                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
-                  {medicamentos}
-                </p>
-              </div>
-            )}
-
-            {alergias && (
-              <div>
-                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Alergias a medicamentos:</strong>
-                <p style={{ color: "var(--arco-gray-700)", fontSize: 13, margin: 0, background: "var(--arco-gray-50)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--arco-gray-300)" }}>
-                  {alergias}
-                </p>
-              </div>
-            )}
-
-            {reaccionAnestesia && (
-              <div>
-                <strong style={{ color: "var(--arco-navy)", fontSize: 13, display: "block", marginBottom: 4 }}>Historial de anestesia:</strong>
-                <span style={{ display: "inline-block", fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: reaccionAnestesia === "si" ? "var(--arco-danger-soft)" : "var(--arco-success-soft)", color: reaccionAnestesia === "si" ? "var(--arco-danger)" : "var(--arco-success)" }}>
-                  {reaccionAnestesia === "si" ? "Sí, ha tenido reacciones a la anestesia" : "No ha tenido reacciones a la anestesia"}
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div
-            style={{
-              background: "var(--arco-gray-50)",
-              border: "1px solid var(--arco-gray-300)",
-              borderRadius: 8,
-              color: "var(--arco-gray-500)",
-              fontSize: 13,
-              padding: "24px 16px",
-              textAlign: "center",
-            }}
-          >
-            Sin información médica registrada para este paciente.
-          </div>
-        )}
-
-        <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "16px 0 0" }}>
-          Los antecedentes médicos iniciales se guardan en el perfil del paciente.
-        </p>
-      </div>
     </div>
   );
 }

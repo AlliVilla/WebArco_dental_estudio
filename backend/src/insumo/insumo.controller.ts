@@ -16,7 +16,7 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 export class InsumoController {
   constructor(private readonly insumoService: InsumoService) {}
 
-  @Privileges(53)
+  @Privileges(63)
   @Get('stats')
   @ApiOperation({ summary: 'Obtener estadísticas (KPIs) del inventario' })
   @ApiOkResponse({ description: 'Estadísticas del inventario obtenidas exitosamente.' })
@@ -24,7 +24,7 @@ export class InsumoController {
     return this.insumoService.getStats();
   }
 
-  @Privileges(47)
+  @Privileges(63)
   @Get()
   @ApiOperation({ summary: 'Obtener lista de insumos paginada y filtrable' })
   @ApiOkResponse({ description: 'Lista de insumos obtenida exitosamente.' })
@@ -32,7 +32,7 @@ export class InsumoController {
     return this.insumoService.findAll(query);
   }
 
-  @Privileges(48)
+  @Privileges(64)
   @Post()
   @ApiOperation({ summary: 'Registrar un nuevo insumo con código autogenerado' })
   @ApiCreatedResponse({ description: 'Insumo creado exitosamente.' })
@@ -40,7 +40,7 @@ export class InsumoController {
     return this.insumoService.create(createInsumoDto);
   }
 
-  @Privileges(49)
+  @Privileges(64)
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar la información de un insumo' })
   @ApiOkResponse({ description: 'Insumo actualizado exitosamente.' })
@@ -48,7 +48,7 @@ export class InsumoController {
     return this.insumoService.update(id, updateInsumoDto);
   }
 
-  @Privileges(50)
+  @Privileges(64)
   @Delete(':id')
   @ApiOperation({ summary: 'Desactivar (soft-delete) un insumo' })
   @ApiOkResponse({ description: 'Insumo desactivado exitosamente.' })

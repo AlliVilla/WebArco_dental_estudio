@@ -202,7 +202,7 @@ export class CitaController {
     return this.citaService.getStatusHistory(id);
   }
 
-  @Privileges(29)
+  @Privileges(26)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -221,7 +221,7 @@ export class CitaController {
     return this.citaService.findOne(id);
   }
 
-  @Privileges(28)
+  @Privileges(27)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -249,7 +249,7 @@ export class CitaController {
     return this.citaService.update(id, updateCitaDto);
   }
 
-  @Privileges(28)
+  @Privileges(27)
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -274,7 +274,7 @@ export class CitaController {
     return this.citaService.changeStatus(id, changeStatusDto);
   }
 
-  @Privileges(44)
+  @Privileges(27)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({

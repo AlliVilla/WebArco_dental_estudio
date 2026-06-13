@@ -91,7 +91,7 @@ export class PersonaController {
     );
   }
 
-  @Privileges(19)
+  @Privileges(16)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener detalle de una persona', description: 'Devuelve la información completa de una persona incluyendo municipio y departamento.' })
@@ -102,7 +102,7 @@ export class PersonaController {
     return this.personaService.findOne(id);
   }
 
-  @Privileges(18)
+  @Privileges(17)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar una persona', description: 'Actualiza los datos de una persona existente. Valida unicidad de identidad y correo si se modifican.' })
@@ -118,7 +118,7 @@ export class PersonaController {
     return this.personaService.update(id, updatePersonaDto);
   }
 
-  @Privileges(18)
+  @Privileges(17)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar una persona', description: 'Elimina una persona si no tiene consultas o usuarios asociados. Si tiene registros asociados, devuelve un error.' })

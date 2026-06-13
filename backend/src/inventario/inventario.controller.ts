@@ -24,6 +24,8 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 import { InventarioService } from './inventario.service';
 import { CreateInsumoDto } from './dto/create-insumo.dto';
 import { CreateMovimientoDto } from './dto/create-movimiento.dto';
@@ -40,12 +42,13 @@ interface RequestWithUser extends Request {
 
 @ApiTags('Inventario')
 @Controller('inventory')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class InventarioController {
   constructor(private readonly inventarioService: InventarioService) {}
 
+  @Privileges(63)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar insumos del inventario' })
@@ -64,6 +67,7 @@ export class InventarioController {
     });
   }
 
+  @Privileges(63)
   @Get('stats')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Indicadores del inventario' })
@@ -72,6 +76,7 @@ export class InventarioController {
     return this.inventarioService.getStats();
   }
 
+  @Privileges(64)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear nuevo insumo' })
@@ -80,6 +85,7 @@ export class InventarioController {
     return this.inventarioService.create(dto);
   }
 
+  @Privileges(64)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar insumo' })
@@ -91,6 +97,7 @@ export class InventarioController {
     return this.inventarioService.update(id, dto);
   }
 
+  @Privileges(64)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar insumo lógicamente' })
@@ -99,6 +106,7 @@ export class InventarioController {
     return this.inventarioService.delete(id);
   }
 
+  @Privileges(64)
   @Patch(':id/restore')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Readmitir insumo eliminado' })
@@ -107,6 +115,7 @@ export class InventarioController {
     return this.inventarioService.restore(id);
   }
 
+  @Privileges(63)
   @Get('movements/history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Vista detallada del historial de movimientos de inventario' })
@@ -115,6 +124,7 @@ export class InventarioController {
     return this.inventarioService.getMovementHistory(query);
   }
 
+  @Privileges(63)
   @Get('movements')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Historial de movimientos de inventario' })
@@ -133,6 +143,7 @@ export class InventarioController {
     });
   }
 
+  @Privileges(64)
   @Post('movements')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Registrar entrada o salida de inventario' })
