@@ -311,7 +311,7 @@ export function ExpedienteScreen() {
 
           {/* Historial de visitas */}
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Visitas y Consultas</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Consultas</h3>
 
             {activePatient.consultas.length === 0 ? (
               <div style={{ border: '2px dashed rgb(11, 197, 223)', borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: 'rgba(11, 197, 223, 0.03)' }}>
