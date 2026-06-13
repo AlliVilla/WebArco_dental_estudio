@@ -55,7 +55,7 @@ export class ReminderController {
     return this.reminderService.getQueue();
   }
 
-  @Privileges(30)
+  @Privileges(31)
   @Get('history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -126,7 +126,7 @@ export class ReminderController {
     return this.reminderService.send(dto);
   }
 
-  @Privileges(45)
+  @Privileges(32)
   @Patch(':id/response')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -149,7 +149,7 @@ export class ReminderController {
     return this.reminderService.registerResponse(id, dto.respuesta, dto.cambiado_por);
   }
 
-  @Privileges(30)
+  @Privileges(31)
   @Get('export')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

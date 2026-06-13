@@ -15,7 +15,7 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 export class CategoriaInsumoController {
   constructor(private readonly categoriaInsumoService: CategoriaInsumoService) {}
 
-  @Privileges(55)
+  @Privileges(64)
   @Post()
   @ApiOperation({ summary: 'Crear una nueva categoría de insumo' })
   @ApiCreatedResponse({ description: 'Categoría creada exitosamente.' })
@@ -23,7 +23,7 @@ export class CategoriaInsumoController {
     return this.categoriaInsumoService.create(createDto);
   }
 
-  @Privileges(54)
+  @Privileges(63)
   @Get()
   @ApiOperation({ summary: 'Obtener todas las categorías de insumo' })
   @ApiOkResponse({ description: 'Lista de categorías obtenida exitosamente.' })
@@ -31,7 +31,7 @@ export class CategoriaInsumoController {
     return this.categoriaInsumoService.findAll();
   }
 
-  @Privileges(54)
+  @Privileges(63)
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una categoría por ID' })
   @ApiOkResponse({ description: 'Categoría obtenida exitosamente.' })
@@ -39,7 +39,7 @@ export class CategoriaInsumoController {
     return this.categoriaInsumoService.findOne(id);
   }
 
-  @Privileges(56)
+  @Privileges(64)
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una categoría de insumo' })
   @ApiOkResponse({ description: 'Categoría actualizada exitosamente.' })
@@ -47,7 +47,7 @@ export class CategoriaInsumoController {
     return this.categoriaInsumoService.update(id, updateDto);
   }
 
-  @Privileges(57)
+  @Privileges(64)
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar una categoría de insumo' })
   @ApiOkResponse({ description: 'Categoría eliminada exitosamente.' })
