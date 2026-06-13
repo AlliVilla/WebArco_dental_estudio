@@ -94,38 +94,8 @@ function App() {
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
         <Route path="/treatments" element={<TreatmentsScreen />} />
-        <Route
-          path="/treatments/new"
-          element={<TreatmentForm mode="create" />}
-        />
-        <Route
-          path="/treatments/edit/:id"
-          element={<TreatmentForm mode="edit" />}
-        />
-        <Route
-          path="/treatments"
-          element={
-            <div style={{ padding: 20 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Tratamientos
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Módulo de tratamientos en desarrollo.
-                </p>
-              </Card>
-            </div>
-          }
-        />
+        <Route path="/treatments/new" element={<TreatmentForm mode="create" />} />
+        <Route path="/treatments/edit/:id" element={<TreatmentForm mode="edit" />} />
 
         <Route
           path="/billing"

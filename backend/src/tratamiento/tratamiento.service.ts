@@ -10,7 +10,8 @@ export class TratamientoService {
   private toResponse(t: any) {
     return {
       id: t.id_tratamiento,
-      especialidad: t.especialidad,
+      idEspecialidad: t.id_especialidad,
+      especialidad: t.especialidad?.nombre ?? '',
       nombre: t.nombre,
       descripcion: t.descripcion ?? '',
       impactoOdontograma: t.impacto_odontograma,
@@ -18,8 +19,20 @@ export class TratamientoService {
     };
   }
 
-  async findAll() {
+  async findAll(nombre?: string, especialidad?: string) {
+    const where: any = {};
+
+    if (nombre) {
+      where.nombre = { contains: nombre, mode: 'insensitive' };
+    }
+
+    if (especialidad) {
+      where.especialidad = { nombre: { contains: especialidad, mode: 'insensitive' } };
+    }
+
     const items = await this.prisma.tratamiento.findMany({
+      where,
+      include: { especialidad: true },
       orderBy: { created_at: 'desc' },
     });
     return items.map((t) => this.toResponse(t));
@@ -28,6 +41,7 @@ export class TratamientoService {
   async findOne(id: number) {
     const t = await this.prisma.tratamiento.findUnique({
       where: { id_tratamiento: id },
+      include: { especialidad: true },
     });
     if (!t) throw new NotFoundException('Tratamiento no encontrado');
     return this.toResponse(t);
@@ -36,12 +50,13 @@ export class TratamientoService {
   async create(dto: CreateTratamientoDto) {
     const t = await this.prisma.tratamiento.create({
       data: {
-        especialidad: dto.especialidad,
+        id_especialidad: dto.idEspecialidad,
         nombre: dto.nombre,
         descripcion: dto.descripcion,
         impacto_odontograma: dto.impactoOdontograma,
         precio: dto.precio,
       },
+      include: { especialidad: true },
     });
     return this.toResponse(t);
   }
@@ -51,12 +66,13 @@ export class TratamientoService {
     const t = await this.prisma.tratamiento.update({
       where: { id_tratamiento: id },
       data: {
-        especialidad: dto.especialidad,
+        id_especialidad: dto.idEspecialidad,
         nombre: dto.nombre,
         descripcion: dto.descripcion,
         impacto_odontograma: dto.impactoOdontograma,
         precio: dto.precio,
       },
+      include: { especialidad: true },
     });
     return this.toResponse(t);
   }

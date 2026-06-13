@@ -52,6 +52,9 @@ async function insertPrivilegios() {
     { id_privilegio: 62, nombre: "ES_DOCTOR" },
     { id_privilegio: 63, nombre: "INVENTARIO_VER" },
     { id_privilegio: 64, nombre: "INVENTARIO_GESTIONAR" },
+
+    { id_privilegio: 65, nombre: "TRATAMIENTOS_VER" },
+    { id_privilegio: 66, nombre: "TRATAMIENTOS_GESTIONAR" },
   ];
 
   await prisma.privilegio.createMany({

@@ -1,33 +1,42 @@
 import {
   Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe,
-  HttpCode, HttpStatus, UseGuards,
+  HttpCode, HttpStatus, UseGuards, Query,
 } from '@nestjs/common';
 import {
   ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse,
-  ApiCreatedResponse, ApiNotFoundResponse, ApiUnauthorizedResponse,
+  ApiCreatedResponse, ApiNotFoundResponse, ApiUnauthorizedResponse, ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
 import { TratamientoService } from './tratamiento.service';
 import { CreateTratamientoDto } from './dto/create-tratamiento.dto';
 import { UpdateTratamientoDto } from './dto/update-tratamiento.dto';
 
 @ApiTags('Tratamientos')
 @Controller('tratamiento')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 export class TratamientoController {
   constructor(private readonly tratamientoService: TratamientoService) {}
 
   @Get()
+  @Privileges(65, 66)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar tratamientos del catálogo' })
+  @ApiQuery({ name: 'nombre', required: false, description: 'Filtrar por nombre' })
+  @ApiQuery({ name: 'especialidad', required: false, description: 'Filtrar por nombre de especialidad' })
   @ApiOkResponse({ description: 'Lista de tratamientos obtenida exitosamente' })
-  findAll() {
-    return this.tratamientoService.findAll();
+  findAll(
+    @Query('nombre') nombre?: string,
+    @Query('especialidad') especialidad?: string,
+  ) {
+    return this.tratamientoService.findAll(nombre, especialidad);
   }
 
   @Get(':id')
+  @Privileges(65, 66)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener un tratamiento por ID' })
   @ApiOkResponse({ description: 'Tratamiento encontrado' })
@@ -37,6 +46,7 @@ export class TratamientoController {
   }
 
   @Post()
+  @Privileges(66)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear un tratamiento' })
   @ApiCreatedResponse({ description: 'Tratamiento creado correctamente' })
@@ -45,6 +55,7 @@ export class TratamientoController {
   }
 
   @Put(':id')
+  @Privileges(66)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar un tratamiento' })
   @ApiOkResponse({ description: 'Tratamiento actualizado correctamente' })
@@ -54,6 +65,7 @@ export class TratamientoController {
   }
 
   @Delete(':id')
+  @Privileges(66)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar un tratamiento' })
   @ApiOkResponse({ description: 'Tratamiento eliminado correctamente' })
