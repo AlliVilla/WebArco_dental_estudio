@@ -110,10 +110,11 @@ export function PatientFormScreen() {
     "idle"
   );
   const [message, setMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPatient, setIsLoadingPatient] = useState(isEditMode);
-  // Fix 3: ref para autoscroll al error
   const errorRef = useRef<HTMLDivElement>(null);
+
   function scrollToError() {
     setTimeout(() => {
       errorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -205,23 +206,32 @@ export function PatientFormScreen() {
 
   const handleSave = async () => {
     const identityDigits = identityNumber.replace(/\D/g, "");
-    const requiredFilled =
-      firstName &&
-      firstLastName &&
-      identityDigits.length === 13 &&
-      birthDate &&
-      (sex === "M" || sex === "F") &&
-      municipio &&
-      phone;
 
-    if (!requiredFilled) {
+    // Validación por campo
+    const errors: Record<string, string> = {};
+    if (!firstName.trim()) errors.firstName = "El primer nombre es obligatorio";
+    if (!firstLastName.trim())
+      errors.firstLastName = "El primer apellido es obligatorio";
+    if (!identityNumber.trim())
+      errors.identityNumber = "El número de identidad es obligatorio";
+    else if (identityDigits.length !== 13)
+      errors.identityNumber = "La identidad debe tener exactamente 13 dígitos";
+    if (!birthDate) errors.birthDate = "La fecha de nacimiento es obligatoria";
+    if (sex !== "M" && sex !== "F")
+      errors.sex = "Selecciona el sexo del paciente";
+    if (!departamento) errors.departamento = "Selecciona un departamento";
+    if (!municipio) errors.municipio = "Selecciona un municipio";
+    if (!phone.trim()) errors.phone = "El teléfono es obligatorio";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       setSaveStatus("error");
-      setMessage(
-        "Completa los campos requeridos. La identidad debe tener 13 dígitos."
-      );
+      setMessage("Revisá los campos marcados en rojo.");
       scrollToError();
       return;
     }
+
+    setFieldErrors({});
 
     const payload: PatientPayload = {
       numero_identidad: identityDigits,
@@ -265,6 +275,7 @@ export function PatientFormScreen() {
       setMessage(
         err instanceof Error ? err.message : "No se pudo guardar el paciente."
       );
+      setFieldErrors({});
       scrollToError();
     } finally {
       setIsSaving(false);
@@ -340,12 +351,15 @@ export function PatientFormScreen() {
         <Input
           badge="required"
           label="Primer nombre"
-          onChange={(e) => setFirstName(e.target.value)}
+          onChange={(e) => {
+            setFirstName(e.target.value);
+            setFieldErrors((p) => ({ ...p, firstName: "" }));
+          }}
           placeholder="Ej: María"
           value={firstName}
+          error={fieldErrors.firstName}
         />
         <Input
-          badge="optional"
           label="Segundo nombre"
           onChange={(e) => setSecondName(e.target.value)}
           placeholder="Ej: Fernanda"
@@ -354,12 +368,15 @@ export function PatientFormScreen() {
         <Input
           badge="required"
           label="Primer apellido"
-          onChange={(e) => setFirstLastName(e.target.value)}
+          onChange={(e) => {
+            setFirstLastName(e.target.value);
+            setFieldErrors((p) => ({ ...p, firstLastName: "" }));
+          }}
           placeholder="Ej: López"
           value={firstLastName}
+          error={fieldErrors.firstLastName}
         />
         <Input
-          badge="optional"
           label="Segundo apellido"
           onChange={(e) => setSecondLastName(e.target.value)}
           placeholder="Ej: García"
@@ -369,17 +386,25 @@ export function PatientFormScreen() {
           badge="required"
           icon={<IdCard size={15} />}
           label="Número de identidad"
-          onChange={(e) => setIdentityNumber(e.target.value)}
+          onChange={(e) => {
+            setIdentityNumber(e.target.value);
+            setFieldErrors((p) => ({ ...p, identityNumber: "" }));
+          }}
           placeholder="Ej: 0801-1990-12345"
           value={identityNumber}
+          error={fieldErrors.identityNumber}
         />
         <Input
           badge="required"
           icon={<Calendar size={15} />}
           label="Fecha de nacimiento"
-          onChange={(e) => setBirthDate(e.target.value)}
+          onChange={(e) => {
+            setBirthDate(e.target.value);
+            setFieldErrors((p) => ({ ...p, birthDate: "" }));
+          }}
           type="date"
           value={birthDate}
+          error={fieldErrors.birthDate}
         />
         <Input
           badge="required"
@@ -393,43 +418,58 @@ export function PatientFormScreen() {
         <Select
           badge="required"
           label="Sexo"
-          onChange={(v) => setSex(v === "M" || v === "F" ? v : "")}
+          onChange={(v) => {
+            setSex(v === "M" || v === "F" ? v : "");
+            setFieldErrors((p) => ({ ...p, sex: "" }));
+          }}
           options={[
             { value: "M", label: "Masculino" },
             { value: "F", label: "Femenino" },
           ]}
           placeholder="Selecciona..."
           value={sex}
+          error={fieldErrors.sex}
         />
         <Select
           badge="required"
           label="Departamento"
-          onChange={handleDepartamentoChange}
+          onChange={(v) => {
+            handleDepartamentoChange(v);
+            setFieldErrors((p) => ({ ...p, departamento: "", municipio: "" }));
+          }}
           options={PATIENT_DEPARTMENTS}
           placeholder="Selecciona..."
           value={departamento}
+          error={fieldErrors.departamento}
         />
         <Select
           badge="required"
           disabled={!departamento}
           label="Ciudad / Municipio"
-          onChange={setMunicipio}
+          onChange={(v) => {
+            setMunicipio(v);
+            setFieldErrors((p) => ({ ...p, municipio: "" }));
+          }}
           options={municipioOptions}
           placeholder={
             departamento ? "Selecciona..." : "Primero elige un departamento"
           }
           value={municipio}
+          error={fieldErrors.municipio}
         />
         <Input
           badge="required"
           icon={<Phone size={15} />}
           label="Teléfono"
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => {
+            setPhone(e.target.value);
+            setFieldErrors((p) => ({ ...p, phone: "" }));
+          }}
           placeholder="Ej: +504 9876-5432"
           value={phone}
+          error={fieldErrors.phone}
         />
         <Input
-          badge="optional"
           icon={<Mail size={15} />}
           label="Correo electrónico"
           onChange={(e) => setEmail(e.target.value)}
@@ -449,7 +489,6 @@ export function PatientFormScreen() {
         </SectionDescription>
         <FullWidthField>
           <CheckboxGroup
-            badge="optional"
             label="Enfermedades sistémicas"
             onChange={setEnfermedades}
             options={PATIENT_SYSTEMIC_DISEASES}
@@ -478,7 +517,6 @@ export function PatientFormScreen() {
         )}
         <FullWidthField>
           <Textarea
-            badge="optional"
             label="Medicamentos actuales"
             onChange={setMedicamentos}
             placeholder="Lista los medicamentos que el paciente consume actualmente..."
@@ -488,7 +526,6 @@ export function PatientFormScreen() {
         </FullWidthField>
         <FullWidthField>
           <Textarea
-            badge="optional"
             label="Alergias a medicamentos"
             onChange={setAlergias}
             placeholder="Describe alergias conocidas a medicamentos..."
@@ -498,7 +535,6 @@ export function PatientFormScreen() {
         </FullWidthField>
         <FullWidthField>
           <RadioGroup
-            badge="optional"
             label="Historial de anestesia — ¿Ha tenido reacciones?"
             onChange={setAnestesiaReaction}
             options={[

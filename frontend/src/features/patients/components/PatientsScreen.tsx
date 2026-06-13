@@ -19,7 +19,7 @@ import {
   PATIENT_SYSTEMIC_DISEASES,
 } from "../../../config/constants";
 import api from "../../../services/api";
-import { formatDate } from "../../../utils/formatters";
+import { formatDate, normalizeSearch } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Z } from "../../../utils/zIndex";
 
@@ -310,10 +310,13 @@ export function PatientsScreen({
     setError("");
     setHasSearched(true);
     setActiveFilters({
-      nombre: searchName.trim(),
-      identidad: searchIdentity.replace(/\D/g, ""),
-      telefono: searchPhone.replace(/\D/g, ""),
-      codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""),
+      // Fix 2: normalizar tildes para que "Maria" encuentre "María"
+      nombre: searchName.trim()
+        ? normalizeSearch(searchName.trim())
+        : undefined,
+      identidad: searchIdentity.replace(/\D/g, "") || undefined,
+      telefono: searchPhone.replace(/\D/g, "") || undefined,
+      codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, "") || undefined,
     });
     setCurrentPage(1);
   };
@@ -456,7 +459,6 @@ export function PatientsScreen({
         >
           <Input
             label="Nombre"
-            badge="optional"
             placeholder="Ej: María López"
             value={searchName}
             onChange={(e) => setSearchName(e.target.value)}
@@ -464,7 +466,6 @@ export function PatientsScreen({
           />
           <Input
             label="Identidad"
-            badge="optional"
             placeholder="Ej: 0801-1990-12345"
             value={searchIdentity}
             onChange={(e) => setSearchIdentity(e.target.value)}
@@ -472,7 +473,6 @@ export function PatientsScreen({
           />
           <Input
             label="Teléfono"
-            badge="optional"
             placeholder="Ej: 9876-5432"
             value={searchPhone}
             onChange={(e) => setSearchPhone(e.target.value)}
@@ -480,7 +480,6 @@ export function PatientsScreen({
           />
           <Input
             label="Código"
-            badge="optional"
             placeholder="Ej: PAC-000124"
             value={searchCode}
             onChange={(e) => setSearchCode(e.target.value)}

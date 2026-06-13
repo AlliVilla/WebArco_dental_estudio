@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
   Calendar,
   DollarSign,
   Edit,
@@ -239,6 +240,25 @@ export function PatientProfileScreen() {
         maxWidth: 1180,
       }}
     >
+      {/* Flecha de volver */}
+      <button
+        onClick={() => navigate("/patients")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "#888F94",
+          fontSize: 13,
+          fontWeight: 500,
+          padding: 0,
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft size={16} /> Volver a pacientes
+      </button>
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div
           style={{
