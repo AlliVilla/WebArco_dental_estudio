@@ -248,7 +248,10 @@ interface SelectProps {
 export function Select({ label, badge, options, value, onChange, placeholder, disabled, error }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [dropdownAbove, setDropdownAbove] = useState(false);
+  const [dropdownMaxHeight, setDropdownMaxHeight] = useState(200);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
@@ -264,7 +267,13 @@ export function Select({ label, badge, options, value, onChange, placeholder, di
   }, []);
 
   useEffect(() => {
-    if (open) {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      const above = spaceAbove > spaceBelow;
+      setDropdownAbove(above);
+      setDropdownMaxHeight(Math.min(200, above ? spaceAbove : spaceBelow));
       const idx = options.findIndex((o) => o.value === value);
       setActiveIndex(idx >= 0 ? idx : 0);
     } else {
@@ -326,6 +335,7 @@ export function Select({ label, badge, options, value, onChange, placeholder, di
         </div>
       )}
       <div
+        ref={triggerRef}
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -351,9 +361,13 @@ export function Select({ label, badge, options, value, onChange, placeholder, di
           ref={listRef}
           role="listbox"
           style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
-            background: '#fff', border: '1px solid #D3D7DA', borderRadius: 8,
-            marginTop: 4, maxHeight: 200, overflowY: 'auto',
+            position: 'absolute',
+            left: 0, right: 0, zIndex: 1000,
+            [dropdownAbove ? 'bottom' : 'top']: '100%',
+            [dropdownAbove ? 'marginBottom' : 'marginTop']: 4,
+            background: '#fff', border: '1px solid #D3D7DA',
+            borderRadius: dropdownAbove ? '8px 8px 0 0' : '0 0 8px 8px',
+            maxHeight: dropdownMaxHeight, overflowY: 'auto',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           }}
         >
