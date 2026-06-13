@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { NuevaVisita } from './NewVisit';
@@ -12,7 +11,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { DataTable, Column } from '../../../../../components';
-import { Alert, Card, Button, useTheme } from '../../../../../context';
+import { Alert, Card, Button } from '../../../../../context';
 
 import {expedientService} from '../services/expedientService';
 import {calcularEdad} from '../services/miscelaneousService';
