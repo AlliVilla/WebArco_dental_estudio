@@ -21,20 +21,7 @@ import type { ExpedientePaciente } from "../types/index";
 import { useResponsive } from "../../../../../hooks/useWindowWidth";
 import { normalizeSearch } from "../../../../../utils/formatters";
 
-const C = {
-  primary: "var(--arco-primary, #0BC5DF)",
-  navy: "var(--foreground, #203F49)",
-  success: "var(--arco-success, #1D9E75)",
-  warning: "var(--arco-warning, #EF9F27)",
-  danger: "var(--arco-danger, #E24B4A)",
-  gray50: "var(--background, #F8F9FA)",
-  gray100: "var(--arco-gray-100, #F1F3F4)",
-  gray300: "var(--border, #D3D7DA)",
-  gray500: "var(--muted-foreground, #888F94)",
-  gray700: "var(--arco-gray-700, #5F656A)",
-  white: "var(--card, #ffffff)",
-  primaryBg: "var(--accent, #E6F8FB)",
-};
+const C: Record<string, string> = {};
 
 // ─── Card de paciente para móvil ──────────────────────────────────────────────
 function PatientCard({

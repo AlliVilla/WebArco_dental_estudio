@@ -71,51 +71,12 @@ interface ToastMsg {
   message: string;
 }
 
-const catalogoTratamientos: TratamientoCatalogo[] = [
-  { id: "t01", nombre: "Consulta general", precio: 500 },
-  { id: "t02", nombre: "Limpieza dental (Profilaxis)", precio: 1200 },
-  { id: "t03", nombre: "Resina clase I", precio: 900 },
-  { id: "t04", nombre: "Resina clase II", precio: 1100 },
-  { id: "t05", nombre: "Resina clase III", precio: 1300 },
-  { id: "t06", nombre: "Resina clase IV", precio: 1500 },
-  { id: "t07", nombre: "Extracción simple", precio: 800 },
-  { id: "t08", nombre: "Extracción quirúrgica", precio: 2200 },
-  { id: "t09", nombre: "Endodoncia unirradicular", precio: 3200 },
-  { id: "t10", nombre: "Endodoncia birradicular", precio: 4000 },
-  { id: "t11", nombre: "Endodoncia multirradicular", precio: 4800 },
-  { id: "t12", nombre: "Corona metal-porcelana", precio: 5500 },
-  { id: "t13", nombre: "Corona zirconio", precio: 8500 },
-  { id: "t14", nombre: "Implante dental", precio: 15000 },
-  { id: "t15", nombre: "Detartraje supragingival", precio: 800 },
-  { id: "t16", nombre: "Blanqueamiento dental", precio: 2500 },
-  { id: "t17", nombre: "Ortodoncia - mensualidad", precio: 1500 },
-  { id: "t18", nombre: "Radiografía periapical", precio: 350 },
-  { id: "t19", nombre: "Radiografía panorámica", precio: 650 },
-  { id: "t20", nombre: "Cirugía periodontal", precio: 6000 },
-];
+const catalogoTratamientos: TratamientoCatalogo[] = [];
 
-const DOCTORES = [
-  "Dra. Karla Arita",
-  "Dr. Miguel Herrera",
-  "Dra. Sofía Munguía",
-  "Dr. Andrés López",
-];
-const FILE_CATEGORIES: FileCategory[] = [
-  "Radiografía Periapical",
-  "Radiografía Panorámica",
-  "Fotografía Clínica Intraoral/Extraoral",
-];
-const STEP_LABELS = [
-  "Paciente y Cita",
-  "Motivo y Odontograma",
-  "Tratamientos y Cobro",
-];
-const DOCTOR_MAP: Record<string, number> = {
-  "Dra. Karla Arita": 1,
-  "Dr. Miguel Herrera": 2,
-  "Dra. Sofía Munguía": 3,
-  "Dr. Andrés López": 4,
-};
+const DOCTORES: string[] = [];
+const FILE_CATEGORIES: FileCategory[] = [];
+const STEP_LABELS: string[] = [];
+const DOCTOR_MAP: Record<string, number> = {};
 
 function uid() {
   return Math.random().toString(36).slice(2);
