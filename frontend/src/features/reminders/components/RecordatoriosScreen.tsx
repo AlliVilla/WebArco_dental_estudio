@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { Send, RotateCcw, Clock, RefreshCw, Plus } from "lucide-react";
-import { DataTable, StatsDrawer } from "../../../components";
+import { Send, RotateCcw, Clock, RefreshCw, Plus, Trash2 } from "lucide-react";
+import { DataTable, StatsDrawer, ConfirmModal } from "../../../components";
 import { Avatar } from "../../../context";
 import { ReminderService } from "../services/ReminderService";
 import {
@@ -10,13 +10,13 @@ import {
 } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Z } from "../../../utils/zIndex";
-import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio } from "../types";
-import { CANAL_CONFIG, ESTADO_CONFIG } from "../utils/badgeConfigs";
+import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio, RespuestaPaciente } from "../types";
+import { CANAL_CONFIG, ESTADO_CONFIG, RESPUESTA_CONFIG } from "../utils/badgeConfigs";
 import { NuevoRecordatorioForm } from "./NuevoRecordatorioForm";
 
 const AUTO_REFRESH_INTERVAL = 24 * 60 * 60 * 1000;
 
-export interface RecordatoriosScreenProps {}
+export interface RecordatoriosScreenProps { }
 
 function formatHoraCita(iso: string) {
   return new Date(iso).toLocaleTimeString("es-HN", {
@@ -98,6 +98,36 @@ function UrgenteBadge() {
   );
 }
 
+function RespuestaBadge({ respuesta }: { respuesta: RespuestaPaciente }) {
+  const cfg = RESPUESTA_CONFIG[respuesta];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: cfg.bg,
+        color: cfg.color,
+        padding: "3px 10px",
+        borderRadius: 8,
+        fontSize: 11,
+        fontWeight: 600,
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: cfg.dot,
+          flexShrink: 0,
+        }}
+      />
+      {cfg.label}
+    </span>
+  );
+}
+
 // ─── Card para móvil ──────────────────────────────────────────────────────────
 type Row = RecordatorioRow & Record<string, unknown>;
 
@@ -105,11 +135,13 @@ function ReminderCard({
   row,
   onSend,
   onRetry,
+  onDiscard,
   isLoading,
 }: {
-  row: RecordatorioRow;
+  row: Row;
   onSend: () => void;
   onRetry: () => void;
+  onDiscard: () => void;
   isLoading: boolean;
 }) {
   return (
@@ -159,7 +191,27 @@ function ReminderCard({
             </p>
           </div>
         </div>
-        {row.es_proximas_24h && <UrgenteBadge />}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {row.es_proximas_24h && <UrgenteBadge />}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDiscard();
+            }}
+            disabled={isLoading}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#888F94",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              padding: 4,
+              display: "flex",
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
       <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
         <div
@@ -288,24 +340,17 @@ function ReminderCard({
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   const { isMobile, isTablet } = useResponsive();
-  const mountedRef = useRef(true);
 
   const [rows, setRows] = useState<RecordatorioRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [openDrawer, setOpenDrawer] = useState<
     "pendientes" | "enviados" | "errores" | "urgentes" | null
   >(null);
-
-  // Fix 5: mountedRef cleanup separado del keyframe
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  const [discardRow, setDiscardRow] = useState<RecordatorioRow | null>(null);
 
   useEffect(() => {
     const id = "reminders-spin-keyframe";
@@ -364,38 +409,60 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
     setActionLoadingId(row.id);
     try {
       await ReminderService.send({ id_cita: row.id_cita, canal: row.canal });
-      if (mountedRef.current)
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
-          )
-        );
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
+        )
+      );
     } catch {
-      if (mountedRef.current)
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === row.id ? { ...r, estado_envio: "Error" } : r
-          )
-        );
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, estado_envio: "Error" } : r
+        )
+      );
     } finally {
-      if (mountedRef.current) setActionLoadingId(null);
+      setActionLoadingId(null);
     }
   }
 
   async function handleRetry(row: RecordatorioRow) {
     setActionLoadingId(row.id);
     try {
-      await ReminderService.retry(row.id);
-      if (mountedRef.current)
-        setRows((prev) =>
-          prev.map((r) =>
-            r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
-          )
-        );
+      const realId = parseInt(row.id.replace('rec-', ''), 10);
+      await ReminderService.retry(realId);
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
+        )
+      );
     } catch {
       /* estado permanece en Error */
     } finally {
-      if (mountedRef.current) setActionLoadingId(null);
+      setActionLoadingId(null);
+    }
+  }
+
+  function initiateDiscard(row: RecordatorioRow) {
+    setDiscardRow(row);
+  }
+
+  async function confirmDiscard() {
+    if (!discardRow) return;
+    console.log("🟢 Inicia confirmDiscard para:", discardRow.id);
+    setActionLoadingId(discardRow.id);
+    try {
+      console.log("🟠 Llamando a ReminderService.discardReminder...");
+      const res = await ReminderService.discardReminder(discardRow.id);
+      console.log("✅ Promesa resuelta:", res);
+      setRows((prev) => prev.filter((r) => r.id !== discardRow.id));
+      setDiscardRow(null);
+      console.log("✅ Estado actualizado para cerrar modal");
+    } catch (e) {
+      console.error("❌ Error en discardReminder:", e);
+      setDiscardRow(null);
+    } finally {
+      console.log("🏁 Bloque finally ejecutado");
+      setActionLoadingId(null);
     }
   }
 
@@ -489,7 +556,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       },
       {
         key: "estado_envio",
-        label: "Estado de envío",
+        label: "Estado",
         width: "14%",
         render: (_: unknown, row: Row) => (
           <EstadoEnvioBadge estado={row.estado_envio as EstadoEnvio} />
@@ -699,7 +766,6 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
             >
               <option value="">Canal</option>
               <option value="WhatsApp">WhatsApp</option>
-              <option value="SMS">SMS</option>
               <option value="Correo">Correo</option>
             </select>
           </div>
@@ -745,6 +811,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                 isLoading={actionLoadingId === row.id}
                 onSend={() => handleSend(row)}
                 onRetry={() => handleRetry(row)}
+                onDiscard={() => initiateDiscard(row as unknown as RecordatorioRow)}
               />
             ))
           )}
@@ -778,7 +845,6 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
               placeholder: "Canal",
               options: [
                 { value: "WhatsApp", label: "WhatsApp" },
-                { value: "SMS", label: "SMS" },
                 { value: "Correo", label: "Correo" },
               ],
             },
@@ -792,42 +858,48 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
           ]}
           rowActions={(row) => {
             const isLoading = actionLoadingId === row.id;
+            const actions = [];
+
             if (row.estado_envio === "Pendiente") {
-              return [
-                {
-                  icon: isLoading ? (
-                    <RefreshCw
-                      size={16}
-                      style={{ animation: "spin 1s linear infinite" }}
-                    />
-                  ) : (
-                    <Send size={16} />
-                  ),
-                  label: "Enviar recordatorio",
-                  onClick: (r) =>
-                    handleSend(r as RecordatorioRow & Record<string, unknown>),
-                },
-              ];
+              actions.push({
+                icon: isLoading ? (
+                  <RefreshCw
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
+                ) : (
+                  <Send size={16} />
+                ),
+                label: "Enviar recordatorio",
+                onClick: (r: any) =>
+                  handleSend(r as RecordatorioRow),
+              });
+            } else if (row.estado_envio === "Error") {
+              actions.push({
+                icon: isLoading ? (
+                  <RefreshCw
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
+                ) : (
+                  <RotateCcw size={16} />
+                ),
+                label: "Reintentar envío",
+                onClick: (r: any) =>
+                  handleRetry(r as RecordatorioRow),
+                danger: false,
+              });
             }
-            if (row.estado_envio === "Error") {
-              return [
-                {
-                  icon: isLoading ? (
-                    <RefreshCw
-                      size={16}
-                      style={{ animation: "spin 1s linear infinite" }}
-                    />
-                  ) : (
-                    <RotateCcw size={16} />
-                  ),
-                  label: "Reintentar envío",
-                  onClick: (r) =>
-                    handleRetry(r as RecordatorioRow & Record<string, unknown>),
-                  danger: false,
-                },
-              ];
-            }
-            return [];
+
+            actions.push({
+              icon: <Trash2 size={16} />,
+              label: "Descartar",
+              onClick: (r: any) =>
+                initiateDiscard(r as RecordatorioRow),
+              danger: true,
+            });
+
+            return actions;
           }}
           getRowKey={(row) => String(row.id)}
           pageSize={15}
@@ -879,9 +951,9 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
           <StatsDrawer
             key={key}
             open={openDrawer === key}
+            onClose={() => setOpenDrawer(null)}
             title={title}
             subtitle={subtitle}
-            onClose={() => setOpenDrawer(null)}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {drawerRows.length === 0 ? (
@@ -891,6 +963,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                     color: "#888F94",
                     fontSize: 14,
                     padding: 24,
+                    margin: 0,
                   }}
                 >
                   No hay recordatorios en esta categoría.
@@ -901,8 +974,9 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                     key={row.id}
                     style={{
                       padding: 14,
-                      borderRadius: 10,
-                      border: "1px solid #D3D7DA",
+                      border: "1px solid #F0F2F4",
+                      borderRadius: 8,
+                      background: "#fff",
                     }}
                   >
                     <div
@@ -910,29 +984,31 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
-                        gap: 8,
                         marginBottom: 8,
                       }}
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2,
+                        }}
+                      >
                         <p
                           style={{
+                            margin: 0,
                             fontSize: 14,
                             fontWeight: 600,
                             color: "#203F49",
-                            margin: 0,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
                           }}
                         >
                           {row.paciente}
                         </p>
                         <p
                           style={{
+                            margin: 0,
                             fontSize: 12,
                             color: "#888F94",
-                            margin: "2px 0 0",
                           }}
                         >
                           {row.contacto}
@@ -941,9 +1017,9 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                       <div
                         style={{
                           display: "flex",
-                          gap: 6,
-                          flexShrink: 0,
-                          alignItems: "center",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 4,
                         }}
                       >
                         {row.es_proximas_24h && <UrgenteBadge />}
@@ -955,10 +1031,12 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
+                        paddingTop: 8,
+                        borderTop: "1px solid #F8F9FA",
                       }}
                     >
                       <span style={{ fontSize: 12, color: "#888F94" }}>
-                        {formatHoraCita(row.hora_cita)} ·{" "}
+                        {formatHoraCita(row.hora_cita)} •{" "}
                         {formatDate(row.hora_cita)}
                       </span>
                       <EstadoEnvioBadge estado={row.estado_envio} />
@@ -970,6 +1048,18 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
           </StatsDrawer>
         );
       })}
+
+      <ConfirmModal
+        open={!!discardRow}
+        onClose={() => setDiscardRow(null)}
+        onConfirm={confirmDiscard}
+        variant="danger"
+        title="Descartar Recordatorio"
+        description={`¿Estás seguro que deseas eliminar este recordatorio de la cola de envío para ${discardRow?.paciente}?`}
+        confirmLabel="Descartar"
+        cancelLabel="Cancelar"
+        loading={!!discardRow && actionLoadingId === discardRow.id}
+      />
     </div>
   );
 }

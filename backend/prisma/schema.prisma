@@ -84,6 +84,7 @@ enum EstadoRespuesta {
   confirmado
   cancelado
   sin_respuesta
+  descartado
 }
 
 model Persona {
