@@ -14,6 +14,7 @@ import {
   FileText,
   Loader2,
   CreditCard,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { DataTable, Column } from '../../../../../components';
 import { Alert, Card, Button, Input } from '../../../../../context';
@@ -76,6 +77,7 @@ export function ExpedienteScreen() {
   const [nuevoPagoObs, setNuevoPagoObs] = useState('');
   const [savingPago, setSavingPago] = useState(false);
   const [pagoError, setPagoError] = useState('');
+  const [showGalleryPlaceholder, setShowGalleryPlaceholder] = useState(false);
 
   // Paginación client-side
   const [currentPage, setCurrentPage] = useState(1);
@@ -343,9 +345,19 @@ export function ExpedienteScreen() {
             >
               <ArrowLeft size={16} /> Volver a expedientes
             </Button>
-            <Button onClick={() => setViewState('new-consulta')} variant="primary" size="sm">
-              <Plus size={16} /> Registrar Nueva Consulta
-            </Button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowGalleryPlaceholder(true)}
+                style={{ background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', border: 'none', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)' }}
+              >
+                <ImageIcon size={16} /> Galería de Fotos
+              </Button>
+              <Button onClick={() => setViewState('new-consulta')} variant="primary" size="sm">
+                <Plus size={16} /> Registrar Nueva Consulta
+              </Button>
+            </div>
           </div>
 
           {/* Perfil del paciente */}
@@ -899,6 +911,48 @@ export function ExpedienteScreen() {
           >
             Abrir en nueva pestaña
           </button>
+        </div>
+      )}
+
+      {/* Galería de Fotos — Placeholder */}
+      {showGalleryPlaceholder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+        }} onClick={() => setShowGalleryPlaceholder(false)}>
+          <div style={{
+            background: C.white, borderRadius: 16, maxWidth: '450px', width: '100%',
+            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+              color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ImageIcon size={18} /> Galería de Fotos
+              </div>
+              <button onClick={() => setShowGalleryPlaceholder(false)}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+              <ImageIcon size={48} color={C.gray300} style={{ marginBottom: 16, display: 'inline-block' }} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 8 }}>
+                Pantalla en desarrollo
+              </div>
+              <div style={{ fontSize: 13, color: C.gray500, lineHeight: 1.6 }}>
+                Allison va a crear esta pantalla, así que esto no se puede revisar aún.
+              </div>
+            </div>
+            <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="primary" size="sm" onClick={() => setShowGalleryPlaceholder(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
