@@ -665,7 +665,6 @@ export function ExpedienteScreen() {
                             >
                               <FileText size={14} /> Ver Formulario
                             </Button>
-
                           </div>
                           <div style={{
                             display: 'grid',
@@ -795,6 +794,120 @@ export function ExpedienteScreen() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Tratamientos del Paciente */}
+          <div>
+            <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>
+              Tratamientos del Paciente
+              {activePatient?.tratamientos && activePatient.tratamientos.length > 0 && (
+                <span style={{ fontSize: 12, color: C.gray500, fontWeight: 400, marginLeft: 8 }}>
+                  ({activePatient.tratamientos.length} registro{activePatient.tratamientos.length !== 1 ? 's' : ''})
+                </span>
+              )}
+            </h3>
+
+            {!activePatient?.tratamientos || activePatient.tratamientos.length === 0 ? (
+              <div style={{ border: `2px dashed ${C.warning}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: 'rgba(239, 159, 39, 0.06)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.warning, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Sin Tratamientos Registrados
+                </span>
+                <span style={{ fontSize: 12, color: C.gray500, textAlign: 'center' }}>
+                  El paciente no tiene planes de tratamiento activos
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {activePatient.tratamientos.map((trat) => {
+                  const isActive = trat.estado === 'ACTIVO';
+                  const isCompleted = trat.estado === 'COMPLETADO';
+                  const isCancelled = trat.estado === 'CANCELADO';
+                  const progress = trat.costoTotal > 0 ? Math.round((trat.totalAbonado / trat.costoTotal) * 100) : 0;
+
+                  return (
+                    <div
+                      key={trat.id}
+                      style={{
+                        background: C.white,
+                        borderRadius: 12,
+                        border: `1.5px solid ${
+                          isActive ? C.primary : isCompleted ? C.success : C.gray300
+                        }`,
+                        padding: isMobile ? '14px 16px' : '18px 22px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{
+                            width: 8, height: 8, borderRadius: '50%',
+                            background: isActive ? C.primary : isCompleted ? C.success : C.gray500,
+                          }} />
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{trat.nombre}</span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 12,
+                            background: isActive ? C.primaryBg : isCompleted ? '#E8F7F2' : C.gray100,
+                            color: isActive ? C.primary : isCompleted ? C.success : C.gray500,
+                            textTransform: 'uppercase', letterSpacing: '0.5px',
+                          }}>
+                            {isActive ? 'Activo' : isCompleted ? 'Completado' : 'Cancelado'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13 }}>
+                          <span style={{ color: C.gray500 }}>
+                            Saldo:{' '}
+                            <strong style={{ color: trat.saldoPendiente > 0 ? C.danger : C.success }}>
+                              L. {trat.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                            </strong>
+                          </span>
+                          <span style={{ color: C.gray500 }}>
+                            Total: <strong style={{ color: C.navy }}>L. {trat.costoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {isActive && (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <div style={{ flex: 1, height: 6, background: C.gray100, borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{
+                                width: `${Math.min(progress, 100)}%`, height: '100%',
+                                background: progress >= 100 ? C.success : C.primary,
+                                borderRadius: 3, transition: 'width 0.5s',
+                              }} />
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>{progress}%</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {trat.consultas && trat.consultas.length > 0 && (
+                        <div style={{ marginTop: 12, borderTop: `1px solid ${C.gray100}`, paddingTop: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.gray500, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Consultas asociadas ({trat.consultas.length})
+                          </div>
+                          {trat.consultas.map((c) => (
+                            <div key={c.id_consulta} style={{
+                              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+                              borderBottom: `1px solid ${C.gray100}`, fontSize: 12.5, color: C.gray700,
+                            }}>
+                              <span style={{ fontWeight: 600, color: C.navy, minWidth: 90 }}>
+                                {new Date(c.fecha_inicio).toLocaleDateString('es-HN')}
+                              </span>
+                              <span style={{ flex: 1 }}>{c.notas || 'Sin notas'}</span>
+                              {c.doctor && (
+                                <span style={{ color: C.gray500, fontSize: 11 }}>
+                                  Dr. {c.doctor.persona.primer_nombre} {c.doctor.persona.primer_apellido}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

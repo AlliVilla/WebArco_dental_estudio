@@ -19,6 +19,7 @@ export interface RegistrarConsultaPayload {
   firma_doctor?: string;
   tratamientos?: TratamientoPayload[];
   respuestas?: RespuestaConsulta[];
+  tratamientoPacienteId?: number;
 }
 
 export interface PreguntaConsulta {

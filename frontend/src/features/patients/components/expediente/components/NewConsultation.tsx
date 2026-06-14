@@ -18,6 +18,8 @@ import { privilegeService } from '../services/privilegeService';
 import { ConsultationQuestions } from './ConsultationQuestions';
 import { treatmentService } from '../../../../treatments/services/treatmentService';
 import type { Treatment } from '../../../../treatments/types';
+import { tratamientoPacienteService, type TratamientoPacienteResponse } from '../services/tratamientoPacienteService';
+
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -272,6 +274,39 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
+    // ── Plan de tratamiento por item ──
+    interface TratamientoItemPlan {
+        enabled: boolean;
+        costoTotal: number;
+        existingPlanId?: number;
+    }
+    const [itemsPlan, setItemsPlan] = useState<Record<string, TratamientoItemPlan>>({});
+    const [tratamientosPaciente, setTratamientosPaciente] = useState<TratamientoPacienteResponse[]>([]);
+
+    const loadTratamientosPaciente = useCallback(async () => {
+        try {
+            const res = await tratamientoPacienteService.findByPaciente(patient.id_persona);
+            setTratamientosPaciente(Array.isArray(res.data) ? res.data.filter((t: TratamientoPacienteResponse) => t.estado === 'ACTIVO') : []);
+        } catch { /* ignore */ }
+    }, [patient.id_persona]);
+
+    const toggleItemPlan = (itemId: string, precio: number) => {
+        setItemsPlan(prev => {
+            if (prev[itemId]?.enabled) {
+                const next = { ...prev };
+                delete next[itemId];
+                return next;
+            }
+            return { ...prev, [itemId]: { enabled: true, costoTotal: precio } };
+        });
+    };
+
+    const updateItemPlan = (itemId: string, patch: Partial<TratamientoItemPlan>) => {
+        setItemsPlan(prev => ({
+            ...prev,
+            [itemId]: { ...prev[itemId], ...patch },
+        }));
+    };
 
     const addToast = useCallback((type: ToastMsg['type'], message: string) => {
         const id = uid();
@@ -336,11 +371,12 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         loadDoctores();
         loadTratamientos();
         loadOdontograma();
+        loadTratamientosPaciente();
         expedientService.getPreguntas().then((res) => {
             const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
             setPreguntas(data);
         }).catch(() => {});
-    },[loadOdontograma]);
+    },[loadOdontograma, loadTratamientosPaciente]);
 
     const syncOdontogramDraft = useCallback(() => {
         const draft = loadOdontogramaDraft(patient.id_persona);
@@ -359,7 +395,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             syncOdontogramDraft();
         }
     }, [showOdontogram, syncOdontogramDraft]);
-
 
     // ── File handling ──────────────────────────────────────────────────────────
     const processFiles = useCallback((files: FileList | null) => {
@@ -479,6 +514,34 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             tratamientos: catalogTratamientosPayload.length > 0 ? catalogTratamientosPayload : undefined,
             respuestas: respuestasArr.length > 0 ? respuestasArr : undefined,
         };
+
+        // Create tratamiento planes for items marked as active
+        let primerPlanId: number | undefined;
+        const planEntries = tratamientos.filter(t => itemsPlan[t.id]?.enabled);
+        for (const t of planEntries) {
+            const plan = itemsPlan[t.id];
+            if (plan.existingPlanId) {
+                if (!primerPlanId) primerPlanId = plan.existingPlanId;
+                continue;
+            }
+            try {
+                const resPlan = await tratamientoPacienteService.create({
+                    pacienteId: patient.id_persona,
+                    nombre: t.nombre,
+                    costoTotal: plan.costoTotal,
+                    fechaInicio: new Date().toISOString(),
+                });
+                if (resPlan.success) {
+                    if (!primerPlanId) primerPlanId = resPlan.data.id;
+                    addToast('success', `Plan "${t.nombre}" creado.`);
+                }
+            } catch {
+                addToast('error', `Error al crear plan para "${t.nombre}".`);
+            }
+        }
+        if (primerPlanId) {
+            (payload as any).tratamientoPacienteId = primerPlanId;
+        }
 
         try {
             const res = await expedientService.registrarConsulta(patient.id_persona, payload);
@@ -882,6 +945,8 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             )}
                         </SectionCard>
 
+
+
                         {/* 3. Selección de Tratamientos */}
                         <SectionCard icon={<Search size={17} />} title="Selección de Tratamientos y Facturación">
                             <div style={{
@@ -989,23 +1054,88 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     {tratamientos.map((t, idx) => {
+                                        const plan = itemsPlan[t.id];
+                                        const isPlanEnabled = plan?.enabled;
                                         return (
-                                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.white, border: `1.5px solid ${C.gray300}`, borderRadius: 10, padding: '14px 16px', flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 150 }}>
-                                                    <span style={{ fontSize: 12, fontWeight: 700, color: C.gray500, background: C.gray100, borderRadius: 6, padding: '2px 8px', minWidth: 28, textAlign: 'center' }}>
-                                                        {idx + 1}
+                                            <div key={t.id} style={{ display: 'flex', flexDirection: 'column', background: C.white, border: `1.5px solid ${isPlanEnabled ? C.primary : C.gray300}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                                                {/* Main row */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', flexWrap: 'wrap' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 150 }}>
+                                                        <span style={{ fontSize: 12, fontWeight: 700, color: C.gray500, background: C.gray100, borderRadius: 6, padding: '2px 8px', minWidth: 28, textAlign: 'center' }}>
+                                                            {idx + 1}
+                                                        </span>
+                                                        <span style={{ color: C.gray300, fontSize: 14, fontWeight: 300 }}>|</span>
+                                                        <span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{t.nombre}</span>
+                                                    </div>
+                                                    <span style={{ fontSize: 13, fontWeight: 700, color: C.success, minWidth: 90, textAlign: 'right' }}>
+                                                        L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                                     </span>
-                                                    <span style={{ color: C.gray300, fontSize: 14, fontWeight: 300 }}>|</span>
-                                                    <span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{t.nombre}</span>
+                                                    <button
+                                                        onClick={() => toggleItemPlan(t.id, t.precio)}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: 6,
+                                                            background: isPlanEnabled ? C.primaryBg : 'transparent',
+                                                            color: isPlanEnabled ? C.primary : C.gray500,
+                                                            border: `1.5px solid ${isPlanEnabled ? C.primary : C.gray300}`,
+                                                            borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600,
+                                                            cursor: 'pointer', whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        {isPlanEnabled ? <Check size={13} /> : <Plus size={13} />}
+                                                        {isPlanEnabled ? 'Plan activo' : 'Agregar como plan activo'}
+                                                    </button>
+                                                    <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, padding: 4 }}>
+                                                        <Trash2 size={15} />
+                                                    </button>
                                                 </div>
-                                                
-                                                {/* Line total */}
-                                                <span style={{ fontSize: 13, fontWeight: 700, color: C.success, minWidth: 90, textAlign: 'right' }}>
-                                                    L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                                </span>
-                                                <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, marginLeft: 8, padding: 4 }}>
-                                                    <Trash2 size={15} />
-                                                </button>
+
+                                                {/* Expanded plan form */}
+                                                {isPlanEnabled && (
+                                                    <div style={{
+                                                        borderTop: `1px solid ${C.primary015}`,
+                                                        background: C.gray50, padding: '14px 16px',
+                                                        display: 'flex', flexDirection: 'column', gap: 12,
+                                                    }}>
+                                                        <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                            Configurar plan de tratamiento
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                                            <div style={{ flex: 1, minWidth: 160 }}>
+                                                                <label style={{ fontSize: 10, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 4 }}>
+                                                                    Total a pagar (costo del plan)
+                                                                </label>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 6, padding: '0 10px', background: C.white }}>
+                                                                    <span style={{ color: C.gray500, fontSize: 12 }}>L.</span>
+                                                                    <input
+                                                                        type="number" min={0} step="0.01"
+                                                                        value={plan.costoTotal || ''}
+                                                                        onChange={(e) => updateItemPlan(t.id, { costoTotal: Math.max(0, Number(e.target.value) || 0) })}
+                                                                        style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, padding: '8px 0', background: 'transparent', width: '100%' }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            {t.id_tratamiento && tratamientosPaciente.length > 0 && (
+                                                                <div style={{ flex: 1, minWidth: 180 }}>
+                                                                    <label style={{ fontSize: 10, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 4 }}>
+                                                                        O asociar a plan existente
+                                                                    </label>
+                                                                    <select
+                                                                        value={plan.existingPlanId || ''}
+                                                                        onChange={(e) => updateItemPlan(t.id, { existingPlanId: e.target.value ? Number(e.target.value) : undefined })}
+                                                                        style={{ width: '100%', padding: '8px 10px', border: `1px solid ${C.gray300}`, borderRadius: 6, fontSize: 12, color: C.navy, background: C.white, outline: 'none', cursor: 'pointer' }}
+                                                                    >
+                                                                        <option value="">-- Crear nuevo plan --</option>
+                                                                        {tratamientosPaciente.map((tp) => (
+                                                                            <option key={tp.id} value={tp.id}>
+                                                                                {tp.nombre} (Saldo: L.{tp.saldoPendiente.toLocaleString('es-HN')})
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
