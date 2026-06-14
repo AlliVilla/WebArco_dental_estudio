@@ -22,6 +22,8 @@ import { InventarioModule } from './inventario/inventario.module';
 import { CategoriaInsumoModule } from './categoria-insumo/categoria-insumo.module';
 import { UnidadMedidaModule } from './unidad-medida/unidad-medida.module';
 import { TratamientoModule } from './tratamiento/tratamiento.module';
+import { TratamientoPacienteModule } from './tratamiento-paciente/tratamiento-paciente.module';
+import { PagoConsultaModule } from './pago-consulta/pago-consulta.module';
 import { EspecialidadModule } from './especialidad/especialidad.module';
 import { EstadoOdontogramaModule } from './estado-odontograma/estado-odontograma.module';
 import { UploadModule } from './upload/upload.module';
@@ -55,6 +57,8 @@ import { join } from 'path';
     CategoriaInsumoModule,
     UnidadMedidaModule,
     TratamientoModule,
+    TratamientoPacienteModule,
+    PagoConsultaModule,
     FinanzasModule,
     EspecialidadModule,
     EstadoOdontogramaModule,

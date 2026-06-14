@@ -26,6 +26,13 @@ export interface RowAction<T> {
   danger?: boolean;
 }
 
+export interface DataTableActionContext<T> {
+  filteredData: T[];
+  pagedData: T[];
+  search: string;
+  filters: Record<string, string>;
+}
+
 export interface DataTableProps<T extends Record<string, unknown>> {
   columns: Column<T>[];
   data: T[];
@@ -44,7 +51,7 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   secondaryActions?: {
     label: string;
     icon?: React.ReactNode;
-    onClick: () => void;
+    onClick: (context: DataTableActionContext<T>) => void;
   }[];
   rowActions?: (row: T) => RowAction<T>[];
   getRowKey?: (row: T, index: number) => string;
@@ -490,7 +497,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     key={i}
                     variant="secondary"
                     size="sm"
-                    onClick={a.onClick}
+                    onClick={() => a.onClick({ filteredData, pagedData, search, filters: filterValues })}
                   >
                     {a.icon}
                     {a.label}

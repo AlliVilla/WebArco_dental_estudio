@@ -137,4 +137,13 @@ export class RegistrarConsultaDto {
   @ValidateNested({ each: true })
   @Type(() => RespuestaDto)
   respuestas?: RespuestaDto[];
+
+  @ApiPropertyOptional({
+    description: 'ID del tratamiento de paciente (plan de tratamiento) asociado',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  tratamientoPacienteId?: number;
 }
