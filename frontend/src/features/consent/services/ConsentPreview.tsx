@@ -2,6 +2,7 @@ import { CheckCircle2, Clock, Info, Printer, X } from "lucide-react";
 import { FormSection } from "../../../components";
 import { Button, Card, Input } from "../../../context";
 import type { ConsentRecord } from "../types";
+import { getStatusMeta } from "./consentUtils";
 import { printConsentDocuments } from "./printConsentDocuments";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
@@ -113,15 +114,53 @@ export function ConsentPreview({
           >
             Vista previa — Consentimiento {selectedConsent.id}
           </h2>
-          <p
+          <div
             style={{
-              color: "var(--muted-foreground)",
-              fontSize: 13,
-              margin: "4px 0 0 0",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 6,
+              flexWrap: "wrap",
             }}
           >
-            Documento en modo solo lectura
-          </p>
+            <p
+              style={{
+                color: "var(--muted-foreground)",
+                fontSize: 13,
+                margin: 0,
+              }}
+            >
+              Documento en modo solo lectura
+            </p>
+            <span
+              style={{
+                display: "inline-block",
+                width: 3,
+                height: 3,
+                borderRadius: "50%",
+                background: "var(--muted-foreground)",
+                opacity: 0.4,
+              }}
+            />
+            {(() => {
+              const meta = getStatusMeta(selectedConsent.estado);
+              return (
+                <span
+                  style={{
+                    background: meta.background,
+                    color: meta.color,
+                    borderRadius: 20,
+                    padding: "3px 10px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {meta.label}
+                </span>
+              );
+            })()}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Button
@@ -267,21 +306,6 @@ export function ConsentPreview({
             signer={selectedConsent.doctor}
             signature={selectedConsent.doctorSignature}
           />
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <span
-            style={{
-              background: "var(--arco-success)",
-              color: "var(--primary-foreground)",
-              borderRadius: 20,
-              padding: "5px 12px",
-              fontSize: 11,
-              fontWeight: 600,
-            }}
-          >
-            Firmado
-          </span>
         </div>
       </div>
     </Card>

@@ -308,6 +308,8 @@ interface ConsentFormFlowProps {
   onFormChange: (field: keyof ConsentFormValues, value: string) => void;
   onCancel: () => void;
   onContinueFromForm: () => void;
+  onSaveWithoutSignatures: () => void;
+  onSkipToFinish: () => void;
   onPatientSignatureChange: (value: string) => void;
   onDoctorSignatureChange: (value: string) => void;
   onStepChange: (step: ConsentStep) => void;
@@ -328,6 +330,8 @@ export function ConsentFormFlow({
   onFormChange,
   onCancel,
   onContinueFromForm,
+  onSaveWithoutSignatures,
+  onSkipToFinish,
   onPatientSignatureChange,
   onDoctorSignatureChange,
   onStepChange,
@@ -586,9 +590,46 @@ export function ConsentFormFlow({
             style={{
               display: "flex",
               justifyContent: "flex-end",
+              gap: 10,
               paddingTop: 4,
+              flexWrap: "wrap",
             }}
           >
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const errors: Record<string, string> = {};
+                if (!formValues.paciente.trim())
+                  errors.paciente = "El nombre del paciente es obligatorio";
+                if (!formValues.doctor)
+                  errors.doctor = "Selecciona un doctor responsable";
+                if (!formValues.procedimiento)
+                  errors.procedimiento = "Selecciona el procedimiento";
+                if (!formValues.fechaHora)
+                  errors.fechaHora = "La fecha y hora son obligatorias";
+                if (Object.keys(errors).length > 0) {
+                  setFieldErrors(errors);
+                  setTimeout(() => {
+                    const first =
+                      document.querySelector<HTMLElement>("[data-field-error]");
+                    if (first) {
+                      const rect = first.getBoundingClientRect();
+                      window.scrollTo({
+                        top: window.scrollY + rect.top - 100,
+                        behavior: "smooth",
+                      });
+                    }
+                  }, 0);
+                  return;
+                }
+                setFieldErrors({});
+                onSaveWithoutSignatures();
+              }}
+              style={{ width: isMobile ? "100%" : undefined }}
+            >
+              Guardar sin firmas
+            </Button>
             <Button
               type="button"
               onClick={handleContinue}
@@ -617,7 +658,32 @@ export function ConsentFormFlow({
             onPatientSignatureChange={onPatientSignatureChange}
             onDoctorSignatureChange={onDoctorSignatureChange}
           />
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Siguiente — avanza sin necesidad de firmar */}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setSignatureError("");
+                if (currentStep === 2) {
+                  onStepChange(3);
+                  onSignatureTargetChange("doctor");
+                } else {
+                  onSkipToFinish();
+                }
+              }}
+              style={{ width: isMobile ? "100%" : undefined }}
+            >
+              Omitir
+            </Button>
+            {/* Guardar firma — requiere que haya algo dibujado */}
             <Button
               type="button"
               onClick={handleSaveSignature}
