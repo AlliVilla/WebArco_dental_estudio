@@ -3,9 +3,9 @@ import { Download, Edit3, Eye, Plus, Printer } from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column, RowAction } from "../../../components";
 import type { ConsentRecord, ConsentStatus } from "../types";
-import { statusOptions } from "./consentData";
-import { getStatusMeta } from "./consentUtils";
-import { printConsentDocuments } from "./printConsentDocuments";
+import { statusOptions } from "../services/consentData";
+import { getStatusMeta } from "../services/consentUtils";
+import { printConsentDocuments } from "../services/printConsentDocuments";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { normalizeSearch } from "../../../utils/formatters";
 

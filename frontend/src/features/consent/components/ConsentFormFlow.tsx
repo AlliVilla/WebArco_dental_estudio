@@ -20,7 +20,7 @@ import {
   ConsentCompletedStep,
   ConsentSignatureStep,
 } from "./ConsentSignatureStep";
-import { doctorOptions, procedimientoOptions } from "./consentData";
+import { doctorOptions, procedimientoOptions } from "../services/consentData";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
 const C = {

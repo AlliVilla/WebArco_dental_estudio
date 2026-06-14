@@ -3,10 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
 import { UpdateSignaturesDto } from './dto/update-signatures.dto';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class ConsentimientoService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private uploadService: UploadService) { }
 
   // --- Helpers 
 
@@ -270,24 +271,35 @@ export class ConsentimientoService {
 
   async updateSignatures(idConsulta: number, data: UpdateSignaturesDto) {
     if (!data.firma_paciente && !data.firma_doctor) {
-      throw new BadRequestException('Debe proporcionar al menos una firma (firma_paciente o firma_doctor)');
+      throw new BadRequestException(
+        'Debe proporcionar al menos una firma (firma_paciente o firma_doctor)',
+      );
     }
 
-    const consulta = await this.prisma.consulta.findUnique({ where: { id_consulta: idConsulta } });
-    if (!consulta) throw new NotFoundException(`Consentimiento con ID ${idConsulta} no encontrado`);
+    const consulta = await this.prisma.consulta.findUnique({
+      where: { id_consulta: idConsulta },
+    });
+    if (!consulta) {
+      throw new NotFoundException(`Consentimiento con ID ${idConsulta} no encontrado`);
+    }
 
     if (data.firma_paciente && consulta.firma_paciente) {
-      throw new ConflictException('La firma del paciente ya existe y no puede sobreescribirse');
+      throw new ConflictException(
+        'La firma del paciente ya existe y no puede sobreescribirse',
+      );
     }
     if (data.firma_doctor && consulta.firma_doctor_snapshot) {
-      throw new ConflictException('La firma del doctor ya existe y no puede sobreescribirse');
+      throw new ConflictException(
+        'La firma del doctor ya existe y no puede sobreescribirse',
+      );
     }
 
+    // Las URLs vienen resueltas desde el controller (ej: "/uploads/firma-123.png")
     await this.prisma.consulta.update({
       where: { id_consulta: idConsulta },
       data: {
-        ...(data.firma_paciente && { firma_paciente: data.firma_paciente || null }),
-        ...(data.firma_doctor && { firma_doctor_snapshot: data.firma_doctor || null }),
+        ...(data.firma_paciente && { firma_paciente: data.firma_paciente }),
+        ...(data.firma_doctor   && { firma_doctor_snapshot: data.firma_doctor }),
       },
     });
 

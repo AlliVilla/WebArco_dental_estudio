@@ -4,7 +4,7 @@ import { useResponsive } from "../../../hooks/useWindowWidth";
 import { StatsDrawer } from "../../../components";
 import { useState } from "react";
 import type { ConsentRecord } from "../types";
-import { getStatusMeta } from "./consentUtils";
+import { getStatusMeta } from "../services/consentUtils";
 
 interface ConsentSearchCardProps {
   totalConsents: number;

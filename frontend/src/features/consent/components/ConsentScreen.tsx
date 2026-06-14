@@ -8,8 +8,8 @@ import { ConsentFormFlow } from "./ConsentFormFlow";
 import { ConsentListTable } from "./ConsentListTable";
 import { ConsentPreview } from "./ConsentPreview";
 import { ConsentSearchCard } from "./ConsentSearchCard";
-import { defaultFormValues, initialConsents } from "./consentData";
-import { formatDisplayDate, formatDisplayTime } from "./consentUtils";
+import { defaultFormValues, initialConsents } from "../services/consentData";
+import { formatDisplayDate, formatDisplayTime } from "../services/consentUtils";
 import { exportToExcel } from "../../../utils/exportToExcel";
 import type {
   ConsentFormValues,

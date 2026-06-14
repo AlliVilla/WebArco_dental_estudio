@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Query, Param, Patch, Body, ParseIntPipe, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, UseInterceptors, Query, Param, Patch, Body, ParseIntPipe, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiOkResponse, ApiCreatedResponse, ApiNotFoundResponse, ApiBadRequestResponse, ApiConflictResponse, ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { ConsentimientoService } from './consentimiento.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { UpdateSignaturesDto } from './dto/update-signatures.dto';
+import { UploadedFiles } from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
@@ -69,6 +71,12 @@ export class ConsentimientoController {
   @Privileges(22)
   @Patch(':id/signatures')
   @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'firma_paciente', maxCount: 1 },
+      { name: 'firma_doctor',   maxCount: 1 },
+    ]),
+  )
   @ApiOperation({ summary: 'Actualizar firmas faltantes', description: 'Registra la firma del paciente o del doctor de manera independiente. No permite sobreescribir una firma ya existente.' })
   @ApiParam({ name: 'id', description: 'ID del consentimiento (consulta)', example: 1 })
   @ApiOkResponse({ description: 'Firmas actualizadas y detalle del consentimiento devuelto exitosamente' })
@@ -77,8 +85,20 @@ export class ConsentimientoController {
   @ApiConflictResponse({ description: 'La firma ya existe y no puede sobreescribirse' })
   updateSignatures(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateSignaturesDto: UpdateSignaturesDto,
+    @UploadedFiles() files: {          // ← parámetro files declarado correctamente
+      firma_paciente?: Express.Multer.File[];
+      firma_doctor?: Express.Multer.File[];
+    },
   ) {
-    return this.consentimientoService.updateSignatures(id, updateSignaturesDto);
+    const dto: UpdateSignaturesDto = {
+      firma_paciente: files.firma_paciente?.[0]
+        ? `/uploads/${files.firma_paciente[0].filename}`
+        : undefined,
+      firma_doctor: files.firma_doctor?.[0]
+        ? `/uploads/${files.firma_doctor[0].filename}`
+        : undefined,
+    };
+
+    return this.consentimientoService.updateSignatures(id, dto);
   }
 }
