@@ -66,13 +66,6 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     [consents]
   );
 
-  const canContinueForm = Boolean(
-    formValues.paciente &&
-      formValues.doctor &&
-      formValues.procedimiento &&
-      formValues.fechaHora
-  );
-
   function openMode(nextMode: ConsentMode, id?: string) {
     const params = new URLSearchParams(location.search);
 
@@ -115,7 +108,9 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
       paciente: consent.paciente,
       doctor: consent.doctor,
       procedimiento: consent.procedimiento,
-      fechaHora: "2026-06-05T10:30",
+      fechaHora:
+        (consent.fechaHora as string | undefined) ??
+        new Date().toISOString().slice(0, 16),
       declaracion: consent.declaracion,
       riesgos: consent.riesgos,
       clausula: consent.clausula,
@@ -256,7 +251,6 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
           signatureTarget={signatureTarget}
           patientSignature={patientSignature}
           doctorSignature={doctorSignature}
-          canContinueForm={canContinueForm}
           onFormChange={updateFormValue}
           onCancel={() => setConfirmCloseOpen(true)}
           onContinueFromForm={handleContinueFromForm}

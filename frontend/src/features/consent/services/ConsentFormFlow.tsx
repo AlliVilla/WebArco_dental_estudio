@@ -305,7 +305,6 @@ interface ConsentFormFlowProps {
   signatureTarget: SignatureTarget;
   patientSignature: string;
   doctorSignature: string;
-  canContinueForm: boolean;
   onFormChange: (field: keyof ConsentFormValues, value: string) => void;
   onCancel: () => void;
   onContinueFromForm: () => void;
