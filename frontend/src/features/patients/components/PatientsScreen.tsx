@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Edit,
   Eye,
   Hash,
-  IdCard,
   Phone,
   Plus,
-  Search,
   User,
   X,
 } from "lucide-react";
@@ -54,7 +52,6 @@ type PersonasListResponse = {
 
 type PatientSearchFilters = {
   nombre?: string;
-  identidad?: string;
   telefono?: string;
   codigo?: string;
 };
@@ -92,7 +89,6 @@ export function PatientsScreen({
 }: PatientsScreenProps) {
   const navigate = useNavigate();
   const [searchName, setSearchName] = useState("");
-  const [searchIdentity, setSearchIdentity] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
   const [searchCode, setSearchCode] = useState("");
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
@@ -108,10 +104,7 @@ export function PatientsScreen({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchVersion, setSearchVersion] = useState(0);
-
-  const hasAnyFilter = Boolean(
-    searchName.trim() || searchIdentity.trim() || searchPhone.trim() || searchCode.trim(),
-  );
+  const activeFilterKeyRef = useRef(JSON.stringify({ nombre: "", telefono: "", codigo: "" }));
 
   useEffect(() => {
     let ignore = false;
@@ -123,13 +116,12 @@ export function PatientsScreen({
         page: currentPage,
         limit: DEFAULT_PAGE_SIZE,
         nombre: activeFilters.nombre || undefined,
-        identidad: activeFilters.identidad || undefined,
         telefono: activeFilters.telefono || undefined,
         codigo: activeFilters.codigo || undefined,
         includeConsulta: false,
       },
     })
-      .then((response) => {
+      .then((response: { data: PersonasListResponse }) => {
         if (ignore) return;
 
         const personas = response.data?.data ?? [];
@@ -156,28 +148,34 @@ export function PatientsScreen({
     };
   }, [activeFilters, currentPage]);
 
-  const handleSearch = () => {
-    if (!hasAnyFilter) return;
-    setIsLoading(true);
-    setError("");
-    setHasSearched(true);
-    setActiveFilters({
-      nombre: searchName.trim(),
-      identidad: searchIdentity.replace(/\D/g, ""),
-      telefono: searchPhone.replace(/\D/g, ""),
-      codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""),
-    });
-    setSearchVersion((v) => v + 1);
-    setCurrentPage(1);
-  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const nextFilters: PatientSearchFilters = {
+        nombre: searchName.trim(),
+        telefono: searchPhone.replace(/\D/g, ""),
+        codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""),
+      };
+      const nextFilterKey = JSON.stringify(nextFilters);
+
+      if (activeFilterKeyRef.current === nextFilterKey) return;
+
+      activeFilterKeyRef.current = nextFilterKey;
+      setHasSearched(Boolean(nextFilters.nombre || nextFilters.telefono || nextFilters.codigo));
+      setActiveFilters(nextFilters);
+      setSearchVersion((v) => v + 1);
+      setCurrentPage(1);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [searchName, searchPhone, searchCode]);
 
   const handleClear = () => {
     setIsLoading(true);
     setError("");
     setSearchName("");
-    setSearchIdentity("");
     setSearchPhone("");
     setSearchCode("");
+    activeFilterKeyRef.current = JSON.stringify({ nombre: "", telefono: "", codigo: "" });
     setHasSearched(false);
     setActiveFilters({});
     setSearchVersion((v) => v + 1);
@@ -275,14 +273,6 @@ export function PatientsScreen({
             icon={<User size={15} />}
           />
           <Input
-            label="Búsqueda por número de identidad"
-            badge="optional"
-            placeholder="Ej: 0801-1990-12345"
-            value={searchIdentity}
-            onChange={(event) => setSearchIdentity(event.target.value)}
-            icon={<IdCard size={15} />}
-          />
-          <Input
             label="Búsqueda por teléfono"
             badge="optional"
             placeholder="Ej: 9876-5432"
@@ -300,16 +290,7 @@ export function PatientsScreen({
           />
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-          <Button
-            variant="primary"
-            onClick={handleSearch}
-            disabled={!hasAnyFilter || isLoading}
-            style={{ flex: "1 1 220px" }}
-          >
-            <Search size={16} />
-            {isLoading && hasSearched ? "Buscando..." : "Buscar paciente"}
-          </Button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "flex-end" }}>
           <Button variant="secondary" onClick={handleClear} disabled={isLoading}>
             <X size={16} />
             Limpiar filtros

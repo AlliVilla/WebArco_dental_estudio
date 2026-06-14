@@ -172,13 +172,24 @@ export function ExpedienteScreen() {
   }, [loadPatients]);
 
   useEffect(() => {
-    if (!selectedPatientFromQuery || expedientes.length === 0) return;
-    if (expedientes.some((p) => p.id_persona === selectedPatientFromQuery)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedPatientId(selectedPatientFromQuery);
-      setViewState('detail');
+    if (!selectedPatientFromQuery) {
+      if (viewState !== 'list') {
+        setSelectedPatientId(null);
+        setSelectedConsultationForOdontogram(null);
+        setViewState('list');
+      }
+      return;
     }
-  }, [expedientes, selectedPatientFromQuery]);
+
+    if (expedientes.length === 0) return;
+
+    if (expedientes.some((p) => p.id_persona === selectedPatientFromQuery)) {
+      setSelectedPatientId(selectedPatientFromQuery);
+      if (viewState === 'list') {
+        setViewState('detail');
+      }
+    }
+  }, [expedientes, selectedPatientFromQuery, viewState]);
   
   const totalConsultas = useMemo(
     () => expedientes.reduce((acc, exp) => acc + (exp.consultas?.length ?? 0), 0),
@@ -231,10 +242,13 @@ export function ExpedienteScreen() {
   const handleSelectPatient = (id: number) => {
     setSelectedPatientId(id);
     setViewState('detail');
+    navigate(`/patients/records?patientId=${id}`);
   };
 
   const handleBackToList = () => {
+    setSelectedPatientId(null);
     setViewState('list');
+    navigate('/patients/records', { replace: true });
     loadPatients(1);
   };
 
