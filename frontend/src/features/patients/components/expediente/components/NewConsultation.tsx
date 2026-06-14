@@ -429,7 +429,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         descGlobal = subtotal * (porcentaje / 100);
     }
     const total = Math.max(0, subtotal - descGlobal);
-    const anticipoNum = Math.min(parseFloat(anticipo) || 0, total);
+    const anticipoNum = Math.min(Math.max(0, parseFloat(anticipo) || 0), total);
     const saldo = total - anticipoNum;
 
     // ── Save ───────────────────────────────────────────────────────────────────
@@ -1060,7 +1060,14 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                         <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'monto' ? 'L.' : ''}</span>
                                         <input
                                             value={descuentoGlobal}
-                                            onChange={(e) => setDescuentoGlobal(e.target.value)}
+                                            onChange={(e) => {
+                                                const raw = e.target.value;
+                                                if (raw.startsWith('-')) {
+                                                    setDescuentoGlobal('');
+                                                } else {
+                                                    setDescuentoGlobal(raw);
+                                                }
+                                            }}
                                             placeholder="0"
                                             type="number"
                                             min="0"
@@ -1104,11 +1111,14 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                         <input 
                                             value={anticipo} 
                                             onChange={(e) => {
-                                                const val = parseFloat(e.target.value);
-                                                if (!isNaN(val) && val > total) {
+                                                const raw = e.target.value;
+                                                const val = parseFloat(raw);
+                                                if (raw.startsWith('-')) {
+                                                    setAnticipo('');
+                                                } else if (!isNaN(val) && val > total) {
                                                     setAnticipo(String(total));
                                                 } else {
-                                                    setAnticipo(e.target.value);
+                                                    setAnticipo(raw);
                                                 }
                                             }} 
                                             placeholder="0.00" 

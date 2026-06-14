@@ -12,9 +12,11 @@ import {
   Zap,
   X,
   FileText,
+  Loader2,
+  CreditCard,
 } from 'lucide-react';
 import { DataTable, Column } from '../../../../../components';
-import { Alert, Card, Button } from '../../../../../context';
+import { Alert, Card, Button, Input } from '../../../../../context';
 
 import {expedientService} from '../services/expedientService';
 import {odontogramaService} from '../../odontograma/services/odontogramaService';
@@ -23,6 +25,7 @@ import {calcularEdad} from '../services/miscelaneousService';
 import {ExpedientePaciente} from '../types/getAllPacientes';
 import type {ConsultaHistorica} from '../types/getAllPacientes';
 import api from '../../../../../services/api';
+import billingService from '../../../../billing/services/billingService';
 
 const C = {
   primary: 'var(--arco-primary, #0BC5DF)',
@@ -61,6 +64,18 @@ export function ExpedienteScreen() {
     patient: ExpedientePaciente
   } | null>(null);
   const [selectedConsultationForRespuestas, setSelectedConsultationForRespuestas] = useState<ConsultaHistorica | null>(null);
+  const [selectedConsultaForPagos, setSelectedConsultaForPagos] = useState<ConsultaHistorica | null>(null);
+  const [pagosData, setPagosData] = useState<{
+    pagos: any[];
+    resumen: { total: number; totalPagado: number; saldoPendiente: number; pagadaCompletamente: boolean };
+    loading: boolean;
+  }>({ pagos: [], resumen: { total: 0, totalPagado: 0, saldoPendiente: 0, pagadaCompletamente: false }, loading: false });
+  const [showNuevoPago, setShowNuevoPago] = useState(false);
+  const [nuevoPagoMonto, setNuevoPagoMonto] = useState('');
+  const [nuevoPagoFecha, setNuevoPagoFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [nuevoPagoObs, setNuevoPagoObs] = useState('');
+  const [savingPago, setSavingPago] = useState(false);
+  const [pagoError, setPagoError] = useState('');
 
   // Paginación client-side
   const [currentPage, setCurrentPage] = useState(1);
@@ -569,6 +584,25 @@ export function ExpedienteScreen() {
                             >
                               <FileText size={14} /> Ver Formulario
                             </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedConsultaForPagos(visit);
+                                setPagosData(prev => ({ ...prev, loading: true }));
+                                billingService.getByConsultaId(visit.id_consulta).then(res => {
+                                  const d = res.data?.data || res.data;
+                                  if (d?.pagos && d?.resumen) {
+                                    setPagosData({ pagos: d.pagos, resumen: d.resumen, loading: false });
+                                  } else {
+                                    setPagosData({ pagos: [], resumen: { total: 0, totalPagado: 0, saldoPendiente: 0, pagadaCompletamente: false }, loading: false });
+                                  }
+                                }).catch(() => setPagosData(prev => ({ ...prev, loading: false })));
+                              }}
+                              style={{ fontSize: 12, background: C.success, border: 'none', boxShadow: '0 4px 12px rgba(29, 158, 117, 0.35)' }}
+                            >
+                              <CreditCard size={14} /> Ver Pagos
+                            </Button>
                           </div>
                           <div style={{
                             display: 'grid',
@@ -865,6 +899,240 @@ export function ExpedienteScreen() {
           >
             Abrir en nueva pestaña
           </button>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {selectedConsultaForPagos && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => { setSelectedConsultaForPagos(null); setShowNuevoPago(false); }}>
+          <div
+            style={{
+              background: C.white, borderRadius: 16, maxWidth: '550px',
+              width: '100%', maxHeight: '90vh', overflowY: 'auto',
+              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, #1D9E75, #157a5a)',
+              color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CreditCard size={18} /> Pagos de la Consulta
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
+                  {selectedConsultaForPagos.fecha_inicio
+                    ? new Date(selectedConsultaForPagos.fecha_inicio).toLocaleDateString('es-HN')
+                    : 'N/A'}
+                </div>
+              </div>
+              <button onClick={() => { setSelectedConsultaForPagos(null); setShowNuevoPago(false); }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {pagosData.loading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: C.gray500 }}>
+                  <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }} />
+                  <div style={{ marginTop: 8, fontSize: 13 }}>Cargando pagos...</div>
+                </div>
+              ) : (
+                <>
+                  {/* Summary cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    <div style={{ background: C.gray50, borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${C.gray100}` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginTop: 4 }}>
+                        L. {pagosData.resumen.total.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div style={{ background: C.gray50, borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${C.gray100}` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.success, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pagado</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: C.success, marginTop: 4 }}>
+                        L. {pagosData.resumen.totalPagado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div style={{ background: pagosData.resumen.saldoPendiente > 0 ? '#FFF8EC' : '#F0FBF7', borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success}40` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success, marginTop: 4 }}>
+                        L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payments list */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <DollarSign size={14} /> Historial de Pagos
+                    </div>
+                    {pagosData.pagos.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: C.gray500, fontSize: 13, border: `1px dashed ${C.gray300}`, borderRadius: 8 }}>
+                        No hay pagos registrados para esta consulta.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {pagosData.pagos.map((pago: any, idx: number) => (
+                          <div key={pago.id_pago || idx} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '12px 14px', background: C.white, border: `1px solid ${C.gray100}`,
+                            borderRadius: 8,
+                          }}>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>
+                                {new Date(pago.fecha).toLocaleDateString('es-HN')}
+                              </div>
+                              {pago.observacion && (
+                                <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>{pago.observacion}</div>
+                              )}
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: C.success }}>
+                              L. {Number(pago.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add payment button */}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={pagosData.resumen.pagadaCompletamente}
+                    onClick={() => { setShowNuevoPago(true); setPagoError(''); }}
+                    style={{
+                      width: '100%',
+                      background: pagosData.resumen.pagadaCompletamente ? C.gray300 : C.success,
+                      borderColor: pagosData.resumen.pagadaCompletamente ? C.gray300 : C.success,
+                      opacity: pagosData.resumen.pagadaCompletamente ? 0.6 : 1,
+                      cursor: pagosData.resumen.pagadaCompletamente ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <Plus size={15} /> {pagosData.resumen.pagadaCompletamente ? 'Consulta totalmente pagada' : 'Agregar Pago'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nuevo Pago Modal */}
+      {showNuevoPago && selectedConsultaForPagos && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.4)', zIndex: 10000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+        }} onClick={() => setShowNuevoPago(false)}>
+          <div style={{
+            background: C.white, borderRadius: 16, maxWidth: '420px', width: '100%', overflow: 'hidden',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              padding: '18px 24px', background: 'linear-gradient(135deg, #1D9E75, #157a5a)', color: 'white',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Plus size={18} /> Nuevo Pago
+              </div>
+              <button onClick={() => setShowNuevoPago(false)}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Fecha del pago *
+                </label>
+                <input type="date" value={nuevoPagoFecha} onChange={(e) => setNuevoPagoFecha(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Monto del pago (L.) *
+                </label>
+                <input type="number" min="0.01" step="0.01" value={nuevoPagoMonto} onChange={(e) => setNuevoPagoMonto(e.target.value)}
+                  placeholder="0.00"
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Observación
+                </label>
+                <input type="text" value={nuevoPagoObs} onChange={(e) => setNuevoPagoObs(e.target.value)}
+                  placeholder="Ej: Segundo abono, pago completo, etc."
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
+              </div>
+              {pagosData.resumen.saldoPendiente > 0 && (
+                <div style={{ fontSize: 11, color: C.warning, background: '#FFF8EC', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.warning}30` }}>
+                  Saldo pendiente actual: <strong>L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</strong>
+                </div>
+              )}
+              {nuevoPagoMonto && parseFloat(nuevoPagoMonto) > pagosData.resumen.saldoPendiente && (
+                <div style={{ fontSize: 11, color: C.danger, background: 'rgba(226, 75, 74, 0.08)', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.danger}30` }}>
+                  El monto del pago (L. {parseFloat(nuevoPagoMonto).toLocaleString('es-HN', { minimumFractionDigits: 2 })}) excede el saldo pendiente (L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
+                </div>
+              )}
+              {pagoError && (
+                <div style={{ fontSize: 11, color: C.danger, background: 'rgba(226, 75, 74, 0.08)', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.danger}30` }}>
+                  {pagoError}
+                </div>
+              )}
+            </div>
+            <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="secondary" size="sm" onClick={() => setShowNuevoPago(false)}>Cancelar</Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={savingPago}
+                disabled={!nuevoPagoMonto || parseFloat(nuevoPagoMonto) <= 0 || !nuevoPagoFecha || parseFloat(nuevoPagoMonto) > pagosData.resumen.saldoPendiente}
+                onClick={async () => {
+                  const monto = parseFloat(nuevoPagoMonto);
+                  if (isNaN(monto) || monto <= 0) return;
+                  if (!nuevoPagoFecha) return;
+                  setSavingPago(true);
+                  setPagoError('');
+                  try {
+                    const res = await billingService.create({
+                      id_consulta: selectedConsultaForPagos.id_consulta,
+                      fecha: nuevoPagoFecha,
+                      abono: monto,
+                      observacion: nuevoPagoObs.trim() || undefined,
+                    });
+                    if (res.success) {
+                      // Reload payment data
+                      const reload = await billingService.getByConsultaId(selectedConsultaForPagos.id_consulta);
+                      const d = reload.data;
+                      if (d?.pagos && d?.resumen) {
+                        setPagosData({ pagos: d.pagos, resumen: d.resumen, loading: false });
+                      }
+                      setShowNuevoPago(false);
+                      setNuevoPagoMonto('');
+                      setNuevoPagoObs('');
+                      setNuevoPagoFecha(new Date().toISOString().slice(0, 10));
+                    }
+                  } catch (err: any) {
+                    setPagoError(err?.message || 'Error al registrar el pago');
+                  }
+                  setSavingPago(false);
+                }}
+                style={{ background: C.success, borderColor: C.success }}
+              >
+                <CheckCircle size={14} /> Guardar Pago
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
