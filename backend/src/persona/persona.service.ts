@@ -189,15 +189,31 @@ export class PersonaService {
       if (includeConsulta) {
         include.consultas = {
           orderBy: {
-            fecha_fin: 'desc', 
+            fecha_inicio: 'desc', 
           },
           include : {
+            doctor: {
+              include: {
+                persona: true,
+              }
+            },
+            respuestas: {
+              include: {
+                pregunta: {
+                  select: { id_pregunta: true, pregunta: true, orden_num: true },
+                },
+              },
+              orderBy: { pregunta: { orden_num: 'asc' } },
+            },
             tratamientos: {
               include: {
                 tratamiento: true,
               }
             },
             archivos : true,
+            pagos: {
+              orderBy: { fecha: 'desc' },
+            },
           } 
         };
       }

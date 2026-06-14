@@ -5,9 +5,8 @@ const { insertMunicipios } = require("./seeders/municipios");
 const { insertRoles } = require("./seeders/roles");
 const { insertPrivilegios } = require("./seeders/privilegios");
 const { insertRolesPrivilegios} = require("./seeders/rolesprivilegios");
-const { insertPersonas } = require("./seeders/persona");
 const { insertUsuarios } = require("./seeders/usuarios");
-const { insertAntecedentesPreguntas } = require("./seeders/antecendentespreguntas");
+const { insertPersonas } = require("./seeders/persona");
 const { insertDientes } = require("./seeders/dientes");  
 const { insertCategoriasInsumo } = require("./seeders/categorias-insumo");
 const { insertUnidadesMedida } = require("./seeders/unidades-medida");
@@ -19,12 +18,13 @@ const { insertTratamientos } = require("./seeders/tratamiento");
 const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
 const { insertArchivos } = require("./seeders/archivos");
 const { insertCierres } = require("./seeders/cierres");
+const { insertConsultaPreguntas } = require("./seeders/consulta-preguntas");
+
 async function insertSeeder(){
     try{
         await insertDientes();
         await insertCategoriasInsumo();
         await insertUnidadesMedida();
-        await insertAntecedentesPreguntas();
         await insertRoles();
         await insertPrivilegios();
         await insertRolesPrivilegios();
@@ -36,6 +36,7 @@ async function insertSeeder(){
         await insertArchivos();
         await insertOdontograma();
         await insertEstadosOdontograma();
+        await insertConsultaPreguntas();
         await insertEspecialidades();
         await insertTratamientos();
         await insertConsultaTratamientos();

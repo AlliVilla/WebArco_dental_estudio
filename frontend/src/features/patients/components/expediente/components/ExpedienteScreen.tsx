@@ -1,7 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { NuevaVisita } from "./NewVisit";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { NuevaConsulta } from './NewConsultation';
 import {
   Plus,
   ArrowLeft,
@@ -10,366 +9,349 @@ import {
   DollarSign,
   ChevronRight,
   ChevronDown,
+  Zap,
   X,
-} from "lucide-react";
-import { DataTable, StatsDrawer } from "../../../../../components";
-import type { Column } from "../../../../../components";
-import { Alert, Card, Button, useTheme } from "../../../../../context";
-import { expedientService } from "../services/expedientService";
-import { calcularEdad } from "../services/miscelaneousService";
-import type { ExpedientePaciente } from "../types/index";
-import { useResponsive } from "../../../../../hooks/useWindowWidth";
-import { normalizeSearch } from "../../../../../utils/formatters";
+  FileText,
+  Loader2,
+  CreditCard,
+  Image as ImageIcon,
+} from 'lucide-react';
+import { DataTable, Column, StatsDrawer } from '../../../../../components';
+import { Alert, Card, Button, Input } from '../../../../../context';
 
-const C: Record<string, string> = {};
+import {expedientService} from '../services/expedientService';
+import {odontogramaService} from '../../odontograma/services/odontogramaService';
+import {OdontogramScreen} from '../../odontograma/components/OdontogramaScreen';
+import {calcularEdad} from '../services/miscelaneousService';
+import {ExpedientePaciente} from '../types/getAllPacientes';
+import type {ConsultaHistorica} from '../types/getAllPacientes';
+import api from '../../../../../services/api';
+import billingService from '../../../../billing/services/billingService';
+import { useResponsive } from '../../../../../hooks/useWindowWidth';
+import { normalizeSearch } from '../../../../../utils/formatters';
+
+const C = {
+  primary: 'var(--arco-primary, #0BC5DF)',
+  navy: 'var(--foreground, #203F49)',
+  success: 'var(--arco-success, #1D9E75)',
+  warning: 'var(--arco-warning, #EF9F27)',
+  danger: 'var(--arco-danger, #E24B4A)',
+  gray50: 'var(--background, #F8F9FA)',
+  gray100: 'var(--arco-gray-100, #F1F3F4)',
+  gray300: 'var(--border, #D3D7DA)',
+  gray500: 'var(--muted-foreground, #888F94)',
+  gray700: 'var(--arco-gray-700, #5F656A)',
+  white: 'var(--card, #ffffff)',
+  primaryBg: 'var(--accent, #E6F8FB)',
+  primary008: 'rgba(11, 197, 223, 0.08)',
+  primary015: 'rgba(11, 197, 223, 0.15)',
+  primary025: 'rgba(11, 197, 223, 0.25)',
+  primary04: 'rgba(11, 197, 223, 0.40)',
+  primaryShadow: 'rgba(11, 197, 223, 0.16)',
+};
+
+const PAGE_SIZE = 10;
 
 // ─── Card de paciente para móvil ──────────────────────────────────────────────
-function PatientCard({
-  exp,
-  onClick,
-}: {
-  exp: ExpedientePaciente;
-  onClick: () => void;
-}) {
-  const hasPending = exp.consultas.some(
-    (c) => !c.firma_paciente || !c.firma_doctor_snapshot
-  );
-  const nombre = [
-    exp.primer_nombre,
-    exp.segundo_nombre,
-    exp.primer_apellido,
-    exp.segundo_apellido,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const initials = `${exp.primer_nombre?.[0] ?? ""}${
-    exp.primer_apellido?.[0] ?? ""
-  }`.toUpperCase();
+function PatientCard({ exp, onClick }: { exp: ExpedientePaciente; onClick: () => void }) {
+  const hasPending = exp.consultas?.some((c) => !c.firma_paciente || !c.firma_doctor_snapshot);
+  const nombre = [exp.primer_nombre, exp.segundo_nombre, exp.primer_apellido, exp.segundo_apellido].filter(Boolean).join(' ');
+  const initials = `${exp.primer_nombre?.[0] ?? ''}${exp.primer_apellido?.[0] ?? ''}`.toUpperCase();
   return (
-    <div
-      onClick={onClick}
-      style={{
-        background: "#fff",
-        borderRadius: 12,
-        border: "1px solid #D3D7DA",
-        padding: 16,
-        cursor: "pointer",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 8,
-          marginBottom: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              background: "#0BC5DF",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
+    <div onClick={onClick} style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.gray300}`, padding: 16, cursor: 'pointer' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.primary, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
             {initials}
           </div>
           <div style={{ minWidth: 0 }}>
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#203F49",
-                margin: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {nombre}
-            </p>
-            <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
-              {exp.numero_identidad}
-            </p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombre}</p>
+            <p style={{ fontSize: 12, color: C.gray500, margin: '2px 0 0' }}>{exp.numero_identidad}</p>
           </div>
         </div>
-        <ChevronRight
-          size={16}
-          style={{ color: "#888F94", flexShrink: 0, marginTop: 2 }}
-        />
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {hasPending ? (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 8, background: '#FFFBEB', color: '#D97706' }}>Pendiente</span>
+          ) : (
+            <CheckCircle size={16} color={C.success} />
+          )}
+          <ChevronRight size={16} color={C.gray500} />
+        </div>
       </div>
-      <div
-        style={{
-          borderTop: "1px solid #F8F9FA",
-          paddingTop: 8,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <span style={{ fontSize: 12, color: "#888F94" }}>
-          {exp.consultas.length} visita{exp.consultas.length !== 1 ? "s" : ""}
-        </span>
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            padding: "3px 8px",
-            borderRadius: 12,
-            background: hasPending ? "#FFFBEB" : "#E8F7F2",
-            color: hasPending ? "#D97706" : "#1D9E75",
-          }}
-        >
-          {hasPending ? "Firma pendiente" : "Al día"}
-        </span>
-      </div>
+      <div style={{ fontSize: 11, color: C.gray500 }}>{(exp.consultas?.length ?? 0)} consulta{(exp.consultas?.length ?? 0) !== 1 ? 's' : ''} · {exp.telefono}</div>
     </div>
   );
 }
 
+function DrawerPatientList({ items, onSelectPatient }: { items: ExpedientePaciente[]; onSelectPatient: (id: number) => void }) {
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(
+    () => !search ? items : items.filter((e) => {
+      const nombre = [e.primer_nombre, e.segundo_nombre, e.primer_apellido, e.segundo_apellido].filter(Boolean).join(' ');
+      return nombre.toLowerCase().includes(search.toLowerCase()) || e.numero_identidad.includes(search);
+    }),
+    [items, search],
+  );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input value={search} onChange={(e) => setSearch(e.target.value)}
+        placeholder="Buscar paciente..."
+        style={{ width: '100%', padding: '10px 14px', border: `1px solid ${C.gray300}`, borderRadius: 10, fontSize: 13, outline: 'none', color: C.navy, background: C.white, boxSizing: 'border-box' }}
+      />
+      {filtered.length === 0 ? (
+        <p style={{ textAlign: 'center', color: C.gray500, fontSize: 13, margin: '24px 0' }}>No se encontraron pacientes.</p>
+      ) : (
+        filtered.map((exp) => (
+          <PatientCard key={exp.id_persona} exp={exp} onClick={() => onSelectPatient(exp.id_persona)} />
+        ))
+      )}
+    </div>
+  );
+}
+
+// ── Componente principal ────────────────────────────────────────────────────────
+
 export function ExpedienteScreen() {
-  useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
-  const mountedRef = useRef(true);
-
-  const [viewState, setViewState] = useState<"list" | "detail" | "new-visit">(
-    "list"
-  );
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
-    null
-  );
+  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta' | 'odontograma-view'>('list');
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ nombre: string; url: string } | null>(null);
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [openDrawer, setOpenDrawer] = useState<
-    "visitas" | "completadas" | "firmas" | null
-  >(null);
+  const [selectedConsultationForOdontogram, setSelectedConsultationForOdontogram] = useState<{
+    id_consulta: number,
+    patient: ExpedientePaciente
+  } | null>(null);
+  const [selectedConsultationForRespuestas, setSelectedConsultationForRespuestas] = useState<ConsultaHistorica | null>(null);
+  const [selectedConsultaForPagos, setSelectedConsultaForPagos] = useState<ConsultaHistorica | null>(null);
+  const [pagosData, setPagosData] = useState<{
+    pagos: any[];
+    resumen: { total: number; totalPagado: number; saldoPendiente: number; pagadaCompletamente: boolean };
+    loading: boolean;
+  }>({ pagos: [], resumen: { total: 0, totalPagado: 0, saldoPendiente: 0, pagadaCompletamente: false }, loading: false });
+  const [showNuevoPago, setShowNuevoPago] = useState(false);
+  const [nuevoPagoMonto, setNuevoPagoMonto] = useState('');
+  const [nuevoPagoFecha, setNuevoPagoFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [nuevoPagoObs, setNuevoPagoObs] = useState('');
+  const [savingPago, setSavingPago] = useState(false);
+  const [pagoError, setPagoError] = useState('');
+  const [showGalleryPlaceholder, setShowGalleryPlaceholder] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState<'visitas' | 'completadas' | 'firmas' | null>(null);
 
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
+  // Paginación client-side
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const pagedExpedientes = useMemo(
+    () => expedientes.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [expedientes, currentPage],
+  );
+
+  const handleTableParamsChange = useCallback((params: { page: number }) => {
+    setCurrentPage(params.page);
   }, []);
 
   const selectedPatientFromQuery = useMemo(() => {
-    const queryPatientId = new URLSearchParams(location.search).get(
-      "patientId"
-    );
+    const queryPatientId = new URLSearchParams(location.search).get('patientId');
     const parsedId = Number(queryPatientId);
     return Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
   }, [location.search]);
 
-  // Fix: try/catch + isMounted
-  const loadPatients = useCallback(async () => {
-    let isMounted = true;
+  const loadPatients = useCallback(async (page: number, search = '') => {
     setLoading(true);
-    setError("");
+    setError('');
     try {
-      const res = await expedientService.getAll({
-        page: 1,
-        limit: 1000,
-        search: "",
-        includeConsulta: true,
-      });
-      if (!isMounted) return;
+      const res = await expedientService.getAll({page, limit: 1000, search, includeConsulta: true});
       if (res.success) {
         setExpedientes(res.data.data);
       } else {
         setError(res.message);
+        setExpedientes([]);
       }
-    } catch (err: unknown) {
-      if (!isMounted) return;
-      if (import.meta.env.DEV) console.error("[ExpedienteScreen]", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudieron cargar los expedientes."
-      );
-    } finally {
-      if (isMounted) setLoading(false);
+    } catch {
+      setError('Error al cargar los expedientes');
+      setExpedientes([]);
     }
-    return () => {
-      isMounted = false;
-    };
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    void loadPatients();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPatients(1);
   }, [loadPatients]);
 
   useEffect(() => {
     if (!selectedPatientFromQuery || expedientes.length === 0) return;
-    const exists = expedientes.some(
-      (p) => p.id_persona === selectedPatientFromQuery
-    );
-    if (exists) {
+    if (expedientes.some((p) => p.id_persona === selectedPatientFromQuery)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedPatientId(selectedPatientFromQuery);
-      setViewState("detail");
+      setViewState('detail');
     }
   }, [expedientes, selectedPatientFromQuery]);
+  
+  const totalConsultas = useMemo(
+    () => expedientes.reduce((acc, exp) => acc + (exp.consultas?.length ?? 0), 0),
+    [expedientes],
+  );
 
-  const totalVisitas = useMemo(
-    () => expedientes.reduce((acc, e) => acc + (e.consultas.length ?? 0), 0),
-    [expedientes]
+  const kpiCols = isMobile || isTablet ? '1fr 1fr' : 'repeat(3, 1fr)';
+  const showCards = isMobile || isTablet;
+
+  const [mobileSearch, setMobileSearch] = useState('');
+  const filteredExps = useMemo(
+    () => !mobileSearch ? expedientes : expedientes.filter((e) => {
+      const nombre = [e.primer_nombre, e.segundo_nombre, e.primer_apellido, e.segundo_apellido].filter(Boolean).join(' ');
+      return normalizeSearch(nombre).includes(normalizeSearch(mobileSearch)) || e.numero_identidad.includes(mobileSearch) || e.telefono.includes(mobileSearch);
+    }),
+    [expedientes, mobileSearch],
   );
+
   const completadas = useMemo(
-    () => expedientes.reduce((acc, e) => acc + (e.consultas?.length ?? 0), 0),
-    [expedientes]
+    () =>
+      expedientes.reduce(
+        (acc, exp) => acc + (exp.consultas?.filter((c) => c.fecha_fin).length ?? 0),
+        0,
+      ),
+    [expedientes],
   );
+
   const firmasDigitales = useMemo(
     () =>
       expedientes.reduce(
-        (acc, e) =>
-          acc +
-          (e.consultas?.filter(
-            (c) => c.firma_paciente && c.firma_doctor_snapshot
-          ).length ?? 0),
-        0
+        (acc, exp) =>
+          acc + (exp.consultas?.filter((c) => c.firma_paciente && c.firma_doctor_snapshot).length ?? 0),
+        0,
       ),
-    [expedientes]
+    [expedientes],
   );
 
-  const activePatient = expedientes.find(
-    (e) => e.id_persona === selectedPatientId
-  );
+  const drawerConfigs = [
+    { key: 'visitas' as const, title: 'Total Consultas', subtitle: 'Todas las consultas registradas', value: totalConsultas, color: '#0BC5DF', border: 'rgba(11,197,223,0.24)', items: expedientes.filter((e) => (e.consultas?.length ?? 0) > 0) },
+    { key: 'completadas' as const, title: 'Completadas', subtitle: 'Consultas completadas', value: completadas, color: '#1D9E75', border: 'rgba(29,158,117,0.24)', items: expedientes.filter((e) => (e.consultas?.filter((c) => c.fecha_fin).length ?? 0) > 0) },
+    { key: 'firmas' as const, title: 'Firmas Digitales', subtitle: 'Consultas con firma completa', value: firmasDigitales, color: '#EF9F27', border: 'rgba(239,159,39,0.24)', items: expedientes.filter((e) => e.consultas?.some((c) => c.firma_paciente && c.firma_doctor_snapshot)) },
+  ];
 
-  const [expandedVisits, setExpandedVisits] = useState<Record<number, boolean>>(
-    {}
-  );
+  const activePatient = expedientes.find((e) => e.id_persona === selectedPatientId);
+
+  const [expandedConsultas, setExpandedConsultas] = useState<Record<number, boolean>>({});
   const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (activePatient && activePatient.consultas.length > 0) {
-      setExpandedVisits({ [activePatient.consultas[0].id_consulta]: true });
+    if (activePatient?.consultas.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setExpandedConsultas({ [activePatient.consultas[0].id_consulta]: true });
     } else {
-      setExpandedVisits({});
+      setExpandedConsultas({});
     }
-  }, [selectedPatientId, activePatient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPatientId]);
 
-  const toggleVisit = (id: number) =>
-    setExpandedVisits((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleConsulta = (consultaId: number) => {
+    setExpandedConsultas((prev) => ({ ...prev, [consultaId]: !prev[consultaId] }));
+  };
 
   const handleSelectPatient = (id: number) => {
     setSelectedPatientId(id);
-    setViewState("detail");
+    setViewState('detail');
   };
-  const handleNewVisitSave = () => setViewState("detail");
-  const handleNewVisitBack = () => setViewState("detail");
+
+  const handleBackToList = () => {
+    setViewState('list');
+    loadPatients(1);
+  };
+
+  const handleNewConsultaSave = () => {
+    loadPatients(1);
+    setViewState('detail');
+  };
+
+  const handleNewConsultaBack = () => {
+    setViewState('detail');
+  };
+
+  const handleViewOdontogram = (consultaId: number) => {
+    if (!activePatient) return;
+    setSelectedConsultationForOdontogram({ id_consulta: consultaId, patient: activePatient });
+    setViewState('odontograma-view');
+  };
+
+  const handleBackFromOdontogram = () => {
+    setViewState('detail');
+    setSelectedConsultationForOdontogram(null);
+  };
+
+  const categoriaLabel = (categoria: string): string => {
+    const parts = categoria.split(' ');
+    return parts.length > 1 ? parts.slice(1).join(' ') : categoria;
+  };
 
   const columns: Column<ExpedientePaciente>[] = [
     {
-      key: "nombre",
-      label: "Paciente",
+      key: 'nombre',
+      label: 'Paciente',
       render: (_, row) => (
         <span
           onClick={() => handleSelectPatient(row.id_persona)}
-          style={{
-            fontWeight: 600,
-            color: "var(--arco-primary, #0BC5DF)",
-            cursor: "pointer",
-          }}
+          style={{ fontWeight: 600, color: C.primary, cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectPatient(row.id_persona); }}
+          aria-label={`Ver expediente de ${[row.primer_nombre, row.segundo_nombre, row.primer_apellido, row.segundo_apellido].filter(Boolean).join(' ')}`}
         >
-          {[
-            row.primer_nombre,
-            row.segundo_nombre,
-            row.primer_apellido,
-            row.segundo_apellido,
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          {[row.primer_nombre, row.segundo_nombre, row.primer_apellido, row.segundo_apellido].filter(Boolean).join(' ')}
         </span>
       ),
     },
-    { key: "numero_identidad", label: "Identidad" },
-    { key: "telefono", label: "Teléfono" },
+    { key: 'numero_identidad', label: 'Identidad' },
+    { key: 'telefono', label: 'Teléfono' },
     {
-      key: "ultimaVisita",
-      label: "Última Visita",
+      key: 'ultimaConsulta',
+      label: 'Última Consulta',
       render: (_, row) => {
-        const uc = row.consultas?.[0];
+        const ultimaConsulta = row.consultas?.[0];
         return (
-          <span
-            style={{ fontWeight: 600, color: "var(--foreground, #203F49)" }}
-          >
-            {uc ? (
-              new Date(uc.fecha_fin ?? uc.fecha_inicio).toLocaleDateString(
-                "es-HN"
-              )
-            ) : (
-              <span style={{ color: "#888F94", fontWeight: 400 }}>
-                Sin visitas
-              </span>
-            )}
+          <span style={{ fontWeight: 600, color: C.navy }}>
+            {ultimaConsulta?.fecha_fin
+              ? new Date(ultimaConsulta.fecha_fin).toLocaleDateString('es-HN')
+              : ultimaConsulta?.fecha_inicio
+                ? new Date(ultimaConsulta.fecha_inicio).toLocaleDateString('es-HN')
+                : 'N/A'}
           </span>
         );
       },
     },
     {
-      key: "totalVisitas",
-      label: "Visitas",
-      align: "center",
+      key: 'totalConsultas',
+      label: 'Consultas',
+      align: 'center',
       render: (_, row) => (
-        <span style={{ fontWeight: 600, color: "var(--foreground, #203F49)" }}>
-          {row.consultas.length}
+        <span style={{ fontWeight: 600, color: C.navy }}>
+          {row.consultas?.length ?? 0}
         </span>
       ),
     },
     {
-      key: "firmas",
-      label: "Firmas",
+      key: 'firmas',
+      label: 'Firmas',
       render: (_, row) => {
-        const hasPending = row.consultas.some(
-          (c) => !c.firma_paciente || !c.firma_doctor_snapshot
-        );
-        return hasPending ? (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "2px 8px",
-              borderRadius: 12,
-              fontSize: 11,
-              fontWeight: 500,
-              background: "rgba(239,159,39,0.12)",
-              color: "var(--arco-warning, #EF9F27)",
-            }}
-          >
-            Pendientes
-          </span>
-        ) : (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "2px 8px",
-              borderRadius: 12,
-              fontSize: 11,
-              fontWeight: 500,
-              background: "#E8F7F2",
-              color: "var(--arco-success, #1D9E75)",
-            }}
-          >
+        const hasPending = row.consultas?.some((c) => !c.firma_paciente || !c.firma_doctor_snapshot);
+        if (hasPending) {
+          return (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
+              background: 'rgba(239, 159, 39, 0.12)', color: C.warning,
+            }}>
+              Pendientes
+            </span>
+          );
+        }
+        return (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500,
+            background: '#E8F7F2', color: C.success,
+          }}>
             <CheckCircle size={10} /> Al día
           </span>
         );
@@ -380,230 +362,64 @@ export function ExpedienteScreen() {
   const getRowActions = (row: ExpedientePaciente) => [
     {
       icon: <ChevronRight size={16} />,
-      label: "Ver Expediente",
+      label: 'Ver Expediente',
       onClick: () => handleSelectPatient(row.id_persona),
     },
   ];
 
-  const kpiCols = isMobile || isTablet ? "1fr 1fr" : "repeat(3, 1fr)";
-  const showCards = isMobile || isTablet;
-
-  // Búsqueda para vista móvil/tablet
-  const [mobileSearch, setMobileSearch] = useState("");
-  const filteredExps = useMemo(
-    () =>
-      !mobileSearch
-        ? expedientes
-        : expedientes.filter((e) => {
-            const nombre = [
-              e.primer_nombre,
-              e.segundo_nombre,
-              e.primer_apellido,
-              e.segundo_apellido,
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              normalizeSearch(nombre).includes(normalizeSearch(mobileSearch)) ||
-              e.numero_identidad.includes(mobileSearch) ||
-              e.telefono.includes(mobileSearch)
-            );
-          }),
-    [expedientes, mobileSearch]
-  );
-
-  // Datos para drawers
-  const drawerConfigs = [
-    {
-      key: "visitas" as const,
-      title: "Total Visitas",
-      subtitle: "Todas las visitas registradas",
-      value: totalVisitas,
-      color: "#0BC5DF",
-      border: "rgba(11,197,223,0.24)",
-      items: expedientes.filter((e) => e.consultas.length > 0),
-    },
-    {
-      key: "completadas" as const,
-      title: "Completadas",
-      subtitle: "Consultas completadas",
-      value: completadas,
-      color: "#1D9E75",
-      border: "rgba(29,158,117,0.24)",
-      items: expedientes.filter((e) => e.consultas.length > 0),
-    },
-    {
-      key: "firmas" as const,
-      title: "Firmas Digitales",
-      subtitle: "Consultas con firma completa",
-      value: firmasDigitales,
-      color: "#EF9F27",
-      border: "rgba(239,159,39,0.24)",
-      items: expedientes.filter((e) =>
-        e.consultas.some((c) => c.firma_paciente && c.firma_doctor_snapshot)
-      ),
-    },
-  ];
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        background: "#F8F9FA",
-        minHeight: "calc(100vh - 110px)",
-        boxSizing: "border-box",
-      }}
-    >
-      {error && (
-        <Alert variant="error" message={error} onClose={() => setError("")} />
-      )}
+    <div style={{ background: '#F8F9FA', minHeight: 'calc(100vh - 110px)', boxSizing: 'border-box' }}>
+      {error ? <Alert variant="error" message={error} onClose={() => setError('')} /> : null}
 
-      {/* ── VISTA 1: Lista ── */}
-      {viewState === "list" && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: isMobile ? 16 : 20,
-          }}
-        >
+      {/* ══ VISTA 1: Listado ════════════════════════════════════════════════ */}
+      {viewState === 'list' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
           {/* KPIs clicables */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: kpiCols,
-              gap: isMobile ? 10 : 16,
-            }}
-          >
+          <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: isMobile ? 10 : 16 }}>
             {drawerConfigs.map((kpi) => (
-              <button
-                key={kpi.key}
-                onClick={() => setOpenDrawer(kpi.key)}
-                style={{
-                  border: `1.5px solid ${kpi.border}`,
-                  background: "#fff",
-                  borderRadius: 12,
-                  padding: isMobile ? "14px 16px" : "20px 24px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "box-shadow 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow =
-                    "0 4px 16px rgba(0,0,0,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = "none";
-                }}
+              <button key={kpi.key} onClick={() => setOpenDrawer(kpi.key)}
+                style={{ border: `1.5px solid ${kpi.border}`, borderRadius: 12, padding: isMobile ? '14px 16px' : '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', background: C.white, textAlign: 'left', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
               >
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: kpi.color,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.8px",
-                  }}
-                >
-                  {kpi.title}
-                </span>
-                <span
-                  style={{
-                    fontSize: isMobile ? 22 : 28,
-                    fontWeight: 700,
-                    color: "#203F49",
-                    marginTop: 8,
-                    lineHeight: 1,
-                  }}
-                >
-                  {kpi.value}
-                </span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: kpi.color, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{kpi.title}</span>
+                <span style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: C.navy, marginTop: 8, lineHeight: 1 }}>{kpi.value}</span>
               </button>
             ))}
           </div>
 
-          {/* Tabla / Cards */}
+          {/* Vista móvil/tablet: cards */}
           {showCards ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Buscador móvil */}
-              <input
-                value={mobileSearch}
-                onChange={(e) => setMobileSearch(e.target.value)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input value={mobileSearch} onChange={(e) => setMobileSearch(e.target.value)}
                 placeholder="Buscar por nombre, identidad o teléfono..."
-                style={{
-                  width: "100%",
-                  height: 42,
-                  padding: "0 12px",
-                  border: "1px solid #D3D7DA",
-                  borderRadius: 8,
-                  background: "#F5F7FA",
-                  fontSize: 13,
-                  color: "#203F49",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
+                style={{ width: '100%', padding: '10px 14px', border: `1px solid ${C.gray300}`, borderRadius: 10, fontSize: 13, outline: 'none', color: C.navy, background: C.white, boxSizing: 'border-box' }}
               />
-              {loading ? (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: "#888F94",
-                    fontSize: 14,
-                    padding: 24,
-                  }}
-                >
-                  Cargando expedientes...
-                </p>
-              ) : filteredExps.length === 0 ? (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: "#888F94",
-                    fontSize: 14,
-                    padding: 24,
-                  }}
-                >
-                  {mobileSearch
-                    ? "No hay resultados."
-                    : "No hay expedientes registrados."}
-                </p>
+              {filteredExps.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: C.gray500, fontSize: 13, border: `1px dashed ${C.gray300}`, borderRadius: 8 }}>
+                  {mobileSearch ? 'No se encontraron pacientes con ese criterio.' : 'No hay pacientes registrados.'}
+                </div>
               ) : (
                 filteredExps.map((exp) => (
-                  <PatientCard
-                    key={exp.id_persona}
-                    exp={exp}
-                    onClick={() => handleSelectPatient(exp.id_persona)}
-                  />
+                  <PatientCard key={exp.id_persona} exp={exp} onClick={() => handleSelectPatient(exp.id_persona)} />
                 ))
               )}
             </div>
           ) : (
             <DataTable<ExpedientePaciente>
               title="Expedientes Clínicos"
-              description={
-                loading
-                  ? "Cargando pacientes..."
-                  : `Total de ${expedientes.length} pacientes registrados`
-              }
-              emptyMessage={
-                loading
-                  ? "Cargando pacientes..."
-                  : "No hay pacientes para mostrar."
-              }
+              description={loading ? 'Cargando pacientes registrados...' : `Total de ${expedientes.length} pacientes registrados`}
+              emptyMessage={loading ? 'Cargando pacientes...' : 'No hay pacientes para mostrar.'}
               columns={columns}
-              data={expedientes}
-              searchable
-              searchPlaceholder="Buscar por nombre, identidad o teléfono..."
-              searchKeys={[
-                "primer_nombre",
-                "segundo_nombre",
-                "primer_apellido",
-                "segundo_apellido",
-                "numero_identidad",
-                "telefono",
-              ]}
+              data={pagedExpedientes}
+              searchable={true}
+              totalRecords={expedientes?.length ?? 0}
+              pageSize={PAGE_SIZE}
+              isServerSide
+              onServerParamsChange={handleTableParamsChange}
+              searchPlaceholder="Buscar por nombre o número de identidad o teléfono..."
+              searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad', 'telefono']}
               getRowKey={(row) => String(row.id_persona)}
               rowActions={getRowActions}
             />
@@ -611,221 +427,126 @@ export function ExpedienteScreen() {
         </div>
       )}
 
-      {/* ── VISTA 2: Detalle ── */}
-      {viewState === "detail" && activePatient && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: isMobile ? 16 : 20,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 12,
-            }}
-          >
+      {/* ══ VISTA 2: Detalle ════════════════════════════════════════════════ */}
+      {viewState === 'detail' && activePatient && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <Button
-              onClick={() => {
-                selectedPatientFromQuery
-                  ? navigate(`/patients/profile/${selectedPatientFromQuery}`)
-                  : setViewState("list");
-              }}
+              onClick={handleBackToList}
               variant="ghost"
               size="sm"
               style={{ color: C.gray500 }}
             >
-              <ArrowLeft size={16} />{" "}
-              {selectedPatientFromQuery
-                ? "Volver al perfil"
-                : "Volver a expedientes"}
+              <ArrowLeft size={16} /> Volver a expedientes
             </Button>
-            <Button
-              onClick={() => setViewState("new-visit")}
-              variant="primary"
-              size="sm"
-            >
-              <Plus size={16} />{" "}
-              {isMobile ? "Nueva visita" : "Registrar Nueva Visita"}
-            </Button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowGalleryPlaceholder(true)}
+                style={{ background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', border: 'none', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)' }}
+              >
+                <ImageIcon size={16} /> Galería de Fotos
+              </Button>
+              <Button onClick={() => setViewState('new-consulta')} variant="primary" size="sm">
+                <Plus size={16} /> Registrar Nueva Consulta
+              </Button>
+            </div>
           </div>
 
-          {/* Info del paciente */}
-          <Card
-            style={{
-              padding: isMobile ? 16 : 24,
-              borderRadius: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: isMobile ? 12 : 24,
-                alignItems: "flex-start",
-                flexWrap: "wrap",
-              }}
-            >
+          {/* Perfil del paciente */}
+          <Card style={{ padding: isMobile ? 16 : 24, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
+            <div style={{ display: 'flex', gap: isMobile ? 12 : 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div
+                aria-label="Iniciales del paciente"
                 style={{
                   width: isMobile ? 52 : 72,
                   height: isMobile ? 52 : 72,
-                  borderRadius: "50%",
-                  background: "#0BC5DF",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  borderRadius: '50%',
+                  background: C.primary,
+                  color: C.white,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   fontSize: isMobile ? 18 : 22,
                   fontWeight: 700,
                   flexShrink: 0,
-                  boxShadow: "0 2px 8px rgba(11,197,223,0.16)",
+                  boxShadow: '0 2px 8px rgba(11, 197, 223, 0.16)'
                 }}
               >
-                {`${activePatient.primer_nombre?.[0] ?? ""}${
-                  activePatient.primer_apellido?.[0] ?? ""
-                }`.toUpperCase() || "P"}
+                {`${activePatient.primer_nombre?.[0] || ''}${activePatient.primer_apellido?.[0] || ''}`.toUpperCase() || 'P'}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: isMobile ? 16 : 20,
-                      fontWeight: 700,
-                      color: "#203F49",
-                    }}
-                  >
-                    {[
-                      activePatient.primer_nombre,
-                      activePatient.segundo_nombre,
-                      activePatient.primer_apellido,
-                      activePatient.segundo_apellido,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+
+              <div style={{ flex: 1, minWidth: isMobile ? 200 : 280 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 700, color: C.navy }}>
+                    {[activePatient.primer_nombre, activePatient.segundo_nombre, activePatient.primer_apellido, activePatient.segundo_apellido].filter(Boolean).join(' ')}
                   </h2>
-                  <span
-                    style={{
-                      background: "#E6F8FB",
-                      border: "1px solid rgba(11,197,223,0.4)",
-                      color: "#0BC5DF",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "2px 10px",
-                      borderRadius: 20,
-                    }}
-                  >
-                    # PAC-{String(activePatient.id_persona).padStart(6, "0")}
+                  <span style={{
+                    background: C.primaryBg,
+                    border: `1px solid ${C.primary}40`,
+                    color: C.primary,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '2px 10px',
+                    borderRadius: 20,
+                    letterSpacing: '0.5px',
+                  }}>
+                    # PAC-{String(activePatient.id_persona).padStart(6, '0')}
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "6px 14px",
-                    fontSize: 13,
-                    color: "#5F656A",
-                    marginTop: 8,
-                  }}
-                >
-                  <span>
-                    {calcularEdad(activePatient.fecha_nacimiento)} años ·{" "}
-                    {activePatient.sexo === "F" ? "Femenino" : "Masculino"}
-                  </span>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 13, color: C.gray700, marginTop: 8, alignItems: 'center' }}>
+                  <span>{calcularEdad(activePatient.fecha_nacimiento)} años · {activePatient.sexo === 'F' ? 'Femenino' : 'Masculino'}</span>
+                  <span style={{ opacity: 0.5 }}>·</span>
                   <span>+504 {activePatient.telefono}</span>
-                  {activePatient.correo_electronico && (
-                    <span>{activePatient.correo_electronico}</span>
-                  )}
-                  <span>
-                    {activePatient.municipio.nombre},{" "}
-                    {activePatient.municipio.departamento.nombre}
-                  </span>
+                  <span style={{ opacity: 0.5 }}>·</span>
+                  <span>{activePatient.correo_electronico}</span>
+                  <span style={{ opacity: 0.5 }}>·</span>
+                  <span>{activePatient.municipio?.departamento?.nombre ? `${activePatient.municipio.nombre}, ${activePatient.municipio.departamento.nombre}` : activePatient.municipio?.nombre || ''}</span>
                 </div>
-                <div style={{ fontSize: 13, color: "#5F656A", marginTop: 6 }}>
-                  Última visita:{" "}
-                  {activePatient.consultas?.[0]
-                    ? new Date(
-                        activePatient.consultas[0].fecha_fin ??
-                          activePatient.consultas[0].fecha_inicio
-                      ).toLocaleString("es-HN")
-                    : "Sin visitas registradas"}
+
+                <div style={{ fontSize: 13, color: C.gray700, marginTop: 8 }}>
+                  Última consulta: {
+                    activePatient.consultas?.[0]?.fecha_fin
+                      ? new Date(activePatient.consultas[0].fecha_fin).toLocaleString('es-HN')
+                      : activePatient.consultas?.[0]?.fecha_inicio
+                        ? new Date(activePatient.consultas[0].fecha_inicio).toLocaleString('es-HN')
+                        : 'N/A'
+                  }
                 </div>
               </div>
             </div>
           </Card>
 
-          {/* Timeline de visitas */}
+          {/* Historial de consultas */}
           <div>
-            <h3
-              style={{
-                fontSize: 15,
-                fontWeight: 600,
-                color: C.navy,
-                marginBottom: 16,
-              }}
-            >
-              Historial de Visitas y Consultas
-            </h3>
-            {activePatient.consultas.length === 0 ? (
-              <div
-                style={{
-                  border: "2px dashed rgb(11,197,223)",
-                  borderRadius: 12,
-                  padding: 32,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  gap: 8,
-                  background: "rgba(11,197,223,0.03)",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "rgb(11,197,223)",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Sin Visitas Registradas
+            <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Consultas</h3>
+
+            {activePatient?.consultas.length === 0 ? (
+              <div style={{ border: `2px dashed ${C.primary}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: C.primary008 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Sin Consultas Registradas
                 </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "rgb(136,143,148)",
-                    textAlign: "center",
-                  }}
-                >
-                  El cliente no tiene ninguna visita realizada
+                <span style={{ fontSize: 12, color: C.gray500, textAlign: 'center' }}>
+                  El cliente no tiene ninguna consulta realizada
                 </span>
               </div>
             ) : (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 16 }}
-              >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {activePatient.consultas.map((visit) => {
-                  const isExpanded = !!expandedVisits[visit.id_consulta];
-                  const totalCosto = visit.tratamientos.reduce(
-                    (sum, t) => sum + Number(t.precio),
-                    0
-                  );
+                  const isExpanded = !!expandedConsultas[visit.id_consulta];
+                  const subtotal = visit.tratamientos?.length > 0
+                    ? visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0)
+                    : 0;
+                  const totalDescuento = visit.tratamientos?.length > 0
+                    ? visit.tratamientos.reduce((sum, t) => sum + Number(t.descuento || 0), 0)
+                    : 0;
+                  const totalCosto = Math.max(0, subtotal - totalDescuento);
+                  const totalPagado = visit.pagos?.length > 0
+                    ? visit.pagos.reduce((sum, p) => sum + Number(p.abono), 0)
+                    : 0;
+                  const saldoPendiente = Math.max(0, totalCosto - totalPagado);
                   return (
                     <div
                       key={visit.id_consulta}
@@ -834,399 +555,361 @@ export function ExpedienteScreen() {
                         borderRadius: 12,
                         border: `1.5px solid ${
                           isExpanded
-                            ? "#0BC5DF"
+                            ? C.primary
                             : hoveredCardId === visit.id_consulta
-                            ? "rgba(11,197,223,0.4)"
-                            : C.gray300
+                              ? C.primary04
+                              : C.gray300
                         }`,
-                        padding: isMobile ? "14px 16px" : "20px 24px",
-                        display: "flex",
-                        flexDirection: "column",
-                        transition:
-                          "border-color 0.25s, box-shadow 0.25s, transform 0.25s",
-                        boxShadow: isExpanded
-                          ? "0 10px 20px -5px rgba(11,197,223,0.08)"
-                          : hoveredCardId === visit.id_consulta
-                          ? "0 4px 12px rgba(0,0,0,0.04)"
-                          : "none",
-                        transform:
-                          hoveredCardId === visit.id_consulta
-                            ? "translateY(-2px)"
-                            : "none",
+                        padding: isMobile ? '14px 16px' : '20px 24px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
+                        boxShadow: isExpanded ? '0 10px 20px -5px rgba(11, 197, 223, 0.08), 0 4px 6px -2px rgba(11, 197, 223, 0.04)' : hoveredCardId === visit.id_consulta ? '0 4px 12px rgba(0, 0, 0, 0.04)' : 'none',
+                        transform: hoveredCardId === visit.id_consulta ? 'translateY(-2px)' : 'none',
                       }}
                       onMouseEnter={() => setHoveredCardId(visit.id_consulta)}
                       onMouseLeave={() => setHoveredCardId(null)}
                     >
-                      {/* Header del acordeón */}
                       <div
-                        onClick={() => toggleVisit(visit.id_consulta)}
+                        onClick={() => toggleConsulta(visit.id_consulta)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleConsulta(visit.id_consulta); }}
+                        aria-label={isExpanded ? 'Colapsar detalles de la consulta' : 'Expandir detalles de la consulta'}
+                        aria-expanded={isExpanded}
                         style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          cursor: "pointer",
-                          userSelect: "none",
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                          userSelect: 'none',
                           paddingBottom: isExpanded ? 16 : 0,
-                          borderBottom: isExpanded
-                            ? `1.5px solid ${C.gray100}`
-                            : "1.5px solid transparent",
-                          transition:
-                            "padding-bottom 0.25s, border-bottom-color 0.25s",
+                          borderBottom: isExpanded ? `1.5px solid ${C.gray100}` : '1.5px solid transparent',
+                          transition: 'padding-bottom 0.25s, border-bottom-color 0.25s'
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: isMobile ? 8 : 12,
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                        >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div
+                            aria-label={isExpanded ? 'Consulta expandida' : 'Consulta colapsada'}
                             style={{
                               width: 10,
                               height: 10,
-                              borderRadius: "50%",
-                              background: isExpanded ? "#0BC5DF" : "#D3D7DA",
-                              flexShrink: 0,
-                              boxShadow: isExpanded
-                                ? "0 0 8px #0BC5DF"
-                                : "none",
+                              borderRadius: '50%',
+                              background: isExpanded ? C.primary : C.gray300,
+                              transition: 'background 0.25s',
+                              boxShadow: isExpanded ? '0 0 8px rgba(11, 197, 223, 0.6)' : 'none',
                             }}
                           />
-                          <span
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: C.navy,
-                            }}
-                          >
-                            {new Date(
-                              visit.fecha_fin ?? visit.fecha_inicio
-                            ).toLocaleDateString("es-HN")}
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>
+                            {visit.fecha_fin
+                              ? new Date(visit.fecha_fin).toLocaleDateString('es-HN')
+                              : visit.fecha_inicio
+                                ? new Date(visit.fecha_inicio).toLocaleDateString('es-HN')
+                                : 'N/A'}
                           </span>
-                          {!isMobile && (
-                            <span style={{ fontSize: 13, color: C.gray500 }}>
-                              · Atendido por:{" "}
-                              <strong
-                                style={{ color: C.navy, fontWeight: 600 }}
-                              >
-                                {visit.id_usuario}
-                              </strong>
-                            </span>
-                          )}
+                          <span style={{ fontSize: 13, color: C.gray500 }}>
+                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.doctor?.persona ? `${visit.doctor.persona.primer_nombre} ${visit.doctor.persona.primer_apellido}` : `#${visit.id_usuario}`}</strong>
+                          </span>
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: isMobile ? 6 : 12,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {visit.firma_paciente &&
-                          visit.firma_doctor_snapshot ? (
-                            <span
-                              style={{
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {visit.firma_paciente && visit.firma_doctor_snapshot ? (
+                              <span style={{
                                 fontSize: 10,
                                 fontWeight: 700,
-                                padding: "4px 10px",
+                                padding: '4px 10px',
                                 borderRadius: 12,
-                                background: "#E6F8FB",
-                                color: "#0BC5DF",
-                                border: "1px solid rgba(11,197,223,0.2)",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.5px",
-                              }}
-                            >
-                              Firmado
-                            </span>
-                          ) : (
-                            <span
-                              style={{
+                                background: C.primaryBg,
+                                color: C.primary,
+                                border: `1px solid ${C.primary}33`,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                              }}>
+                                Firmado
+                              </span>
+                            ) : (
+                              <span style={{
                                 fontSize: 10,
                                 fontWeight: 700,
-                                padding: "4px 10px",
+                                padding: '4px 10px',
                                 borderRadius: 12,
-                                background: "#FFFBEB",
-                                color: "#D97706",
-                                border: "1px solid rgba(217,119,6,0.2)",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.5px",
-                              }}
-                            >
-                              Firma Pendiente
-                            </span>
-                          )}
-                          <div
-                            style={{
-                              transform: isExpanded
-                                ? "rotate(180deg)"
-                                : "rotate(0deg)",
-                              transition:
-                                "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
-                              color: isExpanded ? "#0BC5DF" : C.gray500,
-                              display: "flex",
-                            }}
-                          >
+                                background: '#FFFBEB',
+                                color: '#D97706',
+                                border: '1px solid rgba(217, 119, 6, 0.2)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                              }}>
+                                Firma Pendiente
+                              </span>
+                            )}
+                          </div>
+                          <div style={{
+                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                            color: isExpanded ? C.primary : C.gray500,
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}>
                             <ChevronDown size={18} />
                           </div>
                         </div>
                       </div>
 
-                      {/* Contenido expandible */}
                       <div
-                        style={{
-                          maxHeight: isExpanded ? "1200px" : "0px",
-                          opacity: isExpanded ? 1 : 0,
-                          overflow: "hidden",
-                          transition:
-                            "max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s, padding-top 0.4s",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 20,
-                          paddingTop: isExpanded ? 16 : 0,
-                        }}
-                      >
-                        {isMobile && (
-                          <div style={{ fontSize: 12, color: C.gray500 }}>
-                            Atendido por:{" "}
-                            <strong style={{ color: C.navy }}>
-                              {visit.id_usuario}
-                            </strong>
-                          </div>
-                        )}
-                        <div
+                          aria-hidden={!isExpanded}
                           style={{
-                            display: "grid",
-                            gridTemplateColumns: isMobile
-                              ? "1fr"
-                              : "repeat(auto-fit, minmax(280px, 1fr))",
-                            gap: 16,
-                            background: "#F8F9FA",
-                            borderRadius: 10,
-                            padding: isMobile ? 14 : 20,
-                            border: `1px solid ${C.gray100}`,
+                            maxHeight: isExpanded ? '3000px' : '0px',
+                            opacity: isExpanded ? 1 : 0,
+                            overflow: 'hidden',
+                            transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 20,
+                            paddingTop: isExpanded ? 16 : 0,
                           }}
                         >
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleViewOdontogram(visit.id_consulta)}
+                              style={{ fontSize: 12 }}
+                            >
+                              <Zap size={14} /> Ver Odontograma de la Consulta
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => setSelectedConsultationForRespuestas(visit)}
+                              style={{
+                                fontSize: 12,
+                                background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+                                border: 'none',
+                                boxShadow: '0 4px 12px rgba(11, 197, 223, 0.35)',
+                              }}
+                            >
+                              <FileText size={14} /> Ver Formulario
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedConsultaForPagos(visit);
+                                setPagosData(prev => ({ ...prev, loading: true }));
+                                billingService.getByConsultaId(visit.id_consulta).then(res => {
+                                  const d = res.data?.data || res.data;
+                                  if (d?.pagos && d?.resumen) {
+                                    setPagosData({ pagos: d.pagos, resumen: d.resumen, loading: false });
+                                  } else {
+                                    setPagosData({ pagos: [], resumen: { total: 0, totalPagado: 0, saldoPendiente: 0, pagadaCompletamente: false }, loading: false });
+                                  }
+                                }).catch(() => setPagosData(prev => ({ ...prev, loading: false })));
+                              }}
+                              style={{ fontSize: 12, background: C.success, border: 'none', boxShadow: '0 4px 12px rgba(29, 158, 117, 0.35)' }}
+                            >
+                              <CreditCard size={14} /> Ver Pagos
+                            </Button>
+                          </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: 20,
+                            background: C.gray50,
+                            borderRadius: 10,
+                            padding: 20,
+                            border: `1px solid ${C.gray100}`,
+                          }}>
                           <div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: C.gray500,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.8px",
-                                marginBottom: 6,
-                              }}
-                            >
-                              Motivo de consulta
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 13.5,
-                                color: C.navy,
-                                fontWeight: 500,
-                                lineHeight: 1.5,
-                              }}
-                            >
-                              {visit.motivo}
-                            </div>
+                            <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Motivo de consulta</div>
+                            <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>{visit.motivo}</div>
                           </div>
                           <div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: C.gray500,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.8px",
-                                marginBottom: 6,
-                              }}
-                            >
-                              Diagnóstico de evolución
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 13.5,
-                                color: C.navy,
-                                lineHeight: 1.5,
-                              }}
-                            >
-                              {visit.diagnostico}
-                            </div>
+                            <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Diagnóstico de evolución</div>
+                            <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, lineHeight: 1.5 }}>{visit.diagnostico}</div>
                           </div>
-                          <div style={{ gridColumn: "1 / -1" }}>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: C.gray500,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.8px",
-                                marginBottom: 6,
-                              }}
-                            >
-                              Notas clínicas
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 13.5,
-                                color: C.gray700,
-                                lineHeight: 1.5,
-                                whiteSpace: "pre-line",
-                              }}
-                            >
-                              {visit.notas}
-                            </div>
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Notas clínicas</div>
+                            <div style={{ fontSize: 13.5, color: C.gray700, marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{visit.notas}</div>
                           </div>
                         </div>
 
-                        {visit.tratamientos.length > 0 && (
-                          <div
-                            style={{
-                              background: "#fff",
-                              borderRadius: 10,
-                              padding: isMobile ? 14 : 18,
-                              border: "1.5px solid rgba(11,197,223,0.15)",
-                              boxShadow: "0 2px 8px rgba(11,197,223,0.03)",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 12,
-                                color: "#0BC5DF",
-                                fontWeight: 700,
-                                marginBottom: 12,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.5px",
-                              }}
-                            >
-                              <DollarSign size={14} /> Tratamientos y Cobros
+                        {(visit.tratamientos?.length > 0 || visit.tratamiento || (visit.pagos?.length ?? 0) > 0) && (
+                          <div style={{
+                            background: C.white,
+                            borderRadius: 10,
+                            padding: 18,
+                            border: `1.5px solid ${C.primary015}`,
+                            boxShadow: '0 2px 8px rgba(11, 197, 223, 0.03)',
+                          }}>
+                            <div style={{
+                              fontSize: 12,
+                              color: C.primary,
+                              fontWeight: 700,
+                              marginBottom: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                            }}>
+                              <DollarSign size={14} /> Tratamientos y Cobros realizados
                             </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 10,
-                              }}
-                            >
-                              {visit.tratamientos.map((t, idx) => (
-                                <div
-                                  key={idx}
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    fontSize: 13,
-                                    color: C.navy,
-                                    paddingBottom: 8,
-                                    borderBottom: `1px solid ${C.gray100}`,
-                                  }}
-                                >
-                                  <span style={{ fontWeight: 500 }}>
-                                    {t.tratamiento.nombre}
-                                  </span>
-                                  <span style={{ fontWeight: 600 }}>
-                                    L.{" "}
-                                    {t.precio.toLocaleString("es-HN", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                  </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              {visit.tratamientos?.map((t, idx) => {
+                                const discount = Number(t.descuento || 0);
+                                const finalPrice = Number(t.precio) - discount;
+                                return (
+                                  <div key={idx} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
+                                    color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
+                                  }}>
+                                    <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      {discount > 0 ? (
+                                        <>
+                                          <span style={{ fontSize: 11, color: C.gray500, textDecoration: 'line-through' }}>
+                                            L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                          </span>
+                                          <span style={{ fontWeight: 600, color: C.success }}>
+                                            L. {finalPrice.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                          </span>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color: C.danger, background: 'rgba(226, 75, 74, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                                            -L.{discount.toLocaleString('es-HN')}
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span style={{ fontWeight: 600, color: C.navy }}>
+                                          L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {visit.tratamiento && (!visit.tratamientos || visit.tratamientos.length === 0) && (
+                                <div style={{ fontSize: 12.5, color: C.gray700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                                  {visit.tratamiento}
                                 </div>
-                              ))}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  fontSize: 13.5,
-                                  fontWeight: 700,
-                                  color: C.navy,
-                                  paddingTop: 6,
-                                }}
-                              >
-                                <span>Total de la visita</span>
-                                <span
-                                  style={{ color: "#0BC5DF", fontSize: 14.5 }}
-                                >
-                                  L.{" "}
-                                  {totalCosto.toLocaleString("es-HN", {
-                                    minimumFractionDigits: 2,
-                                  })}
-                                </span>
-                              </div>
+                              )}
+                              {(visit.tratamientos?.length > 0 || visit.tratamiento) && (
+                                <>
+                                  {totalDescuento > 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', fontSize: 12.5,
+                                      color: C.gray700, paddingTop: 4,
+                                    }}>
+                                      <span>Subtotal</span>
+                                      <span style={{ fontWeight: 600, color: C.navy }}>
+                                        L. {subtotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {totalDescuento > 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', fontSize: 12.5,
+                                      color: C.danger,
+                                    }}>
+                                      <span>Descuento total</span>
+                                      <span style={{ fontWeight: 600 }}>
+                                        − L. {totalDescuento.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div style={{
+                                    display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
+                                    fontWeight: 700, color: C.navy, paddingTop: totalDescuento > 0 ? 6 : 0, marginTop: totalDescuento > 0 ? 4 : 0,
+                                    borderTop: totalDescuento > 0 ? `1px solid ${C.gray100}` : 'none',
+                                  }}>
+                                    <span>Total de la consulta</span>
+                                    <span style={{ color: C.primary, fontSize: 14.5 }}>
+                                      L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                              {visit.pagos && visit.pagos.length > 0 && (
+                                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.gray100}` }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: C.success, marginBottom: 6 }}>
+                                    Pagos realizados
+                                  </div>
+                                  {visit.pagos.map((p, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.gray700, paddingBottom: 4 }}>
+                                      <span>{new Date(p.fecha).toLocaleDateString('es-HN')} {p.observacion ? `— ${p.observacion}` : ''}</span>
+                                      <span style={{ fontWeight: 600, color: C.success }}>L. {Number(p.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                  ))}
+                                  <div style={{
+                                    display: 'flex', justifyContent: 'space-between', fontSize: 13,
+                                    fontWeight: 700, color: C.navy, paddingTop: 8, marginTop: 4,
+                                    borderTop: `1px solid ${C.gray100}`,
+                                  }}>
+                                    <span>Total pagado</span>
+                                    <span style={{ color: C.success }}>
+                                      L. {totalPagado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  {saldoPendiente > 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', fontSize: 13,
+                                      fontWeight: 700, paddingTop: 8,
+                                    }}>
+                                      <span>Saldo pendiente</span>
+                                      <span style={{ color: C.warning }}>
+                                        L. {saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {saldoPendiente === 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'flex-end', fontSize: 11,
+                                      fontWeight: 700, color: C.success, paddingTop: 4,
+                                      gap: 4, alignItems: 'center',
+                                    }}>
+                                      <CheckCircle size={12} /> Pagado
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
 
-                        {visit?.archivos?.length > 0 && (
+                        {visit.archivos?.length > 0 && (
                           <div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: C.gray500,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.8px",
-                                marginBottom: 10,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              Archivos y Radiografías
+                            <div style={{
+                              fontSize: 11, color: C.gray500, fontWeight: 700,
+                              textTransform: 'uppercase', letterSpacing: '0.8px',
+                              marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
+                            }}>
+                              Archivos y Radiografías Adjuntas
                             </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 10,
-                                flexWrap: "wrap",
-                              }}
-                            >
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                               {visit.archivos.map((archivo, idx) => (
                                 <div
                                   key={idx}
                                   style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    background: "#fff",
-                                    border: `1.5px solid ${C.gray100}`,
-                                    borderRadius: 8,
-                                    padding: "8px 14px",
-                                    fontSize: 12.5,
-                                    color: C.navy,
-                                    cursor: "pointer",
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    background: C.white, border: `1.5px solid ${C.gray100}`,
+                                    borderRadius: 8, padding: '8px 14px', fontSize: 12.5,
+                                    color: C.navy, boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                    transition: 'border-color 0.2s', cursor: 'pointer',
                                   }}
-                                  onMouseEnter={(e) =>
-                                    (e.currentTarget.style.borderColor =
-                                      "#0BC5DF")
-                                  }
-                                  onMouseLeave={(e) =>
-                                    (e.currentTarget.style.borderColor =
-                                      C.gray100)
-                                  }
+                                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.gray100; }}
+                                  onClick={() => setSelectedImage({ nombre: archivo.nombre, url: archivo.url })}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedImage({ nombre: archivo.nombre, url: archivo.url }); }}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`Archivo adjunto: ${archivo.nombre}`}
                                 >
                                   <Paperclip size={13} color={C.gray500} />
-                                  <span style={{ fontWeight: 500 }}>
-                                    {archivo.nombre}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                      background: "#E6F8FB",
-                                      color: "#0BC5DF",
-                                      padding: "2px 8px",
-                                      borderRadius: 4,
-                                      textTransform: "uppercase",
-                                    }}
-                                  >
-                                    {archivo.categoria.split(" ")[1] ||
-                                      archivo.categoria}
+                                  <span style={{ fontWeight: 500 }}>{archivo.nombre}</span>
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 700, background: C.primaryBg,
+                                    color: C.primary, padding: '2px 8px', borderRadius: 4,
+                                    marginLeft: 4, textTransform: 'uppercase',
+                                  }}>
+                                    {categoriaLabel(archivo.categoria)}
                                   </span>
                                 </div>
                               ))}
@@ -1243,116 +926,502 @@ export function ExpedienteScreen() {
         </div>
       )}
 
-      {/* ── VISTA 3: Nueva visita ── */}
-      {viewState === "new-visit" && activePatient && (
-        <NuevaVisita
+      {/* ══ VISTA 3: Nueva Consulta ════════════════════════════════════════════ */}
+      {viewState === 'new-consulta' && activePatient && (
+        <NuevaConsulta
           patient={activePatient}
-          onBack={handleNewVisitBack}
-          onSave={handleNewVisitSave}
+          onBack={handleNewConsultaBack}
+          onSave={handleNewConsultaSave}
         />
       )}
 
-      {/* ── Drawers de KPIs ── */}
+      {/* ══ VISTA 4: Ver Odontograma de Consulta ════════════════════════════════ */}
+      {viewState === 'odontograma-view' && selectedConsultationForOdontogram && (
+        <div style={{ background: '#F8F9FA', minHeight: 'calc(100vh - 110px)', boxSizing: 'border-box', padding: '16px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '0 8px' }}>
+            <Button onClick={handleBackFromOdontogram} variant="ghost" size="sm" style={{ color: C.gray500 }}>
+              <ArrowLeft size={16} /> Volver al expediente
+            </Button>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>
+              Odontograma de la Consulta — {selectedConsultationForOdontogram.patient.primer_nombre} {selectedConsultationForOdontogram.patient.primer_apellido}
+            </div>
+            <div style={{ width: 120 }} />
+          </div>
+          <OdontogramScreen
+            isEmbedded={true}
+            isReadOnly={true}
+            consultaId={selectedConsultationForOdontogram.id_consulta}
+            patientId={selectedConsultationForOdontogram.patient.id_persona}
+            patientName={`${selectedConsultationForOdontogram.patient.primer_nombre} ${selectedConsultationForOdontogram.patient.primer_apellido}`}
+            patientIdentidad={selectedConsultationForOdontogram.patient.numero_identidad}
+            initialDentition={calcularEdad(selectedConsultationForOdontogram.patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
+            onCancelEmbedded={handleBackFromOdontogram}
+          />
+        </div>
+      )}
+
+      {/* Image Viewer Modal */}
+      {selectedImage && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '16px'
+        }} onClick={() => setSelectedImage(null)}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)', border: 'none',
+              borderRadius: 8, padding: '8px', color: 'white',
+              fontSize: '24px', cursor: 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            <X size={24} />
+          </button>
+          <h3 style={{ color: 'white', marginBottom: '16px', textAlign: 'center' }}>
+            {selectedImage.nombre}
+          </h3>
+          <img
+            src={`${api.defaults.baseURL}/upload/${encodeURIComponent(selectedImage.url)}`}
+            alt={selectedImage.nombre}
+            style={{
+              maxWidth: '90%', maxHeight: '80%', objectFit: 'contain',
+              borderRadius: 8
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`${api.defaults.baseURL}/upload/${encodeURIComponent(selectedImage.url)}`, '_blank');
+            }}
+            style={{
+              marginTop: '16px', backgroundColor: C.primary, color: 'white',
+              border: 'none', borderRadius: 8, padding: '8px 16px',
+              fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+            }}
+          >
+            Abrir en nueva pestaña
+          </button>
+        </div>
+      )}
+
+      {/* Drawers de KPIs */}
       {drawerConfigs.map(({ key, title, subtitle, items }) => (
         <StatsDrawer
           key={key}
           open={openDrawer === key}
+          onClose={() => setOpenDrawer(null)}
           title={title}
           subtitle={subtitle}
-          onClose={() => setOpenDrawer(null)}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {items.length === 0 ? (
-              <p
-                style={{
-                  textAlign: "center",
-                  color: "#888F94",
-                  fontSize: 14,
-                  padding: 24,
-                }}
-              >
-                No hay registros en esta categoría.
-              </p>
-            ) : (
-              items.map((exp) => {
-                const nombre = [
-                  exp.primer_nombre,
-                  exp.segundo_nombre,
-                  exp.primer_apellido,
-                  exp.segundo_apellido,
-                ]
-                  .filter(Boolean)
-                  .join(" ");
-                const initials = `${exp.primer_nombre?.[0] ?? ""}${
-                  exp.primer_apellido?.[0] ?? ""
-                }`.toUpperCase();
-                return (
-                  <div
-                    key={exp.id_persona}
-                    onClick={() => {
-                      handleSelectPatient(exp.id_persona);
-                      setOpenDrawer(null);
-                    }}
-                    style={{
-                      padding: 14,
-                      borderRadius: 10,
-                      border: "1px solid #D3D7DA",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: "50%",
-                        background: "#E6F8FB",
-                        color: "#0BC5DF",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {initials}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#203F49",
-                          margin: 0,
-                        }}
-                      >
-                        {nombre}
-                      </p>
-                      <p
-                        style={{
-                          fontSize: 12,
-                          color: "#888F94",
-                          margin: "2px 0 0",
-                        }}
-                      >
-                        {exp.consultas.length} visita
-                        {exp.consultas.length !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                    <ChevronRight
-                      size={14}
-                      style={{ color: "#888F94", flexShrink: 0 }}
-                    />
-                  </div>
-                );
-              })
-            )}
-          </div>
+          <DrawerPatientList items={items} onSelectPatient={(patientId) => { setOpenDrawer(null); handleSelectPatient(patientId); }} />
         </StatsDrawer>
       ))}
+
+      {/* Galería de Fotos — Placeholder */}
+      {showGalleryPlaceholder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+        }} onClick={() => setShowGalleryPlaceholder(false)}>
+          <div style={{
+            background: C.white, borderRadius: 16, maxWidth: '450px', width: '100%',
+            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+              color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ImageIcon size={18} /> Galería de Fotos
+              </div>
+              <button onClick={() => setShowGalleryPlaceholder(false)}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+              <ImageIcon size={48} color={C.gray300} style={{ marginBottom: 16, display: 'inline-block' }} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 8 }}>
+                Pantalla en desarrollo
+              </div>
+              <div style={{ fontSize: 13, color: C.gray500, lineHeight: 1.6 }}>
+                Allison va a crear esta pantalla, así que esto no se puede revisar aún.
+              </div>
+            </div>
+            <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="primary" size="sm" onClick={() => setShowGalleryPlaceholder(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {selectedConsultaForPagos && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => { setSelectedConsultaForPagos(null); setShowNuevoPago(false); }}>
+          <div
+            style={{
+              background: C.white, borderRadius: 16, maxWidth: '550px',
+              width: '100%', maxHeight: '90vh', overflowY: 'auto',
+              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, #1D9E75, #157a5a)',
+              color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CreditCard size={18} /> Pagos de la Consulta
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
+                  {selectedConsultaForPagos.fecha_inicio
+                    ? new Date(selectedConsultaForPagos.fecha_inicio).toLocaleDateString('es-HN')
+                    : 'N/A'}
+                </div>
+              </div>
+              <button onClick={() => { setSelectedConsultaForPagos(null); setShowNuevoPago(false); }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {pagosData.loading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: C.gray500 }}>
+                  <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }} />
+                  <div style={{ marginTop: 8, fontSize: 13 }}>Cargando pagos...</div>
+                </div>
+              ) : (
+                <>
+                  {/* Summary cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    <div style={{ background: C.gray50, borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${C.gray100}` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginTop: 4 }}>
+                        L. {pagosData.resumen.total.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div style={{ background: C.gray50, borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${C.gray100}` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.success, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pagado</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: C.success, marginTop: 4 }}>
+                        L. {pagosData.resumen.totalPagado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div style={{ background: pagosData.resumen.saldoPendiente > 0 ? '#FFF8EC' : '#F0FBF7', borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success}40` }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success, marginTop: 4 }}>
+                        L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payments list */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <DollarSign size={14} /> Historial de Pagos
+                    </div>
+                    {pagosData.pagos.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: C.gray500, fontSize: 13, border: `1px dashed ${C.gray300}`, borderRadius: 8 }}>
+                        No hay pagos registrados para esta consulta.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {pagosData.pagos.map((pago: any, idx: number) => (
+                          <div key={pago.id_pago || idx} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '12px 14px', background: C.white, border: `1px solid ${C.gray100}`,
+                            borderRadius: 8,
+                          }}>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>
+                                {new Date(pago.fecha).toLocaleDateString('es-HN')}
+                              </div>
+                              {pago.observacion && (
+                                <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>{pago.observacion}</div>
+                              )}
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: C.success }}>
+                              L. {Number(pago.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add payment button */}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={pagosData.resumen.pagadaCompletamente}
+                    onClick={() => { setShowNuevoPago(true); setPagoError(''); }}
+                    style={{
+                      width: '100%',
+                      background: pagosData.resumen.pagadaCompletamente ? C.gray300 : C.success,
+                      borderColor: pagosData.resumen.pagadaCompletamente ? C.gray300 : C.success,
+                      opacity: pagosData.resumen.pagadaCompletamente ? 0.6 : 1,
+                      cursor: pagosData.resumen.pagadaCompletamente ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <Plus size={15} /> {pagosData.resumen.pagadaCompletamente ? 'Consulta totalmente pagada' : 'Agregar Pago'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nuevo Pago Modal */}
+      {showNuevoPago && selectedConsultaForPagos && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.4)', zIndex: 10000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+        }} onClick={() => setShowNuevoPago(false)}>
+          <div style={{
+            background: C.white, borderRadius: 16, maxWidth: '420px', width: '100%', overflow: 'hidden',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              padding: '18px 24px', background: 'linear-gradient(135deg, #1D9E75, #157a5a)', color: 'white',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Plus size={18} /> Nuevo Pago
+              </div>
+              <button onClick={() => setShowNuevoPago(false)}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Fecha del pago *
+                </label>
+                <input type="date" value={nuevoPagoFecha} onChange={(e) => setNuevoPagoFecha(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Monto del pago (L.) *
+                </label>
+                <input type="number" min="0.01" step="0.01" value={nuevoPagoMonto} onChange={(e) => setNuevoPagoMonto(e.target.value)}
+                  placeholder="0.00"
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Observación
+                </label>
+                <input type="text" value={nuevoPagoObs} onChange={(e) => setNuevoPagoObs(e.target.value)}
+                  placeholder="Ej: Segundo abono, pago completo, etc."
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
+              </div>
+              {pagosData.resumen.saldoPendiente > 0 && (
+                <div style={{ fontSize: 11, color: C.warning, background: '#FFF8EC', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.warning}30` }}>
+                  Saldo pendiente actual: <strong>L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</strong>
+                </div>
+              )}
+              {nuevoPagoMonto && parseFloat(nuevoPagoMonto) > pagosData.resumen.saldoPendiente && (
+                <div style={{ fontSize: 11, color: C.danger, background: 'rgba(226, 75, 74, 0.08)', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.danger}30` }}>
+                  El monto del pago (L. {parseFloat(nuevoPagoMonto).toLocaleString('es-HN', { minimumFractionDigits: 2 })}) excede el saldo pendiente (L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
+                </div>
+              )}
+              {pagoError && (
+                <div style={{ fontSize: 11, color: C.danger, background: 'rgba(226, 75, 74, 0.08)', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.danger}30` }}>
+                  {pagoError}
+                </div>
+              )}
+            </div>
+            <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button variant="secondary" size="sm" onClick={() => setShowNuevoPago(false)}>Cancelar</Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={savingPago}
+                disabled={!nuevoPagoMonto || parseFloat(nuevoPagoMonto) <= 0 || !nuevoPagoFecha || parseFloat(nuevoPagoMonto) > pagosData.resumen.saldoPendiente}
+                onClick={async () => {
+                  const monto = parseFloat(nuevoPagoMonto);
+                  if (isNaN(monto) || monto <= 0) return;
+                  if (!nuevoPagoFecha) return;
+                  setSavingPago(true);
+                  setPagoError('');
+                  try {
+                    const res = await billingService.create({
+                      id_consulta: selectedConsultaForPagos.id_consulta,
+                      fecha: nuevoPagoFecha,
+                      abono: monto,
+                      observacion: nuevoPagoObs.trim() || undefined,
+                    });
+                    if (res.success) {
+                      // Reload payment data
+                      const reload = await billingService.getByConsultaId(selectedConsultaForPagos.id_consulta);
+                      const d = reload.data;
+                      if (d?.pagos && d?.resumen) {
+                        setPagosData({ pagos: d.pagos, resumen: d.resumen, loading: false });
+                      }
+                      setShowNuevoPago(false);
+                      setNuevoPagoMonto('');
+                      setNuevoPagoObs('');
+                      setNuevoPagoFecha(new Date().toISOString().slice(0, 10));
+                    }
+                  } catch (err: any) {
+                    setPagoError(err?.message || 'Error al registrar el pago');
+                  }
+                  setSavingPago(false);
+                }}
+                style={{ background: C.success, borderColor: C.success }}
+              >
+                <CheckCircle size={14} /> Guardar Pago
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Respuestas Viewer Modal */}
+      {selectedConsultationForRespuestas && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => setSelectedConsultationForRespuestas(null)}>
+          <div
+            style={{
+              background: C.white,
+              borderRadius: 16,
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  Formulario de la Consulta
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
+                  {selectedConsultationForRespuestas.fecha_inicio
+                    ? new Date(selectedConsultationForRespuestas.fecha_inicio).toLocaleDateString('es-HN')
+                    : 'N/A'}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedConsultationForRespuestas(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: 8,
+                  padding: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {selectedConsultationForRespuestas.respuestas?.length === 0 ? (
+                <div style={{ textAlign: 'center', color: C.gray500, padding: '20px' }}>
+                  No hay respuestas registradas para esta consulta.
+                </div>
+              ) : (
+                selectedConsultationForRespuestas.respuestas?.map((respuesta, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      border: `1.5px solid ${C.gray100}`,
+                      borderRadius: 10,
+                      padding: '16px',
+                      background: C.gray50,
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>
+                      {respuesta.pregunta?.pregunta || `Pregunta #${respuesta.id_pregunta}`}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {respuesta.respuesta_boolean !== null && respuesta.respuesta_boolean !== undefined && (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '4px 10px',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: respuesta.respuesta_boolean ? 'rgba(29, 158, 117, 0.1)' : 'rgba(226, 75, 74, 0.1)',
+                          color: respuesta.respuesta_boolean ? C.success : C.danger,
+                          width: 'fit-content'
+                        }}>
+                          {respuesta.respuesta_boolean ? 'Sí' : 'No'}
+                        </div>
+                      )}
+                      {respuesta.explanation && (
+                        <div style={{
+                          fontSize: 12.5,
+                          color: C.gray700,
+                          lineHeight: 1.5,
+                          background: C.white,
+                          padding: '10px 14px',
+                          borderRadius: 8,
+                          border: `1px solid ${C.gray100}`,
+                        }}>
+                          {respuesta.explanation}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{
+              padding: '16px 24px',
+              borderTop: `1px solid ${C.gray100}`,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setSelectedConsultationForRespuestas(null)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

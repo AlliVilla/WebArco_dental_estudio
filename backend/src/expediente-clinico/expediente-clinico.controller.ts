@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,12 +23,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ExpedienteClinicoService } from './expediente-clinico.service';
-import { RegistrarVisitaDto } from './dto/registrar-visita.dto';
+import { RegistrarConsultaDto } from './dto/registrar-consulta.dto';
 import { ActualizarFirmasDto } from './dto/actualizar-firmas.dto';
 import {
   ExpedienteResponseDto,
   FirmasPendientesResponseDto,
-  RegistrarVisitaResponseDto,
+  RegistrarConsultaResponseDto,
   ConsultaResponseDto,
   ActualizarFirmasResponseDto,
 } from './dto/expediente-responses.dto';
@@ -103,9 +104,9 @@ export class ExpedienteClinicoController {
   @Post(':patientId/visits')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Registrar nueva visita/consulta',
+    summary: 'Registrar nueva consulta',
     description:
-      'Registra una nueva visita en el expediente clínico del paciente. ' +
+      'Registra una nueva consulta en el expediente clínico del paciente. ' +
       'Acepta diagnóstico, tratamiento realizado, notas adicionales y firmas ' +
       'digitales en base64 del paciente y del doctor. ' +
       'Si alguna firma está pendiente, la respuesta incluye una alerta con detalle.',
@@ -116,25 +117,25 @@ export class ExpedienteClinicoController {
     example: 1,
   })
   @ApiCreatedResponse({
-    description: 'Visita registrada exitosamente con estado de firmas',
-    type: RegistrarVisitaResponseDto,
+    description: 'Consulta registrada exitosamente con estado de firmas',
+    type: RegistrarConsultaResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
   @ApiBadRequestResponse({ description: 'Datos inválidos o doctor inexistente' })
-  async registrarVisita(
+  async registrarConsulta(
     @Param('patientId', ParseIntPipe) patientId: number,
-    @Body() registrarVisitaDto: RegistrarVisitaDto,
+    @Body() registrarConsultaDto: RegistrarConsultaDto,
   ) {
-    return this.expedienteClinicoService.registrarVisita(patientId, registrarVisitaDto);
+    return this.expedienteClinicoService.registrarConsulta(patientId, registrarConsultaDto);
   }
 
   @Privileges(20)
   @Get(':patientId/visits/:visitId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Obtener detalle de una visita',
+    summary: 'Obtener detalle de una consulta',
     description:
-      'Retorna el detalle completo de una visita/consulta específica del paciente. ' +
+      'Retorna el detalle completo de una consulta específica del paciente. ' +
       'Incluye diagnóstico, tratamiento, antecedentes, odontograma, pagos y ' +
       'estado de firmas (quién ha firmado y quién no).',
   })
@@ -145,31 +146,31 @@ export class ExpedienteClinicoController {
   })
   @ApiParam({
     name: 'visitId',
-    description: 'ID de la visita/consulta',
+    description: 'ID de la consulta',
     example: 1,
   })
   @ApiOkResponse({
-    description: 'Detalle de la visita con estado de firmas',
+    description: 'Detalle de la consulta con estado de firmas',
     type: ConsultaResponseDto,
   })
   @ApiNotFoundResponse({
-    description: 'Paciente no encontrado o visita no pertenece al paciente',
+    description: 'Paciente no encontrado o consulta no pertenece al paciente',
   })
-  async obtenerDetalleVisita(
+  async obtenerDetalleConsulta(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Param('visitId', ParseIntPipe) visitId: number,
   ) {
-    return this.expedienteClinicoService.obtenerDetalleVisita(patientId, visitId);
+    return this.expedienteClinicoService.obtenerDetalleConsulta(patientId, visitId);
   }
 
   @Privileges(21)
   @Patch(':patientId/visits/:visitId/signatures')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Actualizar firmas pendientes de una visita',
+    summary: 'Actualizar firmas pendientes de una consulta',
     description:
       'Permite registrar la firma digital del paciente, la del doctor, o ambas ' +
-      'en una visita existente. No sobreescribe firmas ya guardadas. ' +
+      'en una consulta existente. No sobreescribe firmas ya guardadas. ' +
       'Si tras la actualización quedan firmas pendientes, la respuesta incluye ' +
       'una alerta indicando quién(es) aún no han firmado.',
   })
@@ -180,7 +181,7 @@ export class ExpedienteClinicoController {
   })
   @ApiParam({
     name: 'visitId',
-    description: 'ID de la visita/consulta',
+    description: 'ID de la consulta',
     example: 1,
   })
   @ApiOkResponse({
@@ -189,7 +190,7 @@ export class ExpedienteClinicoController {
     type: ActualizarFirmasResponseDto,
   })
   @ApiNotFoundResponse({
-    description: 'Paciente no encontrado o visita no pertenece al paciente',
+    description: 'Paciente no encontrado o consulta no pertenece al paciente',
   })
   @ApiBadRequestResponse({
     description:
@@ -205,5 +206,20 @@ export class ExpedienteClinicoController {
       visitId,
       actualizarFirmasDto,
     );
+  }
+
+  @Privileges(21)
+  @Post(':patientId/visits/:visitId/archivos')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Vincular archivos a una consulta' })
+  async agregarArchivos(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('visitId', ParseIntPipe) visitId: number,
+    @Body() body: { archivos: Array<{ nombre: string; url: string; categoria: string }> },
+  ) {
+    if (!body.archivos || body.archivos.length === 0) {
+      throw new BadRequestException('Debe enviar al menos un archivo');
+    }
+    return this.expedienteClinicoService.agregarArchivos(patientId, visitId, body.archivos);
   }
 }

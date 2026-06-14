@@ -118,7 +118,7 @@ export class CitaService {
         ...citaInclude,
         consulta: {
           include: {
-            antecedentes: {
+            respuestas: {
               include: {
                 pregunta: {
                   select: {
