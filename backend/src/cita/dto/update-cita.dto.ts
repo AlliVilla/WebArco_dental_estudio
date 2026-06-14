@@ -69,12 +69,12 @@ export class UpdateCitaDto extends PartialType(CreateCitaDto) {
   @ApiPropertyOptional({
     description: 'Estado de la cita',
     enum: EstadoCita,
-    example: 'Confirmada',
+    example: 'confirmada',
   })
   @IsOptional()
   @IsEnum(EstadoCita, {
     message:
-      'estado debe ser: Programada, Confirmada, Atendida, Cancelada, Ausente, No_asistio o reprogramada',
+      'estado debe ser: programada, confirmada, atendida, cancelada, ausente o reprogramada',
   })
   estado?: EstadoCita;
 }

@@ -40,7 +40,7 @@ const DEFAULT_DURATION_MINUTES = 30;
 
 @Injectable()
 export class CitaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createCitaDto: CreateCitaDto) {
     await this.assertPersonaExists(createCitaDto.id_persona);
@@ -57,7 +57,7 @@ export class CitaService {
       fechaFin,
     );
 
-    const estado = createCitaDto.estado ?? 'Programada';
+    const estado = createCitaDto.estado ?? 'programada';
 
     const cita = await this.prisma.cita.create({
       data: {
@@ -416,7 +416,7 @@ export class CitaService {
       where: {
         id_usuario,
         fecha_inicio: { gte: startOfDay, lte: endOfDay },
-        estado: { notIn: ['Cancelada', 'Ausente'] },
+        estado: { notIn: ['cancelada', 'ausente'] },
         ...(excludeId ? { id_cita: { not: excludeId } } : {}),
       },
       select: {
@@ -463,7 +463,7 @@ export class CitaService {
     const count = await this.prisma.cita.count({
       where: {
         fecha_inicio: { gte: todayStart },
-        estado: { in: ['Programada', 'Confirmada'] },
+        estado: { in: ['programada', 'confirmada'] },
       },
     });
 

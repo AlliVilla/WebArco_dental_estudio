@@ -6,12 +6,12 @@ export class ChangeStatusDto {
   @ApiProperty({
     description: 'Nuevo estado de la cita',
     enum: EstadoCita,
-    example: 'Confirmada',
+    example: 'confirmada',
   })
   @IsNotEmpty({ message: 'estado es obligatorio' })
   @IsEnum(EstadoCita, {
     message:
-      'estado debe ser: Programada, Confirmada, Atendida, Cancelada, Ausente, No_asistio o reprogramada',
+      'estado debe ser: programada, confirmada, atendida, cancelada, ausente o reprogramada',
   })
   estado: EstadoCita;
 
