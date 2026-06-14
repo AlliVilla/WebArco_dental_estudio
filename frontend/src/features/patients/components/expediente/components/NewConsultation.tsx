@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     ChevronLeft, ChevronDown, Upload, X, Search, Plus, Trash2, FileText,
-    Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
+    Image as ImageIcon, Stethoscope, Check, AlertCircle,
     Loader2, Tag, Zap, Clock, User, ShieldAlert,
 } from 'lucide-react';
 import { ExpedientePaciente } from '../types/getAllPacientes';
@@ -74,7 +74,7 @@ const mapFileCategoryToPrisma = (cat: FileCategory): PrismaTipoArchivo => {
     return 'Imagen';
 };
 
-const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Cobro'];
+const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Diagnóstico'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2); }
@@ -269,10 +269,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [tratamientos, setTratamientos] = useState<TratamientoConsulta[]>([]);
     const [conceptoLibre, setConceptoLibre] = useState('');
     const [precioLibre, setPrecioLibre] = useState('');
-    const [metodoPago, setMetodoPago] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
-    const [descuentoGlobal, setDescuentoGlobal] = useState('');
-    const [descuentoGlobalTipo, setDescuentoGlobalTipo] = useState<'monto' | 'porcentaje'>('monto');
-    const [anticipo, setAnticipo] = useState('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
@@ -419,19 +415,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         addToast('info', `Concepto "${nombre}" agregado.`);
     };
 
-    // ── Billing calc ───────────────────────────────────────────────────────────
-    const subtotal = tratamientos.reduce((acc, t) => acc + t.precio, 0);
-    let descGlobal = 0;
-    if (descuentoGlobalTipo === 'monto') {
-        descGlobal = Math.min(parseFloat(descuentoGlobal) || 0, subtotal);
-    } else {
-        const porcentaje = Math.min(parseFloat(descuentoGlobal) || 0, 100);
-        descGlobal = subtotal * (porcentaje / 100);
-    }
-    const total = Math.max(0, subtotal - descGlobal);
-    const anticipoNum = Math.min(Math.max(0, parseFloat(anticipo) || 0), total);
-    const saldo = total - anticipoNum;
-
     // ── Save ───────────────────────────────────────────────────────────────────
     const handleSave = () => {
         setShowConfirmModal(true);
@@ -449,22 +432,19 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         if (!motivoFinal?.trim()) { addToast('error', 'El motivo de consulta es requerido en las preguntas del Paso 1.'); setStep(1); return; }
         if (!diagnostico.trim()) { addToast('error', 'El diagnóstico clínico es requerido.'); setStep(3); return; }
         if (archivos.some((a) => a.uploading)) { addToast('error', 'Espera a que terminen de cargarse todas las imágenes.'); return; }
-        if (anticipoNum > total) { addToast('error', `El anticipo (L. ${anticipoNum.toLocaleString('es-HN', { minimumFractionDigits: 2 })}) no puede exceder el total a pagar (L. ${total.toLocaleString('es-HN', { minimumFractionDigits: 2 })})`); return; }
 
         setSaving(true);
 
         const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
         const idUsuario = doctor?.id_usuario ?? 1;
 
-        // Prepare tratamientos payload: distribute global discount proportionally
+        // Prepare tratamientos payload
         const catalogTratamientosPayload = tratamientos
             .filter(t => t.id_tratamiento)
             .map(t => ({
                 id_tratamiento: t.id_tratamiento!,
                 precio: t.precio,
-                descuento: subtotal > 0 && descGlobal > 0
-                    ? Math.round((t.precio / subtotal) * descGlobal)
-                    : 0,
+                descuento: 0,
             }));
 
         // For free concepts, we can add them to the tratamiento text field
@@ -497,10 +477,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             tratamiento: tratamientosText,
             notas_adicionales: notas.trim() || undefined,
             tratamientos: catalogTratamientosPayload.length > 0 ? catalogTratamientosPayload : undefined,
-            pago: total > 0 ? {
-                abono: anticipoNum,
-                metodo_pago: metodoPago,
-            } : undefined,
             respuestas: respuestasArr.length > 0 ? respuestasArr : undefined,
         };
 
@@ -1037,129 +1013,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             )}
                         </SectionCard>
 
-                        {/* Billing summary */}
-                        <SectionCard icon={<DollarSign size={17} />} title="Resumen de Cobro">
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 20 }}>
-                                {/* Método */}
-                                <div>
-                                    <FieldLabel>Método de pago</FieldLabel>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        {(['Efectivo', 'Tarjeta', 'Transferencia'] as const).map((m) => (
-                                            <button
-                                                key={m} onClick={() => setMetodoPago(m)}
-                                                style={{ flex: 1, padding: '9px 4px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', border: `1.5px solid ${metodoPago === m ? C.primary : C.gray300}`, background: metodoPago === m ? C.primaryBg : C.white, color: metodoPago === m ? C.primary : C.gray500 }}
-                                            >
-                                                {m}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                {/* Descuento global */}
-                                <div>
-                                    <FieldLabel>Descuento global</FieldLabel>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: C.white }}>
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'monto' ? 'L.' : ''}</span>
-                                        <input
-                                            value={descuentoGlobal}
-                                            onChange={(e) => {
-                                                const raw = e.target.value;
-                                                if (raw.startsWith('-')) {
-                                                    setDescuentoGlobal('');
-                                                } else {
-                                                    setDescuentoGlobal(raw);
-                                                }
-                                            }}
-                                            placeholder="0"
-                                            type="number"
-                                            min="0"
-                                            max={descuentoGlobalTipo === 'porcentaje' ? 100 : undefined}
-                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }}
-                                        />
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'porcentaje' ? '%' : ''}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                                        <button
-                                            onClick={() => setDescuentoGlobalTipo('monto')}
-                                            style={{
-                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                                background: descuentoGlobalTipo === 'monto' ? C.primary : C.white,
-                                                color: descuentoGlobalTipo === 'monto' ? C.white : C.gray500,
-                                                border: `1.5px solid ${descuentoGlobalTipo === 'monto' ? C.primary : C.gray300}`,
-                                                cursor: 'pointer', transition: 'all 0.15s'
-                                            }}
-                                        >
-                                            Monto (L.)
-                                        </button>
-                                        <button
-                                            onClick={() => setDescuentoGlobalTipo('porcentaje')}
-                                            style={{
-                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                                background: descuentoGlobalTipo === 'porcentaje' ? C.primary : C.white,
-                                                color: descuentoGlobalTipo === 'porcentaje' ? C.white : C.gray500,
-                                                border: `1.5px solid ${descuentoGlobalTipo === 'porcentaje' ? C.primary : C.gray300}`,
-                                                cursor: 'pointer', transition: 'all 0.15s'
-                                            }}
-                                        >
-                                            Porcentaje (%)
-                                        </button>
-                                    </div>
-                                </div>
-                                {/* Anticipo */}
-                                <div>
-                                    <FieldLabel>Anticipo / Pago inicial (L.)</FieldLabel>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: C.white }}>
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>L.</span>
-                                        <input 
-                                            value={anticipo} 
-                                            onChange={(e) => {
-                                                const raw = e.target.value;
-                                                const val = parseFloat(raw);
-                                                if (raw.startsWith('-')) {
-                                                    setAnticipo('');
-                                                } else if (!isNaN(val) && val > total) {
-                                                    setAnticipo(String(total));
-                                                } else {
-                                                    setAnticipo(raw);
-                                                }
-                                            }} 
-                                            placeholder="0.00" 
-                                            type="number" 
-                                            min="0"
-                                            max={total}
-                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }} 
-                                        />
-                                    </div>
-                                    {parseFloat(anticipo) > total && (
-                                        <div style={{ fontSize: 11, color: C.danger, marginTop: 4, fontWeight: 500 }}>
-                                            El anticipo no puede exceder el total a pagar (L. {total.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
 
-                            {/* Totals */}
-                            <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {[
-                                    { label: 'Subtotal', value: subtotal, color: C.navy },
-                                    { label: 'Descuento global', value: -descGlobal, color: C.danger },
-                                    { label: 'Total a Pagar', value: total, color: C.navy, bold: true, large: true },
-                                    { label: 'Anticipo recibido', value: -anticipoNum, color: C.success },
-                                ].map((row) => (
-                                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: row.bold ? `1px solid ${C.gray100}` : undefined, paddingTop: row.bold ? 12 : 0 }}>
-                                        <span style={{ fontSize: row.large ? 15 : 13, fontWeight: row.bold ? 600 : 400, color: C.gray700 }}>{row.label}</span>
-                                        <span style={{ fontSize: row.large ? 17 : 13, fontWeight: row.bold ? 700 : 500, color: row.color }}>
-                                            {row.value < 0 ? '−' : ''} L. {Math.abs(row.value).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                        </span>
-                                    </div>
-                                ))}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: saldo > 0 ? '#FFF8EC' : '#F0FBF7', borderRadius: 10, padding: '12px 16px', marginTop: 4 }}>
-                                    <span style={{ fontSize: 15, fontWeight: 600, color: C.navy }}>Saldo pendiente</span>
-                                    <span style={{ fontSize: 18, fontWeight: 700, color: saldo > 0 ? C.warning : C.success }}>
-                                        L. {saldo.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                    </span>
-                                </div>
-                            </div>
-                        </SectionCard>
                     </div>
                 )}
 
@@ -1265,7 +1119,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     <li>El odontograma esté actualizado (si aplica)</li>
                                     <li>El diagnóstico y las notas estén completos</li>
                                     <li>Los archivos adjuntos (radiografías, fotos) estén cargados</li>
-                                    <li>El resumen de cobro (tratamientos, descuentos, anticipo) esté correcto</li>
                                 </ul>
                             </div>
                         </div>

@@ -50,9 +50,6 @@ const consultaInclude = {
     },
   },
   archivos: true,
-  pagos: {
-    orderBy: { fecha: 'desc' as const },
-  },
 } satisfies Prisma.ConsultaInclude;
 
 @Injectable()
@@ -204,17 +201,6 @@ export class ExpedienteClinicoService {
             })),
           });
         }
-      }
-
-      if (dto.pago && dto.pago.abono > 0) {
-        await tx.pagoPaciente.create({
-          data: {
-            id_consulta: nuevaConsulta.id_consulta,
-            fecha: new Date(dto.fecha_inicio),
-            abono: dto.pago.abono,
-            observacion: dto.pago.observacion ?? null,
-          },
-        });
       }
 
       if (dto.respuestas && dto.respuestas.length > 0) {

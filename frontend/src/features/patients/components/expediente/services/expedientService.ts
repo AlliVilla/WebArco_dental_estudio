@@ -7,12 +7,6 @@ export interface TratamientoPayload {
   descuento?: number;
 }
 
-export interface PagoPayload {
-  abono: number;
-  metodo_pago?: string;
-  observacion?: string;
-}
-
 export interface RegistrarConsultaPayload {
   id_usuario: number;
   fecha_inicio: string;
@@ -24,7 +18,6 @@ export interface RegistrarConsultaPayload {
   firma_paciente?: string;
   firma_doctor?: string;
   tratamientos?: TratamientoPayload[];
-  pago?: PagoPayload;
   respuestas?: RespuestaConsulta[];
 }
 

@@ -20,7 +20,6 @@ interface ConsultaHistorica {
   };
   tratamientos: ConsultaTratamiento [];
   archivos: Archivo[];
-  pagos?: PagoPaciente[];
   respuestas?: {
     id_respuesta: number;
     id_consulta: number;
@@ -33,15 +32,6 @@ interface ConsultaHistorica {
       orden_num: number;
     };
   }[];
-}
-
-export type PagoPaciente = {
-  id_pago: number;
-  id_consulta: number;
-  fecha: string;
-  abono: number;
-  observacion: string | null;
-  firma_paciente: string | null;
 }
 
 export type Doctor = {
