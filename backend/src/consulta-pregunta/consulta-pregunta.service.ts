@@ -14,6 +14,7 @@ const preguntaSelect = {
   pregunta: true,
   orden_num: true,
   requiere_explicacion: true,
+  obligatorio: true,
   categoria: true,
 } satisfies Prisma.ConsultaPreguntaSelect;
 
@@ -38,6 +39,7 @@ export class ConsultaPreguntaService {
         pregunta: dto.pregunta,
         orden_num: dto.orden_num,
         requiere_explicacion: dto.requiere_explicacion ?? false,
+        obligatorio: dto.obligatorio ?? true,
         categoria: dto.categoria ?? "Antecedentes Médicos",
       },
       select: preguntaSelect,

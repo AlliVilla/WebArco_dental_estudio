@@ -6,36 +6,42 @@ async function insertConsultaPreguntas() {
       pregunta: "Enfermedad De Base",
       orden_num: 1,
       requiere_explicacion: true,
+      obligatorio: true,
       categoria: "Antecedentes Médicos"
     },
     {
       pregunta: "Toma Algún Medicamento",
       orden_num: 2,
       requiere_explicacion: true,
+      obligatorio: true,
       categoria: "Antecedentes Médicos"
     },
     {
       pregunta: "Alergias A Medicamentos O Comidas",
       orden_num: 3,
       requiere_explicacion: true,
+      obligatorio: true,
       categoria: "Antecedentes Médicos"
     },
     {
       pregunta: "Actualmente Se Encuentra Bajo Tratamiento Médico",
       orden_num: 4,
       requiere_explicacion: true,
+      obligatorio: true,
       categoria: "Antecedentes Médicos"
     },
     {
       pregunta: "Cuándo fue su última visita al odontólogo",
       orden_num: 5,
       requiere_explicacion: false,
+      obligatorio: false,
       categoria: "Antecedentes Odontológicos"
     },
     {
       pregunta: "Motivo de consulta",
       orden_num: 6,
       requiere_explicacion: false,
+      obligatorio: true,
       categoria: "Antecedentes Odontológicos"
     },
   ];
@@ -43,12 +49,13 @@ async function insertConsultaPreguntas() {
   for (const p of preguntas) {
     await prisma.consultaPregunta.upsert({
       where: { id_pregunta: p.orden_num },
-      update: { pregunta: p.pregunta, requiere_explicacion: p.requiere_explicacion, categoria: p.categoria },
+      update: { pregunta: p.pregunta, requiere_explicacion: p.requiere_explicacion, obligatorio: p.obligatorio, categoria: p.categoria },
       create: {
         id_pregunta: p.orden_num,
         pregunta: p.pregunta,
         orden_num: p.orden_num,
         requiere_explicacion: p.requiere_explicacion,
+        obligatorio: p.obligatorio,
         categoria: p.categoria
       },
     });

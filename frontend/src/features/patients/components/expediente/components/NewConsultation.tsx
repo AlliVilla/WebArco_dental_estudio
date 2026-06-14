@@ -1044,8 +1044,9 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                             addToast('error', 'El número de teléfono debe tener al menos 8 dígitos.');
                                             return;
                                         }
-                                        // Questions validation
+                                        // Questions validation (only required ones)
                                         for (const pq of preguntas) {
+                                            if (!pq.obligatorio) continue;
                                             const resp = respuestas[pq.id_pregunta] || {};
                                             if (pq.requiere_explicacion) {
                                                 if (resp.respuestaBoolean === undefined) {

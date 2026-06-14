@@ -18,6 +18,11 @@ export class CreatePreguntaDto {
   @IsBoolean({ message: 'requiere_explicacion debe ser un booleano' })
   requiere_explicacion?: boolean;
 
+  @ApiPropertyOptional({ description: 'Indica si la pregunta es obligatoria', example: true })
+  @IsOptional()
+  @IsBoolean({ message: 'obligatorio debe ser un booleano' })
+  obligatorio?: boolean;
+
   @ApiPropertyOptional({ description: 'Categoría de la pregunta', example: 'Antecedentes Médicos' })
   @IsOptional()
   @IsString({ message: 'categoria debe ser texto' })

@@ -138,6 +138,7 @@ model ConsultaPregunta {
   pregunta             String  @db.VarChar(255)
   orden_num            Int
   requiere_explicacion Boolean @default(false)
+  obligatorio          Boolean @default(true)
   categoria            String  @default("Antecedentes Médicos") @db.VarChar(100)
 
   respuestas ConsultaRespuesta[]
