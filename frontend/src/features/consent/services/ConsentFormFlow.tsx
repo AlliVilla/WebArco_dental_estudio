@@ -1,20 +1,302 @@
 import { useState } from "react";
-import { ArrowLeft, Save } from "lucide-react";
-import { Alert, Button, Card } from "../../../context";
+import {
+  ArrowLeft,
+  Check,
+  Save,
+  PenLine,
+  ShieldCheck,
+  FileText,
+  UserRound,
+  Clock,
+} from "lucide-react";
+import { Alert, Button, Input, Select } from "../../../context";
 import type {
   ConsentFormValues,
   ConsentRecord,
   ConsentStep,
   SignatureTarget,
 } from "../types";
-import { ConsentFormStep } from "./ConsentFormStep";
 import {
   ConsentCompletedStep,
   ConsentSignatureStep,
 } from "./ConsentSignatureStep";
-import { Stepper } from "./Stepper";
+import { doctorOptions, procedimientoOptions } from "./consentData";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
+const C = {
+  primary: "#0BC5DF",
+  navy: "#203F49",
+  success: "#1D9E75",
+  danger: "#E24B4A",
+  gray50: "#F8F9FA",
+  gray100: "#F1F3F4",
+  gray300: "#D3D7DA",
+  gray500: "#888F94",
+  white: "#ffffff",
+  primaryBg: "#E6F8FB",
+};
+
+const STEP_LABELS = [
+  "Formulario",
+  "Firma paciente",
+  "Firma doctor",
+  "Completado",
+];
+
+// ─── Stepper igual que expediente ─────────────────────────────────────────────
+function StepperBar({
+  step,
+  isMobile,
+}: {
+  step: ConsentStep;
+  isMobile: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: C.white,
+        border: `1px solid ${C.gray300}`,
+        borderRadius: 12,
+        padding: isMobile ? "12px 16px" : "16px 24px",
+        display: "flex",
+        alignItems: "center",
+        overflowX: "auto",
+      }}
+    >
+      {STEP_LABELS.map((label, i) => {
+        const num = (i + 1) as ConsentStep;
+        const done = step > num;
+        const active = step === num;
+        return (
+          <div
+            key={label}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flex: i < STEP_LABELS.length - 1 ? 1 : "none",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: isMobile ? 6 : 10,
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  background: done ? C.success : active ? C.primary : C.gray100,
+                  color: done || active ? C.white : C.gray500,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {done ? <Check size={13} /> : num}
+              </div>
+              {!isMobile && (
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? C.navy : done ? C.success : C.gray500,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {label}
+                </span>
+              )}
+            </div>
+            {i < STEP_LABELS.length - 1 && (
+              <div
+                style={{
+                  flex: 1,
+                  height: 2,
+                  margin: "0 10px",
+                  background: done ? C.success : C.gray300,
+                  borderRadius: 2,
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SectionCard igual que expediente ─────────────────────────────────────────
+function SectionCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        background: C.white,
+        border: `1px solid ${C.gray300}`,
+        borderRadius: 16,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "16px 20px",
+          borderBottom: `1px solid ${C.gray100}`,
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            background: C.primaryBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: C.primary,
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </div>
+        <span style={{ fontSize: 15, fontWeight: 600, color: C.navy }}>
+          {title}
+        </span>
+      </div>
+      <div style={{ padding: 20 }}>{children}</div>
+    </div>
+  );
+}
+
+function FieldLabel({
+  children,
+  required,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label
+      style={{
+        display: "block",
+        fontSize: 11,
+        fontWeight: 600,
+        color: C.gray500,
+        textTransform: "uppercase",
+        letterSpacing: "0.5px",
+        marginBottom: 6,
+      }}
+    >
+      {children}
+      {required && <span style={{ color: C.danger, marginLeft: 3 }}>*</span>}
+    </label>
+  );
+}
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <p
+      style={{
+        fontSize: 12,
+        color: C.danger,
+        margin: "4px 0 0",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      {msg}
+    </p>
+  );
+}
+
+function ConsentTextArea({
+  label,
+  field,
+  rows,
+  hint,
+  readOnly = false,
+  formValues,
+  onChange,
+}: {
+  label: string;
+  field: keyof ConsentFormValues;
+  rows: number;
+  hint?: string;
+  readOnly?: boolean;
+  formValues: ConsentFormValues;
+  onChange: (field: keyof ConsentFormValues, value: string) => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <FieldLabel>
+        {label}
+        {hint && (
+          <span
+            style={{
+              fontSize: 11,
+              color: C.gray500,
+              fontWeight: 400,
+              marginLeft: 6,
+            }}
+          >
+            {hint}
+          </span>
+        )}
+      </FieldLabel>
+      <textarea
+        readOnly={readOnly}
+        value={formValues[field]}
+        onChange={(e) => onChange(field, e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        placeholder={
+          field === "riesgos"
+            ? "Describe los riesgos particulares..."
+            : undefined
+        }
+        rows={rows}
+        style={{
+          width: "100%",
+          resize: readOnly ? "none" : "vertical",
+          border: `1px solid ${focused ? C.primary : C.gray300}`,
+          borderRadius: 8,
+          background: readOnly ? C.gray50 : C.white,
+          color: C.navy,
+          fontSize: 14,
+          lineHeight: "20px",
+          padding: 12,
+          outline: "none",
+          boxSizing: "border-box",
+          opacity: readOnly ? 0.9 : 1,
+          boxShadow: focused ? "0 0 0 3px rgba(11,197,223,0.12)" : "none",
+          transition: "border-color 0.18s, box-shadow 0.18s",
+          fontFamily: "inherit",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface ConsentFormFlowProps {
   isEditing: boolean;
   selectedConsent?: ConsentRecord;
@@ -44,7 +326,6 @@ export function ConsentFormFlow({
   signatureTarget,
   patientSignature,
   doctorSignature,
-  canContinueForm,
   onFormChange,
   onCancel,
   onContinueFromForm,
@@ -69,21 +350,19 @@ export function ConsentFormFlow({
       ? selectedConsent.id
       : "Se generará al guardar";
 
-  // Validar campos del step 1 y hacer scroll al primero con error
   const handleContinue = () => {
     const errors: Record<string, string> = {};
     if (!formValues.paciente.trim())
       errors.paciente = "El nombre del paciente es obligatorio";
     if (!formValues.doctor) errors.doctor = "Selecciona un doctor responsable";
     if (!formValues.procedimiento)
-      errors.procedimiento = "Selecciona el procedimiento a realizar";
+      errors.procedimiento = "Selecciona el procedimiento";
     if (!formValues.fechaHora)
       errors.fechaHora = "La fecha y hora son obligatorias";
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setTimeout(() => {
-        // Buscar en todo el documento — no en un ref — para no depender de si Card pasa el ref
         const first = document.querySelector<HTMLElement>("[data-field-error]");
         if (first) {
           const rect = first.getBoundingClientRect();
@@ -103,8 +382,8 @@ export function ConsentFormFlow({
     if (!canSaveSignature) {
       setSignatureError(
         signatureTarget === "patient"
-          ? "El paciente debe firmar en la pizarra antes de continuar."
-          : "El doctor debe firmar en la pizarra antes de guardar."
+          ? "El paciente debe firmar antes de continuar."
+          : "El doctor debe firmar antes de guardar."
       );
       return;
     }
@@ -124,6 +403,8 @@ export function ConsentFormFlow({
     }
   };
 
+  const cols2 = isMobile ? "1fr" : "1fr 1fr";
+
   return (
     <div
       style={{
@@ -132,7 +413,7 @@ export function ConsentFormFlow({
         gap: isMobile ? 16 : 20,
       }}
     >
-      {/* Flecha sola arriba — igual que otras pantallas */}
+      {/* Flecha sola arriba */}
       {currentStep !== 4 && (
         <button
           onClick={handleBack}
@@ -143,7 +424,7 @@ export function ConsentFormFlow({
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: "#888F94",
+            color: C.gray500,
             fontSize: 13,
             fontWeight: 500,
             padding: 0,
@@ -155,68 +436,180 @@ export function ConsentFormFlow({
         </button>
       )}
 
-      <Card
-        style={{
-          padding: isMobile ? 16 : 20,
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-        }}
-      >
-        {/* Título */}
-        <div>
-          <h2
-            style={{
-              color: "var(--foreground)",
-              fontSize: isMobile ? 15 : 16,
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            {isEditing
-              ? `Editando: ${formValues.procedimiento}`
-              : "Nuevo Consentimiento Informado"}
-          </h2>
-          <p
-            style={{
-              color: "var(--muted-foreground)",
-              fontSize: 13,
-              margin: "4px 0 0 0",
-            }}
-          >
-            {isEditing
-              ? `Paciente: ${formValues.paciente}`
-              : "Completa los pasos para generar el consentimiento firmado"}
-          </p>
-        </div>
+      {/* Stepper estilo expediente */}
+      <StepperBar step={currentStep} isMobile={isMobile} />
 
-        <Stepper currentStep={currentStep} />
-
-        {signatureError && (
-          <Alert
-            variant="error"
-            message={signatureError}
-            onClose={() => setSignatureError("")}
-          />
-        )}
+      {/* Alertas */}
+      {signatureError && (
         <Alert
-          variant="info"
-          message="Formulario de Consentimiento Informado. El paciente debe leer y comprender el contenido antes de firmar."
+          variant="error"
+          message={signatureError}
+          onClose={() => setSignatureError("")}
         />
+      )}
 
-        {currentStep === 1 && (
-          <ConsentFormStep
-            formValues={formValues}
-            displayConsentCode={displayConsentCode}
-            fieldErrors={fieldErrors}
-            onClearError={(field) =>
-              setFieldErrors((p) => ({ ...p, [field]: "" }))
-            }
-            onChange={onFormChange}
-            onContinue={handleContinue}
-          />
-        )}
-        {(currentStep === 2 || currentStep === 3) && (
+      {/* ── STEP 1: Formulario ── */}
+      {currentStep === 1 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? 14 : 20,
+          }}
+        >
+          <SectionCard
+            icon={<FileText size={17} />}
+            title="Datos del procedimiento"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <FieldLabel>Código del consentimiento</FieldLabel>
+                <Input
+                  disabled
+                  readOnly
+                  value={displayConsentCode}
+                  hint="Generado automáticamente"
+                  icon={<FileText size={15} />}
+                />
+              </div>
+              <div
+                style={{ display: "grid", gridTemplateColumns: cols2, gap: 14 }}
+              >
+                <div
+                  {...(fieldErrors.paciente
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <FieldLabel required>Paciente</FieldLabel>
+                  <Input
+                    icon={<UserRound size={15} />}
+                    placeholder="Ej: María Fernanda López García"
+                    value={formValues.paciente}
+                    onChange={(e) => {
+                      onFormChange("paciente", e.target.value);
+                      setFieldErrors((p) => ({ ...p, paciente: "" }));
+                    }}
+                    error={fieldErrors.paciente}
+                  />
+                  <FieldError msg={fieldErrors.paciente} />
+                </div>
+                <div
+                  {...(fieldErrors.doctor ? { "data-field-error": true } : {})}
+                >
+                  <FieldLabel required>Doctor responsable</FieldLabel>
+                  <Select
+                    options={doctorOptions}
+                    placeholder="Selecciona..."
+                    value={formValues.doctor}
+                    onChange={(v) => {
+                      onFormChange("doctor", v);
+                      setFieldErrors((p) => ({ ...p, doctor: "" }));
+                    }}
+                    error={fieldErrors.doctor}
+                  />
+                  <FieldError msg={fieldErrors.doctor} />
+                </div>
+                <div
+                  {...(fieldErrors.procedimiento
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <FieldLabel required>Procedimiento a realizar</FieldLabel>
+                  <Select
+                    options={procedimientoOptions}
+                    placeholder="Selecciona..."
+                    value={formValues.procedimiento}
+                    onChange={(v) => {
+                      onFormChange("procedimiento", v);
+                      setFieldErrors((p) => ({ ...p, procedimiento: "" }));
+                    }}
+                    error={fieldErrors.procedimiento}
+                  />
+                  <FieldError msg={fieldErrors.procedimiento} />
+                </div>
+                <div
+                  {...(fieldErrors.fechaHora
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <FieldLabel required>Fecha y hora</FieldLabel>
+                  <Input
+                    type="datetime-local"
+                    icon={<Clock size={15} />}
+                    value={formValues.fechaHora}
+                    onChange={(e) => {
+                      onFormChange("fechaHora", e.target.value);
+                      setFieldErrors((p) => ({ ...p, fechaHora: "" }));
+                    }}
+                    error={fieldErrors.fechaHora}
+                  />
+                  <FieldError msg={fieldErrors.fechaHora} />
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            icon={<ShieldCheck size={17} />}
+            title="Texto legal y riesgos"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <ConsentTextArea
+                label="Declaración de veracidad médica"
+                field="declaracion"
+                rows={3}
+                hint="(predefinido, no editable)"
+                readOnly
+                formValues={formValues}
+                onChange={onFormChange}
+              />
+              <ConsentTextArea
+                label="Descripción de riesgos"
+                field="riesgos"
+                rows={4}
+                hint="(editable por doctor)"
+                formValues={formValues}
+                onChange={onFormChange}
+              />
+              <ConsentTextArea
+                label="Cláusula de aceptación"
+                field="clausula"
+                rows={3}
+                hint="(predefinida)"
+                readOnly
+                formValues={formValues}
+                onChange={onFormChange}
+              />
+            </div>
+          </SectionCard>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              paddingTop: 4,
+            }}
+          >
+            <Button
+              type="button"
+              onClick={handleContinue}
+              style={{ width: isMobile ? "100%" : undefined }}
+            >
+              <PenLine size={16} /> Continuar a firma del paciente
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEPS 2 y 3: Firmas ── */}
+      {(currentStep === 2 || currentStep === 3) && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: isMobile ? 14 : 20,
+          }}
+        >
           <ConsentSignatureStep
             formValues={formValues}
             signatureTarget={signatureTarget}
@@ -225,19 +618,7 @@ export function ConsentFormFlow({
             onPatientSignatureChange={onPatientSignatureChange}
             onDoctorSignatureChange={onDoctorSignatureChange}
           />
-        )}
-        {currentStep === 4 && <ConsentCompletedStep />}
-
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          {(currentStep === 2 || currentStep === 3) && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Button
               type="button"
               onClick={handleSaveSignature}
@@ -250,14 +631,21 @@ export function ConsentFormFlow({
                 ? "Guardar firma del paciente"
                 : "Guardar firma del doctor"}
             </Button>
-          )}
-          {currentStep === 4 && (
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 4: Completado ── */}
+      {currentStep === 4 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <ConsentCompletedStep />
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Button type="button" onClick={onFinish}>
               Volver al listado
             </Button>
-          )}
+          </div>
         </div>
-      </Card>
+      )}
     </div>
   );
 }
