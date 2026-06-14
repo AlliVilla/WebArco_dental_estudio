@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownRight,
   ArrowRightLeft,
@@ -89,6 +89,8 @@ export function CierresView() {
   const [activeTab, setActiveTab] = useState<'diario' | 'periodico'>('diario');
   const [fechaCierre, setFechaCierre] = useState(new Date().toISOString().split('T')[0]);
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoCierre>('Semanal');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
 
   // Datos del backend
   const [historial, setHistorial] = useState<CierreHistorialItem[]>([]);
@@ -197,32 +199,32 @@ export function CierresView() {
 
   const summaryData = previewData
     ? {
-        totalIngresos: previewData.totalIngresos,
-        ingresosEfectivo: previewData.efectivo,
-        ingresosTarjeta: previewData.tarjeta,
-        ingresosTransferencia: previewData.transferencia,
-        totalEgresos: previewData.totalEgresos,
-        utilidadNeta: previewData.utilidad,
-      }
+      totalIngresos: previewData.totalIngresos,
+      ingresosEfectivo: previewData.efectivo,
+      ingresosTarjeta: previewData.tarjeta,
+      ingresosTransferencia: previewData.transferencia,
+      totalEgresos: previewData.totalEgresos,
+      utilidadNeta: previewData.utilidad,
+    }
     : {
-        totalIngresos: 0,
-        ingresosEfectivo: 0,
-        ingresosTarjeta: 0,
-        ingresosTransferencia: 0,
-        totalEgresos: 0,
-        utilidadNeta: 0,
-      };
+      totalIngresos: 0,
+      ingresosEfectivo: 0,
+      ingresosTarjeta: 0,
+      ingresosTransferencia: 0,
+      totalEgresos: 0,
+      utilidadNeta: 0,
+    };
 
   // ---------- datos derivados para el tab Periódico ----------
   const cierresFiltrados = historial.filter((c) => c.tipo_cierre === tipoPeriodo);
 
   const periodicSummary = cierresFiltrados.length > 0
     ? {
-        ingresos: cierresFiltrados[0].ingresos,
-        egresos: cierresFiltrados[0].egresos,
-        utilidad: cierresFiltrados[0].utilidad,
-        comparativa: calcularComparativa(cierresFiltrados[0], cierresFiltrados[1]),
-      }
+      ingresos: cierresFiltrados[0].ingresos,
+      egresos: cierresFiltrados[0].egresos,
+      utilidad: cierresFiltrados[0].utilidad,
+      comparativa: calcularComparativa(cierresFiltrados[0], cierresFiltrados[1]),
+    }
     : { ingresos: 0, egresos: 0, utilidad: 0, comparativa: 0 };
 
   const filasTabla = cierresFiltrados.map((item, idx) => ({
@@ -454,6 +456,20 @@ export function CierresView() {
                 ]}
                 value={tipoPeriodo}
                 onChange={(v) => setTipoPeriodo(v as TipoCierre)}
+              />
+              <Input
+                type="date"
+                label="Fecha inicio"
+                badge="required"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+              <Input
+                type="date"
+                label="Fecha fin"
+                badge="required"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
               />
             </div>
           </Card>
