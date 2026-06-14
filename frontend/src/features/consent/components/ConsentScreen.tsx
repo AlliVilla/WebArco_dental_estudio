@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ConfirmModal } from "../../../components";
@@ -8,18 +8,63 @@ import { ConsentFormFlow } from "./ConsentFormFlow";
 import { ConsentListTable } from "./ConsentListTable";
 import { ConsentPreview } from "./ConsentPreview";
 import { ConsentSearchCard } from "./ConsentSearchCard";
-import { defaultFormValues, initialConsents } from "../services/consentData";
 import { formatDisplayDate, formatDisplayTime } from "../services/consentUtils";
 import { exportToExcel } from "../../../utils/exportToExcel";
+import { consentimientoService } from "../services/consentimiento.service";
+import type {
+  Consentimiento,
+  ConsentimientoStats,
+  QueryConsentimientoParams,
+} from "../types/consentimiento";
 import type {
   ConsentFormValues,
   ConsentMode,
   ConsentRecord,
   ConsentScreenProps,
-  ConsentStatus,
   ConsentStep,
   SignatureTarget,
 } from "../types";
+
+function apiToLocal(c: Consentimiento): ConsentRecord {
+  return {
+    id: String(c.id_consulta),
+    paciente: [
+      c.paciente.primer_nombre,
+      c.paciente.segundo_nombre,
+      c.paciente.primer_apellido,
+      c.paciente.segundo_apellido,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    procedimiento: c.tratamiento ?? "",
+    doctor: c.doctor.nombre,
+    patientId: c.paciente.id_persona, // Mantenemos el ID real del paciente
+    doctorId: c.doctor.id_usuario,   // Mantenemos el ID real del doctor
+    fecha: formatDisplayDate(c.fecha),
+    hora: formatDisplayTime(c.fecha),
+    estado:
+      c.estado_firmas === "completo"
+        ? "firmado"
+        : c.estado_firmas === "pendiente"
+          ? "pendiente_doctor"
+          : "pendiente_paciente",
+    patientSignature: (c as any).firma_paciente || "",
+    doctorSignature: (c as any).firma_doctor || (c as any).firma_doctor_snapshot || "",
+    declaracion: "Declaro que he sido informado sobre el procedimiento y he proporcionado información veraz sobre mi estado de salud.",
+    riesgos: (c as any).diagnostico || (c as any).notas || "No se especificaron riesgos adicionales.",
+    clausula: "Autorizo la realización del tratamiento descrito y acepto los términos del consentimiento informado.",
+  };
+}
+
+const defaultFormValues: ConsentFormValues = {
+  paciente: "",
+  doctor: "",
+  procedimiento: "",
+  fechaHora: new Date().toISOString().slice(0, 16),
+  declaracion: "",
+  riesgos: "",
+  clausula: "",
+};
 
 export function ConsentScreen({ patientName }: ConsentScreenProps) {
   useTheme();
@@ -36,34 +81,73 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   const selectedId = searchParams.get("id");
   const patientNameFromQuery = searchParams.get("patientName") ?? undefined;
 
-  const [consents, setConsents] = useState<ConsentRecord[]>(initialConsents);
+  // ─── Estado API ──────────────────────────────────────────────────────────
+  const [consents, setConsents] = useState<ConsentRecord[]>([]);
+  const [stats, setStats] = useState<ConsentimientoStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [filters, setFilters] = useState<QueryConsentimientoParams>({
+    limit: 10,
+    paciente: patientNameFromQuery,
+  });
+
+  // ─── Estado UI ───────────────────────────────────────────────────────────
   const [formValues, setFormValues] = useState<ConsentFormValues>({
     ...defaultFormValues,
-    paciente: patientNameFromQuery ?? patientName ?? defaultFormValues.paciente,
+    paciente: patientNameFromQuery ?? patientName ?? "",
   });
   const [currentStep, setCurrentStep] = useState<ConsentStep>(1);
   const [patientSignature, setPatientSignature] = useState("");
   const [doctorSignature, setDoctorSignature] = useState("");
-  const [signatureTarget, setSignatureTarget] =
-    useState<SignatureTarget>("patient");
+  const [signatureTarget, setSignatureTarget] = useState<SignatureTarget>("patient");
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
+  // ─── Doctor seleccionado (id real de la API) ──────────────────────────────
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null); // ← nuevo
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+
   const selectedConsent = useMemo(
-    () => consents.find((c) => c.id === selectedId) ?? consents[0],
+    () => (selectedId ? consents.find((c) => c.id === selectedId) : undefined) ?? consents[0],
     [consents, selectedId]
   );
 
-  const totalFirmados = useMemo(
-    () => consents.filter((c) => c.estado === "firmado").length,
-    [consents]
-  );
+  // ─── Carga de datos ──────────────────────────────────────────────────────
+  const fetchConsents = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [listRes, statsRes] = await Promise.all([
+        consentimientoService.getAll({ ...filters, page }),
+        consentimientoService.getStats(),
+      ]);
+      if (listRes.data) {
+        console.log(listRes.data.data)
+        setConsents(listRes.data.data.map(apiToLocal));
+        setTotal(listRes.data.total);
+        setTotalPages(listRes.data.totalPages);
+      }
+      if (statsRes.data) {
+        setStats(statsRes.data);
+      }
+    } catch (err) {
+      console.error("Error cargando consentimientos:", err);
+      setError("No se pudieron cargar los consentimientos");
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, page]);
 
-  const totalPendientesDoctor = useMemo(
-    () => consents.filter((c) => c.estado === "pendiente_doctor").length,
-    [consents]
-  );
+  useEffect(() => {
+    if (mode === "list") {
+      fetchConsents();
+    }
+  }, [mode, fetchConsents]);
 
-  // ─── Navegación por URL ───────────────────────────────────────────────────
+  // ─── Navegación por URL ──────────────────────────────────────────────────
   function openMode(nextMode: ConsentMode, id?: string) {
     const params = new URLSearchParams(location.search);
     if (nextMode === "list") {
@@ -79,68 +163,24 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     );
   }
 
-  // ─── Helpers de construcción de registro ─────────────────────────────────
-  function buildNewRecord(estado: ConsentStatus): ConsentRecord {
-    return {
-      id: `CON-${String(consents.length + 1).padStart(3, "0")}`,
-      paciente: formValues.paciente,
-      procedimiento: formValues.procedimiento,
-      doctor: formValues.doctor,
-      fecha: formatDisplayDate(formValues.fechaHora),
-      hora: formatDisplayTime(formValues.fechaHora),
-      declaracion: formValues.declaracion,
-      riesgos: formValues.riesgos,
-      clausula: formValues.clausula,
-      estado,
-      patientSignature,
-      doctorSignature,
-    };
+  // ─── Filtros ─────────────────────────────────────────────────────────────
+  function handleFilterChange(newFilters: Partial<QueryConsentimientoParams>) {
+    setPage(1);
+    setFilters((prev) => ({ ...prev, ...newFilters }));
   }
 
-  function buildEditedRecord(
-    existing: ConsentRecord,
-    estado: ConsentStatus
-  ): ConsentRecord {
-    return {
-      ...existing,
-      paciente: formValues.paciente,
-      procedimiento: formValues.procedimiento,
-      doctor: formValues.doctor,
-      fecha: formatDisplayDate(formValues.fechaHora),
-      hora: formatDisplayTime(formValues.fechaHora),
-      declaracion: formValues.declaracion,
-      riesgos: formValues.riesgos,
-      clausula: formValues.clausula,
-      estado,
-      patientSignature,
-      doctorSignature,
-    };
-  }
-
-  function saveRecord(estado: ConsentStatus) {
-    if (mode === "edit" && selectedConsent) {
-      setConsents((prev) =>
-        prev.map((c) =>
-          c.id === selectedConsent.id ? buildEditedRecord(c, estado) : c
-        )
-      );
-    } else {
-      setConsents((prev) => [buildNewRecord(estado), ...prev]);
-    }
-    setCurrentStep(4);
-  }
-
-  // ─── Acciones del formulario ──────────────────────────────────────────────
+  // ─── Acciones del formulario ─────────────────────────────────────────────
   function startNewConsent() {
     setFormValues({
       ...defaultFormValues,
-      paciente:
-        patientNameFromQuery ?? patientName ?? defaultFormValues.paciente,
+      paciente: patientNameFromQuery ?? patientName ?? "",
     });
     setPatientSignature("");
     setDoctorSignature("");
     setSignatureTarget("patient");
     setCurrentStep(1);
+    setSelectedPatientId(null);
+    setSelectedDoctorId(null); // ← reset al abrir nuevo
     openMode("new");
   }
 
@@ -160,6 +200,8 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     setDoctorSignature(consent.doctorSignature ?? "");
     setSignatureTarget(consent.patientSignature ? "doctor" : "patient");
     setCurrentStep(1);
+    setSelectedPatientId((consent as any).patientId ?? null); // Restauramos el ID del paciente
+    setSelectedDoctorId((consent as any).doctorId ?? null);   // Restauramos el ID del doctor
     openMode("edit", consent.id);
   }
 
@@ -167,42 +209,112 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     setFormValues((prev) => ({ ...prev, [field]: value }));
   }
 
-  // ─── Flujo de pasos ───────────────────────────────────────────────────────
+  /**
+   * Crea el consentimiento en la base de datos y redirige al paso indicado.
+   * targetStep 2: Va a firma del paciente.
+   * targetStep 4: Va a completado (Guardar sin firmas).
+   */
+  async function handleCreateConsent(targetStep: ConsentStep = 4) {
+    if (!selectedDoctorId || !selectedPatientId) {
+      console.error("Faltan datos obligatorios para crear el consentimiento");
+      return;
+    }
+    try {
+      const res = await consentimientoService.create({
+        id_paciente: selectedPatientId,
+        id_doctor: selectedDoctorId,
+        fecha: formValues.fechaHora,
+        tipo_tratamiento: formValues.procedimiento,
+        diagnostico: formValues.declaracion,
+      });
+
+      const newId = res.data?.id_consulta;
+      if (newId) {
+        // Actualizamos la URL para pasar de 'new' a 'edit' con el ID generado.
+        // Esto permite que selectedId esté disponible para guardar las firmas.
+        const params = new URLSearchParams(location.search);
+        params.set("mode", "edit");
+        params.set("id", String(newId));
+        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+      }
+
+      setCurrentStep(targetStep);
+      if (targetStep === 2) setSignatureTarget("patient");
+
+      fetchConsents();
+    } catch (err) {
+      console.error("Error al crear consentimiento:", err);
+    }
+  }
+
+  // ─── Flujo de pasos (firma) ──────────────────────────────────────────────
   function handleContinueFromForm() {
-    setCurrentStep(2);
-    setSignatureTarget("patient");
+    if (mode === "new") {
+      handleCreateConsent(2);
+    } else {
+      setCurrentStep(2);
+      setSignatureTarget("patient");
+    }
   }
 
-  // Guardar desde step 1 sin pasar por firmas
   function handleSaveWithoutSignatures() {
-    saveRecord("pendiente_paciente");
+    if (mode === "new") {
+      handleCreateConsent(4);
+    } else {
+      setCurrentStep(4);
+    }
   }
 
-  // Firma del paciente guardada — avanzar al doctor
-  function handleSavePatientSignature() {
-    if (!patientSignature) return;
-    setDoctorSignature("");
+  async function handleSavePatientSignature() {
+    if (!patientSignature || !selectedId) return;
+    // No persistimos inmediatamente. Guardamos en el estado local y avanzamos al paso del doctor.
+    // La firma se mantiene como Base64 en la variable 'patientSignature'.
     setCurrentStep(3);
     setSignatureTarget("doctor");
   }
 
-  // Firma del doctor guardada — calcular estado y guardar
-  function handleSaveDoctorSignature() {
-    if (!doctorSignature) return;
-    const estado: ConsentStatus =
-      patientSignature && doctorSignature ? "firmado" : "pendiente_doctor";
-    saveRecord(estado);
+  async function handleSaveDoctorSignature() {
+    if (!selectedId) return;
+    try {
+      const updates: any = {};
+
+      // Si el paciente firmó en este flujo (Base64), preparamos su archivo
+      if (patientSignature && patientSignature.startsWith("data:image")) {
+        updates.firma_paciente = patientSignature;
+      }
+
+      // Si el doctor firmó en este flujo (Base64), preparamos su archivo
+      if (doctorSignature && doctorSignature.startsWith("data:image")) {
+        updates.firma_doctor = doctorSignature;
+      }
+
+      // Solo llamamos a la API si hay al menos una firma nueva que guardar
+      if (Object.keys(updates).length > 0) {
+        await consentimientoService.updateSignatures(Number(selectedId), updates);
+      }
+
+      setCurrentStep(4);
+      fetchConsents();
+    } catch (err) {
+      console.error("Error al procesar el guardado final de firmas:", err);
+    }
   }
 
-  // Omitir firma (step 2 o 3) sin firmar
-  function handleSkipToFinish() {
-    const estado: ConsentStatus = patientSignature
-      ? "pendiente_doctor"
-      : "pendiente_paciente";
-    saveRecord(estado);
+  async function handleSkipToFinish() {
+    // Caso especial: Si el paciente firmó pero el doctor omite su firma, 
+    // debemos persistir la firma del paciente antes de terminar.
+    if (selectedId && patientSignature && patientSignature.startsWith("data:image")) {
+      try {
+        await consentimientoService.updateSignatures(Number(selectedId), { firma_paciente: patientSignature });
+      } catch (err) {
+        console.error("Error al guardar firma del paciente al omitir paso del doctor:", err);
+      }
+    }
+    setCurrentStep(4);
+    fetchConsents();
   }
 
-  // Exportar a Excel
+  // ─── Exportar ────────────────────────────────────────────────────────────
   const handleExportToExcel = async () => {
     try {
       const columnas = [
@@ -224,7 +336,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     }
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -234,7 +346,6 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         width: "100%",
       }}
     >
-      {/* Flecha volver al perfil — solo si viene desde un paciente */}
       {patientNameFromQuery && (
         <button
           onClick={() => navigate(-1)}
@@ -256,17 +367,24 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         </button>
       )}
 
-      {/* Lista */}
       {mode === "list" && (
         <>
           <ConsentSearchCard
-            totalConsents={consents.length}
-            totalFirmados={totalFirmados}
-            totalPendientesDoctor={totalPendientesDoctor}
+            totalConsents={total}
+            totalFirmados={stats?.completos ?? 0}
+            totalPendientesDoctor={stats?.pendientes ?? 0}
             consents={consents}
+            loading={loading}
+            error={error}
+            onFilterChange={handleFilterChange}
           />
           <ConsentListTable
             consents={consents}
+            loading={loading}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            onFilterChange={handleFilterChange}
             onPreview={(id) => openMode("preview", id)}
             onEdit={startEdit}
             onNewConsent={startNewConsent}
@@ -275,9 +393,9 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         </>
       )}
 
-      {/* Formulario nuevo / edición */}
       {(mode === "new" || mode === "edit") && (
-        <ConsentFormFlow
+        (mode === "new" || (mode === "edit" && selectedConsent)) ? (
+          <ConsentFormFlow
           isEditing={mode === "edit"}
           selectedConsent={selectedConsent}
           formValues={formValues}
@@ -285,6 +403,10 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
           signatureTarget={signatureTarget}
           patientSignature={patientSignature}
           doctorSignature={doctorSignature}
+          selectedDoctorId={selectedDoctorId}          // ← nuevo
+          selectedPatientId={selectedPatientId}        // ← nuevo
+          onPatientIdChange={setSelectedPatientId}     // ← nuevo
+          onDoctorIdChange={setSelectedDoctorId}       // ← nuevo
           onFormChange={updateFormValue}
           onCancel={() => setConfirmCloseOpen(true)}
           onContinueFromForm={handleContinueFromForm}
@@ -298,17 +420,16 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
           onSaveDoctorSignature={handleSaveDoctorSignature}
           onFinish={() => openMode("list")}
         />
+        ) : null
       )}
 
-      {/* Vista previa */}
-      {mode === "preview" && (
+      {mode === "preview" && selectedConsent && (
         <ConsentPreview
           selectedConsent={selectedConsent}
           onClose={() => openMode("list")}
         />
       )}
 
-      {/* Modal de confirmación al cancelar */}
       <ConfirmModal
         open={confirmCloseOpen}
         variant="danger"

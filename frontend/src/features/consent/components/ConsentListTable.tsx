@@ -1,4 +1,3 @@
-import { useState, useMemo } from "react";
 import { Download, Edit3, Eye, Plus, Printer } from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column, RowAction } from "../../../components";
@@ -7,10 +6,15 @@ import { statusOptions } from "../services/consentData";
 import { getStatusMeta } from "../services/consentUtils";
 import { printConsentDocuments } from "../services/printConsentDocuments";
 import { useResponsive } from "../../../hooks/useWindowWidth";
-import { normalizeSearch } from "../../../utils/formatters";
+import type { QueryConsentimientoParams } from "../types/consentimiento"; // ← tipo ya creado
 
 interface ConsentListTableProps {
   consents: ConsentRecord[];
+  loading?: boolean;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  onFilterChange?: (filters: Partial<QueryConsentimientoParams>) => void;
   onPreview: (id: string) => void;
   onEdit: (consent: ConsentRecord) => void;
   onNewConsent: () => void;
@@ -174,8 +178,67 @@ function ConsentCard({
   );
 }
 
+function MobileFilters({
+  onFilterChange,
+}: {
+  onFilterChange?: (f: Partial<QueryConsentimientoParams>) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <input
+        placeholder="Buscar paciente o procedimiento..."
+        onChange={(e) =>
+          onFilterChange?.({ paciente: e.target.value || undefined })
+        }
+        style={{
+          width: "100%",
+          height: 42,
+          padding: "0 12px",
+          border: "1px solid #D3D7DA",
+          borderRadius: 8,
+          background: "#F5F7FA",
+          fontSize: 13,
+          color: "#203F49",
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+      />
+      <select
+        defaultValue=""
+        onChange={(e) =>
+          onFilterChange?.({
+            estado: (e.target.value as QueryConsentimientoParams["estado"]) || undefined,
+          })
+        }
+        style={{
+          height: 42,
+          padding: "0 10px",
+          border: "1px solid #D3D7DA",
+          borderRadius: 8,
+          background: "#fff",
+          fontSize: 12,
+          color: "#888F94",
+          outline: "none",
+        }}
+      >
+        <option value="">Estado</option>
+        {statusOptions.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function ConsentListTable({
   consents,
+  loading = false,
+  page,
+  totalPages,
+  onPageChange,
+  onFilterChange,
   onPreview,
   onEdit,
   onNewConsent,
@@ -183,36 +246,6 @@ export function ConsentListTable({
 }: ConsentListTableProps) {
   const { isMobile, isTablet } = useResponsive();
   const showCards = isMobile || isTablet;
-
-  const [mobileSearch, setMobileSearch] = useState("");
-  const [mobileFilterEstado, setMobileFilterEstado] = useState("");
-  const [mobileFilterDoctor, setMobileFilterDoctor] = useState("");
-
-  const doctorOptions = useMemo(
-    () =>
-      Array.from(new Set(consents.map((c) => c.doctor).filter(Boolean))).map(
-        (d) => ({ label: d, value: d })
-      ),
-    [consents]
-  );
-
-  const filteredConsents = useMemo(
-    () =>
-      consents.filter((c) => {
-        const matchSearch =
-          !mobileSearch ||
-          normalizeSearch(c.paciente).includes(normalizeSearch(mobileSearch)) ||
-          normalizeSearch(c.procedimiento).includes(
-            normalizeSearch(mobileSearch)
-          );
-        const matchEstado =
-          !mobileFilterEstado || c.estado === mobileFilterEstado;
-        const matchDoctor =
-          !mobileFilterDoctor || c.doctor === mobileFilterDoctor;
-        return matchSearch && matchEstado && matchDoctor;
-      }),
-    [consents, mobileSearch, mobileFilterEstado, mobileFilterDoctor]
-  );
 
   const columns: Column<ConsentRecord>[] = [
     { key: "fecha", label: "Fecha", width: 120 },
@@ -240,7 +273,6 @@ export function ConsentListTable({
   if (showCards) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {/* Acciones */}
         <button
           onClick={onNewConsent}
           style={{
@@ -262,87 +294,18 @@ export function ConsentListTable({
           <Plus size={16} /> Nuevo Consentimiento
         </button>
 
-        {/* Búsqueda */}
-        <input
-          value={mobileSearch}
-          onChange={(e) => setMobileSearch(e.target.value)}
-          placeholder="Buscar paciente o procedimiento..."
-          style={{
-            width: "100%",
-            height: 42,
-            padding: "0 12px",
-            border: "1px solid #D3D7DA",
-            borderRadius: 8,
-            background: "#F5F7FA",
-            fontSize: 13,
-            color: "#203F49",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
+        <MobileFilters onFilterChange={onFilterChange} />
 
-        {/* Filtros */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <select
-            value={mobileFilterEstado}
-            onChange={(e) => setMobileFilterEstado(e.target.value)}
-            style={{
-              flex: 1,
-              height: 42,
-              padding: "0 10px",
-              border: "1px solid #D3D7DA",
-              borderRadius: 8,
-              background: "#fff",
-              fontSize: 12,
-              color: mobileFilterEstado ? "#203F49" : "#888F94",
-              outline: "none",
-            }}
-          >
-            <option value="">Estado</option>
-            {statusOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={mobileFilterDoctor}
-            onChange={(e) => setMobileFilterDoctor(e.target.value)}
-            style={{
-              flex: 1,
-              height: 42,
-              padding: "0 10px",
-              border: "1px solid #D3D7DA",
-              borderRadius: 8,
-              background: "#fff",
-              fontSize: 12,
-              color: mobileFilterDoctor ? "#203F49" : "#888F94",
-              outline: "none",
-            }}
-          >
-            <option value="">Doctor</option>
-            {doctorOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Cards */}
-        {filteredConsents.length === 0 ? (
-          <p
-            style={{
-              textAlign: "center",
-              color: "#888F94",
-              fontSize: 14,
-              padding: 24,
-            }}
-          >
+        {loading ? (
+          <p style={{ textAlign: "center", color: "#888F94", fontSize: 14, padding: 24 }}>
+            Cargando...
+          </p>
+        ) : consents.length === 0 ? (
+          <p style={{ textAlign: "center", color: "#888F94", fontSize: 14, padding: 24 }}>
             No hay consentimientos para mostrar.
           </p>
         ) : (
-          filteredConsents.map((row) => (
+          consents.map((row) => (
             <ConsentCard
               key={row.id}
               row={row}
@@ -352,6 +315,44 @@ export function ConsentListTable({
             />
           ))
         )}
+
+        {totalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, paddingTop: 8 }}>
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 8,
+                border: "1px solid #D3D7DA",
+                background: page <= 1 ? "#F5F7FA" : "#fff",
+                color: page <= 1 ? "#B0B7BD" : "#203F49",
+                cursor: page <= 1 ? "default" : "pointer",
+                fontSize: 13,
+              }}
+            >
+              ← Anterior
+            </button>
+            <span style={{ lineHeight: "34px", fontSize: 13, color: "#888F94" }}>
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= totalPages}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 8,
+                border: "1px solid #D3D7DA",
+                background: page >= totalPages ? "#F5F7FA" : "#fff",
+                color: page >= totalPages ? "#B0B7BD" : "#203F49",
+                cursor: page >= totalPages ? "default" : "pointer",
+                fontSize: 13,
+              }}
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -359,25 +360,29 @@ export function ConsentListTable({
   return (
     <DataTable<ConsentRecord>
       title="Listado de consentimientos"
-      description={`Total de ${consents.length} consentimientos registrados`}
+      description={`Página ${page} de ${totalPages}`}
       data={consents}
       columns={columns}
+      loading={loading}
       searchable
       searchPlaceholder="Buscar paciente o procedimiento..."
-      searchKeys={["paciente", "procedimiento"]}
+      onSearchChange={(value) =>
+        onFilterChange?.({ paciente: value || undefined })
+      }
       filters={[
-        {
-          key: "doctor",
-          placeholder: "Todos los doctores",
-          options: doctorOptions,
-        },
         {
           key: "estado",
           placeholder: "Todos los estados",
           options: statusOptions,
+          onChange: (value) =>
+            onFilterChange?.({
+              estado: (value as QueryConsentimientoParams["estado"]) || undefined,
+            }),
         },
       ]}
-      pageSize={5}
+      page={page}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
       getRowKey={(row) => row.id}
       emptyMessage="No hay consentimientos para mostrar."
       primaryAction={{
@@ -386,11 +391,7 @@ export function ConsentListTable({
         onClick: onNewConsent,
       }}
       secondaryActions={[
-        {
-          label: "Exportar",
-          icon: <Download size={16} />,
-          onClick: onExport,
-        },
+        { label: "Exportar", icon: <Download size={16} />, onClick: onExport },
         {
           label: "Imprimir",
           icon: <Printer size={16} />,
