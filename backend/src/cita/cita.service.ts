@@ -57,7 +57,7 @@ export class CitaService {
       fechaFin,
     );
 
-    const estado = createCitaDto.estado ?? 'programada';
+    const estado = createCitaDto.estado ?? 'Programada';
 
     const cita = await this.prisma.cita.create({
       data: {
@@ -416,7 +416,7 @@ export class CitaService {
       where: {
         id_usuario,
         fecha_inicio: { gte: startOfDay, lte: endOfDay },
-        estado: { notIn: ['cancelada', 'ausente'] },
+        estado: { notIn: ['Cancelada', 'Ausente'] },
         ...(excludeId ? { id_cita: { not: excludeId } } : {}),
       },
       select: {
@@ -463,7 +463,7 @@ export class CitaService {
     const count = await this.prisma.cita.count({
       where: {
         fecha_inicio: { gte: todayStart },
-        estado: { in: ['programada', 'confirmada'] },
+        estado: { in: ['Programada', 'Confirmada'] },
       },
     });
 

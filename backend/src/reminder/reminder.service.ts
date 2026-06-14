@@ -58,7 +58,7 @@ export class ReminderService {
     const [citasPendientes, recordatoriosPendientes] = await Promise.all([
       this.prisma.cita.findMany({
         where: {
-          estado: 'programada',
+          estado: 'Programada',
           recordatorio_enviado: false,
           fecha_inicio: { gte: startOfToday, lte: tomorrow },
         },
@@ -66,7 +66,7 @@ export class ReminderService {
         orderBy: { fecha_inicio: 'asc' },
       }),
       this.prisma.recordatorio.findMany({
-        where: { estado_respuesta: 'pendiente' },
+        where: { estado_respuesta: 'Pendiente' },
         include: {
           cita: {
             include: { persona: { select: personaSelect } },
@@ -94,9 +94,9 @@ export class ReminderService {
       );
     }
 
-    if (cita.estado !== 'programada') {
+    if (cita.estado !== 'Programada') {
       throw new BadRequestException(
-        'Solo se pueden enviar recordatorios para citas en estado "programada"',
+        'Solo se pueden enviar recordatorios para citas en estado "Programada"',
       );
     }
 
@@ -163,11 +163,11 @@ export class ReminderService {
     let message: string;
 
     if (respuesta === RespuestaPaciente.Confirmo) {
-      nuevoEstadoRespuesta = 'confirmado';
-      nuevoEstadoCita = EstadoCita.confirmada;
+      nuevoEstadoRespuesta = 'Confirmado';
+      nuevoEstadoCita = EstadoCita.Confirmada;
       message = 'Respuesta registrada: el paciente confirmó la cita';
     } else {
-      nuevoEstadoRespuesta = 'cancelado';
+      nuevoEstadoRespuesta = 'Cancelado';
       nuevoEstadoCita = EstadoCita.reprogramada;
       message = 'Respuesta registrada: el paciente canceló la cita. Se marca para reagendamiento';
     }
@@ -267,19 +267,19 @@ export class ReminderService {
       this.prisma.recordatorio.count({
         where: {
           fecha_envio: { gte: thirtyDaysAgo },
-          estado_respuesta: 'confirmado',
+          estado_respuesta: 'Confirmado',
         },
       }),
       this.prisma.recordatorio.count({
         where: {
           fecha_envio: { gte: thirtyDaysAgo },
-          estado_respuesta: 'cancelado',
+          estado_respuesta: 'Cancelado',
         },
       }),
       this.prisma.recordatorio.count({
         where: {
           fecha_envio: { gte: thirtyDaysAgo },
-          estado_respuesta: 'sin_respuesta',
+          estado_respuesta: 'Sin_respuesta',
         },
       }),
       this.prisma.recordatorio.count({

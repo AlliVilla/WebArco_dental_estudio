@@ -169,7 +169,7 @@ model Cita {
   fecha_fin            DateTime?  @db.Timestamp()
   tipo_cita            String?    @db.VarChar(100)
   motivo               String?    @db.Text
-  estado               EstadoCita @default(programada)
+  estado               EstadoCita @default(Programada)
   recordatorio_enviado Boolean    @default(false)
   notas                String?    @db.Text
 
@@ -187,7 +187,7 @@ model Recordatorio {
   id_cita          Int
   cita             Cita              @relation(fields: [id_cita], references: [id_cita])
   canal            CanalRecordatorio
-  estado_respuesta EstadoRespuesta   @default(pendiente)
+  estado_respuesta EstadoRespuesta   @default(Pendiente)
   fecha_envio      DateTime          @default(now())
   fecha_respuesta  DateTime?
   created_at       DateTime          @default(now())

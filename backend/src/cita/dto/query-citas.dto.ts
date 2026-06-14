@@ -55,12 +55,12 @@ export class QueryPatientHistoryDto {
   @ApiPropertyOptional({
     description: 'Filtrar por estado',
     enum: EstadoCita,
-    example: 'programada',
+    example: 'Programada',
   })
   @IsOptional()
   @IsEnum(EstadoCita, {
     message:
-      'estado debe ser: programada, confirmada, atendida, cancelada, ausente o reprogramada',
+      'estado debe ser: Programada, Confirmada, Atendida, Cancelada, Ausente, No_asistio o reprogramada',
   })
   estado?: EstadoCita;
 

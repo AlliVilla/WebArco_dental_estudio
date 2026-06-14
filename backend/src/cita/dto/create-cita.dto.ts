@@ -9,15 +9,9 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { EstadoCita } from '@prisma/client';
 
-export enum EstadoCita {
-  programada = 'programada',
-  confirmada = 'confirmada',
-  atendida = 'atendida',
-  cancelada = 'cancelada',
-  ausente = 'ausente',
-  reprogramada = 'reprogramada',
-}
+export { EstadoCita };
 
 export class CreateCitaDto {
   @ApiProperty({ description: 'ID del paciente', example: 1 })
@@ -77,12 +71,12 @@ export class CreateCitaDto {
   @ApiPropertyOptional({
     description: 'Estado inicial de la cita',
     enum: EstadoCita,
-    example: 'programada',
+    example: 'Programada',
   })
   @IsOptional()
   @IsEnum(EstadoCita, {
     message:
-      'estado debe ser: programada, confirmada, atendida, cancelada, ausente o reprogramada',
+      'estado debe ser: Programada, Confirmada, Atendida, Cancelada, Ausente, No_asistio o reprogramada',
   })
   estado?: EstadoCita;
 }
