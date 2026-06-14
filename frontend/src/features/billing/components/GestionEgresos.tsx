@@ -1,16 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, Alert, Button } from "../../../context";
-import { formatCurrency } from "../../../utils/formatters";
+import { formatCurrency, obtenerHoyLocal, escapeHtml, generateUUID } from "../../../utils/formatters";
+import { exportToExcel } from "../../../utils/exportToExcel";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { StatsDrawerContent, StatsItem } from "./StatsDrawerContent";
-
-const generateUUID = () => {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
 import {
   TrendingDown,
   Package,
@@ -25,25 +18,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
-
-const obtenerHoyLocal = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dia = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dia}`;
-};
-
-const escapeHtml = (text: string) => {
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  };
-  return text.replace(/[&<>"']/g, (c) => map[c]);
-};
 
 type CategoriaEgreso = "Insumos" | "Equipos" | "Nómina" | "Servicios";
 const CATEGORIAS: CategoriaEgreso[] = [
@@ -71,6 +45,30 @@ type DrawerIndicadorState = {
   totalValue?: string;
 };
 
+const inputStyle = (filled: boolean, disabled = false): React.CSSProperties => ({
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #D3D7DA",
+  outline: "none",
+  fontSize: 14,
+  color: "#203F49",
+  backgroundColor: disabled ? "#F1F3F4" : filled ? "#fff" : "#F3F3F5",
+  cursor: disabled ? "not-allowed" : "auto",
+});
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  color: "#203F49",
+};
+
+const fieldGroupStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+};
+
 export function GestionEgresos() {
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
@@ -86,7 +84,7 @@ export function GestionEgresos() {
   );
 
   const [error, setError] = useState<string | null>(null);
-  const [userStored] = useLocalStorage<any>("webarco_user", {});
+  const [userStored] = useLocalStorage<Record<string, unknown>>("webarco_user", {});
 
   const [estaDrawerAbierto, setEstaDrawerAbierto] = useState(false);
   const [drawerActual, setDrawerActual] = useState<DrawerIndicadorState | null>(
@@ -413,6 +411,23 @@ export function GestionEgresos() {
     setEstaModalAbierto(true);
   };
 
+  const exportarAExcel = async () => {
+    if (registros.length === 0) return;
+    try {
+      const columnas = [
+        { header: "Fecha", key: "fecha", width: 12 },
+        { header: "Concepto", key: "concepto", width: 30 },
+        { header: "Categoría", key: "categoria", width: 20 },
+        { header: "Monto (L.)", key: "monto", width: 15 },
+        { header: "Responsable", key: "responsable", width: 25 },
+        { header: "Observaciones", key: "observaciones", width: 30 },
+      ];
+      await exportToExcel(registros, columnas, "Egresos", "Egresos_WebArco");
+    } catch {
+      setError("Error al exportar a Excel");
+    }
+  };
+
   const imprimirReporte = () => {
     const vent = window.open("", "_blank");
     if (!vent) return;
@@ -643,7 +658,7 @@ export function GestionEgresos() {
           {
             label: "Exportar",
             icon: <FileSpreadsheet size={13} />,
-            onClick: () => alert("Exportando registros a Excel..."),
+            onClick: exportarAExcel,
           },
           {
             label: "Imprimir",
@@ -763,12 +778,8 @@ export function GestionEgresos() {
                   gap: 12,
                 }}
               >
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
-                  <label
-                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                  >
+                <div style={fieldGroupStyle}>
+                  <label style={labelStyle}>
                     Fecha
                     {modoModal !== "ver" && (
                       <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
@@ -784,24 +795,11 @@ export function GestionEgresos() {
                         : fecha
                     }
                     onChange={(e) => setFecha(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                      outline: "none",
-                      fontSize: 14,
-                      color: "#203F49",
-                      backgroundColor: fecha ? "#fff" : "#F3F3F5",
-                    }}
+                    style={inputStyle(!!fecha, modoModal === "ver")}
                   />
                 </div>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
-                  <label
-                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                  >
+                <div style={fieldGroupStyle}>
+                  <label style={labelStyle}>
                     Categoría
                     {modoModal !== "ver" && (
                       <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
@@ -811,16 +809,7 @@ export function GestionEgresos() {
                     <input
                       disabled
                       value={categoria}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        border: "1px solid #D3D7DA",
-                        outline: "none",
-                        fontSize: 14,
-                        color: "#203F49",
-                        background: "#F1F3F4",
-                      }}
+                      style={inputStyle(true, true)}
                     />
                   ) : (
                     <select
@@ -830,14 +819,8 @@ export function GestionEgresos() {
                         setCategoria(e.target.value as CategoriaEgreso)
                       }
                       style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        border: "1px solid #D3D7DA",
-                        outline: "none",
-                        fontSize: 14,
-                        background: categoria ? "#fff" : "#F3F3F5",
-                        color: "#203F49",
+                        ...inputStyle(!!categoria),
+                        cursor: "pointer",
                       }}
                     >
                       {CATEGORIAS.map((cat) => (
@@ -850,10 +833,8 @@ export function GestionEgresos() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label
-                  style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                >
+              <div style={fieldGroupStyle}>
+                <label style={labelStyle}>
                   Concepto
                   {modoModal !== "ver" && (
                     <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
@@ -865,16 +846,7 @@ export function GestionEgresos() {
                   disabled={modoModal === "ver"}
                   value={concepto}
                   onChange={(e) => setConcepto(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #D3D7DA",
-                    outline: "none",
-                    fontSize: 14,
-                    color: "#203F49",
-                    backgroundColor: concepto ? "#fff" : "#F3F3F5",
-                  }}
+                  style={inputStyle(!!concepto, modoModal === "ver")}
                 />
               </div>
 
@@ -885,12 +857,8 @@ export function GestionEgresos() {
                   gap: 12,
                 }}
               >
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
-                  <label
-                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                  >
+                <div style={fieldGroupStyle}>
+                  <label style={labelStyle}>
                     Monto (L.)
                     {modoModal !== "ver" && (
                       <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
@@ -904,21 +872,10 @@ export function GestionEgresos() {
                     required
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                      outline: "none",
-                      fontSize: 14,
-                      color: "#203F49",
-                      backgroundColor: monto ? "#fff" : "#F3F3F5",
-                    }}
+                    style={inputStyle(!!monto, modoModal === "ver")}
                   />
                 </div>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
+                <div style={fieldGroupStyle}>
                   <div
                     style={{
                       display: "flex",
@@ -926,13 +883,7 @@ export function GestionEgresos() {
                       alignItems: "center",
                     }}
                   >
-                    <label
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "#203F49",
-                      }}
-                    >
+                    <label style={labelStyle}>
                       Responsable
                       {modoModal !== "ver" && (
                         <span style={{ color: "#EF9F27", marginLeft: 4 }}>
@@ -965,30 +916,14 @@ export function GestionEgresos() {
                     onChange={(e) => setResponsable(e.target.value)}
                     required
                     placeholder="Nombre del responsable"
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                      outline: "none",
-                      fontSize: 14,
-                      background:
-                        modoModal === "ver"
-                          ? "#F1F3F4"
-                          : responsable
-                            ? "#fff"
-                            : "#F3F3F5",
-                      color: "#203F49",
-                    }}
+                    style={inputStyle(!!responsable, modoModal === "ver")}
                   />
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={fieldGroupStyle}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <label
-                    style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}
-                  >
+                  <label style={labelStyle}>
                     Observaciones
                   </label>
                   {modoModal !== "ver" && (

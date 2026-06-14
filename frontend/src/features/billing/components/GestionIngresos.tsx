@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, Alert, Button } from "../../../context";
-import { formatCurrency } from "../../../utils/formatters";
+import { formatCurrency, obtenerHoyLocal, escapeHtml, generateUUID } from "../../../utils/formatters";
+import { exportToExcel } from "../../../utils/exportToExcel";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { StatsDrawerContent, StatsItem } from "./StatsDrawerContent";
 import {
   DollarSign,
-  TrendingUp,
   Calendar,
   Users,
   Plus,
@@ -18,34 +18,6 @@ import {
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
 import { Avatar } from "../../../context";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const obtenerHoyLocal = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dia = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dia}`;
-};
-
-const escapeHtml = (text: string) => {
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  };
-  return text.replace(/[&<>"']/g, (c) => map[c]);
-};
-
-const generateUUID = () =>
-  "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,7 +77,7 @@ export function GestionIngresos() {
     "webarco_ingresos",
     [],
   );
-  const [userStored] = useLocalStorage<any>("webarco_user", {});
+  const [userStored] = useLocalStorage<Record<string, unknown>>("webarco_user", {});
 
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
@@ -441,6 +413,25 @@ export function GestionIngresos() {
     }
   };
 
+  // ── Export ─────────────────────────────────────────────────────────────────
+  const exportarAExcel = async () => {
+    if (registros.length === 0) return;
+    try {
+      const columnas = [
+        { header: "Fecha", key: "fecha", width: 12 },
+        { header: "Paciente", key: "paciente", width: 25 },
+        { header: "Tratamiento", key: "tratamiento", width: 25 },
+        { header: "Monto (L.)", key: "monto", width: 15 },
+        { header: "Método de Pago", key: "metodoPago", width: 18 },
+        { header: "Doctor", key: "doctor", width: 20 },
+        { header: "Observaciones", key: "observaciones", width: 30 },
+      ];
+      await exportToExcel(registros, columnas, "Ingresos", "Ingresos_WebArco");
+    } catch {
+      setError("Error al exportar a Excel");
+    }
+  };
+
   // ── Print ──────────────────────────────────────────────────────────────────
   const imprimirReporte = () => {
     const vent = window.open("", "_blank");
@@ -681,7 +672,7 @@ export function GestionIngresos() {
           {
             label: "Exportar",
             icon: <FileSpreadsheet size={13} />,
-            onClick: () => alert("Exportando registros a Excel..."),
+            onClick: exportarAExcel,
           },
           {
             label: "Imprimir",
