@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Eye, Edit, Trash2 } from "lucide-react";
 import { Alert, Toggle } from "../../../context";
 import { DataTable, type Column, ConfirmModal } from "../../../components";
 import { treatmentService, especialidadService } from "../services/treatmentService";
 import { type Treatment, type Especialidad } from "../types";
+import { useAuthStore } from "../../../features/auth/hooks/useAuthStore";
 
 const C = {
   primary: "#0BC5DF",
@@ -16,20 +17,12 @@ const C = {
   gray700: "#5F656A",
 };
 
-function getEstadoColor(estado: string): { bg: string; color: string } {
-  const map: Record<string, { bg: string; color: string }> = {
-    Sano: { bg: "#ECFDF5", color: "#1D9E75" },
-    Caries: { bg: "#FEF2F2", color: "#E24B4A" },
-    Obturación: { bg: "#EFF6FF", color: "#3B82F6" },
-    Extracción: { bg: "#FEF2F2", color: "#DC2626" },
-    Ausente: { bg: "#F1F3F4", color: "#888F94" },
-    Endodoncia: { bg: "#FFFBEB", color: "#EF9F27" },
-    Corona: { bg: "#F3E8FF", color: "#9333EA" },
-    Prótesis: { bg: "#F8F9FA", color: "#5F656A" },
-    Implante: { bg: "#ECFDF5", color: "#059669" },
-    Puente: { bg: "#FFF7ED", color: "#EA580C" },
-  };
-  return map[estado] ?? { bg: "#F1F3F4", color: "#888F94" };
+function useHasPrivilege(privilegeIds: number[]) {
+  const user = useAuthStore((state) => state.user);
+  return useMemo(() => {
+    if (!user?.privilegios) return false;
+    return privilegeIds.some(id => user.privilegios?.includes(id));
+  }, [user?.privilegios]);
 }
 
 function formatCurrency(n: number): string {
@@ -39,7 +32,6 @@ function formatCurrency(n: number): string {
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 function DetailModal({ treatment, onClose }: { treatment: Treatment | null; onClose: () => void }) {
   if (!treatment) return null;
-  const ec = getEstadoColor(treatment.impactoOdontograma);
 
   return (
     <div
@@ -84,20 +76,6 @@ function DetailModal({ treatment, onClose }: { treatment: Treatment | null; onCl
 
           <div>
             <span style={{ fontSize: 11, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Impacto en Odontograma
-            </span>
-            <div style={{ marginTop: 6 }}>
-              <span style={{
-                display: "inline-flex", padding: "4px 10px", borderRadius: 9999,
-                fontSize: 12, fontWeight: 500, background: ec.bg, color: ec.color,
-              }}>
-                {treatment.impactoOdontograma}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <span style={{ fontSize: 11, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.04em" }}>
               Precio
             </span>
             <p style={{ fontSize: 16, fontWeight: 600, color: C.navy, margin: "4px 0 0" }}>
@@ -138,6 +116,8 @@ type TreatmentRow = Treatment & Record<string, unknown>;
 export function TreatmentsScreen({ userRole = "Administrador" }: TreatmentsScreenProps) {
   const navigate = useNavigate();
   const isAdmin = userRole === "Administrador";
+  const hasViewPrivilege = useHasPrivilege([65]);
+  const hasManagePrivilege = useHasPrivilege([66]);
 
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
@@ -145,6 +125,12 @@ export function TreatmentsScreen({ userRole = "Administrador" }: TreatmentsScree
   const [alert, setAlert] = useState<{ variant: "success" | "error"; message: string } | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [detailTreatment, setDetailTreatment] = useState<Treatment | null>(null);
+
+  useEffect(() => {
+    if (!hasViewPrivilege) {
+      navigate("/dashboard");
+    }
+  }, [hasViewPrivilege, navigate]);
 
   function loadData() {
     setLoading(true);
@@ -216,22 +202,6 @@ export function TreatmentsScreen({ userRole = "Administrador" }: TreatmentsScree
       ),
     },
     {
-      key: "impactoOdontograma",
-      label: "Odontograma",
-      render: (_: unknown, row: TreatmentRow) => {
-        const ec = getEstadoColor(row.impactoOdontograma as string);
-        return (
-          <span style={{
-            display: "inline-flex", padding: "4px 10px", borderRadius: 9999,
-            fontSize: 12, fontWeight: 500, background: ec.bg, color: ec.color,
-            whiteSpace: "nowrap",
-          }}>
-            {row.impactoOdontograma as string}
-          </span>
-        );
-      },
-    },
-    {
       key: "precio",
       label: "Precio",
       align: "right" as const,
@@ -241,16 +211,18 @@ export function TreatmentsScreen({ userRole = "Administrador" }: TreatmentsScree
         </span>
       ),
     },
-    ...(isAdmin
+    ...(hasManagePrivilege
       ? [{
           key: "activo" as string,
           label: "Activo",
           align: "center" as const,
           render: (_: unknown, row: TreatmentRow) => (
-            <Toggle
-              checked={row.activo as boolean}
-              onChange={() => handleToggleActivo(row as Treatment)}
-            />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Toggle
+                checked={row.activo as boolean}
+                onChange={() => handleToggleActivo(row as Treatment)}
+              />
+            </div>
           ),
         }]
       : []),
@@ -283,7 +255,7 @@ export function TreatmentsScreen({ userRole = "Administrador" }: TreatmentsScree
             },
           ]}
           primaryAction={
-            isAdmin
+            hasManagePrivilege
               ? {
                   label: "Nuevo Tratamiento",
                   icon: <Plus size={16} />,
@@ -297,7 +269,7 @@ export function TreatmentsScreen({ userRole = "Administrador" }: TreatmentsScree
               label: "Ver detalle",
               onClick: (r: TreatmentRow) => setDetailTreatment(r as Treatment),
             },
-            ...(isAdmin
+            ...(hasManagePrivilege
               ? [
                   { icon: <Edit size={16} />, label: "Editar", onClick: (r: TreatmentRow) => navigate(`/treatments/edit/${r.id}`) },
                   { icon: <Trash2 size={16} />, label: "Eliminar", danger: true as const, onClick: (r: TreatmentRow) => setConfirmId(r.id as number) },
