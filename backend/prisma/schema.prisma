@@ -59,12 +59,12 @@ model Municipio {
 }
 
 enum EstadoCita {
-  programada
-  confirmada
-  cancelada
-  no_asistio
-  atendida
-  ausente
+  Programada
+  Confirmada
+  Cancelada
+  No_asistio
+  Atendida
+  Ausente
   reprogramada
 }
 
@@ -80,10 +80,10 @@ enum CanalRecordatorio {
 }
 
 enum EstadoRespuesta {
-  pendiente
-  confirmado
-  cancelado
-  sin_respuesta
+  Pendiente
+  Confirmado
+  Cancelado
+  Sin_respuesta
 }
 
 model Persona {
@@ -415,9 +415,13 @@ model Egreso {
   fecha       DateTime @default(now()) @db.Date
   categoria   String   @db.VarChar(100)
   id_usuario  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
 
+  @@index([id_usuario])
+  @@index([fecha])
   @@map("egreso")
 }
 
@@ -432,9 +436,13 @@ model Cierre {
   tarjeta       Decimal    @db.Decimal(10, 2) @default(0.00)
   transferencia Decimal    @db.Decimal(10, 2) @default(0.00)
   id_usuario  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
 
+  @@index([id_usuario])
+  @@index([fecha])
   @@map("cierre")
 }
 
