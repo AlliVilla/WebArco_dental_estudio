@@ -246,39 +246,149 @@ interface SelectProps {
 }
 
 export function Select({ label, badge, options, value, onChange, placeholder, disabled, error }: SelectProps) {
-  const [focused, setFocused] = React.useState(false);
-  const hasEmptyOption = options.some((option) => option.value === '');
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [dropdownAbove, setDropdownAbove] = useState(false);
+  const [dropdownMaxHeight, setDropdownMaxHeight] = useState(200);
+  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const spaceAbove = rect.top - 8;
+      const above = spaceAbove > spaceBelow;
+      setDropdownAbove(above);
+      setDropdownMaxHeight(Math.min(200, above ? spaceAbove : spaceBelow));
+      const idx = options.findIndex((o) => o.value === value);
+      setActiveIndex(idx >= 0 ? idx : 0);
+    } else {
+      setActiveIndex(-1);
+    }
+  }, [open, options, value]);
+
+  useEffect(() => {
+    if (open && activeIndex >= 0 && listRef.current) {
+      const el = listRef.current.children[activeIndex] as HTMLElement | undefined;
+      el?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [activeIndex, open]);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (disabled) return;
+
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActiveIndex((prev) => (prev < options.length - 1 ? prev + 1 : 0));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : options.length - 1));
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < options.length) {
+          onChange?.(options[activeIndex].value);
+          setOpen(false);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setOpen(false);
+        break;
+      case 'Tab':
+        setOpen(false);
+        break;
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative' }} ref={ref}>
       {(label || badge) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {label && <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>{label}</label>}
           {badge && <FieldBadge type={badge} />}
         </div>
       )}
-      <div style={{ position: 'relative' }}>
-        <select
-          disabled={disabled}
-          value={value}
-          onChange={(e) => onChange?.(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={{
-            width: '100%', appearance: 'none', border: `1px solid ${error ? '#E24B4A' : focused ? '#0BC5DF' : '#D3D7DA'}`,
-            borderRadius: 8, padding: '10px 36px 10px 12px',
-            fontSize: 14, color: value ? '#203F49' : '#888F94',
-            background: disabled ? '#F1F3F4' : '#fff', cursor: disabled ? 'not-allowed' : 'pointer',
-            outline: 'none',
-            boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
-          }}
-        >
-          {placeholder && !hasEmptyOption && <option value="" disabled>{placeholder}</option>}
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+      <div
+        ref={triggerRef}
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        tabIndex={disabled ? -1 : 0}
+        onClick={() => !disabled && setOpen(!open)}
+        onKeyDown={handleKeyDown}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          border: `1px solid ${error ? '#E24B4A' : open ? '#0BC5DF' : '#D3D7DA'}`,
+          borderRadius: 8, padding: '10px 36px 10px 12px',
+          fontSize: 14, color: value ? '#203F49' : '#888F94',
+          background: disabled ? '#F1F3F4' : '#fff',
+          cursor: disabled ? 'not-allowed' : 'pointer', outline: 'none',
+          boxShadow: open ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
+          position: 'relative',
+        }}
+      >
+        {selected ? selected.label : placeholder || 'Seleccionar...'}
         <ChevronDown size={15} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#888F94', pointerEvents: 'none' }} />
       </div>
+      {open && !disabled && (
+        <div
+          ref={listRef}
+          role="listbox"
+          style={{
+            position: 'absolute',
+            left: 0, right: 0, zIndex: 1000,
+            [dropdownAbove ? 'bottom' : 'top']: '100%',
+            [dropdownAbove ? 'marginBottom' : 'marginTop']: 4,
+            background: '#fff', border: '1px solid #D3D7DA',
+            borderRadius: dropdownAbove ? '8px 8px 0 0' : '0 0 8px 8px',
+            maxHeight: dropdownMaxHeight, overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          }}
+        >
+          {options.map((o, i) => (
+            <div
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              onClick={() => { onChange?.(o.value); setOpen(false); }}
+              onMouseEnter={() => setActiveIndex(i)}
+              style={{
+                padding: '10px 12px', fontSize: 14, color: '#203F49',
+                cursor: 'pointer', borderBottom: i < options.length - 1 ? '1px solid #F1F3F4' : 'none',
+                background: o.value === value ? 'rgba(11,197,223,0.08)' : activeIndex === i ? '#F8F9FA' : 'transparent',
+              }}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
       {error && <span style={{ fontSize: 11, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={11} />{error}</span>}
     </div>
   );
