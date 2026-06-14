@@ -87,34 +87,33 @@ enum EstadoRespuesta {
 }
 
 model Persona {
-  id_persona         Int      @id @default(autoincrement())
-  numero_identidad   String   @unique @db.Char(13)
-  primer_nombre      String   @db.VarChar(50)
-  segundo_nombre     String?  @db.VarChar(50)
-  primer_apellido    String   @db.VarChar(50)
-  segundo_apellido   String?  @db.VarChar(50)
-  fecha_nacimiento   DateTime @db.Date
-  telefono           String   @db.VarChar(20)
-  correo_electronico String?  @unique @db.VarChar(255)
-  id_municipio       Int
-  direccion_linea    String?  @db.Text
-  sexo Sexo
-  enfermedades       String?  @db.Text
-  otras_enfermedades String?  @db.Text
-  medicamentos       String?  @db.Text
-  alergias           String?  @db.Text
-  reaccion_anestesia String?  @db.VarChar(20)
-  municipio           Municipio            @relation(fields: [id_municipio], references: [id_municipio])
-  usuarios            Usuario[]
-  consultas           Consulta[]
-  citas               Cita[]
+  id_persona           Int                   @id @default(autoincrement())
+  numero_identidad     String                @unique @db.Char(13)
+  primer_nombre        String                @db.VarChar(50)
+  segundo_nombre       String?               @db.VarChar(50)
+  primer_apellido      String                @db.VarChar(50)
+  segundo_apellido     String?               @db.VarChar(50)
+  fecha_nacimiento     DateTime              @db.Date
+  telefono             String                @db.VarChar(20)
+  correo_electronico   String?               @unique @db.VarChar(255)
+  id_municipio         Int
+  direccion_linea      String?               @db.Text
+  sexo                 Sexo
+  enfermedades         String?               @db.Text
+  otras_enfermedades   String?               @db.Text
+  medicamentos         String?               @db.Text
+  alergias             String?               @db.Text
+  reaccion_anestesia   String?               @db.VarChar(20)
+  municipio            Municipio             @relation(fields: [id_municipio], references: [id_municipio])
+  usuarios             Usuario[]
+  consultas            Consulta[]
+  citas                Cita[]
   tratamientosPaciente TratamientoPaciente[]
 
   @@map("persona")
 }
 
 model Usuario {
-
   id_usuario           Int     @id @default(autoincrement())
   id_persona           Int
   username             String  @unique @db.VarChar(100)
@@ -175,11 +174,11 @@ model Cita {
   recordatorio_enviado Boolean    @default(false)
   notas                String?    @db.Text
 
-  persona          Persona           @relation(fields: [id_persona], references: [id_persona])
-  doctor           Usuario           @relation(fields: [id_usuario], references: [id_usuario])
-  consulta         Consulta?
+  persona           Persona           @relation(fields: [id_persona], references: [id_persona])
+  doctor            Usuario           @relation(fields: [id_usuario], references: [id_usuario])
+  consulta          Consulta?
   historial_estados EstadoHistorial[]
-  recordatorios    Recordatorio[]
+  recordatorios     Recordatorio[]
 
   @@map("cita")
 }
@@ -200,31 +199,31 @@ model Recordatorio {
 }
 
 model Consulta {
-  id_consulta              Int                    @id @default(autoincrement())
-  id_cita                  Int?                   @unique
-  id_persona               Int
-  id_usuario               Int
-  fecha_inicio             DateTime               @db.Timestamp()
-  fecha_fin                DateTime?              @db.Timestamp()
-  diagnostico              String?                @db.Text
-  tratamiento              String?                @db.Text
-  motivo                   String?                @db.Text
-  notas                    String?                @db.Text
-  firma_paciente           String?                @db.Text
-  firma_doctor_snapshot    String?                @db.Text
-  consentimiento           Boolean                @default(false)
-  tratamientoPacienteId    Int?
+  id_consulta           Int       @id @default(autoincrement())
+  id_cita               Int?      @unique
+  id_persona            Int
+  id_usuario            Int
+  fecha_inicio          DateTime  @db.Timestamp()
+  fecha_fin             DateTime? @db.Timestamp()
+  diagnostico           String?   @db.Text
+  tratamiento           String?   @db.Text
+  motivo                String?   @db.Text
+  notas                 String?   @db.Text
+  firma_paciente        String?   @db.Text
+  firma_doctor_snapshot String?   @db.Text
+  consentimiento        Boolean   @default(false)
+  tratamientoPacienteId Int?
 
-  cita                 Cita?                       @relation(fields: [id_cita], references: [id_cita])
-  persona              Persona                     @relation(fields: [id_persona], references: [id_persona])
-  doctor               Usuario                     @relation(fields: [id_usuario], references: [id_usuario])
-  respuestas           ConsultaRespuesta[]
-  odontogramas         Odontograma[]
-  pagos                PagoPaciente[]
-  archivos             Archivo[]
-  tratamientos         Consulta_Tratamiento[]
-  tratamientoPaciente  TratamientoPaciente?        @relation(fields: [tratamientoPacienteId], references: [id])
-  pagosConsulta        PagoConsulta[]
+  cita                Cita?                  @relation(fields: [id_cita], references: [id_cita])
+  persona             Persona                @relation(fields: [id_persona], references: [id_persona])
+  doctor              Usuario                @relation(fields: [id_usuario], references: [id_usuario])
+  respuestas          ConsultaRespuesta[]
+  odontogramas        Odontograma[]
+  pagos               PagoPaciente[]
+  archivos            Archivo[]
+  tratamientos        Consulta_Tratamiento[]
+  tratamientoPaciente TratamientoPaciente?   @relation(fields: [tratamientoPacienteId], references: [id])
+  pagosConsulta       PagoConsulta[]
 
   @@map("consulta")
 }
@@ -234,12 +233,13 @@ enum TipoArchivo {
   Radiografia
   Imagen
 }
-model Archivo{
-  id_archivo Int @id @default(autoincrement())
-  id_consulta Int 
-  nombre String @db.VarChar(255)
-  categoria TipoArchivo
-  url String @db.Text
+
+model Archivo {
+  id_archivo  Int         @id @default(autoincrement())
+  id_consulta Int
+  nombre      String      @db.VarChar(255)
+  categoria   TipoArchivo
+  url         String      @db.Text
 
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
 }
@@ -295,7 +295,6 @@ model PagoPaciente {
   id_consulta    Int
   fecha          DateTime @db.Date
   abono          Decimal  @db.Decimal(10, 2)
-  metodo_pago    MetodoPago @default(Efectivo)
   observacion    String?  @db.Text
   firma_paciente String?  @db.Text
   metodo_pago    String   @default("Efectivo") @db.VarChar(50)
@@ -318,31 +317,31 @@ model Especialidad {
 }
 
 model Tratamiento {
-  id_tratamiento       Int      @id @default(autoincrement())
-  id_especialidad      Int
-  nombre               String   @db.VarChar(150)
-  descripcion          String?  @db.Text
-  impacto_odontograma  String   @db.VarChar(60)
-  precio               Decimal  @db.Decimal(10, 2)
-  activo               Boolean  @default(true)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
+  id_tratamiento      Int      @id @default(autoincrement())
+  id_especialidad     Int
+  nombre              String   @db.VarChar(150)
+  descripcion         String?  @db.Text
+  impacto_odontograma String   @db.VarChar(60)
+  precio              Decimal  @db.Decimal(10, 2)
+  activo              Boolean  @default(true)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
-  especialidad Especialidad          @relation(fields: [id_especialidad], references: [id_especialidad])
+  especialidad Especialidad           @relation(fields: [id_especialidad], references: [id_especialidad])
   connsultas   Consulta_Tratamiento[]
 
   @@map("tratamiento")
 }
 
-
 model Consulta_Tratamiento {
-  id_consulta_tratamiento       Int      @id @default(autoincrement())
-  id_tratamiento       Int
-  id_consulta       Int      
-  descuento         Int
-  precio               Decimal  @db.Decimal(10, 2)
-  consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
-  tratamiento Tratamiento @relation(fields: [id_tratamiento], references: [id_tratamiento])
+  id_consulta_tratamiento Int         @id @default(autoincrement())
+  id_tratamiento          Int
+  id_consulta             Int
+  descuento               Int
+  precio                  Decimal     @db.Decimal(10, 2)
+  consulta                Consulta    @relation(fields: [id_consulta], references: [id_consulta])
+  tratamiento             Tratamiento @relation(fields: [id_tratamiento], references: [id_tratamiento])
+
   @@map("consulta_tratamiento")
 }
 
@@ -417,16 +416,16 @@ model MovimientoInventario {
 }
 
 model Egreso {
-  id_egreso   Int      @id @default(autoincrement())
-  concepto    String   @db.VarChar(255)
-  monto       Decimal  @db.Decimal(10, 2)
-  fecha       DateTime @default(now()) @db.Date
-  categoria   String   @db.VarChar(100)
-  id_usuario  Int
+  id_egreso  Int      @id @default(autoincrement())
+  concepto   String   @db.VarChar(255)
+  monto      Decimal  @db.Decimal(10, 2)
+  fecha      DateTime @default(now()) @db.Date
+  categoria  String   @db.VarChar(100)
+  id_usuario Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
 
   @@index([id_usuario])
   @@index([fecha])
@@ -440,14 +439,14 @@ model Cierre {
   ingresos      Decimal    @db.Decimal(10, 2)
   egresos       Decimal    @db.Decimal(10, 2)
   utilidad      Decimal    @db.Decimal(10, 2)
-  efectivo      Decimal    @db.Decimal(10, 2) @default(0.00)
-  tarjeta       Decimal    @db.Decimal(10, 2) @default(0.00)
-  transferencia Decimal    @db.Decimal(10, 2) @default(0.00)
-  id_usuario  Int
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  efectivo      Decimal    @default(0.00) @db.Decimal(10, 2)
+  tarjeta       Decimal    @default(0.00) @db.Decimal(10, 2)
+  transferencia Decimal    @default(0.00) @db.Decimal(10, 2)
+  id_usuario    Int
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
 
-  usuario     Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
 
   @@index([id_usuario])
   @@index([fecha])
@@ -462,21 +461,16 @@ enum TipoCierre {
 }
 
 enum MetodoPago {
-  Efectivo
-  Tarjeta
-  Transferencia
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
 }
+
 enum TratamientoEstado {
   ACTIVO
   COMPLETADO
   CANCELADO
   DESACTIVADO
-}
-
-enum MetodoPago {
-  EFECTIVO
-  TARJETA
-  TRANSFERENCIA
 }
 
 model TratamientoPaciente {
@@ -490,7 +484,7 @@ model TratamientoPaciente {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  paciente  Persona             @relation(fields: [pacienteId], references: [id_persona])
+  paciente  Persona            @relation(fields: [pacienteId], references: [id_persona])
   consultas Consulta[]
   abonos    TratamientoAbono[]
 
@@ -498,12 +492,12 @@ model TratamientoPaciente {
 }
 
 model PagoConsulta {
-  id         Int        @id @default(autoincrement())
-  consultaId Int
-  monto      Decimal    @db.Decimal(10, 2)
-  metodoPago MetodoPago @default(EFECTIVO)
-  fecha      DateTime   @default(now())
-  observacion String?   @db.Text
+  id          Int        @id @default(autoincrement())
+  consultaId  Int
+  monto       Decimal    @db.Decimal(10, 2)
+  metodoPago  MetodoPago @default(EFECTIVO)
+  fecha       DateTime   @default(now())
+  observacion String?    @db.Text
 
   consulta Consulta           @relation(fields: [consultaId], references: [id_consulta])
   abonos   TratamientoAbono[]
@@ -512,14 +506,13 @@ model PagoConsulta {
 }
 
 model TratamientoAbono {
-  id                   Int               @id @default(autoincrement())
-  pagoConsultaId       Int
+  id                    Int     @id @default(autoincrement())
+  pagoConsultaId        Int
   tratamientoPacienteId Int
-  montoAbonado         Decimal           @db.Decimal(10, 2)
+  montoAbonado          Decimal @db.Decimal(10, 2)
 
-  pagoConsulta        PagoConsulta       @relation(fields: [pagoConsultaId], references: [id])
+  pagoConsulta        PagoConsulta        @relation(fields: [pagoConsultaId], references: [id])
   tratamientoPaciente TratamientoPaciente @relation(fields: [tratamientoPacienteId], references: [id])
 
   @@map("tratamiento_abono")
 }
-
