@@ -9,6 +9,7 @@ import {
   ValidateNested,
   IsNumber,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -42,6 +43,22 @@ class PagoConsultaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+}
+
+class RespuestaDto {
+  @ApiProperty({ description: 'ID de la pregunta', example: 1 })
+  @IsInt()
+  id_pregunta: number;
+
+  @ApiPropertyOptional({ description: 'Respuesta booleana (Sí/No)', example: true })
+  @IsOptional()
+  @IsBoolean()
+  respuestaBoolean?: boolean;
+
+  @ApiPropertyOptional({ description: 'Explicación o respuesta en texto', example: 'Paciente con diabetes tipo 2' })
+  @IsOptional()
+  @IsString()
+  explanation?: string;
 }
 
 export class RegistrarConsultaDto {
@@ -136,4 +153,14 @@ export class RegistrarConsultaDto {
   @ValidateNested()
   @Type(() => PagoConsultaDto)
   pago?: PagoConsultaDto;
+
+  @ApiPropertyOptional({
+    description: 'Respuestas a las preguntas de antecedentes',
+    type: [RespuestaDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RespuestaDto)
+  respuestas?: RespuestaDto[];
 }

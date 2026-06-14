@@ -217,6 +217,17 @@ export class ExpedienteClinicoService {
         });
       }
 
+      if (dto.respuestas && dto.respuestas.length > 0) {
+        await tx.consultaRespuesta.createMany({
+          data: dto.respuestas.map((r) => ({
+            id_consulta: nuevaConsulta.id_consulta,
+            id_pregunta: r.id_pregunta,
+            respuesta_boolean: r.respuestaBoolean ?? null,
+            explanation: r.explanation ?? null,
+          })),
+        });
+      }
+
       return tx.consulta.findUnique({
         where: { id_consulta: nuevaConsulta.id_consulta },
         include: consultaInclude,

@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Zap,
   X,
+  FileText,
 } from 'lucide-react';
 import { DataTable, Column } from '../../../../../components';
 import { Alert, Card, Button } from '../../../../../context';
@@ -20,6 +21,8 @@ import {odontogramaService} from '../../odontograma/services/odontogramaService'
 import {OdontogramScreen} from '../../odontograma/components/OdontogramaScreen';
 import {calcularEdad} from '../services/miscelaneousService';
 import {ExpedientePaciente} from '../types/getAllPacientes';
+import type {ConsultaHistorica} from '../types/getAllPacientes';
+import api from '../../../../../services/api';
 
 const C = {
   primary: 'var(--arco-primary, #0BC5DF)',
@@ -49,6 +52,7 @@ export function ExpedienteScreen() {
   const location = useLocation();
   const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta' | 'odontograma-view'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ nombre: string; url: string } | null>(null);
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -56,6 +60,7 @@ export function ExpedienteScreen() {
     id_consulta: number,
     patient: ExpedientePaciente
   } | null>(null);
+  const [selectedConsultationForRespuestas, setSelectedConsultationForRespuestas] = useState<ConsultaHistorica | null>(null);
 
   // Paginación client-side
   const [currentPage, setCurrentPage] = useState(1);
@@ -381,7 +386,13 @@ export function ExpedienteScreen() {
                 </div>
 
                 <div style={{ fontSize: 13, color: C.gray700, marginTop: 8 }}>
-                  Última consulta: {activePatient.consultas?.[0]?.fecha_fin ? new Date(activePatient.consultas[0].fecha_fin).toLocaleString('es-HN') : 'N/A'}
+                  Última consulta: {
+                    activePatient.consultas?.[0]?.fecha_fin
+                      ? new Date(activePatient.consultas[0].fecha_fin).toLocaleString('es-HN')
+                      : activePatient.consultas?.[0]?.fecha_inicio
+                        ? new Date(activePatient.consultas[0].fecha_inicio).toLocaleString('es-HN')
+                        : 'N/A'
+                  }
                 </div>
               </div>
             </div>
@@ -404,9 +415,17 @@ export function ExpedienteScreen() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {activePatient.consultas.map((visit) => {
                   const isExpanded = !!expandedConsultas[visit.id_consulta];
-                  const totalCosto = visit.tratamientos?.length > 0
+                  const subtotal = visit.tratamientos?.length > 0
                     ? visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0)
                     : 0;
+                  const totalDescuento = visit.tratamientos?.length > 0
+                    ? visit.tratamientos.reduce((sum, t) => sum + Number(t.descuento || 0), 0)
+                    : 0;
+                  const totalCosto = Math.max(0, subtotal - totalDescuento);
+                  const totalPagado = visit.pagos?.length > 0
+                    ? visit.pagos.reduce((sum, p) => sum + Number(p.abono), 0)
+                    : 0;
+                  const saldoPendiente = Math.max(0, totalCosto - totalPagado);
                   return (
                     <div
                       key={visit.id_consulta}
@@ -463,7 +482,9 @@ export function ExpedienteScreen() {
                           <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>
                             {visit.fecha_fin
                               ? new Date(visit.fecha_fin).toLocaleDateString('es-HN')
-                              : 'N/A'}
+                              : visit.fecha_inicio
+                                ? new Date(visit.fecha_inicio).toLocaleDateString('es-HN')
+                                : 'N/A'}
                           </span>
                           <span style={{ fontSize: 13, color: C.gray500 }}>
                             · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.doctor?.persona ? `${visit.doctor.persona.primer_nombre} ${visit.doctor.persona.primer_apellido}` : `#${visit.id_usuario}`}</strong>
@@ -535,6 +556,19 @@ export function ExpedienteScreen() {
                             >
                               <Zap size={14} /> Ver Odontograma de la Consulta
                             </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => setSelectedConsultationForRespuestas(visit)}
+                              style={{
+                                fontSize: 12,
+                                background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+                                border: 'none',
+                                boxShadow: '0 4px 12px rgba(11, 197, 223, 0.35)',
+                              }}
+                            >
+                              <FileText size={14} /> Ver Formulario
+                            </Button>
                           </div>
                           <div style={{
                             display: 'grid',
@@ -581,32 +615,77 @@ export function ExpedienteScreen() {
                               <DollarSign size={14} /> Tratamientos y Cobros realizados
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              {visit.tratamientos?.map((t, idx) => (
-                                <div key={idx} style={{
-                                  display: 'flex', justifyContent: 'space-between', fontSize: 13,
-                                  color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
-                                }}>
-                                  <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
-                                  <span style={{ fontWeight: 600, color: C.navy }}>
-                                    L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              ))}
+                              {visit.tratamientos?.map((t, idx) => {
+                                const discount = Number(t.descuento || 0);
+                                const finalPrice = Number(t.precio) - discount;
+                                return (
+                                  <div key={idx} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
+                                    color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
+                                  }}>
+                                    <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      {discount > 0 ? (
+                                        <>
+                                          <span style={{ fontSize: 11, color: C.gray500, textDecoration: 'line-through' }}>
+                                            L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                          </span>
+                                          <span style={{ fontWeight: 600, color: C.success }}>
+                                            L. {finalPrice.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                          </span>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color: C.danger, background: 'rgba(226, 75, 74, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                                            -L.{discount.toLocaleString('es-HN')}
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span style={{ fontWeight: 600, color: C.navy }}>
+                                          L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                               {visit.tratamiento && (!visit.tratamientos || visit.tratamientos.length === 0) && (
                                 <div style={{ fontSize: 12.5, color: C.gray700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
                                   {visit.tratamiento}
                                 </div>
                               )}
                               {(visit.tratamientos?.length > 0 || visit.tratamiento) && (
-                                <div style={{
-                                  display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
-                                  fontWeight: 700, color: C.navy, paddingTop: 6, marginTop: 4,
-                                }}>
-                                  <span>Total de la consulta</span>
-                                  <span style={{ color: C.primary, fontSize: 14.5 }}>
-                                    L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
+                                <>
+                                  {totalDescuento > 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', fontSize: 12.5,
+                                      color: C.gray700, paddingTop: 4,
+                                    }}>
+                                      <span>Subtotal</span>
+                                      <span style={{ fontWeight: 600, color: C.navy }}>
+                                        L. {subtotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {totalDescuento > 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', fontSize: 12.5,
+                                      color: C.danger,
+                                    }}>
+                                      <span>Descuento total</span>
+                                      <span style={{ fontWeight: 600 }}>
+                                        − L. {totalDescuento.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div style={{
+                                    display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
+                                    fontWeight: 700, color: C.navy, paddingTop: totalDescuento > 0 ? 6 : 0, marginTop: totalDescuento > 0 ? 4 : 0,
+                                    borderTop: totalDescuento > 0 ? `1px solid ${C.gray100}` : 'none',
+                                  }}>
+                                    <span>Total de la consulta</span>
+                                    <span style={{ color: C.primary, fontSize: 14.5 }}>
+                                      L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </>
                               )}
                               {visit.pagos && visit.pagos.length > 0 && (
                                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.gray100}` }}>
@@ -619,6 +698,36 @@ export function ExpedienteScreen() {
                                       <span style={{ fontWeight: 600, color: C.success }}>L. {Number(p.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                   ))}
+                                  <div style={{
+                                    display: 'flex', justifyContent: 'space-between', fontSize: 13,
+                                    fontWeight: 700, color: C.navy, paddingTop: 8, marginTop: 4,
+                                    borderTop: `1px solid ${C.gray100}`,
+                                  }}>
+                                    <span>Total pagado</span>
+                                    <span style={{ color: C.success }}>
+                                      L. {totalPagado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  {saldoPendiente > 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between', fontSize: 13,
+                                      fontWeight: 700, paddingTop: 8,
+                                    }}>
+                                      <span>Saldo pendiente</span>
+                                      <span style={{ color: C.warning }}>
+                                        L. {saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {saldoPendiente === 0 && (
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'flex-end', fontSize: 11,
+                                      fontWeight: 700, color: C.success, paddingTop: 4,
+                                      gap: 4, alignItems: 'center',
+                                    }}>
+                                      <CheckCircle size={12} /> Pagado
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -647,6 +756,8 @@ export function ExpedienteScreen() {
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; }}
                                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.gray100; }}
+                                  onClick={() => setSelectedImage({ nombre: archivo.nombre, url: archivo.url })}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedImage({ nombre: archivo.nombre, url: archivo.url }); }}
                                   role="button"
                                   tabIndex={0}
                                   aria-label={`Archivo adjunto: ${archivo.nombre}`}
@@ -706,6 +817,180 @@ export function ExpedienteScreen() {
             initialDentition={calcularEdad(selectedConsultationForOdontogram.patient.fecha_nacimiento) < 12 ? 'child' : 'adult'}
             onCancelEmbedded={handleBackFromOdontogram}
           />
+        </div>
+      )}
+
+      {/* Image Viewer Modal */}
+      {selectedImage && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '16px'
+        }} onClick={() => setSelectedImage(null)}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)', border: 'none',
+              borderRadius: 8, padding: '8px', color: 'white',
+              fontSize: '24px', cursor: 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            <X size={24} />
+          </button>
+          <h3 style={{ color: 'white', marginBottom: '16px', textAlign: 'center' }}>
+            {selectedImage.nombre}
+          </h3>
+          <img
+            src={`${api.defaults.baseURL}/upload/${encodeURIComponent(selectedImage.url)}`}
+            alt={selectedImage.nombre}
+            style={{
+              maxWidth: '90%', maxHeight: '80%', objectFit: 'contain',
+              borderRadius: 8
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`${api.defaults.baseURL}/upload/${encodeURIComponent(selectedImage.url)}`, '_blank');
+            }}
+            style={{
+              marginTop: '16px', backgroundColor: C.primary, color: 'white',
+              border: 'none', borderRadius: 8, padding: '8px 16px',
+              fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+            }}
+          >
+            Abrir en nueva pestaña
+          </button>
+        </div>
+      )}
+
+      {/* Respuestas Viewer Modal */}
+      {selectedConsultationForRespuestas && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => setSelectedConsultationForRespuestas(null)}>
+          <div
+            style={{
+              background: C.white,
+              borderRadius: 16,
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  Formulario de la Consulta
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
+                  {selectedConsultationForRespuestas.fecha_inicio
+                    ? new Date(selectedConsultationForRespuestas.fecha_inicio).toLocaleDateString('es-HN')
+                    : 'N/A'}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedConsultationForRespuestas(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: 8,
+                  padding: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {selectedConsultationForRespuestas.respuestas?.length === 0 ? (
+                <div style={{ textAlign: 'center', color: C.gray500, padding: '20px' }}>
+                  No hay respuestas registradas para esta consulta.
+                </div>
+              ) : (
+                selectedConsultationForRespuestas.respuestas?.map((respuesta, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      border: `1.5px solid ${C.gray100}`,
+                      borderRadius: 10,
+                      padding: '16px',
+                      background: C.gray50,
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>
+                      {respuesta.pregunta?.pregunta || `Pregunta #${respuesta.id_pregunta}`}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {respuesta.respuesta_boolean !== null && respuesta.respuesta_boolean !== undefined && (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '4px 10px',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: respuesta.respuesta_boolean ? 'rgba(29, 158, 117, 0.1)' : 'rgba(226, 75, 74, 0.1)',
+                          color: respuesta.respuesta_boolean ? C.success : C.danger,
+                          width: 'fit-content'
+                        }}>
+                          {respuesta.respuesta_boolean ? 'Sí' : 'No'}
+                        </div>
+                      )}
+                      {respuesta.explanation && (
+                        <div style={{
+                          fontSize: 12.5,
+                          color: C.gray700,
+                          lineHeight: 1.5,
+                          background: C.white,
+                          padding: '10px 14px',
+                          borderRadius: 8,
+                          border: `1px solid ${C.gray100}`,
+                        }}>
+                          {respuesta.explanation}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{
+              padding: '16px 24px',
+              borderTop: `1px solid ${C.gray100}`,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setSelectedConsultationForRespuestas(null)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

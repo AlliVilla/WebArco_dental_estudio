@@ -16,6 +16,8 @@ import { expedientService, type PreguntaConsulta, type RespuestaConsulta } from 
 import { UsuarioDoctor } from '../types/getAllDoctores';
 import { privilegeService } from '../services/privilegeService';
 import { ConsultationQuestions } from './ConsultationQuestions';
+import { treatmentService } from '../../../../treatments/services/treatmentService';
+import type { Treatment } from '../../../../treatments/types';
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -37,6 +39,7 @@ const C = {
 type Step = 1 | 2 | 3;
 
 type FileCategory = 'Radiografía Periapical' | 'Radiografía Panorámica' | 'Fotografía Clínica Intraoral/Extraoral';
+type PrismaTipoArchivo = 'Tomografia' | 'Radiografia' | 'Imagen';
 
 interface ArchivoItem {
     id: string;
@@ -46,15 +49,11 @@ interface ArchivoItem {
     uploading: boolean;
 }
 
-interface TratamientoCatalogo {
-    id: string;
+interface TratamientoConsulta {
+    id: string; // unique key for React
+    id_tratamiento?: number; // if from catalog
     nombre: string;
     precio: number;
-}
-
-interface TratamientoConsulta extends TratamientoCatalogo {
-    cantidad: number;
-    descuento: number;
 }
 
 interface ToastMsg {
@@ -68,6 +67,12 @@ const FILE_CATEGORIES: FileCategory[] = [
     'Radiografía Panorámica',
     'Fotografía Clínica Intraoral/Extraoral',
 ];
+
+// Map frontend categories to Prisma enum
+const mapFileCategoryToPrisma = (cat: FileCategory): PrismaTipoArchivo => {
+    if (cat.includes('Radiografía')) return 'Radiografia';
+    return 'Imagen';
+};
 
 const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Cobro'];
 
@@ -216,6 +221,10 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [saving, setSaving] = useState(false);
     const [toasts, setToasts] = useState<ToastMsg[]>([]);
 
+    // Catalog tratamientos
+    const [catalogTratamientos, setCatalogTratamientos] = useState<Treatment[]>([]);
+    const [loadingTratamientos, setLoadingTratamientos] = useState(false);
+
     // ── STEP 1: Paciente y Cita ──
     const [primerNombre, setPrimerNombre] = useState(patient.primer_nombre || '');
     const [segundoNombre, setSegundoNombre] = useState(patient.segundo_nombre || '');
@@ -262,7 +271,9 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [precioLibre, setPrecioLibre] = useState('');
     const [metodoPago, setMetodoPago] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
     const [descuentoGlobal, setDescuentoGlobal] = useState('');
+    const [descuentoGlobalTipo, setDescuentoGlobalTipo] = useState<'monto' | 'porcentaje'>('monto');
     const [anticipo, setAnticipo] = useState('');
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
 
@@ -292,13 +303,48 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         );
     },[]);
 
+    const loadTratamientos = useCallback(async() => {
+        setLoadingTratamientos(true);
+        try {
+            const res = await treatmentService.getAll({ activo: 'true' });
+            const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+            setCatalogTratamientos(data);
+        } catch (err) {
+            console.error('Error loading tratamientos:', err);
+        } finally {
+            setLoadingTratamientos(false);
+        }
+    }, []);
+
+    const loadOdontograma = useCallback(async () => {
+        try {
+            const res = await odontogramaService.getByPatientId(patient.id_persona);
+            const data = res.data?.data || res.data;
+            if (data && data.dientes) {
+                const teethMap: Record<number, ToothData> = {};
+                data.dientes.forEach((tooth: any) => {
+                    teethMap[tooth.numero_diente] = {
+                        number: tooth.numero_diente,
+                        state: tooth.estado || 'Sano',
+                        observation: tooth.observacion || '',
+                    };
+                });
+                setTeethState(teethMap);
+            }
+        } catch (err) {
+            console.error('Error loading odontograma:', err);
+        }
+    }, [patient.id_persona]);
+
     useEffect(() =>{
         loadDoctores();
+        loadTratamientos();
+        loadOdontograma();
         expedientService.getPreguntas().then((res) => {
             const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
             setPreguntas(data);
         }).catch(() => {});
-    },[]);
+    },[loadOdontograma]);
 
     const syncOdontogramDraft = useCallback(() => {
         const draft = loadOdontogramaDraft(patient.id_persona);
@@ -348,81 +394,16 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         processFiles(e.dataTransfer.files);
     }, [processFiles]);
 
-    // ── Mapeo de tratamientos desde odontograma ───────────────────────────────────
-    const autoPopulateTreatments = (updatedTeeth: Record<number, ToothData>, modifiedList: number[]) => {
-        const newTrats = [...tratamientos];
-        
-        modifiedList.forEach((num) => {
-            const tooth = updatedTeeth[num];
-            if (!tooth) return;
 
-            const estado = tooth.state.toLowerCase();
-            
-            let targetId = '';
-            let defaultName = '';
-            let defaultPrice = 0;
-            
-            if (estado === 'caries' || estado === 'obturación' || estado === 'obturacion') {
-                targetId = 't03';
-                defaultName = `Resina clase I (Pieza ${num})`;
-                defaultPrice = 900;
-            } else if (estado === 'endodoncia') {
-                // Determine tooth type (molar vs premolar vs anterior)
-                const isMolar = [18, 17, 16, 26, 27, 28, 48, 47, 46, 36, 37, 38, 55, 54, 64, 65, 85, 84, 74, 75].includes(num);
-                const isPremolar = [15, 14, 24, 25, 45, 44, 34, 35].includes(num);
-                if (isMolar) {
-                    targetId = 't11';
-                    defaultName = `Endodoncia multirradicular (Pieza ${num})`;
-                    defaultPrice = 4800;
-                } else if (isPremolar) {
-                    targetId = 't10';
-                    defaultName = `Endodoncia birradicular (Pieza ${num})`;
-                    defaultPrice = 4000;
-                } else {
-                    targetId = 't09';
-                    defaultName = `Endodoncia unirradicular (Pieza ${num})`;
-                    defaultPrice = 3200;
-                }
-            } else if (estado === 'corona') {
-                targetId = 't12';
-                defaultName = `Corona metal-porcelana (Pieza ${num})`;
-                defaultPrice = 5500;
-            } else if (estado === 'implante') {
-                targetId = 't14';
-                defaultName = `Implante dental (Pieza ${num})`;
-                defaultPrice = 15000;
-            } else if (estado === 'extracción' || estado === 'extraccion') {
-                targetId = 't07';
-                defaultName = `Extracción simple (Pieza ${num})`;
-                defaultPrice = 800;
-            }
-            
-            if (targetId) {
-                // Check if already in list (unique ID: targetId-toothNum)
-                const exists = newTrats.find(t => t.id === `${targetId}-${num}`);
-                if (!exists) {
-                    newTrats.push({
-                        id: `${targetId}-${num}`,
-                        nombre: defaultName,
-                        precio: defaultPrice,
-                        cantidad: 1,
-                        descuento: 0
-                    });
-                }
-            }
-        });
-        
-        setTratamientos(newTrats);
-    };
 
     // ── Treatments search / manual addition ──────────────────────────────────────
-    const suggestions = tratamientos.filter((t) =>
+    const suggestions = catalogTratamientos.filter((t) =>
         t.nombre.toLowerCase().includes(busqueda.toLowerCase())
     );
 
-    const addTratamiento = (t: TratamientoCatalogo) => {
+    const addTratamiento = (t: Treatment) => {
         const uniqueId = `${t.id}-${uid()}`;
-        setTratamientos((prev) => [...prev, { ...t, id: uniqueId, cantidad: 1, descuento: 0 }]);
+        setTratamientos((prev) => [...prev, { id: uniqueId, id_tratamiento: t.id, nombre: t.nombre, precio: t.precio }]);
         setBusqueda('');
         setShowSuggestions(false);
     };
@@ -432,28 +413,32 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         const precio = parseFloat(precioLibre);
         if (!nombre) { addToast('error', 'Escribe un nombre para el concepto libre.'); return; }
         if (isNaN(precio) || precio <= 0) { addToast('error', 'El precio debe ser un número mayor a 0.'); return; }
-        setTratamientos((prev) => [...prev, { id: uid(), nombre, precio, cantidad: 1, descuento: 0 }]);
+        setTratamientos((prev) => [...prev, { id: uid(), nombre, precio }]);
         setConceptoLibre('');
         setPrecioLibre('');
         addToast('info', `Concepto "${nombre}" agregado.`);
     };
 
-    const updateTrat = (id: string, key: keyof TratamientoConsulta, val: number) => {
-        setTratamientos((prev) => prev.map((t) => t.id === id ? { ...t, [key]: Math.max(0, val) } : t));
-    };
-
     // ── Billing calc ───────────────────────────────────────────────────────────
-    const subtotal = tratamientos.reduce((acc, t) => {
-        const lineDesc = t.precio * t.cantidad * (t.descuento / 100);
-        return acc + t.precio * t.cantidad - lineDesc;
-    }, 0);
-    const descGlobal = Math.min(parseFloat(descuentoGlobal) || 0, subtotal);
+    const subtotal = tratamientos.reduce((acc, t) => acc + t.precio, 0);
+    let descGlobal = 0;
+    if (descuentoGlobalTipo === 'monto') {
+        descGlobal = Math.min(parseFloat(descuentoGlobal) || 0, subtotal);
+    } else {
+        const porcentaje = Math.min(parseFloat(descuentoGlobal) || 0, 100);
+        descGlobal = subtotal * (porcentaje / 100);
+    }
     const total = Math.max(0, subtotal - descGlobal);
     const anticipoNum = Math.min(parseFloat(anticipo) || 0, total);
     const saldo = total - anticipoNum;
 
     // ── Save ───────────────────────────────────────────────────────────────────
-    const handleSave = async () => {
+    const handleSave = () => {
+        setShowConfirmModal(true);
+    };
+
+    const performSave = async () => {
+        setShowConfirmModal(false);
         // Find "motivo de consulta" in the answered questions
         const motivoRespuesta = Object.entries(respuestas).find(([id]) => {
             const q = preguntas.find(p => p.id_pregunta === Number(id));
@@ -464,15 +449,44 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         if (!motivoFinal?.trim()) { addToast('error', 'El motivo de consulta es requerido en las preguntas del Paso 1.'); setStep(1); return; }
         if (!diagnostico.trim()) { addToast('error', 'El diagnóstico clínico es requerido.'); setStep(3); return; }
         if (archivos.some((a) => a.uploading)) { addToast('error', 'Espera a que terminen de cargarse todas las imágenes.'); return; }
+        if (anticipoNum > total) { addToast('error', `El anticipo (L. ${anticipoNum.toLocaleString('es-HN', { minimumFractionDigits: 2 })}) no puede exceder el total a pagar (L. ${total.toLocaleString('es-HN', { minimumFractionDigits: 2 })})`); return; }
 
         setSaving(true);
 
         const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
         const idUsuario = doctor?.id_usuario ?? 1;
 
+        // Prepare tratamientos payload: distribute global discount proportionally
+        const catalogTratamientosPayload = tratamientos
+            .filter(t => t.id_tratamiento)
+            .map(t => ({
+                id_tratamiento: t.id_tratamiento!,
+                precio: t.precio,
+                descuento: subtotal > 0 && descGlobal > 0
+                    ? Math.round((t.precio / subtotal) * descGlobal)
+                    : 0,
+            }));
+
+        // For free concepts, we can add them to the tratamiento text field
+        const freeConceptsText = tratamientos
+            .filter(t => !t.id_tratamiento)
+            .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`)
+            .join('\n');
+
         const tratamientosText = tratamientos.length > 0
-            ? tratamientos.map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}${t.descuento > 0 ? ` (${t.descuento}% desc.)` : ''}`).join('\n')
+            ? [
+                ...tratamientos.filter(t => t.id_tratamiento).map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`),
+                ...(freeConceptsText ? [freeConceptsText] : [])
+            ].join('\n')
             : undefined;
+
+        const respuestasArr: RespuestaConsulta[] = Object.entries(respuestas)
+            .filter(([_, v]) => v.respuestaBoolean !== undefined || (v.explanation && v.explanation.trim()))
+            .map(([id, v]) => ({
+                id_pregunta: Number(id),
+                respuestaBoolean: v.respuestaBoolean,
+                explanation: v.explanation?.trim() || undefined,
+            }));
 
         const payload = {
             id_usuario: idUsuario,
@@ -481,10 +495,12 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             diagnostico: diagnostico.trim() || undefined,
             tratamiento: tratamientosText,
             notas_adicionales: notas.trim() || undefined,
+            tratamientos: catalogTratamientosPayload.length > 0 ? catalogTratamientosPayload : undefined,
             pago: total > 0 ? {
                 abono: anticipoNum,
                 metodo_pago: metodoPago,
             } : undefined,
+            respuestas: respuestasArr.length > 0 ? respuestasArr : undefined,
         };
 
         try {
@@ -508,7 +524,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                 archivosVinculados.push({
                                     nombre: archivo.file.name,
                                     url: uploadRes.data.data.filename,
-                                    categoria: archivo.categoria,
+                                    categoria: mapFileCategoryToPrisma(archivo.categoria),
                                 });
                             }
                         } catch { /* ignore single file error */ }
@@ -521,20 +537,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             });
                         } catch { /* ignore link error */ }
                     }
-                }
-
-                // Guardar respuestas de antecedentes
-                const respuestasArr: RespuestaConsulta[] = Object.entries(respuestas)
-                    .filter(([_, v]) => v.respuestaBoolean !== undefined || (v.explanation && v.explanation.trim()))
-                    .map(([id, v]) => ({
-                        id_pregunta: Number(id),
-                        respuesta_boolean: v.respuestaBoolean,
-                        explicacion: v.explanation?.trim() || undefined,
-                    }));
-                if (respuestasArr.length > 0 && consultaId) {
-                    try {
-                        await expedientService.saveRespuestas(consultaId, respuestasArr);
-                    } catch { /* ignore save error */ }
                 }
 
                 if (consultaId && teethState && modifiedTeethList.length > 0) {
@@ -597,10 +599,9 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                         setTeethState(updatedTeeth);
                         setModifiedTeethList(modifiedList);
                         setModifiedTeethCount(modifiedList.length);
-                        autoPopulateTreatments(updatedTeeth, modifiedList);
                         setShowOdontogram(false);
                         addToast('success', modifiedList.length > 0
-                            ? `Odontograma actualizado. Se pre-cargaron ${modifiedList.length} tratamientos.`
+                            ? `Odontograma actualizado. Se modificaron ${modifiedList.length} piezas.`
                             : 'Odontograma revisado sin cambios pendientes.');
                     }}
                     onCancelEmbedded={handleCloseOdontogram}
@@ -769,7 +770,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     <Zap size={18} color={C.primary} /> Odontograma de la Consulta
                                 </div>
                                 <div style={{ fontSize: 13, color: C.gray700, marginTop: 6, maxWidth: 600 }}>
-                                    Actualiza el odontograma del paciente en tiempo real. Los estados modificados aquí pre-cargarán automáticamente los tratamientos clínicos correspondientes en el Paso 3.
+                                    Actualiza el odontograma del paciente en tiempo real.
                                 </div>
                                 {modifiedTeethCount > 0 && (
                                     <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: C.success, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -906,51 +907,73 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
                         {/* 3. Selección de Tratamientos */}
                         <SectionCard icon={<Search size={17} />} title="Selección de Tratamientos y Facturación">
-                            <div ref={searchRef} style={{ position: 'relative', marginBottom: 16 }}>
-                                <FieldLabel>Buscar en catálogo de servicios</FieldLabel>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 42, background: C.white }}>
-                                    <Search size={15} color={C.gray500} />
-                                    <input
-                                        value={busqueda}
-                                        onChange={(e) => { setBusqueda(e.target.value); setShowSuggestions(true); }}
-                                        onFocus={() => setShowSuggestions(true)}
-                                        placeholder="Selecciona o escribe para buscar un tratamiento..."
-                                        style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }}
-                                    />
-                                    {busqueda && (
-                                        <button 
-                                            onClick={() => { setBusqueda(''); }} 
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.gray500, padding: 4 }}
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSuggestions(!showSuggestions)}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.gray500, padding: 4, borderLeft: `1px solid ${C.gray300}`, marginLeft: 4 }}
-                                    >
-                                        <ChevronDown size={16} style={{ transform: showSuggestions ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
-                                    </button>
-                                </div>
-
-                                {/* Suggestions dropdown */}
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: C.white, border: `1px solid ${C.gray300}`, borderRadius: 10, marginTop: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 9999, overflowY: 'auto', maxHeight: 250 }}>
-                                        {suggestions.map((t) => (
-                                            <button
-                                                key={t.id}
-                                                onMouseDown={() => addTratamiento(t)}
-                                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: C.navy, textAlign: 'left', transition: 'background 0.1s' }}
-                                                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.gray50; }}
-                                                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-                                            >
-                                                <span>{t.nombre}</span>
-                                                <span style={{ fontWeight: 600, color: C.success }}>L. {t.precio.toLocaleString('es-HN')}</span>
-                                            </button>
-                                        ))}
+                            <div style={{
+                                background: `linear-gradient(135deg, ${C.primaryBg}, #d0f4fa)`,
+                                border: `1.5px solid ${C.primary}`,
+                                borderRadius: 12,
+                                padding: '20px',
+                                marginBottom: 20,
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 10, background: C.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.white, boxShadow: '0 4px 12px rgba(11, 197, 223, 0.3)' }}>
+                                        <Search size={18} />
                                     </div>
-                                )}
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>Buscador de Servicios</div>
+                                        <div style={{ fontSize: 12, color: C.gray700, marginTop: 2 }}>Escribe para buscar tratamientos del catálogo y agrégalos a la consulta</div>
+                                    </div>
+                                </div>
+                                <div ref={searchRef} style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `2px solid ${C.primary}`, borderRadius: 10, padding: '0 14px', height: 48, background: C.white, boxShadow: '0 2px 8px rgba(11, 197, 223, 0.12)' }}>
+                                        <Search size={18} color={C.primary} />
+                                        <input
+                                            value={busqueda}
+                                            onChange={(e) => { setBusqueda(e.target.value); setShowSuggestions(true); }}
+                                            onFocus={() => setShowSuggestions(true)}
+                                            placeholder="Buscar tratamiento por nombre..."
+                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, fontWeight: 500, color: C.navy, background: 'transparent' }}
+                                        />
+                                        {loadingTratamientos && (
+                                            <Loader2 size={16} color={C.gray500} style={{ animation: 'spin 1s linear infinite' }} />
+                                        )}
+                                        {busqueda && (
+                                            <button 
+                                                onClick={() => { setBusqueda(''); }} 
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.gray500, padding: 4 }}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSuggestions(!showSuggestions)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.gray500, padding: 4, borderLeft: `1px solid ${C.gray300}`, marginLeft: 4 }}
+                                        >
+                                            <ChevronDown size={18} style={{ transform: showSuggestions ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                                        </button>
+                                    </div>
+
+                                    {/* Suggestions dropdown */}
+                                    {showSuggestions && suggestions.length > 0 && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: C.white, border: `2px solid ${C.primary}`, borderRadius: 10, marginTop: 4, boxShadow: '0 12px 32px rgba(11, 197, 223, 0.2)', zIndex: 9999, overflowY: 'auto', maxHeight: 280 }}>
+                                            <div style={{ padding: '8px 14px', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: `1px solid ${C.gray100}`, background: C.gray50 }}>
+                                                {suggestions.length} tratamiento{suggestions.length !== 1 ? 's' : ''} encontrado{suggestions.length !== 1 ? 's' : ''}
+                                            </div>
+                                            {suggestions.map((t) => (
+                                                <button
+                                                    key={t.id}
+                                                    onMouseDown={() => addTratamiento(t)}
+                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: C.navy, textAlign: 'left', transition: 'background 0.1s' }}
+                                                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.gray50; }}
+                                                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+                                                >
+                                                    <span style={{ fontWeight: 500 }}>{t.nombre}</span>
+                                                    <span style={{ fontWeight: 700, color: C.success, fontSize: 14 }}>L. {t.precio.toLocaleString('es-HN')}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Concepto libre */}
@@ -987,38 +1010,23 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     <div>No se han seleccionado tratamientos. Completa el odontograma en el Paso 2 o agrega servicios manualmente arriba.</div>
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {tratamientos.map((t) => {
-                                        const lineTotal = t.precio * t.cantidad * (1 - t.descuento / 100);
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {tratamientos.map((t, idx) => {
                                         return (
-                                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.gray50, border: `1px solid ${C.gray100}`, borderRadius: 10, padding: '12px 16px', flexWrap: 'wrap' }}>
-                                                <div style={{ flex: 1, minWidth: 150 }}>
-                                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{t.nombre}</div>
-                                                    <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>L. {t.precio.toLocaleString('es-HN')} c/u</div>
-                                                </div>
-                                                
-                                                {/* Qty */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <button onClick={() => updateTrat(t.id, 'cantidad', t.cantidad - 1)} style={qBtn}><span style={{ fontSize: 14, lineHeight: 1 }}>−</span></button>
-                                                    <span style={{ fontSize: 13, fontWeight: 600, color: C.navy, minWidth: 24, textAlign: 'center' }}>{t.cantidad}</span>
-                                                    <button onClick={() => updateTrat(t.id, 'cantidad', t.cantidad + 1)} style={qBtn}><span style={{ fontSize: 14, lineHeight: 1 }}>+</span></button>
-                                                </div>
-                                                
-                                                {/* Discount */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: `1px solid ${C.gray300}`, borderRadius: 7, padding: '4px 8px', background: C.white }}>
-                                                    <input
-                                                        value={t.descuento || ''} onChange={(e) => updateTrat(t.id, 'descuento', parseFloat(e.target.value) || 0)}
-                                                        placeholder="0" type="number" min="0" max="100"
-                                                        style={{ width: 38, border: 'none', outline: 'none', fontSize: 12, color: C.navy, background: 'transparent', textAlign: 'center' }}
-                                                    />
-                                                    <span style={{ fontSize: 11, color: C.gray500 }}>%</span>
+                                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.white, border: `1.5px solid ${C.gray300}`, borderRadius: 10, padding: '14px 16px', flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 150 }}>
+                                                    <span style={{ fontSize: 12, fontWeight: 700, color: C.gray500, background: C.gray100, borderRadius: 6, padding: '2px 8px', minWidth: 28, textAlign: 'center' }}>
+                                                        {idx + 1}
+                                                    </span>
+                                                    <span style={{ color: C.gray300, fontSize: 14, fontWeight: 300 }}>|</span>
+                                                    <span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{t.nombre}</span>
                                                 </div>
                                                 
                                                 {/* Line total */}
                                                 <span style={{ fontSize: 13, fontWeight: 700, color: C.success, minWidth: 90, textAlign: 'right' }}>
-                                                    L. {lineTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                                    L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                                 </span>
-                                                <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, marginLeft: 8 }}>
+                                                <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, marginLeft: 8, padding: 4 }}>
                                                     <Trash2 size={15} />
                                                 </button>
                                             </div>
@@ -1047,11 +1055,45 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                 </div>
                                 {/* Descuento global */}
                                 <div>
-                                    <FieldLabel>Descuento global (L.)</FieldLabel>
+                                    <FieldLabel>Descuento global</FieldLabel>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: C.white }}>
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>L.</span>
-                                        <input value={descuentoGlobal} onChange={(e) => setDescuentoGlobal(e.target.value)} placeholder="0.00" type="number" min="0"
-                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }} />
+                                        <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'monto' ? 'L.' : ''}</span>
+                                        <input
+                                            value={descuentoGlobal}
+                                            onChange={(e) => setDescuentoGlobal(e.target.value)}
+                                            placeholder="0"
+                                            type="number"
+                                            min="0"
+                                            max={descuentoGlobalTipo === 'porcentaje' ? 100 : undefined}
+                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }}
+                                        />
+                                        <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'porcentaje' ? '%' : ''}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                                        <button
+                                            onClick={() => setDescuentoGlobalTipo('monto')}
+                                            style={{
+                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                                background: descuentoGlobalTipo === 'monto' ? C.primary : C.white,
+                                                color: descuentoGlobalTipo === 'monto' ? C.white : C.gray500,
+                                                border: `1.5px solid ${descuentoGlobalTipo === 'monto' ? C.primary : C.gray300}`,
+                                                cursor: 'pointer', transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            Monto (L.)
+                                        </button>
+                                        <button
+                                            onClick={() => setDescuentoGlobalTipo('porcentaje')}
+                                            style={{
+                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                                background: descuentoGlobalTipo === 'porcentaje' ? C.primary : C.white,
+                                                color: descuentoGlobalTipo === 'porcentaje' ? C.white : C.gray500,
+                                                border: `1.5px solid ${descuentoGlobalTipo === 'porcentaje' ? C.primary : C.gray300}`,
+                                                cursor: 'pointer', transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            Porcentaje (%)
+                                        </button>
                                     </div>
                                 </div>
                                 {/* Anticipo */}
@@ -1059,9 +1101,28 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     <FieldLabel>Anticipo / Pago inicial (L.)</FieldLabel>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: C.white }}>
                                         <span style={{ fontSize: 13, color: C.gray500 }}>L.</span>
-                                        <input value={anticipo} onChange={(e) => setAnticipo(e.target.value)} placeholder="0.00" type="number" min="0"
-                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }} />
+                                        <input 
+                                            value={anticipo} 
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value);
+                                                if (!isNaN(val) && val > total) {
+                                                    setAnticipo(String(total));
+                                                } else {
+                                                    setAnticipo(e.target.value);
+                                                }
+                                            }} 
+                                            placeholder="0.00" 
+                                            type="number" 
+                                            min="0"
+                                            max={total}
+                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }} 
+                                        />
                                     </div>
+                                    {parseFloat(anticipo) > total && (
+                                        <div style={{ fontSize: 11, color: C.danger, marginTop: 4, fontWeight: 500 }}>
+                                            El anticipo no puede exceder el total a pagar (L. {total.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1156,13 +1217,68 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Confirmation Modal */}
+            {showConfirmModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', zIndex: 10000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '16px'
+                }} onClick={(e) => { if (e.target === e.currentTarget) setShowConfirmModal(false) }}>
+                    <div style={{
+                        background: C.white, borderRadius: 16, maxWidth: '500px',
+                        width: '100%', overflow: 'hidden'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        {/* Modal Header */}
+                        <div style={{
+                            background: 'linear-gradient(135deg, #0BC5DF, #08a3b9)',
+                            padding: '20px 24px', color: C.white
+                        }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <ShieldAlert size={20} /> Confirmar Guardado de Consulta
+                            </div>
+                        </div>
+                        {/* Modal Body */}
+                        <div style={{ padding: '24px' }}>
+                            <div style={{ fontSize: 14, color: C.navy, marginBottom: 16 }}>
+                                Está a punto de guardar la consulta médica del paciente <strong style={{ color: C.primary }}>{primerNombre} {primerApellido}</strong>.
+                            </div>
+                            <div style={{
+                                background: C.primaryBg, borderLeft: `4px solid ${C.primary}`,
+                                padding: '12px 16px', borderRadius: 8, fontSize: 13, color: C.navy
+                            }}>
+                                <div style={{ fontWeight: 600, marginBottom: 8 }}>Por favor, verifique que:</div>
+                                <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <li>Los datos del paciente sean correctos</li>
+                                    <li>El odontograma esté actualizado (si aplica)</li>
+                                    <li>El diagnóstico y las notas estén completos</li>
+                                    <li>Los archivos adjuntos (radiografías, fotos) estén cargados</li>
+                                    <li>El resumen de cobro (tratamientos, descuentos, anticipo) esté correcto</li>
+                                </ul>
+                            </div>
+                        </div>
+                        {/* Modal Footer */}
+                        <div style={{
+                            borderTop: `1px solid ${C.gray100}`, padding: '16px 24px',
+                            display: 'flex', justifyContent: 'flex-end', gap: '10px'
+                        }}>
+                            <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={performSave}
+                                style={{
+                                    background: 'var(--arco-success, #1D9E75)',
+                                    borderColor: 'var(--arco-success, #1D9E75)'
+                                }}
+                            >
+                                <Check size={15} /> Confirmar y Guardar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
-
-// tiny shared style
-const qBtn: React.CSSProperties = {
-    width: 26, height: 26, borderRadius: '50%', border: `1px solid var(--arco-gray-300, #D3D7DA)`,
-    background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 14, color: 'var(--arco-navy, #203F49)', lineHeight: 1,
-};
