@@ -8,6 +8,8 @@ import {
   CreateExpenseInput,
   ExpenseMetricResponse,
   ExpenseSummaryResponse,
+  CierreHistorialResponse,
+  TipoCierre,
 } from '../types';
 
 export interface PaginatedPayments {
@@ -90,6 +92,27 @@ export const billingService = {
 
   getPagosConsulta: async (consultaId: number): Promise<ApiResponse<any[]>> => {
     return api.get(`/pago-consulta/consulta/${consultaId}`);
+  },
+
+  getCierreHistorial: async (): Promise<ApiResponse<CierreHistorialResponse>> => {
+    return api.get('/cierre');
+  },
+
+  createCierre: async (tipo: TipoCierre = 'Diario'): Promise<ApiResponse<{ cierre: CierreHistorialResponse[0] }>> => {
+    return api.post('/cierre', null, { params: { tipo } });
+  },
+
+  previewCierre: async (tipo: TipoCierre = 'Diario'): Promise<ApiResponse<{
+    totalIngresos: number;
+    totalEgresos: number;
+    utilidad: number;
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+    fecha: string;
+    tipoCierre: TipoCierre;
+  }>> => {
+    return api.post('/cierre/preview', null, { params: { tipo } });
   },
 };
 
