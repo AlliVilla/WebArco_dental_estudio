@@ -1,4 +1,5 @@
-import { Save, X } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Save } from "lucide-react";
 import { Alert, Button, Card } from "../../../context";
 import type {
   ConsentFormValues,
@@ -56,6 +57,9 @@ export function ConsentFormFlow({
   onFinish,
 }: ConsentFormFlowProps) {
   const { isMobile } = useResponsive();
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [signatureError, setSignatureError] = useState("");
+
   const canSaveSignature =
     signatureTarget === "patient"
       ? Boolean(patientSignature)
@@ -65,24 +69,101 @@ export function ConsentFormFlow({
       ? selectedConsent.id
       : "Se generará al guardar";
 
+  // Validar campos del step 1 y hacer scroll al primero con error
+  const handleContinue = () => {
+    const errors: Record<string, string> = {};
+    if (!formValues.paciente.trim())
+      errors.paciente = "El nombre del paciente es obligatorio";
+    if (!formValues.doctor) errors.doctor = "Selecciona un doctor responsable";
+    if (!formValues.procedimiento)
+      errors.procedimiento = "Selecciona el procedimiento a realizar";
+    if (!formValues.fechaHora)
+      errors.fechaHora = "La fecha y hora son obligatorias";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setTimeout(() => {
+        // Buscar en todo el documento — no en un ref — para no depender de si Card pasa el ref
+        const first = document.querySelector<HTMLElement>("[data-field-error]");
+        if (first) {
+          const rect = first.getBoundingClientRect();
+          window.scrollTo({
+            top: window.scrollY + rect.top - 100,
+            behavior: "smooth",
+          });
+        }
+      }, 0);
+      return;
+    }
+    setFieldErrors({});
+    onContinueFromForm();
+  };
+
+  const handleSaveSignature = () => {
+    if (!canSaveSignature) {
+      setSignatureError(
+        signatureTarget === "patient"
+          ? "El paciente debe firmar en la pizarra antes de continuar."
+          : "El doctor debe firmar en la pizarra antes de guardar."
+      );
+      return;
+    }
+    setSignatureError("");
+    if (signatureTarget === "patient") onSavePatientSignature();
+    else onSaveDoctorSignature();
+  };
+
+  const handleBack = () => {
+    setFieldErrors({});
+    setSignatureError("");
+    if (currentStep === 1) onCancel();
+    else if (currentStep === 2) onStepChange(1);
+    else if (currentStep === 3) {
+      onStepChange(2);
+      onSignatureTargetChange("patient");
+    }
+  };
+
   return (
-    <Card
+    <div
       style={{
-        padding: isMobile ? 16 : 20,
         display: "flex",
         flexDirection: "column",
-        gap: 18,
+        gap: isMobile ? 16 : 20,
       }}
     >
-      {/* Header */}
-      <div
+      {/* Flecha sola arriba — igual que otras pantallas */}
+      {currentStep !== 4 && (
+        <button
+          onClick={handleBack}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#888F94",
+            fontSize: 13,
+            fontWeight: 500,
+            padding: 0,
+            width: "fit-content",
+          }}
+        >
+          <ArrowLeft size={16} />
+          {currentStep === 1 ? "Volver al listado" : "Volver"}
+        </button>
+      )}
+
+      <Card
         style={{
+          padding: isMobile ? 16 : 20,
           display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
+          flexDirection: "column",
+          gap: 18,
         }}
       >
+        {/* Título */}
         <div>
           <h2
             style={{
@@ -108,90 +189,75 @@ export function ConsentFormFlow({
               : "Completa los pasos para generar el consentimiento firmado"}
           </p>
         </div>
-        <Button variant="secondary" size="sm" type="button" onClick={onCancel}>
-          <X size={16} />
-        </Button>
-      </div>
 
-      <Stepper currentStep={currentStep} />
-      <Alert
-        variant="info"
-        message="Formulario de Consentimiento Informado. El paciente debe leer y comprender el contenido antes de firmar."
-      />
+        <Stepper currentStep={currentStep} />
 
-      {currentStep === 1 && (
-        <ConsentFormStep
-          formValues={formValues}
-          displayConsentCode={displayConsentCode}
-          canContinueForm={canContinueForm}
-          onChange={onFormChange}
-          onCancel={onCancel}
-          onContinue={onContinueFromForm}
+        {signatureError && (
+          <Alert
+            variant="error"
+            message={signatureError}
+            onClose={() => setSignatureError("")}
+          />
+        )}
+        <Alert
+          variant="info"
+          message="Formulario de Consentimiento Informado. El paciente debe leer y comprender el contenido antes de firmar."
         />
-      )}
-      {(currentStep === 2 || currentStep === 3) && (
-        <ConsentSignatureStep
-          formValues={formValues}
-          signatureTarget={signatureTarget}
-          patientSignature={patientSignature}
-          doctorSignature={doctorSignature}
-          onPatientSignatureChange={onPatientSignatureChange}
-          onDoctorSignatureChange={onDoctorSignatureChange}
-        />
-      )}
-      {currentStep === 4 && <ConsentCompletedStep />}
 
-      {/* Acciones del footer */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
+        {currentStep === 1 && (
+          <ConsentFormStep
+            formValues={formValues}
+            displayConsentCode={displayConsentCode}
+            fieldErrors={fieldErrors}
+            onClearError={(field) =>
+              setFieldErrors((p) => ({ ...p, [field]: "" }))
+            }
+            onChange={onFormChange}
+            onContinue={handleContinue}
+          />
+        )}
         {(currentStep === 2 || currentStep === 3) && (
-          <>
+          <ConsentSignatureStep
+            formValues={formValues}
+            signatureTarget={signatureTarget}
+            patientSignature={patientSignature}
+            doctorSignature={doctorSignature}
+            onPatientSignatureChange={onPatientSignatureChange}
+            onDoctorSignatureChange={onDoctorSignatureChange}
+          />
+        )}
+        {currentStep === 4 && <ConsentCompletedStep />}
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          {(currentStep === 2 || currentStep === 3) && (
             <Button
-              variant="secondary"
               type="button"
-              onClick={() => {
-                if (currentStep === 2) onStepChange(1);
-                if (currentStep === 3) {
-                  onStepChange(2);
-                  onSignatureTargetChange("patient");
-                }
-              }}
-            >
-              Volver
-            </Button>
-            <Button
-              type="button"
-              disabled={!canSaveSignature}
-              onClick={
-                signatureTarget === "patient"
-                  ? onSavePatientSignature
-                  : onSaveDoctorSignature
-              }
+              onClick={handleSaveSignature}
               style={{ width: isMobile ? "100%" : undefined }}
             >
               <Save size={16} />
               {isMobile
-                ? signatureTarget === "patient"
-                  ? "Guardar firma"
-                  : "Guardar firma doctor"
+                ? "Guardar firma"
                 : signatureTarget === "patient"
                 ? "Guardar firma del paciente"
                 : "Guardar firma del doctor"}
             </Button>
-          </>
-        )}
-        {currentStep === 4 && (
-          <Button type="button" onClick={onFinish}>
-            Volver al listado
-          </Button>
-        )}
-      </div>
-    </Card>
+          )}
+          {currentStep === 4 && (
+            <Button type="button" onClick={onFinish}>
+              Volver al listado
+            </Button>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }

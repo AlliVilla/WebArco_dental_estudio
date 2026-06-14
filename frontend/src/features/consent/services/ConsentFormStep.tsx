@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Clock,
-  FileText,
-  PenLine,
-  ShieldCheck,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Clock, FileText, PenLine, ShieldCheck, UserRound } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
 import { Button, Card, Input, Select } from "../../../context";
 import { doctorOptions, procedimientoOptions } from "./consentData";
@@ -17,9 +10,9 @@ import { useResponsive } from "../../../hooks/useWindowWidth";
 interface ConsentFormStepProps {
   formValues: ConsentFormValues;
   displayConsentCode: string;
-  canContinueForm: boolean;
+  fieldErrors: Record<string, string>;
+  onClearError: (field: string) => void;
   onChange: (field: keyof ConsentFormValues, value: string) => void;
-  onCancel: () => void;
   onContinue: () => void;
 }
 
@@ -97,9 +90,9 @@ function ConsentTextArea({
 export function ConsentFormStep({
   formValues,
   displayConsentCode,
-  canContinueForm,
+  fieldErrors,
+  onClearError,
   onChange,
-  onCancel,
   onContinue,
 }: ConsentFormStepProps) {
   const { isMobile } = useResponsive();
@@ -126,38 +119,72 @@ export function ConsentFormStep({
             value={displayConsentCode}
           />
         </FullWidthField>
-        <Input
-          badge="required"
-          icon={<UserRound size={15} />}
-          label="Paciente"
-          onChange={(e) => onChange("paciente", e.target.value)}
-          placeholder="Ej: María Fernanda López García"
-          value={formValues.paciente}
-        />
-        <Select
-          badge="required"
-          label="Doctor responsable"
-          onChange={(v) => onChange("doctor", v)}
-          options={doctorOptions}
-          placeholder="Selecciona..."
-          value={formValues.doctor}
-        />
-        <Select
-          badge="required"
-          label="Procedimiento a realizar"
-          onChange={(v) => onChange("procedimiento", v)}
-          options={procedimientoOptions}
-          placeholder="Selecciona..."
-          value={formValues.procedimiento}
-        />
-        <Input
-          badge="required"
-          icon={<Clock size={15} />}
-          label="Fecha y hora"
-          onChange={(e) => onChange("fechaHora", e.target.value)}
-          type="datetime-local"
-          value={formValues.fechaHora}
-        />
+
+        {/* Paciente */}
+        <div {...(fieldErrors.paciente ? { "data-field-error": true } : {})}>
+          <Input
+            badge="required"
+            icon={<UserRound size={15} />}
+            label="Paciente"
+            onChange={(e) => {
+              onChange("paciente", e.target.value);
+              onClearError("paciente");
+            }}
+            placeholder="Ej: María Fernanda López García"
+            value={formValues.paciente}
+            error={fieldErrors.paciente}
+          />
+        </div>
+
+        {/* Doctor */}
+        <div {...(fieldErrors.doctor ? { "data-field-error": true } : {})}>
+          <Select
+            badge="required"
+            label="Doctor responsable"
+            onChange={(v) => {
+              onChange("doctor", v);
+              onClearError("doctor");
+            }}
+            options={doctorOptions}
+            placeholder="Selecciona..."
+            value={formValues.doctor}
+            error={fieldErrors.doctor}
+          />
+        </div>
+
+        {/* Procedimiento */}
+        <div
+          {...(fieldErrors.procedimiento ? { "data-field-error": true } : {})}
+        >
+          <Select
+            badge="required"
+            label="Procedimiento a realizar"
+            onChange={(v) => {
+              onChange("procedimiento", v);
+              onClearError("procedimiento");
+            }}
+            options={procedimientoOptions}
+            placeholder="Selecciona..."
+            value={formValues.procedimiento}
+            error={fieldErrors.procedimiento}
+          />
+        </div>
+
+        {/* Fecha */}
+        <div {...(fieldErrors.fechaHora ? { "data-field-error": true } : {})}>
+          <Input
+            badge="required"
+            icon={<Clock size={15} />}
+            label="Fecha y hora"
+            onChange={(e) => {
+              onChange("fechaHora", e.target.value);
+              onClearError("fechaHora");
+            }}
+            type="datetime-local"
+            value={formValues.fechaHora}
+            error={fieldErrors.fechaHora}
+          />
+        </div>
       </FormSection>
 
       <FormSection
@@ -207,31 +234,13 @@ export function ConsentFormStep({
       </FormSection>
 
       <Card style={{ padding: "16px 20px" }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
+        <Button
+          type="button"
+          onClick={onContinue}
+          style={{ width: isMobile ? "100%" : undefined }}
         >
-          <Button
-            variant="secondary"
-            type="button"
-            onClick={onCancel}
-            style={{ width: isMobile ? "100%" : undefined }}
-          >
-            <X size={16} /> Cancelar
-          </Button>
-          <Button
-            type="button"
-            disabled={!canContinueForm}
-            onClick={onContinue}
-            style={{ width: isMobile ? "100%" : undefined }}
-          >
-            <PenLine size={16} /> Continuar a firma del paciente
-          </Button>
-        </div>
+          <PenLine size={16} /> Continuar a firma del paciente
+        </Button>
       </Card>
     </div>
   );
