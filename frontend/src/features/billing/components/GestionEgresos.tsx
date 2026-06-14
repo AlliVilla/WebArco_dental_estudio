@@ -3,17 +3,15 @@ import { Card, Alert, Button } from "../../../context";
 import { formatCurrency } from "../../../utils/formatters";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { StatsDrawerContent, StatsItem } from "./StatsDrawerContent";
-
-const generateUUID = () => {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
+import billingService from "../services/billingService";
+import type {
+  CreateExpenseInput,
+  ExpenseMetricResponse,
+  ExpenseSummaryResponse,
+  FinancialRecord,
+} from "../types";
 import {
   TrendingDown,
-  Package,
   Calendar,
   DollarSign,
   Plus,
@@ -54,7 +52,7 @@ const CATEGORIAS: CategoriaEgreso[] = [
 ];
 
 type RegistroEgreso = {
-  id: string;
+  id: number;
   fecha: string;
   concepto: string;
   categoria: CategoriaEgreso;
@@ -71,17 +69,58 @@ type DrawerIndicadorState = {
   totalValue?: string;
 };
 
+const extraerIdEgreso = (record: FinancialRecord) => {
+  const rawId = String(record.id_registro || "").replace("expense-", "");
+  return Number(rawId);
+};
+
+const normalizarEgreso = (record: FinancialRecord): RegistroEgreso => {
+  return {
+    id: extraerIdEgreso(record),
+    fecha: record.fecha,
+    concepto: record.concepto,
+    categoria: (record.categoria || "Insumos") as CategoriaEgreso,
+    monto: Number(record.monto || 0),
+    responsable:
+      record.responsable ||
+      record.creado_por?.nombre_completo ||
+      "Usuario Autenticado",
+    observaciones: record.observaciones || "",
+  };
+};
+
+const convertirAStatsItems = (registros: FinancialRecord[]): StatsItem[] => {
+  return registros.map((r) => ({
+    nombre: r.concepto,
+    categoría: String(r.categoria || "Insumos"),
+    monto: Number(r.monto || 0),
+    fecha: r.fecha,
+    responsable:
+      r.responsable ||
+      r.creado_por?.nombre_completo ||
+      "Usuario Autenticado",
+    observaciones: r.observaciones || "",
+  }));
+};
+
+const formatMoneda = (val: number) =>
+  `L. ${Number(val || 0).toLocaleString("es-HN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 export function GestionEgresos() {
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
     "crear",
   );
-  const [registros, setRegistros] = useLocalStorage<RegistroEgreso[]>("webarco_egresos", []);
+  const [registros, setRegistros] = useState<RegistroEgreso[]>([]);
+  const [resumenEgresos, setResumenEgresos] = useState<ExpenseSummaryResponse | null>(null);
   const [estaCargando, setEstaCargando] = useState(false);
 
   const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] =
     useState(false);
-  const [registroAEliminar, setRegistroAEliminar] = useState<string | null>(
+  const [registroAEliminar, setRegistroAEliminar] = useState<number | null>(
     null,
   );
 
@@ -117,8 +156,37 @@ export function GestionEgresos() {
   const [categoria, setCategoria] = useState<CategoriaEgreso>("Insumos");
   const [monto, setMonto] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [idSeleccionado, setIdSeleccionado] = useState<string | null>(null);
+  const [idSeleccionado, setIdSeleccionado] = useState<number | null>(null);
   const [responsable, setResponsable] = useState(nombreAutenticado);
+
+
+  const cargarEgresos = async () => {
+    setEstaCargando(true);
+    setError(null);
+
+    try {
+      const response = await billingService.getExpenses();
+      setRegistros((response.data || []).map(normalizarEgreso));
+    } catch (err: any) {
+      setError(err?.message || "No se pudieron cargar los egresos.");
+    } finally {
+      setEstaCargando(false);
+    }
+  };
+
+  const cargarResumen = async () => {
+    try {
+      const response = await billingService.getExpenseSummary();
+      setResumenEgresos(response.data);
+    } catch (err: any) {
+      setError(err?.message || "No se pudo cargar el resumen de egresos.");
+    }
+  };
+
+  useEffect(() => {
+    void cargarEgresos();
+    void cargarResumen();
+  }, []);
 
   useEffect(() => {
     if (modoModal === "crear" && !idSeleccionado) {
@@ -126,67 +194,31 @@ export function GestionEgresos() {
     }
   }, [nombreAutenticado, modoModal, idSeleccionado]);
 
-  const localHoyStr = obtenerHoyLocal();
-
   const indicadores = useMemo(() => {
-    const y = new Date().getFullYear();
-    const m = String(new Date().getMonth() + 1).padStart(2, "0");
-    const prefix = `${y}-${m}`;
-
-    const egresosDelMes = registros
-      .filter((r) => r.fecha.startsWith(prefix))
-      .reduce((sum, r) => sum + r.monto, 0);
-
-    const totalInsumos = registros
-      .filter((r) => r.categoria === "Insumos")
-      .reduce((sum, r) => sum + r.monto, 0);
-
-    const egresoDelDia = registros
-      .filter((r) => r.fecha === localHoyStr)
-      .reduce((sum, r) => sum + r.monto, 0);
-
-    const egresoPromedio =
-      registros.length > 0
-        ? registros.reduce((sum, r) => sum + r.monto, 0) / registros.length
-        : 0;
-
-    const formatMoneda = (val: number) =>
-      `L. ${val.toLocaleString("es-HN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
-
     return [
       {
         label: "Egresos del Mes",
-        value: formatMoneda(egresosDelMes),
+        value: formatMoneda(resumenEgresos?.egresos_del_mes?.total || 0),
         icon: TrendingDown,
         color: "#EF4444",
         bg: "#FEE2E2",
       },
       {
-        label: "Total en Insumos",
-        value: formatMoneda(totalInsumos),
-        icon: Package,
-        color: "#EF9F27",
-        bg: "#FFFBEB",
-      },
-      {
         label: "Egreso del Día",
-        value: formatMoneda(egresoDelDia),
+        value: formatMoneda(resumenEgresos?.egreso_del_dia?.total || 0),
         icon: Calendar,
         color: "#0BC5DF",
         bg: "#E6F8FB",
       },
       {
-        label: "Egreso Promedio",
-        value: formatMoneda(egresoPromedio),
+        label: "Promedio Mensual de Egresosio",
+        value: formatMoneda(resumenEgresos?.egreso_promedio?.total || 0),
         icon: DollarSign,
         color: "#203F49",
         bg: "#F1F3F4",
       },
     ];
-  }, [registros, localHoyStr]);
+  }, [resumenEgresos]);
 
   const filtros = useMemo(() => {
     const responsablesUnicos = Array.from(
@@ -233,77 +265,51 @@ export function GestionEgresos() {
     );
   };
 
-  const abrirDrawerIndicador = (indicadorLabel: string) => {
-    let statsItems: StatsItem[] = [];
+  const abrirDrawerIndicador = async (indicadorLabel: string) => {
     const indicador = indicadores.find((ind) => ind.label === indicadorLabel);
-
-    switch (indicadorLabel) {
-      case "Egresos del Mes": {
-        const y = new Date().getFullYear();
-        const m = String(new Date().getMonth() + 1).padStart(2, "0");
-        const prefix = `${y}-${m}`;
-        statsItems = registros
-          .filter((r) => r.fecha.startsWith(prefix))
-          .map((r) => ({
-            nombre: r.concepto,
-            categoría: r.categoria,
-            monto: r.monto,
-            fecha: r.fecha,
-            responsable: r.responsable,
-            observaciones: r.observaciones,
-          }));
-        break;
-      }
-      case "Total en Insumos": {
-        statsItems = registros
-          .filter((r) => r.categoria === "Insumos")
-          .map((r) => ({
-            nombre: r.concepto,
-            categoría: r.categoria,
-            monto: r.monto,
-            fecha: r.fecha,
-            responsable: r.responsable,
-            observaciones: r.observaciones,
-          }));
-        break;
-      }
-      case "Egreso del Día": {
-        statsItems = registros
-          .filter((r) => r.fecha === localHoyStr)
-          .map((r) => ({
-            nombre: r.concepto,
-            categoría: r.categoria,
-            monto: r.monto,
-            fecha: r.fecha,
-            responsable: r.responsable,
-            observaciones: r.observaciones,
-          }));
-        break;
-      }
-      case "Egreso Promedio": {
-        statsItems = registros.map((r) => ({
-          nombre: r.concepto,
-          categoría: r.categoria,
-          monto: r.monto,
-          fecha: r.fecha,
-          responsable: r.responsable,
-          observaciones: r.observaciones,
-        }));
-        break;
-      }
-    }
 
     setDrawerActual({
       title: indicadorLabel,
-      items: statsItems,
+      items: [],
       icon: indicador?.icon,
       iconColor: indicador?.color,
       totalValue: indicador?.value,
     });
     setEstaDrawerAbierto(true);
+
+    try {
+      let response: { data: ExpenseMetricResponse };
+
+      switch (indicadorLabel) {
+        case "Egresos del Mes":
+          response = await billingService.getExpensesMonth();
+          break;
+
+        case "Egreso del Día":
+          response = await billingService.getExpensesDay();
+          break;
+
+        case "Promedio Mensual de Egresosio":
+          response = await billingService.getExpensesAverageMonth();
+          break;
+
+        default:
+          return;
+      }
+
+      setDrawerActual({
+        title: indicadorLabel,
+        items: convertirAStatsItems(response.data.registros || []),
+        icon: indicador?.icon,
+        iconColor: indicador?.color,
+        totalValue: formatMoneda(response.data.total || 0),
+      });
+    } catch (err: any) {
+      setError(err?.message || "No se pudieron cargar los registros del indicador.");
+    }
   };
 
-  const manejarGuardarEgreso = (e: React.FormEvent) => {
+  const manejarGuardarEgreso = async (e: React.FormEvent) => {
     e.preventDefault();
     if (modoModal === "ver") return;
     setError(null);
@@ -328,49 +334,47 @@ export function GestionEgresos() {
       return;
     }
 
-    if (modoModal === "crear") {
-      const nuevoRegistro: RegistroEgreso = {
-        id: generateUUID(),
-        fecha,
-        concepto,
-        categoria,
-        monto: parsedMonto,
-        responsable: responsable.trim() || nombreAutenticado,
-        observaciones,
-      };
-      setRegistros([nuevoRegistro, ...registros]);
-    } else if (modoModal === "editar" && idSeleccionado) {
-      setRegistros(
-        registros.map((reg) =>
-          reg.id === idSeleccionado
-            ? {
-                ...reg,
-                fecha,
-                concepto,
-                categoria,
-                monto: parsedMonto,
-                responsable: responsable.trim() || nombreAutenticado,
-                observaciones,
-              }
-            : reg,
-        ),
-      );
-    }
+    const payload: CreateExpenseInput = {
+      fecha,
+      concepto: concepto.trim(),
+      categoria,
+      monto: parsedMonto,
+      observaciones: observaciones.trim() || undefined,
+    };
 
-    setEstaCargando(false);
-    cerrarModal();
+    setEstaCargando(true);
+
+    try {
+      if (modoModal === "crear") {
+        await billingService.createExpense(payload);
+      } else if (modoModal === "editar" && idSeleccionado) {
+        await billingService.updateExpense(idSeleccionado, payload);
+      }
+
+      await cargarEgresos();
+      await cargarResumen();
+      cerrarModal();
+    } catch (err: any) {
+      setError(err?.message || "No se pudo guardar el egreso.");
+    } finally {
+      setEstaCargando(false);
+    }
   };
 
   const manejarConfirmarEliminacion = async () => {
     if (!registroAEliminar || estaCargando) return;
 
     setEstaCargando(true);
+    setError(null);
+
     try {
-      setRegistros(registros.filter((r) => r.id !== registroAEliminar));
+      await billingService.deleteExpense(registroAEliminar);
+      await cargarEgresos();
+      await cargarResumen();
       setRegistroAEliminar(null);
       setEstaModalConfirmacionAbierto(false);
-    } catch {
-      setError("Error al eliminar el registro.");
+    } catch (err: any) {
+      setError(err?.message || "Error al eliminar el registro.");
     } finally {
       setEstaCargando(false);
     }
@@ -554,7 +558,7 @@ export function GestionEgresos() {
         {indicadores.map((indicador) => (
           <div
             key={indicador.label}
-            onClick={() => abrirDrawerIndicador(indicador.label)}
+            onClick={() => void abrirDrawerIndicador(indicador.label)}
             style={{
               cursor: "pointer",
               transition: "transform 0.2s, box-shadow 0.2s",
@@ -652,7 +656,7 @@ export function GestionEgresos() {
           },
         ]}
         rowActions={obtenerAccionesFila}
-        getRowKey={(fila) => fila.id}
+        getRowKey={(fila) => String(fila.id)}
       />
 
       <ConfirmModal
@@ -940,27 +944,9 @@ export function GestionEgresos() {
                         </span>
                       )}
                     </label>
-                    {modoModal === "editar" &&
-                      responsable !== nombreAutenticado && (
-                        <button
-                          type="button"
-                          onClick={() => setResponsable(nombreAutenticado)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "#0BC5DF",
-                            fontSize: 11,
-                            fontWeight: 500,
-                            cursor: "pointer",
-                            padding: 0,
-                          }}
-                        >
-                          Asignarme a mí
-                        </button>
-                      )}
                   </div>
                   <input
-                    disabled={modoModal === "ver"}
+                    disabled
                     value={responsable}
                     onChange={(e) => setResponsable(e.target.value)}
                     required

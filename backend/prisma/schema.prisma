@@ -113,7 +113,6 @@ model Persona {
 }
 
 model Usuario {
-
   id_usuario           Int     @id @default(autoincrement())
   id_persona           Int
   username             String  @unique @db.VarChar(100)
@@ -129,6 +128,9 @@ model Usuario {
   citas                  Cita[]
   historial_estados      EstadoHistorial[]
   movimientos_inventario MovimientoInventario[]
+
+  egresos_creados     Egreso[] @relation("EgresoCreadoPor")
+  egresos_modificados Egreso[] @relation("EgresoModificadoPor")
 
   @@map("usuario")
 }
@@ -305,6 +307,30 @@ model Especialidad {
   tratamientos Tratamiento[]
 
   @@map("especialidad")
+}
+
+model Egreso {
+  id_egreso Int      @id @default(autoincrement())
+  concepto  String   @db.VarChar(255)
+  monto     Decimal  @db.Decimal(10, 2)
+  categoria String   @db.VarChar(50)
+  fecha     DateTime @db.Date
+  observaciones String? @db.VarChar(255)
+
+  id_usuario_creacion     Int
+  id_usuario_modificacion Int?
+
+  usuario_creacion     Usuario  @relation("EgresoCreadoPor", fields: [id_usuario_creacion], references: [id_usuario])
+  usuario_modificacion Usuario? @relation("EgresoModificadoPor", fields: [id_usuario_modificacion], references: [id_usuario])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([categoria])
+  @@index([id_usuario_creacion])
+  @@index([id_usuario_modificacion])
+  @@map("egreso")
 }
 
 model Tratamiento {

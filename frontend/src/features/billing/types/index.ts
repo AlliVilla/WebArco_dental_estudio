@@ -30,6 +30,12 @@ export type IncomePaymentMethod = 'Tarjeta' | 'Efectivo' | 'Transferencia';
 
 export type ExpenseCategory = 'Insumos' | 'Equipos' | 'Nómina' | 'Servicios';
 
+export interface UserAudit {
+  id_usuario: number;
+  username: string;
+  nombre_completo: string;
+}
+
 export interface FinancialRecord extends Record<string, unknown> {
   id_registro: string;
   tipo: TransactionKind;
@@ -39,5 +45,27 @@ export interface FinancialRecord extends Record<string, unknown> {
   monto: number;
   metodoPago?: IncomePaymentMethod;
   categoria?: ExpenseCategory;
+  observaciones?: string | null;
   responsable?: string;
+  creado_por?: UserAudit;
+  modificado_por?: UserAudit | null;
+}
+
+export interface CreateExpenseInput {
+  concepto: string;
+  monto: number;
+  categoria: ExpenseCategory;
+  fecha: string;
+  observaciones?: string;
+}
+
+export interface ExpenseMetricResponse {
+  total: number;
+  registros: FinancialRecord[];
+}
+
+export interface ExpenseSummaryResponse {
+  egresos_del_mes: ExpenseMetricResponse;
+  egreso_del_dia: ExpenseMetricResponse;
+  egreso_promedio: ExpenseMetricResponse;
 }
