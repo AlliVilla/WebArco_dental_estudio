@@ -430,8 +430,8 @@ export function ExpedienteScreen() {
       label: 'Estado',
       width: '130px',
       render: (_, row) => {
-        const colors: Record<string, string> = { ACTIVO: C.primary, COMPLETADO: C.success, CANCELADO: C.gray500 };
-        const labels: Record<string, string> = { ACTIVO: 'Activo', COMPLETADO: 'Completado', CANCELADO: 'Cancelado' };
+        const colors: Record<string, string> = { ACTIVO: C.primary, COMPLETADO: C.success, CANCELADO: C.gray500, DESACTIVADO: C.gray500 };
+        const labels: Record<string, string> = { ACTIVO: 'Activo', COMPLETADO: 'Completado', CANCELADO: 'Desactivado', DESACTIVADO: 'Desactivado' };
         const color = colors[row.estado] || C.gray500;
         return (
           <span style={{
@@ -460,42 +460,53 @@ export function ExpedienteScreen() {
       key: 'acciones',
       label: 'Acciones',
       width: '280px',
-      render: (_, row) => (
-        <div style={{ display: 'flex', gap: 4 }}>
-          {(['ACTIVO', 'COMPLETADO', 'CANCELADO'] as const).map((est) => {
-            const isCurrent = row.estado === est;
-            const colorMap: Record<string, string> = { ACTIVO: C.primary, COMPLETADO: C.success, CANCELADO: C.gray500 };
-            const labelMap: Record<string, string> = { ACTIVO: 'Activo', COMPLETADO: 'Completado', CANCELADO: 'Cancelado' };
-            return (
-              <button
-                key={est}
-                onClick={async () => {
-                  if (isCurrent) return;
-                  try {
-                    const res = await tratamientoPacienteService.updateEstado(row.id, est);
-                    if (!res.success) throw new Error(res.message || 'Error al actualizar');
-                    loadPatients(currentPage);
-                  } catch (e: any) {
-                    alert(e?.message || `Error al cambiar estado del plan "${row.nombre}"`);
-                  }
-                }}
-                disabled={isCurrent}
-                style={{
-                  padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700,
-                  cursor: isCurrent ? 'default' : 'pointer',
-                  border: `1.5px solid ${colorMap[est]}`,
-                  background: isCurrent ? colorMap[est] : 'transparent',
-                  color: isCurrent ? C.white : colorMap[est],
-                  textTransform: 'uppercase', letterSpacing: '0.5px',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {labelMap[est]}
-              </button>
-            );
-          })}
-        </div>
-      ),
+      render: (_, row) => {
+        const isTerminal = row.estado === 'COMPLETADO' || row.estado === 'DESACTIVADO' || row.estado === 'CANCELADO';
+        if (isTerminal) return null;
+
+        const isFullyPaid = (row.saldoPendiente ?? 0) <= 0;
+
+        return (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {(['COMPLETADO', 'DESACTIVADO'] as const).map((est) => {
+              const isCurrent = row.estado === est;
+              const cannotComplete = est === 'COMPLETADO' && !isFullyPaid;
+              const isDisabled = isCurrent || cannotComplete;
+              const colorMap: Record<string, string> = { COMPLETADO: C.success, DESACTIVADO: C.gray500 };
+              const labelMap: Record<string, string> = { COMPLETADO: 'Completado', DESACTIVADO: 'Desactivar' };
+              return (
+                <button
+                  key={est}
+                  onClick={async () => {
+                    if (isDisabled) return;
+                    try {
+                      const res = await tratamientoPacienteService.updateEstado(row.id, est);
+                      if (!res.success) throw new Error(res.message || 'Error al actualizar');
+                      loadPatients(currentPage);
+                    } catch (e: any) {
+                      alert(e?.message || `Error al cambiar estado del plan "${row.nombre}"`);
+                    }
+                  }}
+                  disabled={isDisabled}
+                  title={cannotComplete ? 'Debe saldar el tratamiento antes de completarlo' : labelMap[est]}
+                  style={{
+                    padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    opacity: isDisabled ? 0.5 : 1,
+                    border: `1.5px solid ${colorMap[est]}`,
+                    background: isCurrent ? colorMap[est] : 'transparent',
+                    color: isCurrent ? C.white : colorMap[est],
+                    textTransform: 'uppercase', letterSpacing: '0.5px',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {labelMap[est]}
+                </button>
+              );
+            })}
+          </div>
+        );
+      },
     },
   ];
 

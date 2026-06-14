@@ -39,7 +39,7 @@ export interface TratamientoPacienteResponse {
   costoTotal: number;
   saldoPendiente: number;
   totalAbonado: number;
-  estado: 'ACTIVO' | 'COMPLETADO' | 'CANCELADO';
+  estado: 'ACTIVO' | 'COMPLETADO' | 'CANCELADO' | 'DESACTIVADO';
   fechaInicio: string;
   fechaFin?: string | null;
   consultas?: TratamientoPacienteConsulta[];

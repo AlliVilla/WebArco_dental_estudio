@@ -84,14 +84,33 @@ export class TratamientoPacienteService {
   }
 
   async updateEstado(id: number, estado: TratamientoEstado) {
-    const t = await this.prisma.tratamientoPaciente.findUnique({ where: { id } });
+    const t = await this.prisma.tratamientoPaciente.findUnique({
+      where: { id },
+      include: { abonos: true },
+    });
     if (!t) throw new NotFoundException('Tratamiento del paciente no encontrado');
+
+    if (t.estado === 'DESACTIVADO') {
+      throw new BadRequestException('El tratamiento está desactivado y no puede modificarse');
+    }
+
+    if (estado === 'COMPLETADO') {
+      const totalAbonado = t.abonos.reduce((sum, a) => sum + Number(a.montoAbonado), 0);
+      if (totalAbonado < Number(t.costoTotal)) {
+        throw new BadRequestException(
+          'No se puede completar el tratamiento porque el saldo pendiente no está saldado',
+        );
+      }
+    }
+
+    const targetEstado = estado === 'CANCELADO' ? 'DESACTIVADO' as TratamientoEstado : estado;
+    const shouldSetFechaFin = targetEstado === 'COMPLETADO' || targetEstado === 'DESACTIVADO';
 
     const updated = await this.prisma.tratamientoPaciente.update({
       where: { id },
       data: {
-        estado,
-        fechaFin: estado === 'COMPLETADO' ? new Date() : t.fechaFin,
+        estado: targetEstado,
+        fechaFin: shouldSetFechaFin ? new Date() : t.fechaFin,
       },
     });
 

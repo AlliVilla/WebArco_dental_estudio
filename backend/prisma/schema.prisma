@@ -415,6 +415,7 @@ enum TratamientoEstado {
   ACTIVO
   COMPLETADO
   CANCELADO
+  DESACTIVADO
 }
 
 enum MetodoPago {
