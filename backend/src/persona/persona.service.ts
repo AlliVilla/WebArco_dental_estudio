@@ -187,6 +187,19 @@ export class PersonaService {
       };
 
       if (includeConsulta) {
+        include.tratamientosPaciente = {
+          include: {
+            consultas: {
+              orderBy: { fecha_inicio: 'desc' },
+              include: {
+                doctor: { include: { persona: true } },
+                pagos: { orderBy: { fecha: 'desc' } },
+              },
+            },
+            abonos: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        };
         include.consultas = {
           orderBy: {
             fecha_inicio: 'desc', 
@@ -231,8 +244,23 @@ export class PersonaService {
         this.prisma.persona.count({ where }),
       ]);
 
+      const mapped = personas.map((p: Record<string, any>) => {
+        const { tratamientosPaciente: tpRaw, ...rest } = p;
+        const tratamientos = (tpRaw ?? []).map((t: Record<string, any>) => {
+          const totalAbonado = (t.abonos ?? []).reduce((sum: number, a: any) => sum + Number(a.montoAbonado || 0), 0);
+          return {
+            ...t,
+            costoTotal: Number(t.costoTotal),
+            totalAbonado,
+            saldoPendiente: Number(t.costoTotal) - totalAbonado,
+            consultas: t.consultas ?? [],
+          };
+        });
+        return { ...rest, tratamientos };
+      });
+
       return {
-        data: personas,
+        data: mapped,
         pagination: {
           total,
           page,
