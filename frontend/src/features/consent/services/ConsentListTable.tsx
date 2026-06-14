@@ -14,6 +14,7 @@ interface ConsentListTableProps {
   onPreview: (id: string) => void;
   onEdit: (consent: ConsentRecord) => void;
   onNewConsent: () => void;
+  onExport: () => void;
 }
 
 function StatusBadge({ value }: { value: ConsentStatus }) {
@@ -178,6 +179,7 @@ export function ConsentListTable({
   onPreview,
   onEdit,
   onNewConsent,
+  onExport,
 }: ConsentListTableProps) {
   const { isMobile, isTablet } = useResponsive();
   const showCards = isMobile || isTablet;
@@ -387,7 +389,7 @@ export function ConsentListTable({
         {
           label: "Exportar",
           icon: <Download size={16} />,
-          onClick: () => undefined,
+          onClick: onExport,
         },
         {
           label: "Imprimir",

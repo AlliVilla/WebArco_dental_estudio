@@ -10,6 +10,7 @@ import { ConsentPreview } from "./ConsentPreview";
 import { ConsentSearchCard } from "./ConsentSearchCard";
 import { defaultFormValues, initialConsents } from "./consentData";
 import { formatDisplayDate, formatDisplayTime } from "./consentUtils";
+import { exportToExcel } from "../../../utils/exportToExcel";
 import type {
   ConsentFormValues,
   ConsentMode,
@@ -201,6 +202,28 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     saveRecord(estado);
   }
 
+  // Exportar a Excel
+  const handleExportToExcel = async () => {
+    try {
+      const columnas = [
+        { header: "ID", key: "id", width: 12 },
+        { header: "Fecha", key: "fecha", width: 15 },
+        { header: "Paciente", key: "paciente", width: 25 },
+        { header: "Procedimiento", key: "procedimiento", width: 25 },
+        { header: "Doctor", key: "doctor", width: 25 },
+        { header: "Estado", key: "estado", width: 20 },
+      ];
+      await exportToExcel(
+        consents,
+        columnas,
+        "Consentimientos",
+        "Consentimientos_WebArco"
+      );
+    } catch (err) {
+      console.error("Error al exportar a Excel:", err);
+    }
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div
@@ -247,6 +270,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
             onPreview={(id) => openMode("preview", id)}
             onEdit={startEdit}
             onNewConsent={startNewConsent}
+            onExport={handleExportToExcel}
           />
         </>
       )}
