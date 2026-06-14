@@ -18,5 +18,17 @@ export const billingService = {
   delete: async (id: number): Promise<ApiResponse<null>> => {
     return api.delete(`/pago-paciente/${id}`);
   },
+
+  getEstadoFinanciero: async (pacienteId: number): Promise<ApiResponse<any[]>> => {
+    return api.get(`/pago-consulta/estado-financiero/paciente/${pacienteId}`);
+  },
+
+  createPagoConsulta: async (data: any): Promise<ApiResponse<any>> => {
+    return api.post('/pago-consulta', data);
+  },
+
+  getPagosConsulta: async (consultaId: number): Promise<ApiResponse<any[]>> => {
+    return api.get(`/pago-consulta/consulta/${consultaId}`);
+  },
 };
 export default billingService;

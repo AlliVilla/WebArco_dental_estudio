@@ -67,4 +67,10 @@ export class CreateConsultaDto {
   @IsOptional()
   @IsBoolean({ message: 'consentimiento debe ser un booleano' })
   consentimiento?: boolean;
+
+  @ApiPropertyOptional({ description: 'ID del tratamiento de paciente asociado', example: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  tratamientoPacienteId?: number;
 }

@@ -50,6 +50,27 @@ const consultaInclude = {
     },
   },
   archivos: true,
+  tratamientoPaciente: {
+    select: {
+      id: true,
+      nombre: true,
+      costoTotal: true,
+      estado: true,
+      fechaInicio: true,
+    },
+  },
+  pagosConsulta: {
+    include: {
+      abonos: {
+        include: {
+          tratamientoPaciente: {
+            select: { id: true, nombre: true },
+          },
+        },
+      },
+    },
+    orderBy: { fecha: 'desc' },
+  },
 } satisfies Prisma.ConsultaInclude;
 
 @Injectable()
@@ -93,16 +114,57 @@ export class ExpedienteClinicoService {
       );
     }
 
-    const consultas = await this.prisma.consulta.findMany({
-      where: { id_persona: idPaciente },
-      include: consultaInclude,
-      orderBy: { fecha_inicio: 'desc' },
-    });
+    const [consultas, tratamientosPaciente] = await Promise.all([
+      this.prisma.consulta.findMany({
+        where: { id_persona: idPaciente },
+        include: consultaInclude,
+        orderBy: { fecha_inicio: 'desc' },
+      }),
+      this.prisma.tratamientoPaciente.findMany({
+        where: { pacienteId: idPaciente },
+        include: {
+          consultas: {
+            orderBy: { fecha_inicio: 'desc' },
+            include: {
+              doctor: {
+                select: {
+                  id_usuario: true,
+                  username: true,
+                  persona: { select: { primer_nombre: true, primer_apellido: true } },
+                },
+              },
+              pagosConsulta: true,
+            },
+          },
+          abonos: {
+            include: {
+              pagoConsulta: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     const totalConsultas = consultas.length;
     const firmasPendientes = consultas.filter(
       (c) => !c.firma_paciente || !c.firma_doctor_snapshot,
     ).length;
+
+    const tratamientosConSaldo = tratamientosPaciente.map((t) => {
+      const totalAbonado = t.abonos.reduce((s, a) => s + Number(a.montoAbonado), 0);
+      return {
+        id: t.id,
+        nombre: t.nombre,
+        costoTotal: Number(t.costoTotal),
+        totalAbonado,
+        saldoPendiente: Number(t.costoTotal) - totalAbonado,
+        estado: t.estado,
+        fechaInicio: t.fechaInicio,
+        fechaFin: t.fechaFin,
+        consultas: t.consultas,
+      };
+    });
 
     return {
       paciente,
@@ -116,6 +178,7 @@ export class ExpedienteClinicoService {
       consultas: consultas.map((consulta) =>
         this.mapearConsultaConEstadoFirmas(consulta),
       ),
+      tratamientos: tratamientosConSaldo,
     };
   }
 
@@ -167,6 +230,16 @@ export class ExpedienteClinicoService {
     }
 
     const consultaCreada = await this.prisma.$transaction(async (tx) => {
+      if (dto.tratamientoPacienteId) {
+        const tp = await tx.tratamientoPaciente.findUnique({
+          where: { id: dto.tratamientoPacienteId },
+          select: { id: true, pacienteId: true },
+        });
+        if (!tp || tp.pacienteId !== idPaciente) {
+          throw new BadRequestException('El tratamiento de paciente no existe o no pertenece a este paciente');
+        }
+      }
+
       const nuevaConsulta = await tx.consulta.create({
         data: {
           id_persona: idPaciente,
@@ -179,6 +252,7 @@ export class ExpedienteClinicoService {
           notas: dto.notas_adicionales ?? null,
           firma_paciente: dto.firma_paciente ?? null,
           consentimiento: Boolean(dto.firma_paciente),
+          tratamientoPacienteId: dto.tratamientoPacienteId ?? null,
         },
       });
 
