@@ -1,9 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, FileText, Stethoscope, CheckCircle } from "lucide-react";
+import { ArrowLeft, FileText, CheckCircle } from "lucide-react";
 import { Input, Combobox, Button, Alert } from "../../../context";
 import { treatmentService, especialidadService } from "../services/treatmentService";
-import { type TreatmentInput, type Especialidad, ESTADOS_ODONTOGRAMA } from "../types";
+import { type TreatmentInput, type Especialidad } from "../types";
+import { useAuthStore } from "../../../features/auth/hooks/useAuthStore";
+
+function useHasPrivilege(privilegeIds: number[]) {
+  const user = useAuthStore((state) => state.user);
+  return useMemo(() => {
+    if (!user?.privilegios) return false;
+    return privilegeIds.some(id => user.privilegios?.includes(id));
+  }, [user?.privilegios]);
+}
 
 const COLORS = {
   primary: "#0BC5DF",
@@ -19,7 +28,6 @@ const EMPTY: TreatmentInput = {
   idEspecialidad: 0,
   nombre: "",
   descripcion: "",
-  impactoOdontograma: "",
   precio: 0,
 };
 
@@ -30,11 +38,18 @@ export interface TreatmentFormProps {
 export function TreatmentForm({ mode }: TreatmentFormProps) {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const hasManagePrivilege = useHasPrivilege([66]);
   const [formData, setFormData] = useState<TreatmentInput>(EMPTY);
   const [especialidadText, setEspecialidadText] = useState("");
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{ variant: "success" | "error"; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!hasManagePrivilege) {
+      navigate("/treatments");
+    }
+  }, [hasManagePrivilege, navigate]);
 
   useEffect(() => {
     especialidadService.getAll()
@@ -53,7 +68,6 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
               idEspecialidad: t.idEspecialidad,
               nombre: t.nombre,
               descripcion: t.descripcion ?? "",
-              impactoOdontograma: t.impactoOdontograma,
               precio: t.precio,
             });
             setEspecialidadText(t.especialidad);
@@ -76,7 +90,7 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
 
   async function handleSave() {
     const text = especialidadText.trim();
-    if (!text || !formData.nombre || !formData.impactoOdontograma || formData.precio <= 0) {
+    if (!text || !formData.nombre || formData.precio <= 0) {
       setAlert({
         variant: "error",
         message: "Por favor complete todos los campos obligatorios. El precio debe ser mayor a 0.",
@@ -231,34 +245,6 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
             />
           </div>
         </div>
-      </div>
-
-      <div style={sectionStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <div style={iconBoxStyle}>
-            <Stethoscope size={18} style={{ color: COLORS.primary }} />
-          </div>
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: COLORS.navy, margin: 0 }}>
-              Integración con Odontograma
-            </h3>
-            <p style={{ fontSize: 12, color: COLORS.gray500, margin: "2px 0 0" }}>
-              Configuración del registro visual automático
-            </p>
-          </div>
-        </div>
-
-        <Combobox
-          label="Estado a asignar en Odontograma"
-          badge="required"
-          value={formData.impactoOdontograma}
-          onChange={(v) => setField("impactoOdontograma", v)}
-          placeholder="Seleccionar estado"
-          options={ESTADOS_ODONTOGRAMA.map((e) => ({ value: e, label: e }))}
-        />
-        <p style={{ fontSize: 11, color: COLORS.gray500, marginTop: 8 }}>
-          Define el cambio gráfico automático en el diente al usar este tratamiento en una consulta
-        </p>
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
