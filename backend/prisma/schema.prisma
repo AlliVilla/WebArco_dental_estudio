@@ -133,29 +133,30 @@ model Usuario {
   @@map("usuario")
 }
 
-model AntecedentePregunta {
+model ConsultaPregunta {
   id_pregunta          Int     @id @default(autoincrement())
   pregunta             String  @db.VarChar(255)
   orden_num            Int
   requiere_explicacion Boolean @default(false)
+  categoria            String  @default("Antecedentes Médicos") @db.VarChar(100)
 
-  respuestas AntecedenteRespuesta[]
+  respuestas ConsultaRespuesta[]
 
-  @@map("antecedente_pregunta")
+  @@map("consulta_pregunta")
 }
 
-model AntecedenteRespuesta {
+model ConsultaRespuesta {
   id_respuesta      Int      @id @default(autoincrement())
   id_consulta       Int
   id_pregunta       Int
   respuesta_boolean Boolean?
   explanation       String?  @db.Text
 
-  consulta Consulta            @relation(fields: [id_consulta], references: [id_consulta])
-  pregunta AntecedentePregunta @relation(fields: [id_pregunta], references: [id_pregunta])
+  consulta Consulta         @relation(fields: [id_consulta], references: [id_consulta])
+  pregunta ConsultaPregunta @relation(fields: [id_pregunta], references: [id_pregunta])
 
   @@index([id_consulta])
-  @@map("antecedente_respuesta")
+  @@map("consulta_respuesta")
 }
 
 model Cita {
@@ -212,7 +213,7 @@ model Consulta {
   cita         Cita?                  @relation(fields: [id_cita], references: [id_cita])
   persona      Persona                @relation(fields: [id_persona], references: [id_persona])
   doctor       Usuario                @relation(fields: [id_usuario], references: [id_usuario])
-  antecedentes AntecedenteRespuesta[]
+  respuestas   ConsultaRespuesta[]
   odontogramas Odontograma[]
   pagos        PagoPaciente[]
   archivos Archivo[]

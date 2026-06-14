@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FileText,
+  Edit,
+  Eye,
   Hash,
   IdCard,
-  Pencil,
   Phone,
   Plus,
   Search,
@@ -14,14 +14,9 @@ import {
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
-import {
-  DEFAULT_PAGE_SIZE,
-  PATIENT_SYSTEMIC_DISEASES,
-} from "../../../config/constants";
+import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
-import { formatDate, normalizeSearch } from "../../../utils/formatters";
-import { useResponsive } from "../../../hooks/useWindowWidth";
-import { Z } from "../../../utils/zIndex";
+import { formatDate } from "../../../utils/formatters";
 
 type Patient = Record<string, unknown> & {
   id: number;
@@ -49,7 +44,12 @@ type PersonaApi = {
 
 type PersonasListResponse = {
   data: PersonaApi[];
-  pagination?: { total: number; page: number; limit: number; pages: number };
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
 };
 
 type PatientSearchFilters = {
@@ -74,6 +74,7 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
   ]
     .filter(Boolean)
     .join(" ");
+
   return {
     id: persona.id_persona,
     code: `PAC-${String(persona.id_persona).padStart(6, "0")}`,
@@ -81,157 +82,20 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
     identity: persona.numero_identidad,
     phone: persona.telefono,
     lastVisit: null,
-    enfermedades: persona.enfermedades ?? null,
-    otras_enfermedades: persona.otras_enfermedades ?? null,
-    medicamentos: persona.medicamentos ?? null,
-    alergias: persona.alergias ?? null,
-    reaccion_anestesia: persona.reaccion_anestesia ?? null,
   };
 };
 
-// ─── Card para móvil/tablet ───────────────────────────────────────────────────
-function PatientCard({
-  patient,
-  onEdit,
-  onView,
-}: {
-  patient: Patient;
-  onEdit: () => void;
-  onView: () => void;
-}) {
-  const navigate = useNavigate();
-  return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 12,
-        border: "1px solid #D3D7DA",
-        padding: 16,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 12,
-          gap: 8,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <button
-            onClick={() => navigate(`/patients/profile/${patient.id}`)}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#0BC5DF",
-              cursor: "pointer",
-              fontSize: 14,
-              fontWeight: 600,
-              padding: 0,
-              textAlign: "left",
-              textDecoration: "none",
-            }}
-          >
-            {patient.fullName}
-          </button>
-          <p
-            style={{
-              fontSize: 12,
-              color: "#888F94",
-              margin: "2px 0 0",
-              fontFamily: "monospace",
-            }}
-          >
-            {patient.code}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          <button
-            onClick={onEdit}
-            title="Editar"
-            style={{
-              padding: 6,
-              borderRadius: 8,
-              border: "none",
-              background: "#F8F9FA",
-              cursor: "pointer",
-              color: "#203F49",
-              display: "flex",
-            }}
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            onClick={onView}
-            title="Ver información médica"
-            style={{
-              padding: 6,
-              borderRadius: 8,
-              border: "none",
-              background: "#F8F9FA",
-              cursor: "pointer",
-              color: "#203F49",
-              display: "flex",
-            }}
-          >
-            <FileText size={15} />
-          </button>
-        </div>
-      </div>
-      <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "7px 0",
-            borderBottom: "1px solid #F8F9FA",
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#888F94" }}>Teléfono</span>
-          <span style={{ fontSize: 13, color: "#203F49" }}>
-            {patient.phone}
-          </span>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "7px 0",
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#888F94" }}>Última visita</span>
-          <span
-            style={{
-              fontSize: 13,
-              color: patient.lastVisit ? "#203F49" : "#888F94",
-            }}
-          >
-            {patient.lastVisit ? formatDate(patient.lastVisit) : "Sin visitas"}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Pantalla principal ───────────────────────────────────────────────────────
 export function PatientsScreen({
   onCreatePatient,
   onEditPatient,
   onViewPatient,
 }: PatientsScreenProps) {
   const navigate = useNavigate();
-  const { isMobile, isTablet } = useResponsive();
-  const mountedRef = useRef(true);
-
   const [searchName, setSearchName] = useState("");
   const [searchIdentity, setSearchIdentity] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
   const [searchCode, setSearchCode] = useState("");
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [selectedMedicalPatient, setSelectedMedicalPatient] =
-    useState<Patient | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeFilters, setActiveFilters] = useState<PatientSearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -243,15 +107,10 @@ export function PatientsScreen({
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  const [searchVersion, setSearchVersion] = useState(0);
 
   const hasAnyFilter = Boolean(
-    searchName || searchIdentity || searchPhone || searchCode
+    searchName.trim() || searchIdentity.trim() || searchPhone.trim() || searchCode.trim(),
   );
 
   useEffect(() => {
@@ -259,39 +118,33 @@ export function PatientsScreen({
     setIsLoading(true);
     setError("");
 
-    api
-      .get<PersonasListResponse>("/persona", {
-        params: {
-          page: currentPage,
-          limit: DEFAULT_PAGE_SIZE,
-          nombre: activeFilters.nombre || undefined,
-          identidad: activeFilters.identidad || undefined,
-          telefono: activeFilters.telefono || undefined,
-          codigo: activeFilters.codigo || undefined,
-          includeConsulta: false,
-        },
-      })
+    api.get<PersonasListResponse>("/persona", {
+      params: {
+        page: currentPage,
+        limit: DEFAULT_PAGE_SIZE,
+        nombre: activeFilters.nombre || undefined,
+        identidad: activeFilters.identidad || undefined,
+        telefono: activeFilters.telefono || undefined,
+        codigo: activeFilters.codigo || undefined,
+        includeConsulta: false,
+      },
+    })
       .then((response) => {
         if (ignore) return;
+
         const personas = response.data?.data ?? [];
         const patients = personas.map(mapPersonaToPatient);
         setSearchResults(patients);
-        setPagination(
-          response.data?.pagination ?? {
-            total: patients.length,
-            page: currentPage,
-            limit: DEFAULT_PAGE_SIZE,
-            pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
-          }
-        );
+        setPagination(response.data?.pagination ?? {
+          total: patients.length,
+          page: currentPage,
+          limit: DEFAULT_PAGE_SIZE,
+          pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
+        });
       })
-      .catch((err: unknown) => {
+      .catch((requestError: { message?: string }) => {
         if (ignore) return;
-        const message =
-          err instanceof Error
-            ? err.message
-            : "No se pudieron cargar los pacientes.";
-        setError(message);
+        setError(requestError.message ?? "No se pudieron cargar los pacientes.");
         setSearchResults([]);
       })
       .finally(() => {
@@ -309,14 +162,12 @@ export function PatientsScreen({
     setError("");
     setHasSearched(true);
     setActiveFilters({
-      // Fix 2: normalizar tildes para que "Maria" encuentre "María"
-      nombre: searchName.trim()
-        ? normalizeSearch(searchName.trim())
-        : undefined,
-      identidad: searchIdentity.replace(/\D/g, "") || undefined,
-      telefono: searchPhone.replace(/\D/g, "") || undefined,
-      codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, "") || undefined,
+      nombre: searchName.trim(),
+      identidad: searchIdentity.replace(/\D/g, ""),
+      telefono: searchPhone.replace(/\D/g, ""),
+      codigo: searchCode.replace(/^PAC-/i, "").replace(/\D/g, ""),
     });
+    setSearchVersion((v) => v + 1);
     setCurrentPage(1);
   };
 
@@ -329,6 +180,7 @@ export function PatientsScreen({
     setSearchCode("");
     setHasSearched(false);
     setActiveFilters({});
+    setSearchVersion((v) => v + 1);
     setCurrentPage(1);
   };
 
@@ -337,587 +189,176 @@ export function PatientsScreen({
     if (!onEditPatient) navigate(`/patients/edit/${id}`);
   };
 
-  const handleViewPatient = (patient: Patient) => {
-    onViewPatient?.(patient.id);
-    setSelectedMedicalPatient(patient);
+  const handleViewMedicalInfo = (patientId: number) => {
+    onViewPatient?.(patientId);
+    navigate(`/patients/profile/${patientId}`);
   };
 
-  const handleTableParamsChange = useCallback(
-    ({
-      page,
-    }: {
-      page: number;
-      search: string;
-      filters: Record<string, string>;
-    }) => {
-      if (page === currentPage) return;
-      setIsLoading(true);
-      setError("");
-      setCurrentPage(page);
-    },
-    [currentPage]
-  );
+  const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
+    if (page === currentPage) return;
+    setIsLoading(true);
+    setError("");
+    setCurrentPage(page);
+  }, [currentPage]);
 
   const columns: Column<Patient>[] = [
     {
       key: "code",
-      label: "Código",
-      width: 130,
-      render: (_v, p) => (
-        <span
-          style={{
-            color: "var(--arco-primary)",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          {p.code}
+      label: "Código del paciente",
+      width: 160,
+      render: (_value, patient) => (
+        <span style={{ color: "var(--arco-primary)", fontSize: 13, fontWeight: 500 }}>
+          {patient.code}
         </span>
       ),
     },
     {
       key: "fullName",
       label: "Nombre completo",
-      render: (_v, p) => (
+      render: (_value, patient) => (
         <PatientNameButton
-          name={p.fullName}
-          onClick={() => navigate(`/patients/profile/${p.id}`)}
+          name={patient.fullName}
+          onClick={() => handleViewMedicalInfo(patient.id)}
         />
       ),
     },
-    { key: "phone", label: "Teléfono", width: 140 },
+    { key: "phone", label: "Teléfono", width: 160 },
     {
       key: "lastVisit",
-      label: "Última visita",
-      width: 150,
-      render: (_v, p) =>
-        p.lastVisit ? formatDate(p.lastVisit) : "Sin visitas",
+      label: "Fecha última consulta",
+      width: 170,
+      render: (_value, patient) => patient.lastVisit ? formatDate(patient.lastVisit) : "Sin consultas",
     },
   ];
 
-  // Grid de filtros: 1 col en móvil, 2 en tablet, 4 en desktop
-  const filterCols = isMobile ? "1fr" : isTablet ? "1fr 1fr" : "repeat(4, 1fr)";
-  const showCards = isMobile || isTablet;
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: isMobile ? 16 : 24,
-        width: "100%",
-      }}
-    >
-      {error && (
-        <Alert variant="error" message={error} onClose={() => setError("")} />
-      )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
+      {error ? <Alert variant="error" message={error} onClose={() => setError("")} /> : null}
 
-      {/* Header con título y botón crear */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
+      <Card>
+        <div style={{ marginBottom: 20 }}>
           <h3
             style={{
               color: "var(--arco-navy)",
               fontSize: 15,
               fontWeight: 600,
-              margin: "0 0 2px",
+              margin: "0 0 4px",
             }}
           >
             Filtros de búsqueda
           </h3>
-          <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: 0 }}>
-            Ingresa al menos un criterio para buscar
+          <p
+            style={{
+              color: "var(--arco-gray-500)",
+              fontSize: 12,
+              margin: 0,
+            }}
+          >
+            Ingresa al menos un criterio para buscar pacientes
           </p>
         </div>
-        <Button
-          variant="primary"
-          onClick={onCreatePatient ?? (() => navigate("/patients/new"))}
-          style={{ width: isMobile ? "100%" : undefined }}
-        >
-          <Plus size={16} /> Crear nuevo paciente
-        </Button>
-      </div>
 
-      {/* Filtros de búsqueda */}
-      <Card style={{ paddingTop: 16 }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: filterCols,
-            gap: 12,
-            marginBottom: 16,
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+            marginBottom: 20,
           }}
         >
           <Input
-            label="Nombre"
+            label="Búsqueda por nombre"
+            badge="optional"
             placeholder="Ej: María López"
             value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
+            onChange={(event) => setSearchName(event.target.value)}
             icon={<User size={15} />}
           />
           <Input
-            label="Identidad"
+            label="Búsqueda por número de identidad"
+            badge="optional"
             placeholder="Ej: 0801-1990-12345"
             value={searchIdentity}
-            onChange={(e) => setSearchIdentity(e.target.value)}
+            onChange={(event) => setSearchIdentity(event.target.value)}
             icon={<IdCard size={15} />}
           />
           <Input
-            label="Teléfono"
+            label="Búsqueda por teléfono"
+            badge="optional"
             placeholder="Ej: 9876-5432"
             value={searchPhone}
-            onChange={(e) => setSearchPhone(e.target.value)}
+            onChange={(event) => setSearchPhone(event.target.value)}
             icon={<Phone size={15} />}
           />
           <Input
-            label="Código"
+            label="Búsqueda por código autogenerado"
+            badge="optional"
             placeholder="Ej: PAC-000124"
             value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value)}
+            onChange={(event) => setSearchCode(event.target.value)}
             icon={<Hash size={15} />}
           />
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: isMobile ? "column" : "row",
-            gap: 10,
-          }}
-        >
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <Button
             variant="primary"
             onClick={handleSearch}
             disabled={!hasAnyFilter || isLoading}
-            style={{
-              flex: isMobile ? undefined : "1 1 0",
-              width: isMobile ? "100%" : undefined,
-            }}
+            style={{ flex: "1 1 220px" }}
           >
             <Search size={16} />
             {isLoading && hasSearched ? "Buscando..." : "Buscar paciente"}
           </Button>
+          <Button variant="secondary" onClick={handleClear} disabled={isLoading}>
+            <X size={16} />
+            Limpiar filtros
+          </Button>
           <Button
-            variant="secondary"
-            onClick={handleClear}
-            disabled={isLoading}
-            style={{ width: isMobile ? "100%" : undefined }}
+            variant="primary"
+            onClick={
+              onCreatePatient ?? (() => navigate("/patients/new"))
+            }
           >
-            <X size={16} /> Limpiar
+            <Plus size={16} />
+            Crear nuevo paciente
           </Button>
         </div>
       </Card>
 
-      {/* Contenido: cards en móvil/tablet, DataTable en desktop */}
-      {showCards ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {isLoading ? (
-            <p
-              style={{
-                textAlign: "center",
-                color: "#888F94",
-                fontSize: 14,
-                padding: 24,
-              }}
-            >
-              Cargando pacientes...
-            </p>
-          ) : searchResults.length === 0 ? (
-            <p
-              style={{
-                textAlign: "center",
-                color: "#888F94",
-                fontSize: 14,
-                padding: 24,
-              }}
-            >
-              No hay pacientes para mostrar.
-            </p>
-          ) : (
-            <>
-              <p style={{ fontSize: 12, color: "#888F94", margin: 0 }}>
-                {hasSearched
-                  ? `${pagination.total} resultado${
-                      pagination.total === 1 ? "" : "s"
-                    } encontrados`
-                  : `Total de ${pagination.total} pacientes registrados`}
-              </p>
-              {searchResults.map((p) => (
-                <PatientCard
-                  key={p.id}
-                  patient={p}
-                  onEdit={() => handleEditPatient(p.id)}
-                  onView={() => handleViewPatient(p)}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      ) : (
-        <DataTable<Patient>
-          key={hasSearched ? JSON.stringify(activeFilters) : "all-patients"}
-          columns={columns}
-          data={isLoading ? [] : searchResults}
-          title={
-            hasSearched ? "Resultados de búsqueda" : "Listado de pacientes"
-          }
-          description={
-            isLoading
-              ? "Cargando pacientes registrados..."
-              : hasSearched
-              ? `${pagination.total} resultado${
-                  pagination.total === 1 ? "" : "s"
-                } encontrados`
+      <DataTable<Patient>
+        key={`patients-table-${searchVersion}`}
+        columns={columns}
+        data={isLoading ? [] : searchResults}
+        description={
+          isLoading
+            ? "Cargando pacientes registrados..."
+            : hasSearched
+              ? `${pagination.total} resultado${pagination.total === 1 ? "" : "s"} encontrados`
               : `Total de ${pagination.total} pacientes registrados`
-          }
-          emptyMessage={
-            isLoading
-              ? "Cargando pacientes..."
-              : "No hay pacientes para mostrar."
-          }
-          getRowKey={(p) => String(p.id)}
-          isServerSide
-          onServerParamsChange={handleTableParamsChange}
-          pageSize={DEFAULT_PAGE_SIZE}
-          totalRecords={pagination.total}
-          searchable={false}
-          rowActions={(p) => [
-            {
-              icon: <Pencil size={14} />,
-              label: "Editar paciente",
-              onClick: () => handleEditPatient(p.id),
-            },
-            {
-              icon: <FileText size={14} />,
-              label: "Ver información médica",
-              onClick: () => handleViewPatient(p),
-            },
-          ]}
-        />
-      )}
+        }
+        emptyMessage={isLoading ? "Cargando pacientes..." : "No hay pacientes para mostrar."}
+        getRowKey={(patient) => String(patient.id)}
+        isServerSide
+        onServerParamsChange={handleTableParamsChange}
+        pageSize={DEFAULT_PAGE_SIZE}
+        rowActions={(patient) => [
+          {
+            icon: <Edit size={14} />,
+            label: "Editar paciente",
+            onClick: () => handleEditPatient(patient.id),
+          },
+          {
+            icon: <Eye size={14} />,
+            label: "Ver información médica",
+            onClick: () => handleViewMedicalInfo(patient.id),
+          },
+        ]}
+        searchable={false}
+        title={hasSearched ? "Resultados de búsqueda" : "Listado de pacientes"}
+        totalRecords={pagination.total}
+      />
 
-      {selectedMedicalPatient && (
-        <MedicalInfoModal
-          patient={selectedMedicalPatient}
-          onClose={() => setSelectedMedicalPatient(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ─── Modal información médica ─────────────────────────────────────────────────
-function MedicalInfoModal({
-  onClose,
-  patient,
-}: {
-  onClose: () => void;
-  patient: Patient;
-}) {
-  const { isMobile } = useResponsive();
-
-  const enfermedadesStr = patient.enfermedades as string | null;
-  let enfermedadesList: string[] = [];
-  try {
-    if (enfermedadesStr) enfermedadesList = JSON.parse(enfermedadesStr);
-  } catch {
-    /* fail-safe */
-  }
-
-  const otrasEnfermedades = patient.otras_enfermedades as string | null;
-  const medicamentos = patient.medicamentos as string | null;
-  const alergias = patient.alergias as string | null;
-  const reaccionAnestesia = patient.reaccion_anestesia as string | null;
-  const hasMedicalInfo =
-    enfermedadesList.length > 0 ||
-    otrasEnfermedades ||
-    medicamentos ||
-    alergias ||
-    reaccionAnestesia;
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(32,63,73,0.35)",
-        backdropFilter: "blur(2px)",
-        display: "flex",
-        alignItems: isMobile ? "flex-end" : "center",
-        justifyContent: "center",
-        padding: isMobile ? 0 : 24,
-        zIndex: Z.MODAL_OVERLAY,
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #D3D7DA",
-          borderRadius: isMobile ? "16px 16px 0 0" : 12,
-          boxShadow: "0 24px 70px rgba(32,63,73,0.18)",
-          maxWidth: isMobile ? "100%" : 720,
-          width: "100%",
-          maxHeight: isMobile ? "90vh" : undefined,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* Handle móvil */}
-        {isMobile && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              padding: "12px 0 4px",
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 4,
-                borderRadius: 9999,
-                background: "#D3D7DA",
-              }}
-            />
-          </div>
-        )}
-
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            padding: isMobile ? "12px 20px 16px" : 20,
-            borderBottom: "1px solid #F1F3F4",
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                color: "#203F49",
-                fontSize: 18,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
-              Información médica
-            </h3>
-            <p style={{ color: "#888F94", fontSize: 12, margin: "4px 0 0" }}>
-              {patient.fullName} · {patient.code}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            type="button"
-            style={{
-              alignItems: "center",
-              background: "#fff",
-              border: "1px solid #D3D7DA",
-              borderRadius: 6,
-              color: "#888F94",
-              cursor: "pointer",
-              display: "flex",
-              height: 32,
-              justifyContent: "center",
-              width: 32,
-            }}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div
-          style={{
-            overflowY: "auto",
-            flex: 1,
-            padding: isMobile ? "16px 20px" : 20,
-          }}
-        >
-          {hasMedicalInfo ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {enfermedadesList.length > 0 && (
-                <div>
-                  <strong
-                    style={{
-                      color: "#203F49",
-                      fontSize: 13,
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    Enfermedades sistémicas:
-                  </strong>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {enfermedadesList.map((disease) => {
-                      const matched = PATIENT_SYSTEMIC_DISEASES.find(
-                        (d) => d.id === disease
-                      );
-                      return (
-                        <span
-                          key={disease}
-                          style={{
-                            background: "var(--arco-primary-light)",
-                            color: "var(--arco-primary)",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            padding: "4px 10px",
-                            borderRadius: 20,
-                          }}
-                        >
-                          {matched?.label || disease}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {otrasEnfermedades && (
-                <div>
-                  <strong
-                    style={{
-                      color: "#203F49",
-                      fontSize: 13,
-                      display: "block",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Otras enfermedades:
-                  </strong>
-                  <p
-                    style={{
-                      color: "#5F656A",
-                      fontSize: 13,
-                      margin: 0,
-                      background: "#F8F9FA",
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                    }}
-                  >
-                    {otrasEnfermedades}
-                  </p>
-                </div>
-              )}
-              {medicamentos && (
-                <div>
-                  <strong
-                    style={{
-                      color: "#203F49",
-                      fontSize: 13,
-                      display: "block",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Medicamentos actuales:
-                  </strong>
-                  <p
-                    style={{
-                      color: "#5F656A",
-                      fontSize: 13,
-                      margin: 0,
-                      background: "#F8F9FA",
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                    }}
-                  >
-                    {medicamentos}
-                  </p>
-                </div>
-              )}
-              {alergias && (
-                <div>
-                  <strong
-                    style={{
-                      color: "#203F49",
-                      fontSize: 13,
-                      display: "block",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Alergias a medicamentos:
-                  </strong>
-                  <p
-                    style={{
-                      color: "#5F656A",
-                      fontSize: 13,
-                      margin: 0,
-                      background: "#F8F9FA",
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      border: "1px solid #D3D7DA",
-                    }}
-                  >
-                    {alergias}
-                  </p>
-                </div>
-              )}
-              {reaccionAnestesia && (
-                <div>
-                  <strong
-                    style={{
-                      color: "#203F49",
-                      fontSize: 13,
-                      display: "block",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Historial de anestesia:
-                  </strong>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      padding: "4px 10px",
-                      borderRadius: 6,
-                      background:
-                        reaccionAnestesia === "si"
-                          ? "var(--arco-danger-soft)"
-                          : "var(--arco-success-soft)",
-                      color:
-                        reaccionAnestesia === "si"
-                          ? "var(--arco-danger)"
-                          : "var(--arco-success)",
-                    }}
-                  >
-                    {reaccionAnestesia === "si"
-                      ? "Sí, ha tenido reacciones a la anestesia"
-                      : "No ha tenido reacciones a la anestesia"}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div
-              style={{
-                background: "#F8F9FA",
-                border: "1px solid #D3D7DA",
-                borderRadius: 8,
-                color: "#888F94",
-                fontSize: 13,
-                padding: "24px 16px",
-                textAlign: "center",
-              }}
-            >
-              Sin información médica registrada para este paciente.
-            </div>
-          )}
-          <p style={{ color: "#888F94", fontSize: 12, margin: "16px 0 0" }}>
-            Los antecedentes médicos iniciales se guardan en el perfil del
-            paciente.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -930,6 +371,7 @@ function PatientNameButton({
   onClick: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+
   return (
     <button
       onClick={onClick}
@@ -947,7 +389,6 @@ function PatientNameButton({
         textAlign: "left",
         textDecoration: isHovered ? "underline" : "none",
         textUnderlineOffset: 3,
-        transition: "color 0.15s ease",
       }}
       title="Abrir perfil del paciente"
     >

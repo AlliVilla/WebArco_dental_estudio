@@ -2,6 +2,7 @@ interface ConsultaHistorica {
   id_consulta: number;
   id_persona: number;
   id_usuario: number;
+  doctor: Doctor;
   fecha_inicio: string;
   fecha_fin?: string | null;
   diagnostico?: string | null;
@@ -11,8 +12,50 @@ interface ConsultaHistorica {
   firma_paciente?: string | null;
   firma_doctor_snapshot?: string | null;
   consentimiento: boolean;
+  estado_firmas?: {
+    firma_paciente_presente: boolean;
+    firma_doctor_presente: boolean;
+    firmas_completas: boolean;
+    pendientes: string[];
+  };
   tratamientos: ConsultaTratamiento [];
   archivos: Archivo[];
+  pagos?: PagoPaciente[];
+  respuestas?: {
+    id_respuesta: number;
+    id_consulta: number;
+    id_pregunta: number;
+    respuesta_boolean?: boolean | null;
+    explanation?: string | null;
+    pregunta?: {
+      id_pregunta: number;
+      pregunta: string;
+      orden_num: number;
+    };
+  }[];
+}
+
+export type PagoPaciente = {
+  id_pago: number;
+  id_consulta: number;
+  fecha: string;
+  abono: number;
+  observacion: string | null;
+  firma_paciente: string | null;
+}
+
+export type Doctor = {
+  id_usuario: number;
+  username: string;
+  firma: string | null;
+  persona: Persona;
+}
+
+export type Persona = {
+  id_persona: number;
+  primer_nombre: string;
+  primer_apellido: string;
+  sexo: 'M' | 'F';
 }
 
 export type Archivo = {
@@ -35,8 +78,8 @@ export type ExpedientePaciente = {
   correo_electronico: string | null;
   direccion_linea: string | null;
   sexo: string;
-  enfermedadBase?: string | null;
-  tomaMedicamento?: string | null;
+  enfermedades?: string | null;
+  medicamentos?: string | null;
   alergias?: string | null;
   consultas: ConsultaHistorica[];
   municipio: {
@@ -74,3 +117,4 @@ export type ExpedientePacienteResponse = {
     total: number,
   }
 }
+

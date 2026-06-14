@@ -97,6 +97,7 @@ async function insertRolesPrivilegios() {
     { id_rol: 3, id_privilegio: 12 },
     { id_rol: 3, id_privilegio: 13 },
     { id_rol: 3, id_privilegio: 14 },
+    { id_rol: 3, id_privilegio: 63 },
   ];
 
   await prisma.rolPrivilegio.createMany({

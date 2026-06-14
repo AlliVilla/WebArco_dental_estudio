@@ -57,6 +57,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
+    if (!(exception instanceof HttpException)) {
+      console.error('Unhandled Exception:', exception);
+    }
+
     const body: ApiResponseDto<unknown> = {
       success: false,
       data,

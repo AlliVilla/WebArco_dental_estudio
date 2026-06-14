@@ -126,7 +126,7 @@ export class ConsultaService {
       where: { id_consulta: id },
       include: {
         ...consultaInclude,
-        antecedentes: {
+        respuestas: {
           include: {
             pregunta: {
               select: {
@@ -209,7 +209,7 @@ export class ConsultaService {
   async remove(id: number) {
     await this.findOne(id);
 
-    const antecedentesCount = await this.prisma.antecedenteRespuesta.count({
+    const antecedentesCount = await this.prisma.consultaRespuesta.count({
       where: { id_consulta: id },
     });
     const odontogramasCount = await this.prisma.odontograma.count({
