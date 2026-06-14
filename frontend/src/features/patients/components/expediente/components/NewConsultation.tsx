@@ -491,6 +491,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         const payload = {
             id_usuario: idUsuario,
             fecha_inicio: fechaISO,
+            fecha_fin: new Date().toISOString(),
             motivo: motivoFinal.trim() || undefined,
             diagnostico: diagnostico.trim() || undefined,
             tratamiento: tratamientosText,

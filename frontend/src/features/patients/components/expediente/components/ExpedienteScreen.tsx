@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { NuevaConsulta } from './NewConsultation';
 import {
   Plus,
@@ -16,7 +16,7 @@ import {
   CreditCard,
   Image as ImageIcon,
 } from 'lucide-react';
-import { DataTable, Column } from '../../../../../components';
+import { DataTable, Column, StatsDrawer } from '../../../../../components';
 import { Alert, Card, Button, Input } from '../../../../../context';
 
 import {expedientService} from '../services/expedientService';
@@ -27,6 +27,8 @@ import {ExpedientePaciente} from '../types/getAllPacientes';
 import type {ConsultaHistorica} from '../types/getAllPacientes';
 import api from '../../../../../services/api';
 import billingService from '../../../../billing/services/billingService';
+import { useResponsive } from '../../../../../hooks/useWindowWidth';
+import { normalizeSearch } from '../../../../../utils/formatters';
 
 const C = {
   primary: 'var(--arco-primary, #0BC5DF)',
@@ -50,10 +52,43 @@ const C = {
 
 const PAGE_SIZE = 10;
 
+// ─── Card de paciente para móvil ──────────────────────────────────────────────
+function PatientCard({ exp, onClick }: { exp: ExpedientePaciente; onClick: () => void }) {
+  const hasPending = exp.consultas?.some((c) => !c.firma_paciente || !c.firma_doctor_snapshot);
+  const nombre = [exp.primer_nombre, exp.segundo_nombre, exp.primer_apellido, exp.segundo_apellido].filter(Boolean).join(' ');
+  const initials = `${exp.primer_nombre?.[0] ?? ''}${exp.primer_apellido?.[0] ?? ''}`.toUpperCase();
+  return (
+    <div onClick={onClick} style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.gray300}`, padding: 16, cursor: 'pointer' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.primary, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.navy, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nombre}</p>
+            <p style={{ fontSize: 12, color: C.gray500, margin: '2px 0 0' }}>{exp.numero_identidad}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {hasPending ? (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 8, background: '#FFFBEB', color: '#D97706' }}>Pendiente</span>
+          ) : (
+            <CheckCircle size={16} color={C.success} />
+          )}
+          <ChevronRight size={16} color={C.gray500} />
+        </div>
+      </div>
+      <div style={{ fontSize: 11, color: C.gray500 }}>{(exp.consultas?.length ?? 0)} consulta{(exp.consultas?.length ?? 0) !== 1 ? 's' : ''} · {exp.telefono}</div>
+    </div>
+  );
+}
+
 // ── Componente principal ────────────────────────────────────────────────────────
 
 export function ExpedienteScreen() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isMobile, isTablet } = useResponsive();
   const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta' | 'odontograma-view'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<{ nombre: string; url: string } | null>(null);
@@ -78,6 +113,7 @@ export function ExpedienteScreen() {
   const [savingPago, setSavingPago] = useState(false);
   const [pagoError, setPagoError] = useState('');
   const [showGalleryPlaceholder, setShowGalleryPlaceholder] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState<'visitas' | 'completadas' | 'firmas' | null>(null);
 
   // Paginación client-side
   const [currentPage, setCurrentPage] = useState(1);
@@ -134,6 +170,18 @@ export function ExpedienteScreen() {
     [expedientes],
   );
 
+  const kpiCols = isMobile || isTablet ? '1fr 1fr' : 'repeat(3, 1fr)';
+  const showCards = isMobile || isTablet;
+
+  const [mobileSearch, setMobileSearch] = useState('');
+  const filteredExps = useMemo(
+    () => !mobileSearch ? expedientes : expedientes.filter((e) => {
+      const nombre = [e.primer_nombre, e.segundo_nombre, e.primer_apellido, e.segundo_apellido].filter(Boolean).join(' ');
+      return normalizeSearch(nombre).includes(normalizeSearch(mobileSearch)) || e.numero_identidad.includes(mobileSearch) || e.telefono.includes(mobileSearch);
+    }),
+    [expedientes, mobileSearch],
+  );
+
   const completadas = useMemo(
     () =>
       expedientes.reduce(
@@ -152,6 +200,12 @@ export function ExpedienteScreen() {
       ),
     [expedientes],
   );
+
+  const drawerConfigs = [
+    { key: 'visitas' as const, title: 'Total Consultas', subtitle: 'Todas las consultas registradas', value: totalConsultas, color: '#0BC5DF', border: 'rgba(11,197,223,0.24)', items: expedientes.filter((e) => (e.consultas?.length ?? 0) > 0) },
+    { key: 'completadas' as const, title: 'Completadas', subtitle: 'Consultas completadas', value: completadas, color: '#1D9E75', border: 'rgba(29,158,117,0.24)', items: expedientes.filter((e) => (e.consultas?.filter((c) => c.fecha_fin).length ?? 0) > 0) },
+    { key: 'firmas' as const, title: 'Firmas Digitales', subtitle: 'Consultas con firma completa', value: firmasDigitales, color: '#EF9F27', border: 'rgba(239,159,39,0.24)', items: expedientes.filter((e) => e.consultas?.some((c) => c.firma_paciente && c.firma_doctor_snapshot)) },
+  ];
 
   const activePatient = expedientes.find((e) => e.id_persona === selectedPatientId);
 
@@ -235,7 +289,9 @@ export function ExpedienteScreen() {
           <span style={{ fontWeight: 600, color: C.navy }}>
             {ultimaConsulta?.fecha_fin
               ? new Date(ultimaConsulta.fecha_fin).toLocaleDateString('es-HN')
-              : 'N/A'}
+              : ultimaConsulta?.fecha_inicio
+                ? new Date(ultimaConsulta.fecha_inicio).toLocaleDateString('es-HN')
+                : 'N/A'}
           </span>
         );
       },
@@ -292,50 +348,62 @@ export function ExpedienteScreen() {
 
       {/* ══ VISTA 1: Listado ════════════════════════════════════════════════ */}
       {viewState === 'list' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <Card style={{ border: '1.5px solid rgba(11, 197, 223, 0.24)', padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-primary, #0BC5DF)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Total Consultas</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>{totalConsultas}</span>
-            </Card>
-            <Card style={{ border: '1.5px solid rgba(29, 158, 117, 0.24)', padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-success, #1D9E75)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Completadas</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>{completadas}</span>
-            </Card>
-            <Card style={{ border: '1.5px solid rgba(239, 159, 39, 0.24)', padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--arco-warning, #EF9F27)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Firmas Digitales</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #203F49)', marginTop: 8, lineHeight: 1 }}>{firmasDigitales}</span>
-            </Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
+          {/* KPIs clicables */}
+          <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: isMobile ? 10 : 16 }}>
+            {drawerConfigs.map((kpi) => (
+              <button key={kpi.key} onClick={() => setOpenDrawer(kpi.key)}
+                style={{ border: `1.5px solid ${kpi.border}`, borderRadius: 12, padding: isMobile ? '14px 16px' : '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', background: C.white, textAlign: 'left', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 700, color: kpi.color, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{kpi.title}</span>
+                <span style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: C.navy, marginTop: 8, lineHeight: 1 }}>{kpi.value}</span>
+              </button>
+            ))}
           </div>
 
-          {/* Tabla — solo muestra la página actual */}
-          <DataTable<ExpedientePaciente>
-            title="Expedientes Clínicos"
-            description={
-              loading
-                ? 'Cargando pacientes registrados...'
-                : `Total de ${expedientes.length} pacientes registrados`
-            }
-            emptyMessage={loading ? 'Cargando pacientes...' : 'No hay pacientes para mostrar.'}
-            columns={columns}
-            data={pagedExpedientes}
-            searchable={true}
-            totalRecords={expedientes?.length ?? 0}
-            pageSize={PAGE_SIZE}
-            isServerSide
-            onServerParamsChange={handleTableParamsChange}
-            searchPlaceholder="Buscar por nombre o número de identidad o teléfono..."
-            searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad', 'telefono']}
-            getRowKey={(row) => String(row.id_persona)}
-            rowActions={getRowActions}
-          />
+          {/* Vista móvil/tablet: cards */}
+          {showCards ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input value={mobileSearch} onChange={(e) => setMobileSearch(e.target.value)}
+                placeholder="Buscar por nombre, identidad o teléfono..."
+                style={{ width: '100%', padding: '10px 14px', border: `1px solid ${C.gray300}`, borderRadius: 10, fontSize: 13, outline: 'none', color: C.navy, background: C.white, boxSizing: 'border-box' }}
+              />
+              {filteredExps.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: C.gray500, fontSize: 13, border: `1px dashed ${C.gray300}`, borderRadius: 8 }}>
+                  {mobileSearch ? 'No se encontraron pacientes con ese criterio.' : 'No hay pacientes registrados.'}
+                </div>
+              ) : (
+                filteredExps.map((exp) => (
+                  <PatientCard key={exp.id_persona} exp={exp} onClick={() => handleSelectPatient(exp.id_persona)} />
+                ))
+              )}
+            </div>
+          ) : (
+            <DataTable<ExpedientePaciente>
+              title="Expedientes Clínicos"
+              description={loading ? 'Cargando pacientes registrados...' : `Total de ${expedientes.length} pacientes registrados`}
+              emptyMessage={loading ? 'Cargando pacientes...' : 'No hay pacientes para mostrar.'}
+              columns={columns}
+              data={pagedExpedientes}
+              searchable={true}
+              totalRecords={expedientes?.length ?? 0}
+              pageSize={PAGE_SIZE}
+              isServerSide
+              onServerParamsChange={handleTableParamsChange}
+              searchPlaceholder="Buscar por nombre o número de identidad o teléfono..."
+              searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad', 'telefono']}
+              getRowKey={(row) => String(row.id_persona)}
+              rowActions={getRowActions}
+            />
+          )}
         </div>
       )}
 
       {/* ══ VISTA 2: Detalle ════════════════════════════════════════════════ */}
       {viewState === 'detail' && activePatient && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <Button
               onClick={handleBackToList}
@@ -361,20 +429,20 @@ export function ExpedienteScreen() {
           </div>
 
           {/* Perfil del paciente */}
-          <Card style={{ padding: 24, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <Card style={{ padding: isMobile ? 16 : 24, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
+            <div style={{ display: 'flex', gap: isMobile ? 12 : 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div
                 aria-label="Iniciales del paciente"
                 style={{
-                  width: 72,
-                  height: 72,
+                  width: isMobile ? 52 : 72,
+                  height: isMobile ? 52 : 72,
                   borderRadius: '50%',
                   background: C.primary,
                   color: C.white,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 22,
+                  fontSize: isMobile ? 18 : 22,
                   fontWeight: 700,
                   flexShrink: 0,
                   boxShadow: '0 2px 8px rgba(11, 197, 223, 0.16)'
@@ -383,9 +451,9 @@ export function ExpedienteScreen() {
                 {`${activePatient.primer_nombre?.[0] || ''}${activePatient.primer_apellido?.[0] || ''}`.toUpperCase() || 'P'}
               </div>
 
-              <div style={{ flex: 1, minWidth: 280 }}>
+              <div style={{ flex: 1, minWidth: isMobile ? 200 : 280 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.navy }}>
+                  <h2 style={{ margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 700, color: C.navy }}>
                     {[activePatient.primer_nombre, activePatient.segundo_nombre, activePatient.primer_apellido, activePatient.segundo_apellido].filter(Boolean).join(' ')}
                   </h2>
                   <span style={{
@@ -427,7 +495,7 @@ export function ExpedienteScreen() {
 
           {/* Historial de consultas */}
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Consultas</h3>
+            <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Consultas</h3>
 
             {activePatient?.consultas.length === 0 ? (
               <div style={{ border: `2px dashed ${C.primary}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: C.primary008 }}>
@@ -466,7 +534,7 @@ export function ExpedienteScreen() {
                               ? C.primary04
                               : C.gray300
                         }`,
-                        padding: '20px 24px',
+                        padding: isMobile ? '14px 16px' : '20px 24px',
                         display: 'flex',
                         flexDirection: 'column',
                         transition: 'border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
@@ -913,6 +981,21 @@ export function ExpedienteScreen() {
           </button>
         </div>
       )}
+
+      {/* Drawers de KPIs */}
+      {drawerConfigs.map(({ key, title, subtitle, items }) => (
+        <StatsDrawer
+          key={key}
+          isOpen={openDrawer === key}
+          onClose={() => setOpenDrawer(null)}
+          title={title}
+          subtitle={subtitle}
+          data={items}
+          searchPlaceholder="Buscar paciente..."
+          searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad']}
+          onSelectPatient={(patientId: number) => { setOpenDrawer(null); handleSelectPatient(patientId); }}
+        />
+      ))}
 
       {/* Galería de Fotos — Placeholder */}
       {showGalleryPlaceholder && (
