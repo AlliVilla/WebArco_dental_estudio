@@ -19,6 +19,7 @@ import { ConsultationQuestions } from './ConsultationQuestions';
 import { treatmentService } from '../../../../treatments/services/treatmentService';
 import type { Treatment } from '../../../../treatments/types';
 import { tratamientoPacienteService, type TratamientoPacienteResponse } from '../services/tratamientoPacienteService';
+import { pagoConsultaService } from '../services/pagoConsultaService';
 
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
@@ -280,6 +281,22 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [busquedaPlan, setBusquedaPlan] = useState('');
     const [montoPorPlan, setMontoPorPlan] = useState<Record<number, number>>({});
 
+    // ── Creación de plan desde tratamiento seleccionado ──
+    const [planForm, setPlanForm] = useState<{
+        treatmentId: string | null;
+        nombre: string;
+        costoTotal: string;
+        fechaInicio: string;
+        montoAbono: string;
+        saving: boolean;
+    }>({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false });
+
+    interface PendingAbono {
+        tratamientoPacienteId: number;
+        montoAbonado: number;
+    }
+    const [pendingAbonos, setPendingAbonos] = useState<PendingAbono[]>([]);
+
     const loadTratamientosPaciente = useCallback(async () => {
         try {
             const res = await tratamientoPacienteService.findByPaciente(patient.id_persona);
@@ -429,6 +446,58 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         addToast('info', `Concepto "${nombre}" agregado.`);
     };
 
+    const initPlanForm = (t: TratamientoConsulta) => {
+        const today = new Date().toISOString().slice(0, 10);
+        setPlanForm({
+            treatmentId: t.id,
+            nombre: t.nombre,
+            costoTotal: String(t.precio),
+            fechaInicio: today,
+            montoAbono: '',
+            saving: false,
+        });
+    };
+
+    const handleCreatePlan = async () => {
+        const current = planForm;
+        if (!current.treatmentId || !current.nombre || !current.costoTotal) return;
+        const costo = parseFloat(current.costoTotal);
+        if (isNaN(costo) || costo <= 0) { addToast('error', 'El costo total debe ser un número válido mayor a 0.'); return; }
+
+        setPlanForm((prev) => ({ ...prev, saving: true }));
+        try {
+            const res = await tratamientoPacienteService.create({
+                pacienteId: patient.id_persona,
+                nombre: current.nombre,
+                costoTotal: costo,
+                fechaInicio: current.fechaInicio || new Date().toISOString().slice(0, 10),
+            });
+            const planData = res.data?.data ?? res.data;
+            if (res.success && planData?.id) {
+                setTratamientos((prev) =>
+                    prev.map((t) =>
+                        t.id === current.treatmentId ? { ...t, tratamientoPacienteId: planData.id } : t,
+                    ),
+                );
+                const monto = parseFloat(current.montoAbono);
+                if (!isNaN(monto) && monto > 0) {
+                    setPendingAbonos((prev) => [...prev, {
+                        tratamientoPacienteId: planData.id,
+                        montoAbonado: monto,
+                    }]);
+                }
+                setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false });
+                addToast('success', 'Plan de tratamiento creado exitosamente');
+                loadTratamientosPaciente();
+            } else {
+                throw new Error(res.message || 'Error al crear el plan');
+            }
+        } catch (e: any) {
+            addToast('error', e?.message || 'Error al crear el plan de tratamiento');
+            setPlanForm((prev) => ({ ...prev, saving: false }));
+        }
+    };
+
     // ── Save ───────────────────────────────────────────────────────────────────
     const handleSave = () => {
         setShowConfirmModal(true);
@@ -549,6 +618,23 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                         await odontogramaService.bulkSave(consultaId, items);
                         clearOdontogramaDraft(patient.id_persona);
                     } catch { /* ignore odontogram save error */ }
+                }
+
+                if (pendingAbonos.length > 0 && consultaId) {
+                    try {
+                        const totalMonto = pendingAbonos.reduce((s, a) => s + a.montoAbonado, 0);
+                        await pagoConsultaService.create({
+                            consultaId,
+                            monto: totalMonto,
+                            metodoPago: 'EFECTIVO',
+                            observacion: 'Abono registrado durante la consulta',
+                            abonos: pendingAbonos.map((a) => ({
+                                tratamientoPacienteId: a.tratamientoPacienteId,
+                                montoAbonado: a.montoAbonado,
+                            })),
+                        });
+                        setPendingAbonos([]);
+                    } catch { /* ignore payment error */ }
                 }
 
                 addToast('success', res.message || 'Consulta registrada exitosamente');
@@ -1013,26 +1099,132 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {tratamientos.map((t, idx) => (
-                                        <div key={t.id} style={{ display: 'flex', flexDirection: 'column', background: C.white, border: `1.5px solid ${C.gray300}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                                    {tratamientos.map((t, idx) => {
+                                        const isPlan = !!t.tratamientoPacienteId;
+                                        const isCreating = planForm.treatmentId === t.id;
+                                        return (
+                                        <div key={t.id} style={{ display: 'flex', flexDirection: 'column', background: C.white, border: `1.5px solid ${isCreating ? C.primary : C.gray300}`, borderRadius: 10, overflow: 'hidden', boxShadow: isCreating ? '0 4px 16px rgba(11, 197, 223, 0.15)' : '0 1px 4px rgba(0,0,0,0.04)' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                     <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>
-                                                        {t.tratamientoPacienteId ? 'Plan activo' : `Item ${idx + 1}`}
+                                                        {isPlan ? 'Plan activo' : `Item ${idx + 1}`}
                                                     </span>
                                                     <span style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>{t.nombre}</span>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                     <span style={{ fontSize: 16, fontWeight: 800, color: C.success }}>
                                                         L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                                     </span>
-                                                    <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, padding: 4 }}>
-                                                        <Trash2 size={15} />
-                                                    </button>
+                                                    {!isPlan && !isCreating && (
+                                                        <button
+                                                            onClick={() => initPlanForm(t)}
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: 5,
+                                                                background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                                                                color: C.white, border: 'none', borderRadius: 8,
+                                                                padding: '6px 12px', fontSize: 11, fontWeight: 700,
+                                                                cursor: 'pointer', whiteSpace: 'nowrap',
+                                                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                                                            }}
+                                                        >
+                                                            <Zap size={13} /> Crear Plan
+                                                        </button>
+                                                    )}
+                                                    {isPlan && (
+                                                        <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 12, background: C.primaryBg, color: C.primary, border: `1px solid ${C.primary}33`, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                            Plan activo
+                                                        </span>
+                                                    )}
+                                                    {!isPlan && (
+                                                        <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, padding: 4 }}>
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
+
+                                            {isCreating && (
+                                                <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '18px', background: C.gray50 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <Zap size={15} color={C.primary} /> Nuevo Plan de Tratamiento
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+                                                        <div>
+                                                            <FieldLabel>Nombre del plan</FieldLabel>
+                                                            <input
+                                                                value={planForm.nombre}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                                                                placeholder="Nombre del plan"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <FieldLabel>Costo total (L.)</FieldLabel>
+                                                            <input
+                                                                value={planForm.costoTotal}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, costoTotal: e.target.value }))}
+                                                                type="number" min="0" step="0.01"
+                                                                placeholder="0.00"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <FieldLabel>Fecha de inicio</FieldLabel>
+                                                            <input
+                                                                value={planForm.fechaInicio}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, fechaInicio: e.target.value }))}
+                                                                type="date"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ borderTop: `1px solid ${C.gray300}`, paddingTop: 14, marginBottom: 14 }}>
+                                                        <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.warning, display: 'inline-block' }} />
+                                                            Abono en esta consulta (opcional)
+                                                        </div>
+                                                        <div>
+                                                            <FieldLabel>Monto (L.)</FieldLabel>
+                                                            <input
+                                                                value={planForm.montoAbono}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, montoAbono: e.target.value }))}
+                                                                type="number" min="0" step="0.01"
+                                                                placeholder="0.00"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ fontSize: 11, color: C.gray500, marginTop: 6 }}>
+                                                            {pendingAbonos.length > 0 && (
+                                                                <span>Abonos pendientes por registrar: {pendingAbonos.length}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                                        <button
+                                                            onClick={() => setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false })}
+                                                            style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: C.white, color: C.gray500, border: `1px solid ${C.gray300}`, cursor: 'pointer' }}
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                        <button
+                                                            onClick={handleCreatePlan}
+                                                            disabled={planForm.saving}
+                                                            style={{
+                                                                padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                                                background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                                                                color: C.white, border: 'none', cursor: planForm.saving ? 'not-allowed' : 'pointer',
+                                                                opacity: planForm.saving ? 0.7 : 1,
+                                                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                                                            }}
+                                                        >
+                                                            {planForm.saving ? 'Guardando...' : 'Guardar Plan'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div> 
                             )}
                         </SectionCard>
