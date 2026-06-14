@@ -102,17 +102,18 @@ export const billingService = {
     return api.post('/cierre', {}, { params: { tipo } });
   },
 
-  previewCierre: async (tipo: TipoCierre = 'Diario'): Promise<ApiResponse<{
+  previewCierre: async (fecha: string): Promise<ApiResponse<{
+    fecha: string;
     totalIngresos: number;
     totalEgresos: number;
     utilidad: number;
-    efectivo: number;
-    tarjeta: number;
-    transferencia: number;
-    fecha: string;
-    tipoCierre: TipoCierre;
+    ingresos: {
+      efectivo: number;
+      tarjeta: number;
+      transferencia: number;
+    };
   }>> => {
-    return api.post('/cierre/preview', {}, { params: { tipo } });
+    return api.get('/cierre/preview', { params: { fecha } });
   },
 };
 

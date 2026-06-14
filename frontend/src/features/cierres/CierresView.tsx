@@ -97,6 +97,17 @@ export function CierresView() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Vista previa del cierre diario
+  const [previewData, setPreviewData] = useState<{
+    totalIngresos: number;
+    totalEgresos: number;
+    utilidad: number;
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+  } | null>(null);
+  const [cargandoPreview, setCargandoPreview] = useState(false);
+
   // ---------- fetch al montar ----------
   const cargarHistorial = useCallback(async () => {
     setCargando(true);
@@ -119,6 +130,40 @@ export function CierresView() {
     cargarHistorial();
   }, [cargarHistorial]);
 
+  const cargarPreview = useCallback(async (fecha: string) => {
+    setCargandoPreview(true);
+    setError(null);
+    try {
+      const parts = fecha.split('-');
+      if (parts.length === 3) {
+        const fechaFormat = `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+        const res = await billingService.previewCierre(fechaFormat);
+        if (res.success && res.data) {
+          setPreviewData({
+            totalIngresos: res.data.totalIngresos,
+            totalEgresos: res.data.totalEgresos,
+            utilidad: res.data.utilidad,
+            efectivo: res.data.ingresos.efectivo,
+            tarjeta: res.data.ingresos.tarjeta,
+            transferencia: res.data.ingresos.transferencia,
+          });
+        } else {
+          setError(res.message ?? 'Error al obtener la vista previa.');
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? 'Error al obtener la vista previa del cierre.');
+    } finally {
+      setCargandoPreview(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'diario') {
+      cargarPreview(fechaCierre);
+    }
+  }, [activeTab, fechaCierre, cargarPreview]);
+
   const handleCerrarDia = async () => {
     setCreandoCierre(true);
     setError(null);
@@ -128,6 +173,7 @@ export function CierresView() {
       if (res.success) {
         setSuccessMsg(res.message ?? 'Cierre de caja generado exitosamente');
         await cargarHistorial();
+        await cargarPreview(fechaCierre);
       } else {
         setError(res.message ?? 'Error al crear el cierre');
       }
@@ -139,25 +185,20 @@ export function CierresView() {
   };
 
   // ---------- datos derivados para el tab Diario ----------
-  const cierreDiarioHoy: CierreHistorialItem | undefined = historial.find((c) => {
-    const fecha = new Date(c.fecha);
-    const hoy = new Date(fechaCierre);
-    return (
-      c.tipo_cierre === 'Diario' &&
-      fecha.getFullYear() === hoy.getFullYear() &&
-      fecha.getMonth() === hoy.getMonth() &&
-      fecha.getDate() === hoy.getDate()
-    );
+  const cierreDiarioHoy = historial.find((c) => {
+    if (!c.fecha) return false;
+    const cDateStr = c.fecha.split('T')[0];
+    return c.tipo_cierre === 'Diario' && cDateStr === fechaCierre;
   });
 
-  const summaryData = cierreDiarioHoy
+  const summaryData = previewData
     ? {
-        totalIngresos: cierreDiarioHoy.ingresos,
-        ingresosEfectivo: cierreDiarioHoy.efectivo,
-        ingresosTarjeta: cierreDiarioHoy.tarjeta,
-        ingresosTransferencia: cierreDiarioHoy.transferencia,
-        totalEgresos: cierreDiarioHoy.egresos,
-        utilidadNeta: cierreDiarioHoy.utilidad,
+        totalIngresos: previewData.totalIngresos,
+        ingresosEfectivo: previewData.efectivo,
+        ingresosTarjeta: previewData.tarjeta,
+        ingresosTransferencia: previewData.transferencia,
+        totalEgresos: previewData.totalEgresos,
+        utilidadNeta: previewData.utilidad,
       }
     : {
         totalIngresos: 0,
@@ -285,20 +326,21 @@ export function CierresView() {
           </div>
 
           {/* Estado de carga */}
-          {cargando && (
-            <p style={{ color: COLORS.muted, fontSize: 14 }}>Cargando datos del cierre…</p>
-          )}
-
-          {/* Cards de resumen */}
-          {!cargando && (
+          {cargandoPreview ? (
+            <p style={{ color: COLORS.muted, fontSize: 14 }}>Cargando vista previa del cierre…</p>
+          ) : (
             <div>
               <h3 style={{ margin: '0 0 16px 0', color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
                 Resumen del día
               </h3>
 
-              {!cierreDiarioHoy && (
+              {cierreDiarioHoy ? (
+                <p style={{ color: COLORS.success, fontSize: 13, marginBottom: 16 }}>
+                  El cierre diario de esta fecha ya fue realizado y guardado en el historial.
+                </p>
+              ) : (
                 <p style={{ color: COLORS.muted, fontSize: 13, marginBottom: 16 }}>
-                  No hay un cierre registrado para esta fecha. Los valores muestran cero.
+                  Mostrando vista previa de valores actuales para esta fecha (cierre aún no realizado).
                 </p>
               )}
 
