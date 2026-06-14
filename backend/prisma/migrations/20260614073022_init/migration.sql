@@ -254,6 +254,23 @@ CREATE TABLE "especialidad" (
 );
 
 -- CreateTable
+CREATE TABLE "egreso" (
+    "id_egreso" SERIAL NOT NULL,
+    "concepto" VARCHAR(255) NOT NULL,
+    "monto" DECIMAL(10,2) NOT NULL,
+    "categoria" VARCHAR(50) NOT NULL,
+    "fecha" DATE NOT NULL,
+    "observaciones" VARCHAR(255),
+    "id_usuario_creacion" INTEGER NOT NULL,
+    "id_usuario_modificacion" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+    "usuarioId_usuario" INTEGER,
+
+    CONSTRAINT "egreso_pkey" PRIMARY KEY ("id_egreso")
+);
+
+-- CreateTable
 CREATE TABLE "tratamiento" (
     "id_tratamiento" SERIAL NOT NULL,
     "id_especialidad" INTEGER NOT NULL,
@@ -329,20 +346,6 @@ CREATE TABLE "movimiento_inventario" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "movimiento_inventario_pkey" PRIMARY KEY ("id_movimiento")
-);
-
--- CreateTable
-CREATE TABLE "egreso" (
-    "id_egreso" SERIAL NOT NULL,
-    "concepto" VARCHAR(255) NOT NULL,
-    "monto" DECIMAL(10,2) NOT NULL,
-    "fecha" DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "categoria" VARCHAR(100) NOT NULL,
-    "id_usuario" INTEGER NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "egreso_pkey" PRIMARY KEY ("id_egreso")
 );
 
 -- CreateTable
@@ -437,6 +440,18 @@ CREATE UNIQUE INDEX "odontograma_id_consulta_id_diente_key" ON "odontograma"("id
 CREATE UNIQUE INDEX "especialidad_nombre_key" ON "especialidad"("nombre");
 
 -- CreateIndex
+CREATE INDEX "egreso_fecha_idx" ON "egreso"("fecha");
+
+-- CreateIndex
+CREATE INDEX "egreso_categoria_idx" ON "egreso"("categoria");
+
+-- CreateIndex
+CREATE INDEX "egreso_id_usuario_creacion_idx" ON "egreso"("id_usuario_creacion");
+
+-- CreateIndex
+CREATE INDEX "egreso_id_usuario_modificacion_idx" ON "egreso"("id_usuario_modificacion");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "categoria_insumo_nombre_key" ON "categoria_insumo"("nombre");
 
 -- CreateIndex
@@ -462,12 +477,6 @@ CREATE INDEX "movimiento_inventario_id_usuario_idx" ON "movimiento_inventario"("
 
 -- CreateIndex
 CREATE INDEX "movimiento_inventario_fecha_idx" ON "movimiento_inventario"("fecha");
-
--- CreateIndex
-CREATE INDEX "egreso_id_usuario_idx" ON "egreso"("id_usuario");
-
--- CreateIndex
-CREATE INDEX "egreso_fecha_idx" ON "egreso"("fecha");
 
 -- CreateIndex
 CREATE INDEX "cierre_id_usuario_idx" ON "cierre"("id_usuario");
@@ -539,6 +548,15 @@ ALTER TABLE "odontograma" ADD CONSTRAINT "odontograma_id_diente_fkey" FOREIGN KE
 ALTER TABLE "pago_paciente" ADD CONSTRAINT "pago_paciente_id_consulta_fkey" FOREIGN KEY ("id_consulta") REFERENCES "consulta"("id_consulta") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "egreso" ADD CONSTRAINT "egreso_id_usuario_creacion_fkey" FOREIGN KEY ("id_usuario_creacion") REFERENCES "usuario"("id_usuario") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "egreso" ADD CONSTRAINT "egreso_id_usuario_modificacion_fkey" FOREIGN KEY ("id_usuario_modificacion") REFERENCES "usuario"("id_usuario") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "egreso" ADD CONSTRAINT "egreso_usuarioId_usuario_fkey" FOREIGN KEY ("usuarioId_usuario") REFERENCES "usuario"("id_usuario") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "tratamiento" ADD CONSTRAINT "tratamiento_id_especialidad_fkey" FOREIGN KEY ("id_especialidad") REFERENCES "especialidad"("id_especialidad") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -558,9 +576,6 @@ ALTER TABLE "movimiento_inventario" ADD CONSTRAINT "movimiento_inventario_id_ins
 
 -- AddForeignKey
 ALTER TABLE "movimiento_inventario" ADD CONSTRAINT "movimiento_inventario_id_usuario_fkey" FOREIGN KEY ("id_usuario") REFERENCES "usuario"("id_usuario") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "egreso" ADD CONSTRAINT "egreso_id_usuario_fkey" FOREIGN KEY ("id_usuario") REFERENCES "usuario"("id_usuario") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "cierre" ADD CONSTRAINT "cierre_id_usuario_fkey" FOREIGN KEY ("id_usuario") REFERENCES "usuario"("id_usuario") ON DELETE RESTRICT ON UPDATE CASCADE;
