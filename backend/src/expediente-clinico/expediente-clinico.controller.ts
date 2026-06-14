@@ -136,7 +136,7 @@ export class ExpedienteClinicoController {
     summary: 'Obtener detalle de una consulta',
     description:
       'Retorna el detalle completo de una consulta específica del paciente. ' +
-      'Incluye diagnóstico, tratamiento, antecedentes, odontograma, pagos y ' +
+      'Incluye diagnóstico, tratamiento, antecedentes, odontograma y ' +
       'estado de firmas (quién ha firmado y quién no).',
   })
   @ApiParam({

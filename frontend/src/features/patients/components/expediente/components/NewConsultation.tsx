@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     ChevronLeft, ChevronDown, Upload, X, Search, Plus, Trash2, FileText,
-    Image as ImageIcon, Stethoscope, DollarSign, Check, AlertCircle,
-    Loader2, Tag, Zap, Clock, User, ShieldAlert,
+    Image as ImageIcon, Stethoscope, Check, AlertCircle,
+    Loader2, Tag, Zap, Clock, User, ShieldAlert, Activity,
 } from 'lucide-react';
 import { ExpedientePaciente } from '../types/getAllPacientes';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
@@ -18,6 +18,9 @@ import { privilegeService } from '../services/privilegeService';
 import { ConsultationQuestions } from './ConsultationQuestions';
 import { treatmentService } from '../../../../treatments/services/treatmentService';
 import type { Treatment } from '../../../../treatments/types';
+import { tratamientoPacienteService, type TratamientoPacienteResponse } from '../services/tratamientoPacienteService';
+import { pagoConsultaService } from '../services/pagoConsultaService';
+
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -54,6 +57,7 @@ interface TratamientoConsulta {
     id_tratamiento?: number; // if from catalog
     nombre: string;
     precio: number;
+    tratamientoPacienteId?: number; // if linked to an existing plan
 }
 
 interface ToastMsg {
@@ -74,7 +78,7 @@ const mapFileCategoryToPrisma = (cat: FileCategory): PrismaTipoArchivo => {
     return 'Imagen';
 };
 
-const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Cobro'];
+const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Diagnóstico'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2); }
@@ -269,13 +273,36 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [tratamientos, setTratamientos] = useState<TratamientoConsulta[]>([]);
     const [conceptoLibre, setConceptoLibre] = useState('');
     const [precioLibre, setPrecioLibre] = useState('');
-    const [metodoPago, setMetodoPago] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
-    const [descuentoGlobal, setDescuentoGlobal] = useState('');
-    const [descuentoGlobalTipo, setDescuentoGlobalTipo] = useState<'monto' | 'porcentaje'>('monto');
-    const [anticipo, setAnticipo] = useState('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
+    // ── Planes activos del paciente ──
+    const [tratamientosPaciente, setTratamientosPaciente] = useState<TratamientoPacienteResponse[]>([]);
+    const [busquedaPlan, setBusquedaPlan] = useState('');
+    const [montoPorPlan, setMontoPorPlan] = useState<Record<number, number>>({});
+
+    // ── Creación de plan desde tratamiento seleccionado ──
+    const [planForm, setPlanForm] = useState<{
+        treatmentId: string | null;
+        nombre: string;
+        costoTotal: string;
+        fechaInicio: string;
+        montoAbono: string;
+        saving: boolean;
+    }>({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false });
+
+    interface PendingAbono {
+        tratamientoPacienteId: number;
+        montoAbonado: number;
+    }
+    const [pendingAbonos, setPendingAbonos] = useState<PendingAbono[]>([]);
+
+    const loadTratamientosPaciente = useCallback(async () => {
+        try {
+            const res = await tratamientoPacienteService.findByPaciente(patient.id_persona);
+            setTratamientosPaciente(Array.isArray(res.data) ? res.data.filter((t: TratamientoPacienteResponse) => t.estado === 'ACTIVO') : []);
+        } catch { /* ignore */ }
+    }, [patient.id_persona]);
 
     const addToast = useCallback((type: ToastMsg['type'], message: string) => {
         const id = uid();
@@ -340,11 +367,12 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         loadDoctores();
         loadTratamientos();
         loadOdontograma();
+        loadTratamientosPaciente();
         expedientService.getPreguntas().then((res) => {
             const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
             setPreguntas(data);
         }).catch(() => {});
-    },[loadOdontograma]);
+    },[loadOdontograma, loadTratamientosPaciente]);
 
     const syncOdontogramDraft = useCallback(() => {
         const draft = loadOdontogramaDraft(patient.id_persona);
@@ -363,7 +391,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             syncOdontogramDraft();
         }
     }, [showOdontogram, syncOdontogramDraft]);
-
 
     // ── File handling ──────────────────────────────────────────────────────────
     const processFiles = useCallback((files: FileList | null) => {
@@ -419,18 +446,57 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         addToast('info', `Concepto "${nombre}" agregado.`);
     };
 
-    // ── Billing calc ───────────────────────────────────────────────────────────
-    const subtotal = tratamientos.reduce((acc, t) => acc + t.precio, 0);
-    let descGlobal = 0;
-    if (descuentoGlobalTipo === 'monto') {
-        descGlobal = Math.min(parseFloat(descuentoGlobal) || 0, subtotal);
-    } else {
-        const porcentaje = Math.min(parseFloat(descuentoGlobal) || 0, 100);
-        descGlobal = subtotal * (porcentaje / 100);
-    }
-    const total = Math.max(0, subtotal - descGlobal);
-    const anticipoNum = Math.min(Math.max(0, parseFloat(anticipo) || 0), total);
-    const saldo = total - anticipoNum;
+    const initPlanForm = (t: TratamientoConsulta) => {
+        const today = new Date().toISOString().slice(0, 10);
+        setPlanForm({
+            treatmentId: t.id,
+            nombre: t.nombre,
+            costoTotal: String(t.precio),
+            fechaInicio: today,
+            montoAbono: '',
+            saving: false,
+        });
+    };
+
+    const handleCreatePlan = async () => {
+        const current = planForm;
+        if (!current.treatmentId || !current.nombre || !current.costoTotal) return;
+        const costo = parseFloat(current.costoTotal);
+        if (isNaN(costo) || costo <= 0) { addToast('error', 'El costo total debe ser un número válido mayor a 0.'); return; }
+
+        setPlanForm((prev) => ({ ...prev, saving: true }));
+        try {
+            const res = await tratamientoPacienteService.create({
+                pacienteId: patient.id_persona,
+                nombre: current.nombre,
+                costoTotal: costo,
+                fechaInicio: current.fechaInicio || new Date().toISOString().slice(0, 10),
+            });
+            const planData = res.data?.data ?? res.data;
+            if (res.success && planData?.id) {
+                setTratamientos((prev) =>
+                    prev.map((t) =>
+                        t.id === current.treatmentId ? { ...t, tratamientoPacienteId: planData.id } : t,
+                    ),
+                );
+                const monto = parseFloat(current.montoAbono);
+                if (!isNaN(monto) && monto > 0) {
+                    setPendingAbonos((prev) => [...prev, {
+                        tratamientoPacienteId: planData.id,
+                        montoAbonado: monto,
+                    }]);
+                }
+                setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false });
+                addToast('success', 'Plan de tratamiento creado exitosamente');
+                loadTratamientosPaciente();
+            } else {
+                throw new Error(res.message || 'Error al crear el plan');
+            }
+        } catch (e: any) {
+            addToast('error', e?.message || 'Error al crear el plan de tratamiento');
+            setPlanForm((prev) => ({ ...prev, saving: false }));
+        }
+    };
 
     // ── Save ───────────────────────────────────────────────────────────────────
     const handleSave = () => {
@@ -449,36 +515,37 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         if (!motivoFinal?.trim()) { addToast('error', 'El motivo de consulta es requerido en las preguntas del Paso 1.'); setStep(1); return; }
         if (!diagnostico.trim()) { addToast('error', 'El diagnóstico clínico es requerido.'); setStep(3); return; }
         if (archivos.some((a) => a.uploading)) { addToast('error', 'Espera a que terminen de cargarse todas las imágenes.'); return; }
-        if (anticipoNum > total) { addToast('error', `El anticipo (L. ${anticipoNum.toLocaleString('es-HN', { minimumFractionDigits: 2 })}) no puede exceder el total a pagar (L. ${total.toLocaleString('es-HN', { minimumFractionDigits: 2 })})`); return; }
 
         setSaving(true);
 
         const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
         const idUsuario = doctor?.id_usuario ?? 1;
 
-        // Prepare tratamientos payload: distribute global discount proportionally
+        // Prepare tratamientos payload
         const catalogTratamientosPayload = tratamientos
-            .filter(t => t.id_tratamiento)
+            .filter(t => t.id_tratamiento && !t.tratamientoPacienteId)
             .map(t => ({
                 id_tratamiento: t.id_tratamiento!,
                 precio: t.precio,
-                descuento: subtotal > 0 && descGlobal > 0
-                    ? Math.round((t.precio / subtotal) * descGlobal)
-                    : 0,
+                descuento: 0,
             }));
 
-        // For free concepts, we can add them to the tratamiento text field
+        // Free concepts + plan items (those without catalog id go to text)
+        const planItems = tratamientos.filter(t => t.tratamientoPacienteId);
         const freeConceptsText = tratamientos
-            .filter(t => !t.id_tratamiento)
+            .filter(t => !t.id_tratamiento && !t.tratamientoPacienteId)
             .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`)
             .join('\n');
 
-        const tratamientosText = tratamientos.length > 0
-            ? [
-                ...tratamientos.filter(t => t.id_tratamiento).map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`),
-                ...(freeConceptsText ? [freeConceptsText] : [])
-            ].join('\n')
-            : undefined;
+        const planText = planItems
+            .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`)
+            .join('\n');
+
+        const finalTratamientoText = [
+            ...(catalogTratamientosPayload.length > 0 ? ['Servicios del catálogo facturados por separado.'] : []),
+            ...(freeConceptsText ? [`Conceptos libres:\n${freeConceptsText}`] : []),
+            ...(planText ? [`Planes activos:\n${planText}`] : []),
+        ].join('\n') || undefined;
 
         const respuestasArr: RespuestaConsulta[] = Object.entries(respuestas)
             .filter(([_, v]) => v.respuestaBoolean !== undefined || (v.explanation && v.explanation.trim()))
@@ -488,21 +555,22 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                 explanation: v.explanation?.trim() || undefined,
             }));
 
-        const payload = {
+        const payload: Record<string, any> = {
             id_usuario: idUsuario,
             fecha_inicio: fechaISO,
             fecha_fin: new Date().toISOString(),
             motivo: motivoFinal.trim() || undefined,
             diagnostico: diagnostico.trim() || undefined,
-            tratamiento: tratamientosText,
+            tratamiento: finalTratamientoText,
             notas_adicionales: notas.trim() || undefined,
             tratamientos: catalogTratamientosPayload.length > 0 ? catalogTratamientosPayload : undefined,
-            pago: total > 0 ? {
-                abono: anticipoNum,
-                metodo_pago: metodoPago,
-            } : undefined,
             respuestas: respuestasArr.length > 0 ? respuestasArr : undefined,
         };
+
+        const primerPlanId = planItems[0]?.tratamientoPacienteId;
+        if (primerPlanId) {
+            payload.tratamientoPacienteId = primerPlanId;
+        }
 
         try {
             const res = await expedientService.registrarConsulta(patient.id_persona, payload);
@@ -550,6 +618,23 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                         await odontogramaService.bulkSave(consultaId, items);
                         clearOdontogramaDraft(patient.id_persona);
                     } catch { /* ignore odontogram save error */ }
+                }
+
+                if (pendingAbonos.length > 0 && consultaId) {
+                    try {
+                        const totalMonto = pendingAbonos.reduce((s, a) => s + a.montoAbonado, 0);
+                        await pagoConsultaService.create({
+                            consultaId,
+                            monto: totalMonto,
+                            metodoPago: 'EFECTIVO',
+                            observacion: 'Abono registrado durante la consulta',
+                            abonos: pendingAbonos.map((a) => ({
+                                tratamientoPacienteId: a.tratamientoPacienteId,
+                                montoAbonado: a.montoAbonado,
+                            })),
+                        });
+                        setPendingAbonos([]);
+                    } catch { /* ignore payment error */ }
                 }
 
                 addToast('success', res.message || 'Consulta registrada exitosamente');
@@ -906,6 +991,8 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             )}
                         </SectionCard>
 
+
+
                         {/* 3. Selección de Tratamientos */}
                         <SectionCard icon={<Search size={17} />} title="Selección de Tratamientos y Facturación">
                             <div style={{
@@ -1013,152 +1100,241 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     {tratamientos.map((t, idx) => {
+                                        const isPlan = !!t.tratamientoPacienteId;
+                                        const isCreating = planForm.treatmentId === t.id;
                                         return (
-                                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.white, border: `1.5px solid ${C.gray300}`, borderRadius: 10, padding: '14px 16px', flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 150 }}>
-                                                    <span style={{ fontSize: 12, fontWeight: 700, color: C.gray500, background: C.gray100, borderRadius: 6, padding: '2px 8px', minWidth: 28, textAlign: 'center' }}>
-                                                        {idx + 1}
+                                        <div key={t.id} style={{ display: 'flex', flexDirection: 'column', background: C.white, border: `1.5px solid ${isCreating ? C.primary : C.gray300}`, borderRadius: 10, overflow: 'hidden', boxShadow: isCreating ? '0 4px 16px rgba(11, 197, 223, 0.15)' : '0 1px 4px rgba(0,0,0,0.04)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>
+                                                        {isPlan ? 'Plan activo' : `Item ${idx + 1}`}
                                                     </span>
-                                                    <span style={{ color: C.gray300, fontSize: 14, fontWeight: 300 }}>|</span>
-                                                    <span style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{t.nombre}</span>
+                                                    <span style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>{t.nombre}</span>
                                                 </div>
-                                                
-                                                {/* Line total */}
-                                                <span style={{ fontSize: 13, fontWeight: 700, color: C.success, minWidth: 90, textAlign: 'right' }}>
-                                                    L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                                </span>
-                                                <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, marginLeft: 8, padding: 4 }}>
-                                                    <Trash2 size={15} />
-                                                </button>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <span style={{ fontSize: 16, fontWeight: 800, color: C.success }}>
+                                                        L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                    {!isPlan && !isCreating && (
+                                                        <button
+                                                            onClick={() => initPlanForm(t)}
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: 5,
+                                                                background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                                                                color: C.white, border: 'none', borderRadius: 8,
+                                                                padding: '6px 12px', fontSize: 11, fontWeight: 700,
+                                                                cursor: 'pointer', whiteSpace: 'nowrap',
+                                                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                                                            }}
+                                                        >
+                                                            <Zap size={13} /> Crear Plan
+                                                        </button>
+                                                    )}
+                                                    {isPlan && (
+                                                        <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 12, background: C.primaryBg, color: C.primary, border: `1px solid ${C.primary}33`, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                            Plan activo
+                                                        </span>
+                                                    )}
+                                                    {!isPlan && (
+                                                        <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, padding: 4 }}>
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {isCreating && (
+                                                <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '18px', background: C.gray50 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <Zap size={15} color={C.primary} /> Nuevo Plan de Tratamiento
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+                                                        <div>
+                                                            <FieldLabel>Nombre del plan</FieldLabel>
+                                                            <input
+                                                                value={planForm.nombre}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                                                                placeholder="Nombre del plan"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <FieldLabel>Costo total (L.)</FieldLabel>
+                                                            <input
+                                                                value={planForm.costoTotal}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, costoTotal: e.target.value }))}
+                                                                type="number" min="0" step="0.01"
+                                                                placeholder="0.00"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <FieldLabel>Fecha de inicio</FieldLabel>
+                                                            <input
+                                                                value={planForm.fechaInicio}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, fechaInicio: e.target.value }))}
+                                                                type="date"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ borderTop: `1px solid ${C.gray300}`, paddingTop: 14, marginBottom: 14 }}>
+                                                        <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.warning, display: 'inline-block' }} />
+                                                            Abono en esta consulta (opcional)
+                                                        </div>
+                                                        <div>
+                                                            <FieldLabel>Monto (L.)</FieldLabel>
+                                                            <input
+                                                                value={planForm.montoAbono}
+                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, montoAbono: e.target.value }))}
+                                                                type="number" min="0" step="0.01"
+                                                                placeholder="0.00"
+                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ fontSize: 11, color: C.gray500, marginTop: 6 }}>
+                                                            {pendingAbonos.length > 0 && (
+                                                                <span>Abonos pendientes por registrar: {pendingAbonos.length}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                                        <button
+                                                            onClick={() => setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false })}
+                                                            style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: C.white, color: C.gray500, border: `1px solid ${C.gray300}`, cursor: 'pointer' }}
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                        <button
+                                                            onClick={handleCreatePlan}
+                                                            disabled={planForm.saving}
+                                                            style={{
+                                                                padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                                                background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                                                                color: C.white, border: 'none', cursor: planForm.saving ? 'not-allowed' : 'pointer',
+                                                                opacity: planForm.saving ? 0.7 : 1,
+                                                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                                                            }}
+                                                        >
+                                                            {planForm.saving ? 'Guardando...' : 'Guardar Plan'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                         );
                                     })}
-                                </div>
+                                </div> 
                             )}
                         </SectionCard>
 
-                        {/* Billing summary */}
-                        <SectionCard icon={<DollarSign size={17} />} title="Resumen de Cobro">
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 20 }}>
-                                {/* Método */}
-                                <div>
-                                    <FieldLabel>Método de pago</FieldLabel>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        {(['Efectivo', 'Tarjeta', 'Transferencia'] as const).map((m) => (
-                                            <button
-                                                key={m} onClick={() => setMetodoPago(m)}
-                                                style={{ flex: 1, padding: '9px 4px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', border: `1.5px solid ${metodoPago === m ? C.primary : C.gray300}`, background: metodoPago === m ? C.primaryBg : C.white, color: metodoPago === m ? C.primary : C.gray500 }}
-                                            >
-                                                {m}
-                                            </button>
-                                        ))}
+                        {/* 4. Planes activos del paciente */}
+                        <SectionCard icon={<Activity size={17} />} title="Planes de Tratamiento Activos">
+                            <div style={{
+                                background: `linear-gradient(135deg, #fff7e6, #fff0cc)`,
+                                border: `1.5px solid ${C.warning}`,
+                                borderRadius: 12,
+                                padding: '20px',
+                                marginBottom: 20,
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 10, background: C.warning, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.white, boxShadow: '0 4px 12px rgba(239, 159, 39, 0.3)' }}>
+                                        <Search size={18} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>Buscador de Planes Activos</div>
+                                        <div style={{ fontSize: 12, color: C.gray700, marginTop: 2 }}>Busca y selecciona planes activos del paciente para agregarlos a esta consulta</div>
                                     </div>
                                 </div>
-                                {/* Descuento global */}
-                                <div>
-                                    <FieldLabel>Descuento global</FieldLabel>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: C.white }}>
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'monto' ? 'L.' : ''}</span>
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `2px solid ${C.warning}`, borderRadius: 10, padding: '0 14px', height: 48, background: C.white, boxShadow: '0 2px 8px rgba(239, 159, 39, 0.12)' }}>
+                                        <Search size={18} color={C.warning} />
                                         <input
-                                            value={descuentoGlobal}
-                                            onChange={(e) => {
-                                                const raw = e.target.value;
-                                                if (raw.startsWith('-')) {
-                                                    setDescuentoGlobal('');
-                                                } else {
-                                                    setDescuentoGlobal(raw);
-                                                }
-                                            }}
-                                            placeholder="0"
-                                            type="number"
-                                            min="0"
-                                            max={descuentoGlobalTipo === 'porcentaje' ? 100 : undefined}
-                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }}
+                                            value={busquedaPlan}
+                                            onChange={(e) => setBusquedaPlan(e.target.value)}
+                                            placeholder="Buscar plan activo por nombre..."
+                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, fontWeight: 500, color: C.navy, background: 'transparent' }}
                                         />
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>{descuentoGlobalTipo === 'porcentaje' ? '%' : ''}</span>
+                                        {busquedaPlan && (
+                                            <button onClick={() => setBusquedaPlan('')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.gray500, padding: 4 }}>
+                                                <X size={16} />
+                                            </button>
+                                        )}
                                     </div>
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                                        <button
-                                            onClick={() => setDescuentoGlobalTipo('monto')}
-                                            style={{
-                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                                background: descuentoGlobalTipo === 'monto' ? C.primary : C.white,
-                                                color: descuentoGlobalTipo === 'monto' ? C.white : C.gray500,
-                                                border: `1.5px solid ${descuentoGlobalTipo === 'monto' ? C.primary : C.gray300}`,
-                                                cursor: 'pointer', transition: 'all 0.15s'
-                                            }}
-                                        >
-                                            Monto (L.)
-                                        </button>
-                                        <button
-                                            onClick={() => setDescuentoGlobalTipo('porcentaje')}
-                                            style={{
-                                                padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                                background: descuentoGlobalTipo === 'porcentaje' ? C.primary : C.white,
-                                                color: descuentoGlobalTipo === 'porcentaje' ? C.white : C.gray500,
-                                                border: `1.5px solid ${descuentoGlobalTipo === 'porcentaje' ? C.primary : C.gray300}`,
-                                                cursor: 'pointer', transition: 'all 0.15s'
-                                            }}
-                                        >
-                                            Porcentaje (%)
-                                        </button>
-                                    </div>
-                                </div>
-                                {/* Anticipo */}
-                                <div>
-                                    <FieldLabel>Anticipo / Pago inicial (L.)</FieldLabel>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${C.gray300}`, borderRadius: 8, padding: '0 12px', height: 40, background: C.white }}>
-                                        <span style={{ fontSize: 13, color: C.gray500 }}>L.</span>
-                                        <input 
-                                            value={anticipo} 
-                                            onChange={(e) => {
-                                                const raw = e.target.value;
-                                                const val = parseFloat(raw);
-                                                if (raw.startsWith('-')) {
-                                                    setAnticipo('');
-                                                } else if (!isNaN(val) && val > total) {
-                                                    setAnticipo(String(total));
-                                                } else {
-                                                    setAnticipo(raw);
-                                                }
-                                            }} 
-                                            placeholder="0.00" 
-                                            type="number" 
-                                            min="0"
-                                            max={total}
-                                            style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: C.navy, background: 'transparent' }} 
-                                        />
-                                    </div>
-                                    {parseFloat(anticipo) > total && (
-                                        <div style={{ fontSize: 11, color: C.danger, marginTop: 4, fontWeight: 500 }}>
-                                            El anticipo no puede exceder el total a pagar (L. {total.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
-                            {/* Totals */}
-                            <div style={{ borderTop: `1px solid ${C.gray100}`, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {[
-                                    { label: 'Subtotal', value: subtotal, color: C.navy },
-                                    { label: 'Descuento global', value: -descGlobal, color: C.danger },
-                                    { label: 'Total a Pagar', value: total, color: C.navy, bold: true, large: true },
-                                    { label: 'Anticipo recibido', value: -anticipoNum, color: C.success },
-                                ].map((row) => (
-                                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: row.bold ? `1px solid ${C.gray100}` : undefined, paddingTop: row.bold ? 12 : 0 }}>
-                                        <span style={{ fontSize: row.large ? 15 : 13, fontWeight: row.bold ? 600 : 400, color: C.gray700 }}>{row.label}</span>
-                                        <span style={{ fontSize: row.large ? 17 : 13, fontWeight: row.bold ? 700 : 500, color: row.color }}>
-                                            {row.value < 0 ? '−' : ''} L. {Math.abs(row.value).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                        </span>
-                                    </div>
-                                ))}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: saldo > 0 ? '#FFF8EC' : '#F0FBF7', borderRadius: 10, padding: '12px 16px', marginTop: 4 }}>
-                                    <span style={{ fontSize: 15, fontWeight: 600, color: C.navy }}>Saldo pendiente</span>
-                                    <span style={{ fontSize: 18, fontWeight: 700, color: saldo > 0 ? C.warning : C.success }}>
-                                        L. {saldo.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                    </span>
+                            {tratamientosPaciente.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '28px 0', color: C.gray500, fontSize: 13, border: `1px dashed ${C.gray300}`, borderRadius: 8 }}>
+                                    <div>No hay planes de tratamiento activos para este paciente.</div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {tratamientosPaciente
+                                        .filter(p => !busquedaPlan || p.nombre.toLowerCase().includes(busquedaPlan.toLowerCase()))
+                                        .map(plan => {
+                                            const yaAgregado = tratamientos.some(t => t.tratamientoPacienteId === plan.id);
+                                            return (
+                                                <div key={plan.id} style={{ display: 'flex', flexDirection: 'column', background: C.white, border: `1.5px solid ${yaAgregado ? C.success : C.gray300}`, borderRadius: 10, overflow: 'hidden' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>{plan.nombre}</div>
+                                                            <div style={{ fontSize: 11, color: C.gray500, marginTop: 4 }}>
+                                                                Costo total: <strong>L. {plan.costoTotal.toLocaleString('es-HN')}</strong>
+                                                                &nbsp;·&nbsp; Abonado: <strong>L. {plan.totalAbonado.toLocaleString('es-HN')}</strong>
+                                                                &nbsp;·&nbsp; Saldo: <strong>L. {plan.saldoPendiente.toLocaleString('es-HN')}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {!yaAgregado && (
+                                                        <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12, background: C.gray50 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>Pago en esta consulta:</span>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: `1px solid ${C.gray300}`, borderRadius: 6, padding: '0 8px', background: C.white }}>
+                                                                    <span style={{ fontSize: 11, color: C.gray500 }}>L.</span>
+                                                                    <input
+                                                                        type="number" min={0} step="0.01"
+                                                                        value={montoPorPlan[plan.id] || ''}
+                                                                        onChange={(e) => setMontoPorPlan(prev => ({ ...prev, [plan.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                                                                        placeholder="0.00"
+                                                                        style={{ width: 90, border: 'none', outline: 'none', fontSize: 13, color: C.navy, padding: '6px 0', background: 'transparent' }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const monto = montoPorPlan[plan.id] || 0;
+                                                                    if (monto <= 0) return;
+                                                                    setTratamientos(prev => [...prev, {
+                                                                        id: uid(),
+                                                                        nombre: `${plan.nombre} (Plan activo)`,
+                                                                        precio: monto,
+                                                                        tratamientoPacienteId: plan.id,
+                                                                    }]);
+                                                                    setMontoPorPlan(prev => { const n = { ...prev }; delete n[plan.id]; return n; });
+                                                                }}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', gap: 6,
+                                                                    background: C.success, color: C.white, border: 'none',
+                                                                    borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700,
+                                                                    cursor: 'pointer', marginLeft: 'auto',
+                                                                }}
+                                                            >
+                                                                <Plus size={14} /> Agregar a consulta
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {yaAgregado && (
+                                                        <div style={{ borderTop: `1px solid ${C.success}20`, padding: '10px 18px', background: 'rgba(29,158,117,0.06)', fontSize: 12, fontWeight: 600, color: C.success, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <Check size={14} /> Ya agregado a la consulta
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            )}
                         </SectionCard>
                     </div>
                 )}
@@ -1190,8 +1366,9 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                             addToast('error', 'El número de teléfono debe tener al menos 8 dígitos.');
                                             return;
                                         }
-                                        // Questions validation
+                                        // Questions validation (only required ones)
                                         for (const pq of preguntas) {
+                                            if (!pq.obligatorio) continue;
                                             const resp = respuestas[pq.id_pregunta] || {};
                                             if (pq.requiere_explicacion) {
                                                 if (resp.respuestaBoolean === undefined) {
@@ -1265,7 +1442,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     <li>El odontograma esté actualizado (si aplica)</li>
                                     <li>El diagnóstico y las notas estén completos</li>
                                     <li>Los archivos adjuntos (radiografías, fotos) estén cargados</li>
-                                    <li>El resumen de cobro (tratamientos, descuentos, anticipo) esté correcto</li>
                                 </ul>
                             </div>
                         </div>

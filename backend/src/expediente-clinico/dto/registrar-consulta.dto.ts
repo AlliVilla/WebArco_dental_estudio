@@ -8,7 +8,6 @@ import {
   Min,
   ValidateNested,
   IsNumber,
-  IsEnum,
   IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -27,22 +26,6 @@ class TratamientoItemDto {
   @IsOptional()
   @IsInt()
   descuento?: number;
-}
-
-class PagoConsultaDto {
-  @ApiProperty({ description: 'Monto del abono/anticipo', example: 500 })
-  @IsNumber()
-  abono: number;
-
-  @ApiPropertyOptional({ description: 'Método de pago', enum: ['Efectivo', 'Tarjeta', 'Transferencia'], example: 'Efectivo' })
-  @IsOptional()
-  @IsString()
-  metodo_pago?: string;
-
-  @ApiPropertyOptional({ description: 'Observación del pago', example: 'Anticipo de consulta' })
-  @IsOptional()
-  @IsString()
-  observacion?: string;
 }
 
 class RespuestaDto {
@@ -146,15 +129,6 @@ export class RegistrarConsultaDto {
   tratamientos?: TratamientoItemDto[];
 
   @ApiPropertyOptional({
-    description: 'Información del pago/anticipo',
-    type: PagoConsultaDto,
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => PagoConsultaDto)
-  pago?: PagoConsultaDto;
-
-  @ApiPropertyOptional({
     description: 'Respuestas a las preguntas de antecedentes',
     type: [RespuestaDto],
   })
@@ -163,4 +137,13 @@ export class RegistrarConsultaDto {
   @ValidateNested({ each: true })
   @Type(() => RespuestaDto)
   respuestas?: RespuestaDto[];
+
+  @ApiPropertyOptional({
+    description: 'ID del tratamiento de paciente (plan de tratamiento) asociado',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  tratamientoPacienteId?: number;
 }

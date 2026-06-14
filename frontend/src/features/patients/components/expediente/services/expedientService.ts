@@ -7,12 +7,6 @@ export interface TratamientoPayload {
   descuento?: number;
 }
 
-export interface PagoPayload {
-  abono: number;
-  metodo_pago?: string;
-  observacion?: string;
-}
-
 export interface RegistrarConsultaPayload {
   id_usuario: number;
   fecha_inicio: string;
@@ -24,8 +18,8 @@ export interface RegistrarConsultaPayload {
   firma_paciente?: string;
   firma_doctor?: string;
   tratamientos?: TratamientoPayload[];
-  pago?: PagoPayload;
   respuestas?: RespuestaConsulta[];
+  tratamientoPacienteId?: number;
 }
 
 export interface PreguntaConsulta {
@@ -33,6 +27,7 @@ export interface PreguntaConsulta {
   pregunta: string;
   orden_num: number;
   requiere_explicacion: boolean;
+  obligatorio: boolean;
   categoria: string;
 }
 
@@ -52,10 +47,10 @@ export const expedientService = {
     getPreguntas: async (): Promise<ApiResponse<PreguntaConsulta[]>> => {
         return api.get('/consulta-pregunta');
     },
-    crearPregunta: async (data: { pregunta: string; orden_num: number; requiere_explicacion: boolean; categoria: string }): Promise<ApiResponse<{ id_pregunta: number }>> => {
+    crearPregunta: async (data: { pregunta: string; orden_num: number; requiere_explicacion: boolean; obligatorio?: boolean; categoria: string }): Promise<ApiResponse<{ id_pregunta: number }>> => {
         return api.post('/consulta-pregunta', data);
     },
-    updatePregunta: async (id: number, data: Partial<{ pregunta: string; orden_num: number; requiere_explicacion: boolean; categoria: string }>): Promise<ApiResponse<PreguntaConsulta>> => {
+    updatePregunta: async (id: number, data: Partial<{ pregunta: string; orden_num: number; requiere_explicacion: boolean; obligatorio?: boolean; categoria: string }>): Promise<ApiResponse<PreguntaConsulta>> => {
         return api.patch(`/consulta-pregunta/${id}`, data);
     },
     deletePregunta: async (id: number): Promise<ApiResponse<PreguntaConsulta>> => {

@@ -13,8 +13,8 @@ import {
   X,
   FileText,
   Loader2,
-  CreditCard,
   Image as ImageIcon,
+  Eye,
 } from 'lucide-react';
 import { DataTable, Column, StatsDrawer } from '../../../../../components';
 import { Alert, Card, Button, Input } from '../../../../../context';
@@ -22,11 +22,12 @@ import { Alert, Card, Button, Input } from '../../../../../context';
 import {expedientService} from '../services/expedientService';
 import {odontogramaService} from '../../odontograma/services/odontogramaService';
 import {OdontogramScreen} from '../../odontograma/components/OdontogramaScreen';
+import { GaleriaFotos } from './GaleriaFotos';
 import {calcularEdad} from '../services/miscelaneousService';
+import {tratamientoPacienteService} from '../services/tratamientoPacienteService';
 import {ExpedientePaciente} from '../types/getAllPacientes';
 import type {ConsultaHistorica} from '../types/getAllPacientes';
 import api from '../../../../../services/api';
-import billingService from '../../../../billing/services/billingService';
 import { useResponsive } from '../../../../../hooks/useWindowWidth';
 import { normalizeSearch } from '../../../../../utils/formatters';
 
@@ -115,7 +116,7 @@ export function ExpedienteScreen() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
-  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta' | 'odontograma-view'>('list');
+  const [viewState, setViewState] = useState<'list' | 'detail' | 'new-consulta' | 'odontograma-view' | 'galeria'>('list');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<{ nombre: string; url: string } | null>(null);
   const [expedientes, setExpedientes] = useState<ExpedientePaciente[]>([]);
@@ -126,19 +127,7 @@ export function ExpedienteScreen() {
     patient: ExpedientePaciente
   } | null>(null);
   const [selectedConsultationForRespuestas, setSelectedConsultationForRespuestas] = useState<ConsultaHistorica | null>(null);
-  const [selectedConsultaForPagos, setSelectedConsultaForPagos] = useState<ConsultaHistorica | null>(null);
-  const [pagosData, setPagosData] = useState<{
-    pagos: any[];
-    resumen: { total: number; totalPagado: number; saldoPendiente: number; pagadaCompletamente: boolean };
-    loading: boolean;
-  }>({ pagos: [], resumen: { total: 0, totalPagado: 0, saldoPendiente: 0, pagadaCompletamente: false }, loading: false });
-  const [showNuevoPago, setShowNuevoPago] = useState(false);
-  const [nuevoPagoMonto, setNuevoPagoMonto] = useState('');
-  const [nuevoPagoFecha, setNuevoPagoFecha] = useState(new Date().toISOString().slice(0, 10));
-  const [nuevoPagoObs, setNuevoPagoObs] = useState('');
-  const [savingPago, setSavingPago] = useState(false);
-  const [pagoError, setPagoError] = useState('');
-  const [showGalleryPlaceholder, setShowGalleryPlaceholder] = useState(false);
+
   const [openDrawer, setOpenDrawer] = useState<'visitas' | 'completadas' | 'firmas' | null>(null);
 
   // Paginación client-side
@@ -235,22 +224,9 @@ export function ExpedienteScreen() {
 
   const activePatient = expedientes.find((e) => e.id_persona === selectedPatientId);
 
-  const [expandedConsultas, setExpandedConsultas] = useState<Record<number, boolean>>({});
-  const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (activePatient?.consultas.length) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setExpandedConsultas({ [activePatient.consultas[0].id_consulta]: true });
-    } else {
-      setExpandedConsultas({});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPatientId]);
-
-  const toggleConsulta = (consultaId: number) => {
-    setExpandedConsultas((prev) => ({ ...prev, [consultaId]: !prev[consultaId] }));
-  };
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>({ historial: true, plan: true });
+  const [selectedConsultaForDetails, setSelectedConsultaForDetails] = useState<ConsultaHistorica | null>(null);
+  const [selectedTratamientoForConsultas, setSelectedTratamientoForConsultas] = useState<TratamientoPacienteExp | null>(null);
 
   const handleSelectPatient = (id: number) => {
     setSelectedPatientId(id);
@@ -367,6 +343,174 @@ export function ExpedienteScreen() {
     },
   ];
 
+  // ── Columnas Consultas ──────────────────────────────────────────────────────
+
+  const consultaColumns: Column<ConsultaHistorica>[] = [
+    {
+      key: 'fecha',
+      label: 'Fecha',
+      width: '130px',
+      render: (_, row) => {
+        const date = row.fecha_fin || row.fecha_inicio;
+        return (
+          <span style={{ fontWeight: 600, color: C.navy }}>
+            {date ? new Date(date).toLocaleDateString('es-HN') : 'N/A'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'doctor',
+      label: 'Doctor',
+      render: (_, row) => (
+        <span style={{ color: C.gray700 }}>
+          {row.doctor?.persona
+            ? `${row.doctor.persona.primer_nombre} ${row.doctor.persona.primer_apellido}`
+            : `#${row.id_usuario}`}
+        </span>
+      ),
+    },
+    {
+      key: 'firma',
+      label: 'Firma',
+      render: (_, row) => {
+        const signed = !!(row.firma_paciente && row.firma_doctor_snapshot);
+        return signed ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500, background: C.primaryBg, color: C.primary, border: `1px solid ${C.primary}33` }}>
+            Firmado
+          </span>
+        ) : (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 500, background: '#FFFBEB', color: '#D97706', border: '1px solid rgba(217, 119, 6, 0.2)' }}>
+            Firma Pendiente
+          </span>
+        );
+      },
+    },
+  ];
+
+  const consultaRowActions = (row: ConsultaHistorica) => [
+    {
+      icon: <Eye size={16} />,
+      label: 'Ver detalles',
+      onClick: () => setSelectedConsultaForDetails(row),
+    },
+    {
+      icon: <Zap size={16} />,
+      label: 'Ver Odontograma',
+      onClick: () => handleViewOdontogram(row.id_consulta),
+    },
+    {
+      icon: <FileText size={16} />,
+      label: 'Ver Formulario',
+      onClick: () => setSelectedConsultationForRespuestas(row),
+    },
+  ];
+
+  // ── Columnas Tratamientos ────────────────────────────────────────────────────
+
+  const tratColumns: Column<TratamientoPacienteExp>[] = [
+    {
+      key: 'nombre',
+      label: 'Plan',
+      render: (_, row) => {
+        const isActive = row.estado === 'ACTIVO';
+        const isCompleted = row.estado === 'COMPLETADO';
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+              background: isActive ? C.primary : isCompleted ? C.success : C.gray500,
+            }} />
+            <span style={{ fontWeight: 600, color: C.navy }}>{row.nombre}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'estado',
+      label: 'Estado',
+      width: '130px',
+      render: (_, row) => {
+        const colors: Record<string, string> = { ACTIVO: C.primary, COMPLETADO: C.success, CANCELADO: C.gray500, DESACTIVADO: C.gray500 };
+        const labels: Record<string, string> = { ACTIVO: 'Activo', COMPLETADO: 'Completado', CANCELADO: 'Desactivado', DESACTIVADO: 'Desactivado' };
+        const color = colors[row.estado] || C.gray500;
+        return (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+            background: `${color}15`, color,
+            textTransform: 'uppercase', letterSpacing: '0.5px',
+          }}>
+            {labels[row.estado] || row.estado}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'consultas_count',
+      label: 'Consultas',
+      width: '100px',
+      align: 'center',
+      render: (_, row) => (
+        <span style={{ fontWeight: 600, color: C.navy }}>
+          {row.consultas?.length ?? 0}
+        </span>
+      ),
+    },
+    {
+      key: 'acciones',
+      label: 'Acciones',
+      width: '280px',
+      render: (_, row) => {
+        const isTerminal = row.estado === 'COMPLETADO' || row.estado === 'DESACTIVADO' || row.estado === 'CANCELADO';
+        if (isTerminal) return null;
+
+        const isFullyPaid = (row.saldoPendiente ?? 0) <= 0;
+
+        return (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {(['COMPLETADO', 'DESACTIVADO'] as const).map((est) => {
+              const isCurrent = row.estado === est;
+              const cannotComplete = est === 'COMPLETADO' && !isFullyPaid;
+              const isDisabled = isCurrent || cannotComplete;
+              const colorMap: Record<string, string> = { COMPLETADO: C.success, DESACTIVADO: C.gray500 };
+              const labelMap: Record<string, string> = { COMPLETADO: 'Completado', DESACTIVADO: 'Desactivar' };
+              return (
+                <button
+                  key={est}
+                  onClick={async () => {
+                    if (isDisabled) return;
+                    try {
+                      const res = await tratamientoPacienteService.updateEstado(row.id, est);
+                      if (!res.success) throw new Error(res.message || 'Error al actualizar');
+                      loadPatients(currentPage);
+                    } catch (e: any) {
+                      alert(e?.message || `Error al cambiar estado del plan "${row.nombre}"`);
+                    }
+                  }}
+                  disabled={isDisabled}
+                  title={cannotComplete ? 'Debe saldar el tratamiento antes de completarlo' : labelMap[est]}
+                  style={{
+                    padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    opacity: isDisabled ? 0.5 : 1,
+                    border: `1.5px solid ${colorMap[est]}`,
+                    background: isCurrent ? colorMap[est] : 'transparent',
+                    color: isCurrent ? C.white : colorMap[est],
+                    textTransform: 'uppercase', letterSpacing: '0.5px',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {labelMap[est]}
+                </button>
+              );
+            })}
+          </div>
+        );
+      },
+    },
+  ];
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ background: '#F8F9FA', minHeight: 'calc(100vh - 110px)', boxSizing: 'border-box' }}>
@@ -440,12 +584,7 @@ export function ExpedienteScreen() {
               <ArrowLeft size={16} /> Volver a expedientes
             </Button>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setShowGalleryPlaceholder(true)}
-                style={{ background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', border: 'none', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)' }}
-              >
+              <Button variant="primary" size="sm" onClick={() => setViewState('galeria')}>
                 <ImageIcon size={16} /> Galería de Fotos
               </Button>
               <Button onClick={() => setViewState('new-consulta')} variant="primary" size="sm">
@@ -520,10 +659,26 @@ export function ExpedienteScreen() {
           </Card>
 
           {/* Historial de consultas */}
-          <div>
-            <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: C.navy, marginBottom: 16 }}>Historial de Consultas</h3>
+          <div style={{ border: `1px solid ${C.gray300}`, borderRadius: 12, overflow: 'hidden', background: C.white }}>
+            <div
+              onClick={() => setSectionOpen(prev => ({ ...prev, historial: !prev.historial }))}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
+                borderBottom: sectionOpen.historial ? `1px solid ${C.gray300}` : 'none',
+              }}
+            >
+              <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 700, color: C.navy, margin: 0 }}>
+                Historial de Consultas
+              </h3>
+              <span style={{ color: C.gray500, transform: sectionOpen.historial ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: 14 }}>
+                ▼
+              </span>
+            </div>
 
-            {activePatient?.consultas.length === 0 ? (
+            {sectionOpen.historial && (
+              <>
+              {activePatient?.consultas.length === 0 ? (
               <div style={{ border: `2px dashed ${C.primary}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: C.primary008 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.primary, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Sin Consultas Registradas
@@ -533,395 +688,77 @@ export function ExpedienteScreen() {
                 </span>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {activePatient.consultas.map((visit) => {
-                  const isExpanded = !!expandedConsultas[visit.id_consulta];
-                  const subtotal = visit.tratamientos?.length > 0
-                    ? visit.tratamientos.reduce((sum, t) => sum + Number(t.precio), 0)
-                    : 0;
-                  const totalDescuento = visit.tratamientos?.length > 0
-                    ? visit.tratamientos.reduce((sum, t) => sum + Number(t.descuento || 0), 0)
-                    : 0;
-                  const totalCosto = Math.max(0, subtotal - totalDescuento);
-                  const totalPagado = visit.pagos?.length > 0
-                    ? visit.pagos.reduce((sum, p) => sum + Number(p.abono), 0)
-                    : 0;
-                  const saldoPendiente = Math.max(0, totalCosto - totalPagado);
-                  return (
-                    <div
-                      key={visit.id_consulta}
-                      style={{
-                        background: C.white,
-                        borderRadius: 12,
-                        border: `1.5px solid ${
-                          isExpanded
-                            ? C.primary
-                            : hoveredCardId === visit.id_consulta
-                              ? C.primary04
-                              : C.gray300
-                        }`,
-                        padding: isMobile ? '14px 16px' : '20px 24px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
-                        boxShadow: isExpanded ? '0 10px 20px -5px rgba(11, 197, 223, 0.08), 0 4px 6px -2px rgba(11, 197, 223, 0.04)' : hoveredCardId === visit.id_consulta ? '0 4px 12px rgba(0, 0, 0, 0.04)' : 'none',
-                        transform: hoveredCardId === visit.id_consulta ? 'translateY(-2px)' : 'none',
-                      }}
-                      onMouseEnter={() => setHoveredCardId(visit.id_consulta)}
-                      onMouseLeave={() => setHoveredCardId(null)}
-                    >
-                      <div
-                        onClick={() => toggleConsulta(visit.id_consulta)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleConsulta(visit.id_consulta); }}
-                        aria-label={isExpanded ? 'Colapsar detalles de la consulta' : 'Expandir detalles de la consulta'}
-                        aria-expanded={isExpanded}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          paddingBottom: isExpanded ? 16 : 0,
-                          borderBottom: isExpanded ? `1.5px solid ${C.gray100}` : '1.5px solid transparent',
-                          transition: 'padding-bottom 0.25s, border-bottom-color 0.25s'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div
-                            aria-label={isExpanded ? 'Consulta expandida' : 'Consulta colapsada'}
-                            style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: '50%',
-                              background: isExpanded ? C.primary : C.gray300,
-                              transition: 'background 0.25s',
-                              boxShadow: isExpanded ? '0 0 8px rgba(11, 197, 223, 0.6)' : 'none',
-                            }}
-                          />
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>
-                            {visit.fecha_fin
-                              ? new Date(visit.fecha_fin).toLocaleDateString('es-HN')
-                              : visit.fecha_inicio
-                                ? new Date(visit.fecha_inicio).toLocaleDateString('es-HN')
-                                : 'N/A'}
-                          </span>
-                          <span style={{ fontSize: 13, color: C.gray500 }}>
-                            · Atendido por: <strong style={{ color: C.navy, fontWeight: 600 }}>{visit.doctor?.persona ? `${visit.doctor.persona.primer_nombre} ${visit.doctor.persona.primer_apellido}` : `#${visit.id_usuario}`}</strong>
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            {visit.firma_paciente && visit.firma_doctor_snapshot ? (
-                              <span style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                padding: '4px 10px',
-                                borderRadius: 12,
-                                background: C.primaryBg,
-                                color: C.primary,
-                                border: `1px solid ${C.primary}33`,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                              }}>
-                                Firmado
-                              </span>
-                            ) : (
-                              <span style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                padding: '4px 10px',
-                                borderRadius: 12,
-                                background: '#FFFBEB',
-                                color: '#D97706',
-                                border: '1px solid rgba(217, 119, 6, 0.2)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                              }}>
-                                Firma Pendiente
-                              </span>
-                            )}
-                          </div>
-                          <div style={{
-                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                            color: isExpanded ? C.primary : C.gray500,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}>
-                            <ChevronDown size={18} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                          aria-hidden={!isExpanded}
-                          style={{
-                            maxHeight: isExpanded ? '3000px' : '0px',
-                            opacity: isExpanded ? 1 : 0,
-                            overflow: 'hidden',
-                            transition: 'max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 20,
-                            paddingTop: isExpanded ? 16 : 0,
-                          }}
-                        >
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleViewOdontogram(visit.id_consulta)}
-                              style={{ fontSize: 12 }}
-                            >
-                              <Zap size={14} /> Ver Odontograma de la Consulta
-                            </Button>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => setSelectedConsultationForRespuestas(visit)}
-                              style={{
-                                fontSize: 12,
-                                background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
-                                border: 'none',
-                                boxShadow: '0 4px 12px rgba(11, 197, 223, 0.35)',
-                              }}
-                            >
-                              <FileText size={14} /> Ver Formulario
-                            </Button>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedConsultaForPagos(visit);
-                                setPagosData(prev => ({ ...prev, loading: true }));
-                                billingService.getByConsultaId(visit.id_consulta).then(res => {
-                                  const d = res.data?.data || res.data;
-                                  if (d?.pagos && d?.resumen) {
-                                    setPagosData({ pagos: d.pagos, resumen: d.resumen, loading: false });
-                                  } else {
-                                    setPagosData({ pagos: [], resumen: { total: 0, totalPagado: 0, saldoPendiente: 0, pagadaCompletamente: false }, loading: false });
-                                  }
-                                }).catch(() => setPagosData(prev => ({ ...prev, loading: false })));
-                              }}
-                              style={{ fontSize: 12, background: C.success, border: 'none', boxShadow: '0 4px 12px rgba(29, 158, 117, 0.35)' }}
-                            >
-                              <CreditCard size={14} /> Ver Pagos
-                            </Button>
-                          </div>
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                            gap: 20,
-                            background: C.gray50,
-                            borderRadius: 10,
-                            padding: 20,
-                            border: `1px solid ${C.gray100}`,
-                          }}>
-                          <div>
-                            <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Motivo de consulta</div>
-                            <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>{visit.motivo}</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Diagnóstico de evolución</div>
-                            <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, lineHeight: 1.5 }}>{visit.diagnostico}</div>
-                          </div>
-                          <div style={{ gridColumn: '1 / -1' }}>
-                            <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Notas clínicas</div>
-                            <div style={{ fontSize: 13.5, color: C.gray700, marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{visit.notas}</div>
-                          </div>
-                        </div>
-
-                        {(visit.tratamientos?.length > 0 || visit.tratamiento || (visit.pagos?.length ?? 0) > 0) && (
-                          <div style={{
-                            background: C.white,
-                            borderRadius: 10,
-                            padding: 18,
-                            border: `1.5px solid ${C.primary015}`,
-                            boxShadow: '0 2px 8px rgba(11, 197, 223, 0.03)',
-                          }}>
-                            <div style={{
-                              fontSize: 12,
-                              color: C.primary,
-                              fontWeight: 700,
-                              marginBottom: 12,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px',
-                            }}>
-                              <DollarSign size={14} /> Tratamientos y Cobros realizados
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              {visit.tratamientos?.map((t, idx) => {
-                                const discount = Number(t.descuento || 0);
-                                const finalPrice = Number(t.precio) - discount;
-                                return (
-                                  <div key={idx} style={{
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
-                                    color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
-                                  }}>
-                                    <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      {discount > 0 ? (
-                                        <>
-                                          <span style={{ fontSize: 11, color: C.gray500, textDecoration: 'line-through' }}>
-                                            L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                          </span>
-                                          <span style={{ fontWeight: 600, color: C.success }}>
-                                            L. {finalPrice.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                          </span>
-                                          <span style={{ fontSize: 10, fontWeight: 700, color: C.danger, background: 'rgba(226, 75, 74, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
-                                            -L.{discount.toLocaleString('es-HN')}
-                                          </span>
-                                        </>
-                                      ) : (
-                                        <span style={{ fontWeight: 600, color: C.navy }}>
-                                          L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              {visit.tratamiento && (!visit.tratamientos || visit.tratamientos.length === 0) && (
-                                <div style={{ fontSize: 12.5, color: C.gray700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                                  {visit.tratamiento}
-                                </div>
-                              )}
-                              {(visit.tratamientos?.length > 0 || visit.tratamiento) && (
-                                <>
-                                  {totalDescuento > 0 && (
-                                    <div style={{
-                                      display: 'flex', justifyContent: 'space-between', fontSize: 12.5,
-                                      color: C.gray700, paddingTop: 4,
-                                    }}>
-                                      <span>Subtotal</span>
-                                      <span style={{ fontWeight: 600, color: C.navy }}>
-                                        L. {subtotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {totalDescuento > 0 && (
-                                    <div style={{
-                                      display: 'flex', justifyContent: 'space-between', fontSize: 12.5,
-                                      color: C.danger,
-                                    }}>
-                                      <span>Descuento total</span>
-                                      <span style={{ fontWeight: 600 }}>
-                                        − L. {totalDescuento.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <div style={{
-                                    display: 'flex', justifyContent: 'space-between', fontSize: 13.5,
-                                    fontWeight: 700, color: C.navy, paddingTop: totalDescuento > 0 ? 6 : 0, marginTop: totalDescuento > 0 ? 4 : 0,
-                                    borderTop: totalDescuento > 0 ? `1px solid ${C.gray100}` : 'none',
-                                  }}>
-                                    <span>Total de la consulta</span>
-                                    <span style={{ color: C.primary, fontSize: 14.5 }}>
-                                      L. {totalCosto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                              {visit.pagos && visit.pagos.length > 0 && (
-                                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.gray100}` }}>
-                                  <div style={{ fontSize: 11, fontWeight: 700, color: C.success, marginBottom: 6 }}>
-                                    Pagos realizados
-                                  </div>
-                                  {visit.pagos.map((p, idx) => (
-                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.gray700, paddingBottom: 4 }}>
-                                      <span>{new Date(p.fecha).toLocaleDateString('es-HN')} {p.observacion ? `— ${p.observacion}` : ''}</span>
-                                      <span style={{ fontWeight: 600, color: C.success }}>L. {Number(p.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                  ))}
-                                  <div style={{
-                                    display: 'flex', justifyContent: 'space-between', fontSize: 13,
-                                    fontWeight: 700, color: C.navy, paddingTop: 8, marginTop: 4,
-                                    borderTop: `1px solid ${C.gray100}`,
-                                  }}>
-                                    <span>Total pagado</span>
-                                    <span style={{ color: C.success }}>
-                                      L. {totalPagado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                  {saldoPendiente > 0 && (
-                                    <div style={{
-                                      display: 'flex', justifyContent: 'space-between', fontSize: 13,
-                                      fontWeight: 700, paddingTop: 8,
-                                    }}>
-                                      <span>Saldo pendiente</span>
-                                      <span style={{ color: C.warning }}>
-                                        L. {saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {saldoPendiente === 0 && (
-                                    <div style={{
-                                      display: 'flex', justifyContent: 'flex-end', fontSize: 11,
-                                      fontWeight: 700, color: C.success, paddingTop: 4,
-                                      gap: 4, alignItems: 'center',
-                                    }}>
-                                      <CheckCircle size={12} /> Pagado
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {visit.archivos?.length > 0 && (
-                          <div>
-                            <div style={{
-                              fontSize: 11, color: C.gray500, fontWeight: 700,
-                              textTransform: 'uppercase', letterSpacing: '0.8px',
-                              marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
-                            }}>
-                              Archivos y Radiografías Adjuntas
-                            </div>
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                              {visit.archivos.map((archivo, idx) => (
-                                <div
-                                  key={idx}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    background: C.white, border: `1.5px solid ${C.gray100}`,
-                                    borderRadius: 8, padding: '8px 14px', fontSize: 12.5,
-                                    color: C.navy, boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                                    transition: 'border-color 0.2s', cursor: 'pointer',
-                                  }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.gray100; }}
-                                  onClick={() => setSelectedImage({ nombre: archivo.nombre, url: archivo.url })}
-                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedImage({ nombre: archivo.nombre, url: archivo.url }); }}
-                                  role="button"
-                                  tabIndex={0}
-                                  aria-label={`Archivo adjunto: ${archivo.nombre}`}
-                                >
-                                  <Paperclip size={13} color={C.gray500} />
-                                  <span style={{ fontWeight: 500 }}>{archivo.nombre}</span>
-                                  <span style={{
-                                    fontSize: 10, fontWeight: 700, background: C.primaryBg,
-                                    color: C.primary, padding: '2px 8px', borderRadius: 4,
-                                    marginLeft: 4, textTransform: 'uppercase',
-                                  }}>
-                                    {categoriaLabel(archivo.categoria)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div style={{ padding: 16 }}>
+                <DataTable<ConsultaHistorica>
+                  columns={consultaColumns}
+                  data={activePatient.consultas}
+                  pageSize={3}
+                  emptyMessage="No hay consultas registradas."
+                  getRowKey={(row) => String(row.id_consulta)}
+                  rowActions={consultaRowActions}
+                  searchable={false}
+                  hidePagination={activePatient.consultas.length <= 3}
+                />
               </div>
             )}
+            </>)}
+          </div>
+
+          {/* Plan de tratamiento activo */}
+          <div style={{ border: `1px solid ${C.gray300}`, borderRadius: 12, overflow: 'hidden', background: C.white }}>
+            <div
+              onClick={() => setSectionOpen(prev => ({ ...prev, plan: !prev.plan }))}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
+                borderBottom: sectionOpen.plan ? `1px solid ${C.gray300}` : 'none',
+              }}
+            >
+              <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 700, color: C.navy, margin: 0 }}>
+                Plan de tratamiento activo
+                {activePatient?.tratamientos && activePatient.tratamientos.length > 0 && (
+                  <span style={{ fontSize: 12, color: C.gray500, fontWeight: 400, marginLeft: 8 }}>
+                    ({activePatient.tratamientos.length} registro{activePatient.tratamientos.length !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </h3>
+              <span style={{ color: C.gray500, transform: sectionOpen.plan ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', fontSize: 14 }}>
+                ▼
+              </span>
+            </div>
+
+            {sectionOpen.plan && (
+              <>
+              {!activePatient?.tratamientos || activePatient.tratamientos.length === 0 ? (
+              <div style={{ border: `2px dashed ${C.warning}`, borderRadius: 12, padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, background: 'rgba(239, 159, 39, 0.06)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.warning, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Sin Plan de Tratamiento Activo
+                </span>
+                <span style={{ fontSize: 12, color: C.gray500, textAlign: 'center' }}>
+                  El paciente no tiene planes de tratamiento activos
+                </span>
+              </div>
+            ) : (
+              <div style={{ padding: 16 }}>
+                <DataTable<TratamientoPacienteExp>
+                  columns={tratColumns}
+                  data={activePatient.tratamientos}
+                  pageSize={3}
+                  emptyMessage="No hay planes de tratamiento."
+                  getRowKey={(row) => String(row.id)}
+                  searchable={false}
+                  hidePagination={activePatient.tratamientos.length <= 3}
+                  rowActions={(row) => [
+                    {
+                      icon: <Eye size={16} />,
+                      label: 'Ver consultas asociadas',
+                      onClick: () => setSelectedTratamientoForConsultas(row),
+                    },
+                  ]}
+                />
+              </div>
+            )}
+            </>)}
           </div>
         </div>
       )}
@@ -960,7 +797,17 @@ export function ExpedienteScreen() {
         </div>
       )}
 
-      {/* Image Viewer Modal */}
+      {/* ══ VISTA 5: Galería de Fotos ════════════════════════════════════════════ */}
+      {viewState === 'galeria' && activePatient && (
+        <GaleriaFotos
+          pacienteId={activePatient.id_persona}
+          pacienteNombre={[activePatient.primer_nombre, activePatient.primer_apellido].filter(Boolean).join(' ')}
+          consultas={activePatient.consultas}
+          onBack={() => setViewState('detail')}
+        />
+      )}
+
+
       {selectedImage && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -1020,282 +867,6 @@ export function ExpedienteScreen() {
           <DrawerPatientList items={items} onSelectPatient={(patientId) => { setOpenDrawer(null); handleSelectPatient(patientId); }} />
         </StatsDrawer>
       ))}
-
-      {/* Galería de Fotos — Placeholder */}
-      {showGalleryPlaceholder && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-        }} onClick={() => setShowGalleryPlaceholder(false)}>
-          <div style={{
-            background: C.white, borderRadius: 16, maxWidth: '450px', width: '100%',
-            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{
-              padding: '20px 24px',
-              background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
-              color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ImageIcon size={18} /> Galería de Fotos
-              </div>
-              <button onClick={() => setShowGalleryPlaceholder(false)}
-                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
-                <X size={20} />
-              </button>
-            </div>
-            <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-              <ImageIcon size={48} color={C.gray300} style={{ marginBottom: 16, display: 'inline-block' }} />
-              <div style={{ fontSize: 15, fontWeight: 600, color: C.navy, marginBottom: 8 }}>
-                Pantalla en desarrollo
-              </div>
-              <div style={{ fontSize: 13, color: C.gray500, lineHeight: 1.6 }}>
-                Allison va a crear esta pantalla, así que esto no se puede revisar aún.
-              </div>
-            </div>
-            <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="primary" size="sm" onClick={() => setShowGalleryPlaceholder(false)}>
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Payment Modal */}
-      {selectedConsultaForPagos && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px'
-        }} onClick={() => { setSelectedConsultaForPagos(null); setShowNuevoPago(false); }}>
-          <div
-            style={{
-              background: C.white, borderRadius: 16, maxWidth: '550px',
-              width: '100%', maxHeight: '90vh', overflowY: 'auto',
-              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div style={{
-              padding: '20px 24px',
-              background: 'linear-gradient(135deg, #1D9E75, #157a5a)',
-              color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CreditCard size={18} /> Pagos de la Consulta
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
-                  {selectedConsultaForPagos.fecha_inicio
-                    ? new Date(selectedConsultaForPagos.fecha_inicio).toLocaleDateString('es-HN')
-                    : 'N/A'}
-                </div>
-              </div>
-              <button onClick={() => { setSelectedConsultaForPagos(null); setShowNuevoPago(false); }}
-                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {pagosData.loading ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: C.gray500 }}>
-                  <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }} />
-                  <div style={{ marginTop: 8, fontSize: 13 }}>Cargando pagos...</div>
-                </div>
-              ) : (
-                <>
-                  {/* Summary cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    <div style={{ background: C.gray50, borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${C.gray100}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: C.navy, marginTop: 4 }}>
-                        L. {pagosData.resumen.total.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div style={{ background: C.gray50, borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${C.gray100}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.success, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pagado</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: C.success, marginTop: 4 }}>
-                        L. {pagosData.resumen.totalPagado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div style={{ background: pagosData.resumen.saldoPendiente > 0 ? '#FFF8EC' : '#F0FBF7', borderRadius: 10, padding: '14px', textAlign: 'center', border: `1px solid ${pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success}40` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: pagosData.resumen.saldoPendiente > 0 ? C.warning : C.success, marginTop: 4 }}>
-                        L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payments list */}
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <DollarSign size={14} /> Historial de Pagos
-                    </div>
-                    {pagosData.pagos.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '20px', color: C.gray500, fontSize: 13, border: `1px dashed ${C.gray300}`, borderRadius: 8 }}>
-                        No hay pagos registrados para esta consulta.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {pagosData.pagos.map((pago: any, idx: number) => (
-                          <div key={pago.id_pago || idx} style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '12px 14px', background: C.white, border: `1px solid ${C.gray100}`,
-                            borderRadius: 8,
-                          }}>
-                            <div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>
-                                {new Date(pago.fecha).toLocaleDateString('es-HN')}
-                              </div>
-                              {pago.observacion && (
-                                <div style={{ fontSize: 11, color: C.gray500, marginTop: 2 }}>{pago.observacion}</div>
-                              )}
-                            </div>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: C.success }}>
-                              L. {Number(pago.abono).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Add payment button */}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={pagosData.resumen.pagadaCompletamente}
-                    onClick={() => { setShowNuevoPago(true); setPagoError(''); }}
-                    style={{
-                      width: '100%',
-                      background: pagosData.resumen.pagadaCompletamente ? C.gray300 : C.success,
-                      borderColor: pagosData.resumen.pagadaCompletamente ? C.gray300 : C.success,
-                      opacity: pagosData.resumen.pagadaCompletamente ? 0.6 : 1,
-                      cursor: pagosData.resumen.pagadaCompletamente ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <Plus size={15} /> {pagosData.resumen.pagadaCompletamente ? 'Consulta totalmente pagada' : 'Agregar Pago'}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Nuevo Pago Modal */}
-      {showNuevoPago && selectedConsultaForPagos && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.4)', zIndex: 10000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
-        }} onClick={() => setShowNuevoPago(false)}>
-          <div style={{
-            background: C.white, borderRadius: 16, maxWidth: '420px', width: '100%', overflow: 'hidden',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{
-              padding: '18px 24px', background: 'linear-gradient(135deg, #1D9E75, #157a5a)', color: 'white',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Plus size={18} /> Nuevo Pago
-              </div>
-              <button onClick={() => setShowNuevoPago(false)}
-                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', borderRadius: 8, padding: '6px', cursor: 'pointer', display: 'flex' }}>
-                <X size={20} />
-              </button>
-            </div>
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                  Fecha del pago *
-                </label>
-                <input type="date" value={nuevoPagoFecha} onChange={(e) => setNuevoPagoFecha(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                  Monto del pago (L.) *
-                </label>
-                <input type="number" min="0.01" step="0.01" value={nuevoPagoMonto} onChange={(e) => setNuevoPagoMonto(e.target.value)}
-                  placeholder="0.00"
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                  Observación
-                </label>
-                <input type="text" value={nuevoPagoObs} onChange={(e) => setNuevoPagoObs(e.target.value)}
-                  placeholder="Ej: Segundo abono, pago completo, etc."
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none' }} />
-              </div>
-              {pagosData.resumen.saldoPendiente > 0 && (
-                <div style={{ fontSize: 11, color: C.warning, background: '#FFF8EC', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.warning}30` }}>
-                  Saldo pendiente actual: <strong>L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</strong>
-                </div>
-              )}
-              {nuevoPagoMonto && parseFloat(nuevoPagoMonto) > pagosData.resumen.saldoPendiente && (
-                <div style={{ fontSize: 11, color: C.danger, background: 'rgba(226, 75, 74, 0.08)', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.danger}30` }}>
-                  El monto del pago (L. {parseFloat(nuevoPagoMonto).toLocaleString('es-HN', { minimumFractionDigits: 2 })}) excede el saldo pendiente (L. {pagosData.resumen.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
-                </div>
-              )}
-              {pagoError && (
-                <div style={{ fontSize: 11, color: C.danger, background: 'rgba(226, 75, 74, 0.08)', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.danger}30` }}>
-                  {pagoError}
-                </div>
-              )}
-            </div>
-            <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Button variant="secondary" size="sm" onClick={() => setShowNuevoPago(false)}>Cancelar</Button>
-              <Button
-                variant="primary"
-                size="sm"
-                loading={savingPago}
-                disabled={!nuevoPagoMonto || parseFloat(nuevoPagoMonto) <= 0 || !nuevoPagoFecha || parseFloat(nuevoPagoMonto) > pagosData.resumen.saldoPendiente}
-                onClick={async () => {
-                  const monto = parseFloat(nuevoPagoMonto);
-                  if (isNaN(monto) || monto <= 0) return;
-                  if (!nuevoPagoFecha) return;
-                  setSavingPago(true);
-                  setPagoError('');
-                  try {
-                    const res = await billingService.create({
-                      id_consulta: selectedConsultaForPagos.id_consulta,
-                      fecha: nuevoPagoFecha,
-                      abono: monto,
-                      observacion: nuevoPagoObs.trim() || undefined,
-                    });
-                    if (res.success) {
-                      // Reload payment data
-                      const reload = await billingService.getByConsultaId(selectedConsultaForPagos.id_consulta);
-                      const d = reload.data;
-                      if (d?.pagos && d?.resumen) {
-                        setPagosData({ pagos: d.pagos, resumen: d.resumen, loading: false });
-                      }
-                      setShowNuevoPago(false);
-                      setNuevoPagoMonto('');
-                      setNuevoPagoObs('');
-                      setNuevoPagoFecha(new Date().toISOString().slice(0, 10));
-                    }
-                  } catch (err: any) {
-                    setPagoError(err?.message || 'Error al registrar el pago');
-                  }
-                  setSavingPago(false);
-                }}
-                style={{ background: C.success, borderColor: C.success }}
-              >
-                <CheckCircle size={14} /> Guardar Pago
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Respuestas Viewer Modal */}
       {selectedConsultationForRespuestas && (
@@ -1415,6 +986,330 @@ export function ExpedienteScreen() {
                 variant="primary"
                 size="sm"
                 onClick={() => setSelectedConsultationForRespuestas(null)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Consulta Details Modal */}
+      {selectedConsultaForDetails && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => setSelectedConsultaForDetails(null)}>
+          <div
+            style={{
+              background: C.white,
+              borderRadius: 16,
+              maxWidth: '700px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  Detalles de la Consulta
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
+                  {selectedConsultaForDetails.fecha_fin
+                    ? new Date(selectedConsultaForDetails.fecha_fin).toLocaleDateString('es-HN')
+                    : selectedConsultaForDetails.fecha_inicio
+                      ? new Date(selectedConsultaForDetails.fecha_inicio).toLocaleDateString('es-HN')
+                      : 'N/A'}
+                  {' · '}
+                  {selectedConsultaForDetails.doctor?.persona
+                    ? `Dr. ${selectedConsultaForDetails.doctor.persona.primer_nombre} ${selectedConsultaForDetails.doctor.persona.primer_apellido}`
+                    : `#${selectedConsultaForDetails.id_usuario}`}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedConsultaForDetails(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: 8,
+                  padding: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => { setSelectedConsultaForDetails(null); handleViewOdontogram(selectedConsultaForDetails.id_consulta); }}
+                  style={{ fontSize: 12 }}
+                >
+                  <Zap size={14} /> Ver Odontograma de la Consulta
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => { setSelectedConsultaForDetails(null); setSelectedConsultationForRespuestas(selectedConsultaForDetails); }}
+                  style={{
+                    fontSize: 12,
+                    background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(11, 197, 223, 0.35)',
+                  }}
+                >
+                  <FileText size={14} /> Ver Formulario
+                </Button>
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: 20,
+                background: C.gray50,
+                borderRadius: 10,
+                padding: 20,
+                border: `1px solid ${C.gray100}`,
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Motivo de consulta</div>
+                  <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, fontWeight: 500, lineHeight: 1.5 }}>{selectedConsultaForDetails.motivo}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Diagnóstico de evolución</div>
+                  <div style={{ fontSize: 13.5, color: C.navy, marginTop: 6, lineHeight: 1.5 }}>{selectedConsultaForDetails.diagnostico}</div>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px' }}>Notas clínicas</div>
+                  <div style={{ fontSize: 13.5, color: C.gray700, marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{selectedConsultaForDetails.notas}</div>
+                </div>
+              </div>
+
+              {(selectedConsultaForDetails.tratamientos?.length > 0 || selectedConsultaForDetails.tratamiento) && (
+                <div style={{
+                  background: C.white,
+                  borderRadius: 10,
+                  padding: 18,
+                  border: `1.5px solid ${C.primary015}`,
+                  boxShadow: '0 2px 8px rgba(11, 197, 223, 0.03)',
+                }}>
+                  <div style={{
+                    fontSize: 12,
+                    color: C.primary,
+                    fontWeight: 700,
+                    marginBottom: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}>
+                    <DollarSign size={14} /> Tratamientos realizados
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {selectedConsultaForDetails.tratamientos?.map((t, idx) => {
+                      const discount = Number(t.descuento || 0);
+                      const finalPrice = Number(t.precio) - discount;
+                      return (
+                        <div key={idx} style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13,
+                          color: C.navy, paddingBottom: 8, borderBottom: `1px solid ${C.gray100}`,
+                        }}>
+                          <span style={{ fontWeight: 500 }}>{t.tratamiento.nombre}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {discount > 0 ? (
+                              <>
+                                <span style={{ fontSize: 11, color: C.gray500, textDecoration: 'line-through' }}>
+                                  L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span style={{ fontWeight: 600, color: C.success }}>
+                                  L. {finalPrice.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: C.danger, background: 'rgba(226, 75, 74, 0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                                  -L.{discount.toLocaleString('es-HN')}
+                                </span>
+                              </>
+                            ) : (
+                              <span style={{ fontWeight: 600, color: C.navy }}>
+                                L. {Number(t.precio).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {selectedConsultaForDetails.tratamiento && (!selectedConsultaForDetails.tratamientos || selectedConsultaForDetails.tratamientos.length === 0) && (
+                      <div style={{ fontSize: 12.5, color: C.gray700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                        {selectedConsultaForDetails.tratamiento}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedConsultaForDetails.archivos?.length > 0 && (
+                <div>
+                  <div style={{
+                    fontSize: 11, color: C.gray500, fontWeight: 700,
+                    textTransform: 'uppercase', letterSpacing: '0.8px',
+                    marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    Archivos y Radiografías Adjuntas
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {selectedConsultaForDetails.archivos.map((archivo, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          background: C.white, border: `1.5px solid ${C.gray100}`,
+                          borderRadius: 8, padding: '8px 14px', fontSize: 12.5,
+                          color: C.navy, boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                          transition: 'border-color 0.2s', cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.gray100; }}
+                        onClick={() => setSelectedImage({ nombre: archivo.nombre, url: archivo.url })}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedImage({ nombre: archivo.nombre, url: archivo.url }); }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Archivo adjunto: ${archivo.nombre}`}
+                      >
+                        <Paperclip size={13} color={C.gray500} />
+                        <span style={{ fontWeight: 500 }}>{archivo.nombre}</span>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, background: C.primaryBg,
+                          color: C.primary, padding: '2px 8px', borderRadius: 4,
+                          marginLeft: 4, textTransform: 'uppercase',
+                        }}>
+                          {categoriaLabel(archivo.categoria)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{
+              padding: '16px 24px',
+              borderTop: `1px solid ${C.gray100}`,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setSelectedConsultaForDetails(null)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tratamiento Consultas Asociadas Modal */}
+      {selectedTratamientoForConsultas && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => setSelectedTratamientoForConsultas(null)}>
+          <div
+            style={{
+              background: C.white,
+              borderRadius: 16,
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, var(--arco-primary, #0BC5DF), #08a3b9)',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  Consultas Asociadas
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2, opacity: 0.9 }}>
+                  {selectedTratamientoForConsultas.nombre}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTratamientoForConsultas(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: 8,
+                  padding: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {!selectedTratamientoForConsultas.consultas || selectedTratamientoForConsultas.consultas.length === 0 ? (
+                <div style={{ textAlign: 'center', color: C.gray500, padding: '20px' }}>
+                  No hay consultas asociadas a este plan de tratamiento.
+                </div>
+              ) : (
+                selectedTratamientoForConsultas.consultas.map((c) => (
+                  <div key={c.id_consulta} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0',
+                    borderBottom: `1px solid ${C.gray100}`, fontSize: 13, color: C.gray700,
+                  }}>
+                    <span style={{ fontWeight: 600, color: C.navy, minWidth: 100 }}>
+                      {new Date(c.fecha_inicio).toLocaleDateString('es-HN')}
+                    </span>
+                    <span style={{ flex: 1 }}>{c.notas || 'Sin notas'}</span>
+                    {c.doctor && (
+                      <span style={{ color: C.gray500, fontSize: 12 }}>
+                        Dr. {c.doctor.persona.primer_nombre} {c.doctor.persona.primer_apellido}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{
+              padding: '16px 24px',
+              borderTop: `1px solid ${C.gray100}`,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setSelectedTratamientoForConsultas(null)}
               >
                 Cerrar
               </Button>

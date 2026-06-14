@@ -1,10 +1,22 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiUnauthorizedResponse, ApiOperation } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { PrivilegesGuard } from '../guards/privileges.guard';
+import { PrivilegesGuard } from 'src/guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
 import { PagoPacienteService } from './pago-paciente.service';
-import { CreatePagoPacienteDto } from './dto/create-pago-paciente.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 @ApiTags('Pagos Paciente')
 @Controller('pago-paciente')
@@ -17,17 +29,60 @@ export class PagoPacienteController {
   @Privileges(10)
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Registrar un pago para una consulta' })
-  async create(@Body() dto: CreatePagoPacienteDto) {
-    const pago = await this.pagoPacienteService.create(dto);
-    return { data: pago, message: 'Pago registrado exitosamente' };
+  @ApiOperation({
+    summary: 'Registrar pago de paciente',
+    description: 'Registra un ingreso por pago de paciente asociado a una consulta.',
+  })
+  @ApiCreatedResponse({ description: 'Ingreso registrado exitosamente' })
+  @ApiBadRequestResponse({ description: 'Datos inválidos o consulta no existente' })
+  async create(@Body() createPaymentDto: CreatePaymentDto) {
+    return this.pagoPacienteService.create(createPaymentDto);
   }
 
   @Privileges(12)
-  @Get('consulta/:id')
+  @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Obtener pagos de una consulta' })
-  async findByConsulta(@Param('id', ParseIntPipe) id: number) {
-    return this.pagoPacienteService.findByConsulta(id);
+  @ApiOperation({
+    summary: 'Listar historial de pagos de pacientes',
+    description: 'Retorna el historial de ingresos registrados por pagos de pacientes.',
+  })
+  @ApiOkResponse({ description: 'Historial de pagos obtenido exitosamente' })
+  @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 20)', example: '20' })
+  async findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    return this.pagoPacienteService.findAll(pageNum, limitNum);
+  }
+
+
+  @Privileges(10)
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Editar un pago', description: 'Actualiza los datos de un ingreso registrado.' })
+  @ApiParam({ name: 'id', description: 'ID del pago', example: 1 })
+  @ApiOkResponse({ description: 'Pago actualizado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Pago no encontrado' })
+  @ApiBadRequestResponse({ description: 'Datos inválidos o consulta no existente' })
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePaymentDto: UpdatePaymentDto,
+  ) {
+    return this.pagoPacienteService.update(id, updatePaymentDto);
+  }
+
+  @Privileges(10)
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar un pago', description: 'Elimina un registro de pago por su ID.' })
+  @ApiParam({ name: 'id', description: 'ID del pago', example: 1 })
+  @ApiOkResponse({ description: 'Pago eliminado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Pago no encontrado' })
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.pagoPacienteService.remove(id);
   }
 }

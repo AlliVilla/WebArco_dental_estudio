@@ -108,29 +108,6 @@ export class OdontogramaResponseDto {
   diente: { numero_diente: number; nombre: string };
 }
 
-export class PagoResponseDto {
-  @ApiProperty({ example: 1 })
-  id_pago: number;
-
-  @ApiProperty({ example: 1 })
-  id_consulta: number;
-
-  @ApiProperty({ example: '2026-06-07' })
-  fecha: string;
-
-  @ApiProperty({ example: 500.0 })
-  abono: number;
-
-  @ApiProperty({ example: 1500.0 })
-  saldo: number;
-
-  @ApiProperty({ example: 'Pago inicial en efectivo', nullable: true })
-  observacion: string | null;
-
-  @ApiProperty({ example: 'data:image/png;base64,...', nullable: true })
-  firma_paciente: string | null;
-}
-
 export class EstadoFirmasDto {
   @ApiProperty({ example: true })
   firma_paciente_presente: boolean;
@@ -187,9 +164,6 @@ export class ConsultaResponseDto {
 
   @ApiProperty({ type: [OdontogramaResponseDto] })
   odontogramas: OdontogramaResponseDto[];
-
-  @ApiProperty({ type: [PagoResponseDto] })
-  pagos: PagoResponseDto[];
 
   @ApiProperty({ type: () => EstadoFirmasDto })
   estado_firmas: EstadoFirmasDto;

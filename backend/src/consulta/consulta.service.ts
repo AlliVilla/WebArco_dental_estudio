@@ -44,6 +44,26 @@ const consultaInclude = {
   pagos: {
     orderBy: { fecha: 'desc' },
   },
+  tratamientoPaciente: {
+    select: {
+      id: true,
+      nombre: true,
+      costoTotal: true,
+      estado: true,
+    },
+  },
+  pagosConsulta: {
+    include: {
+      abonos: {
+        include: {
+          tratamientoPaciente: {
+            select: { id: true, nombre: true },
+          },
+        },
+      },
+    },
+    orderBy: { fecha: 'desc' },
+  },
 } satisfies Prisma.ConsultaInclude;
 
 @Injectable()
@@ -56,6 +76,10 @@ export class ConsultaService {
 
     if (createConsultaDto.id_cita) {
       await this.assertCitaExists(createConsultaDto.id_cita);
+    }
+
+    if (createConsultaDto.tratamientoPacienteId) {
+      await this.assertTratamientoPacienteExists(createConsultaDto.tratamientoPacienteId);
     }
 
     const consulta = await this.prisma.consulta.create({
@@ -73,6 +97,7 @@ export class ConsultaService {
         tratamiento: createConsultaDto.tratamiento ?? null,
         firma_paciente: createConsultaDto.firma_paciente ?? null,
         consentimiento: createConsultaDto.consentimiento ?? false,
+        tratamientoPacienteId: createConsultaDto.tratamientoPacienteId ?? null,
       },
       include: consultaInclude,
     });
@@ -196,6 +221,12 @@ export class ConsultaService {
       updateData.firma_paciente = updateConsultaDto.firma_paciente;
     if (updateConsultaDto.consentimiento !== undefined)
       updateData.consentimiento = updateConsultaDto.consentimiento;
+    if (updateConsultaDto.tratamientoPacienteId !== undefined) {
+      if (updateConsultaDto.tratamientoPacienteId) {
+        await this.assertTratamientoPacienteExists(updateConsultaDto.tratamientoPacienteId);
+      }
+      updateData.tratamientoPacienteId = updateConsultaDto.tratamientoPacienteId || null;
+    }
 
     const updated = await this.prisma.consulta.update({
       where: { id_consulta: id },
@@ -218,8 +249,11 @@ export class ConsultaService {
     const pagosCount = await this.prisma.pagoPaciente.count({
       where: { id_consulta: id },
     });
+    const pagosConsultaCount = await this.prisma.pagoConsulta.count({
+      where: { consultaId: id },
+    });
 
-    if (antecedentesCount > 0 || odontogramasCount > 0 || pagosCount > 0) {
+    if (antecedentesCount > 0 || odontogramasCount > 0 || pagosCount > 0 || pagosConsultaCount > 0) {
       throw new BadRequestException(
         'No se puede eliminar la consulta porque tiene registros asociados (antecedentes, odontogramas o pagos)',
       );
@@ -264,6 +298,18 @@ export class ConsultaService {
     if (!usuario) {
       throw new BadRequestException(
         `No existe un usuario con el id ${id}`,
+      );
+    }
+  }
+
+  private async assertTratamientoPacienteExists(id: number) {
+    const t = await this.prisma.tratamientoPaciente.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!t) {
+      throw new BadRequestException(
+        `No existe un tratamiento de paciente con el id ${id}`,
       );
     }
   }

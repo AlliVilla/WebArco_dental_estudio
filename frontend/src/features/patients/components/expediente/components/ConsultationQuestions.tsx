@@ -78,24 +78,26 @@ interface EditFormProps {
     onError:  (msg: string) => void;
 }
 function EditPreguntaForm({ pregunta, onSave, onCancel, onError }: EditFormProps) {
-    const [text,     setText]     = useState(pregunta.pregunta);
-    const [categoria, setCategoria] = useState(pregunta.categoria);
-    const [requiere, setRequiere] = useState(pregunta.requiere_explicacion);
-    const [saving,   setSaving]   = useState(false);
+    const [text,       setText]       = useState(pregunta.pregunta);
+    const [categoria,  setCategoria]  = useState(pregunta.categoria);
+    const [requiere,   setRequiere]   = useState(pregunta.requiere_explicacion);
+    const [obligatorio, setObligatorio] = useState(pregunta.obligatorio);
+    const [saving,     setSaving]     = useState(false);
 
     const handleSave = async () => {
         if (!text.trim()) { onError('El texto de la pregunta no puede estar vacío.'); return; }
         setSaving(true);
         try {
             const res = await expedientService.updatePregunta(pregunta.id_pregunta, {
-                pregunta: text.trim(), categoria, requiere_explicacion: requiere,
+                pregunta: text.trim(), categoria, requiere_explicacion: requiere, obligatorio,
             });
             const updated = (res.data as any)?.data ?? res.data as any;
             onSave({
                 ...pregunta,
-                pregunta:            updated.pregunta            ?? text.trim(),
-                categoria:           updated.categoria           ?? categoria,
-                requiere_explicacion: updated.requiere_explicacion ?? requiere,
+                pregunta:              updated.pregunta              ?? text.trim(),
+                categoria:             updated.categoria             ?? categoria,
+                requiere_explicacion:   updated.requiere_explicacion   ?? requiere,
+                obligatorio:           updated.obligatorio           ?? obligatorio,
             });
         } catch (e: any) {
             onError(e?.response?.data?.message ?? e?.message ?? 'Error al actualizar la pregunta.');
@@ -113,32 +115,40 @@ function EditPreguntaForm({ pregunta, onSave, onCancel, onError }: EditFormProps
                 onChange={e => setText(e.target.value)}
                 placeholder="Ej: ¿Tiene alguna alergia?"
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-                {/* Reuse UIKit Select */}
-                <Select
-                    label="Categoría"
-                    options={CATEGORIAS_OPTIONS}
-                    value={categoria}
-                    onChange={setCategoria}
-                />
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.navy, cursor: 'pointer', paddingBottom: 4 }}>
-                    <input
-                        type="checkbox"
-                        checked={requiere}
-                        onChange={e => setRequiere(e.target.checked)}
-                        style={{ width: 14, height: 14, cursor: 'pointer' }}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'end' }}>
+                    <Select
+                        label="Categoría"
+                        options={CATEGORIAS_OPTIONS}
+                        value={categoria}
+                        onChange={setCategoria}
                     />
-                    Es pregunta sí/no?
-                </label>
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <Button size="sm" onClick={handleSave} loading={saving}>
-                    {!saving && <Check size={13} />} Guardar
-                </Button>
-                <Button size="sm" variant="secondary" onClick={onCancel}>
-                    Cancelar
-                </Button>
-            </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.navy, cursor: 'pointer', paddingBottom: 4 }}>
+                        <input
+                            type="checkbox"
+                            checked={requiere}
+                            onChange={e => setRequiere(e.target.checked)}
+                            style={{ width: 14, height: 14, cursor: 'pointer' }}
+                        />
+                        Sí/No
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.navy, cursor: 'pointer', paddingBottom: 4 }}>
+                        <input
+                            type="checkbox"
+                            checked={obligatorio}
+                            onChange={e => setObligatorio(e.target.checked)}
+                            style={{ width: 14, height: 14, cursor: 'pointer' }}
+                        />
+                        Obligatorio
+                    </label>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <Button size="sm" onClick={handleSave} loading={saving}>
+                        {!saving && <Check size={13} />} Guardar
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={onCancel}>
+                        Cancelar
+                    </Button>
+                </div>
         </div>
     );
 }
@@ -151,17 +161,18 @@ interface NewPreguntaFormProps {
     onError:   (msg: string) => void;
 }
 function NewPreguntaForm({ nextOrder, onCreated, onClose, onError }: NewPreguntaFormProps) {
-    const [text,      setText]      = useState('');
-    const [categoria, setCategoria] = useState('Antecedentes Médicos');
-    const [requiere,  setRequiere]  = useState(true);
-    const [saving,    setSaving]    = useState(false);
+    const [text,       setText]       = useState('');
+    const [categoria,  setCategoria]  = useState('Antecedentes Médicos');
+    const [requiere,   setRequiere]   = useState(true);
+    const [obligatorio, setObligatorio] = useState(true);
+    const [saving,     setSaving]     = useState(false);
 
     const handleCreate = async () => {
         if (!text.trim()) { onError('Escribe el texto de la nueva pregunta.'); return; }
         setSaving(true);
         try {
             const res = await expedientService.crearPregunta({
-                pregunta: text.trim(), orden_num: nextOrder, requiere_explicacion: requiere, categoria,
+                pregunta: text.trim(), orden_num: nextOrder, requiere_explicacion: requiere, obligatorio, categoria,
             });
             const created = (res.data as any)?.data ?? res.data as any;
             onCreated(created);
@@ -182,8 +193,7 @@ function NewPreguntaForm({ nextOrder, onCreated, onClose, onError }: NewPregunta
                     onChange={e => setText(e.target.value)}
                     placeholder="Ej: ¿Tiene historial de presión arterial alta?"
                 />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-                    {/* Reuse UIKit Select */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'end' }}>
                     <Select
                         label="Categoría"
                         options={CATEGORIAS_OPTIONS}
@@ -197,7 +207,16 @@ function NewPreguntaForm({ nextOrder, onCreated, onClose, onError }: NewPregunta
                             onChange={e => setRequiere(e.target.checked)}
                             style={{ width: 14, height: 14, cursor: 'pointer' }}
                         />
-                        Es pregunta sí/no?
+                        Sí/No
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.navy, cursor: 'pointer', paddingBottom: 4 }}>
+                        <input
+                            type="checkbox"
+                            checked={obligatorio}
+                            onChange={e => setObligatorio(e.target.checked)}
+                            style={{ width: 14, height: 14, cursor: 'pointer' }}
+                        />
+                        Obligatorio
                     </label>
                 </div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -246,7 +265,12 @@ function QuestionRow({
     return (
         <div style={{ padding: 14, borderRadius: 10, background: '#F8F9FA', border: '1px solid #EAECEE' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: showExplanation ? 10 : 0 }}>
-                <QuestionLabel>{pregunta.pregunta}</QuestionLabel>
+                <QuestionLabel>
+                    {pregunta.pregunta}
+                    {pregunta.obligatorio && (
+                        <span style={{ color: C.danger, marginLeft: 4, fontSize: 12 }}>*</span>
+                    )}
+                </QuestionLabel>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     {pregunta.requiere_explicacion && (
                         <YesNoButtons
