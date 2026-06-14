@@ -83,6 +83,32 @@ function PatientCard({ exp, onClick }: { exp: ExpedientePaciente; onClick: () =>
   );
 }
 
+function DrawerPatientList({ items, onSelectPatient }: { items: ExpedientePaciente[]; onSelectPatient: (id: number) => void }) {
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(
+    () => !search ? items : items.filter((e) => {
+      const nombre = [e.primer_nombre, e.segundo_nombre, e.primer_apellido, e.segundo_apellido].filter(Boolean).join(' ');
+      return nombre.toLowerCase().includes(search.toLowerCase()) || e.numero_identidad.includes(search);
+    }),
+    [items, search],
+  );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input value={search} onChange={(e) => setSearch(e.target.value)}
+        placeholder="Buscar paciente..."
+        style={{ width: '100%', padding: '10px 14px', border: `1px solid ${C.gray300}`, borderRadius: 10, fontSize: 13, outline: 'none', color: C.navy, background: C.white, boxSizing: 'border-box' }}
+      />
+      {filtered.length === 0 ? (
+        <p style={{ textAlign: 'center', color: C.gray500, fontSize: 13, margin: '24px 0' }}>No se encontraron pacientes.</p>
+      ) : (
+        filtered.map((exp) => (
+          <PatientCard key={exp.id_persona} exp={exp} onClick={() => onSelectPatient(exp.id_persona)} />
+        ))
+      )}
+    </div>
+  );
+}
+
 // ── Componente principal ────────────────────────────────────────────────────────
 
 export function ExpedienteScreen() {
@@ -986,15 +1012,13 @@ export function ExpedienteScreen() {
       {drawerConfigs.map(({ key, title, subtitle, items }) => (
         <StatsDrawer
           key={key}
-          isOpen={openDrawer === key}
+          open={openDrawer === key}
           onClose={() => setOpenDrawer(null)}
           title={title}
           subtitle={subtitle}
-          data={items}
-          searchPlaceholder="Buscar paciente..."
-          searchKeys={['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'numero_identidad']}
-          onSelectPatient={(patientId: number) => { setOpenDrawer(null); handleSelectPatient(patientId); }}
-        />
+        >
+          <DrawerPatientList items={items} onSelectPatient={(patientId) => { setOpenDrawer(null); handleSelectPatient(patientId); }} />
+        </StatsDrawer>
       ))}
 
       {/* Galería de Fotos — Placeholder */}
