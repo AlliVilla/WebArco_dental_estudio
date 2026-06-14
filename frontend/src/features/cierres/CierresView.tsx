@@ -18,7 +18,6 @@ import { billingService } from '../billing';
 import { CierreHistorialItem, TipoCierre } from '../billing/types';
 import { formatCurrency } from '../../utils/formatters';
 
-// Constantes de colores del sistema de diseño
 const COLORS = {
   primary: '#0BC5DF',
   success: '#1D9E75',
@@ -28,10 +27,18 @@ const COLORS = {
   borderLight: '#E5E7EB',
 };
 
-// ---------- helpers ----------
+function toNum(val: string | number | undefined | null): number {
+  if (val === undefined || val === null) return 0;
+  const n = typeof val === 'number' ? val : parseFloat(val);
+  return isNaN(n) ? 0 : n;
+}
 
 function formatFechaRango(item: CierreHistorialItem): string {
-  const fecha = new Date(item.fecha);
+  if (!item.fecha) return '—';
+  const parts = item.fecha.split('T')[0].split('-');
+  if (parts.length !== 3) return item.fecha;
+
+  const fecha = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   const opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
   const fin = fecha.toLocaleDateString('es-HN', opciones);
 
@@ -53,53 +60,50 @@ function formatFechaRango(item: CierreHistorialItem): string {
   return `${inicio.toLocaleDateString('es-HN', opciones)} – ${fin}`;
 }
 
-/** Devuelve el porcentaje comparativo de utilidad entre el cierre actual y el anterior (2 decimales).
- *  Positivo = mejoró, negativo = empeoró. Retorna 0 si no hay período anterior. */
 function calcularComparativa(
   actual: CierreHistorialItem,
   anterior: CierreHistorialItem | undefined,
 ): number {
-  if (!anterior || anterior.utilidad === 0) return 0;
-  const pct = ((actual.utilidad - anterior.utilidad) / Math.abs(anterior.utilidad)) * 100;
+  if (!anterior) return 0;
+  const utilActual = toNum(actual.utilidad);
+  const utilAnterior = toNum(anterior.utilidad);
+  if (utilAnterior === 0) return 0;
+  const pct = ((utilActual - utilAnterior) / Math.abs(utilAnterior)) * 100;
   return parseFloat(pct.toFixed(2));
 }
 
-/** Convierte los montos absolutos en porcentajes de desglose de pago (máx. 2 decimales). */
-function calcularDesglose(item: CierreHistorialItem): {
+function calcularDesgloseItem(item: CierreHistorialItem): {
   efectivo: number;
   tarjeta: number;
   transfer: number;
 } {
-  const total = item.efectivo + item.tarjeta + item.transferencia;
+  const ef = toNum(item.efectivo);
+  const ta = toNum(item.tarjeta);
+  const tr = toNum(item.transferencia);
+  const total = ef + ta + tr;
   if (total === 0) return { efectivo: 0, tarjeta: 0, transfer: 0 };
 
   const pct = (v: number) => parseFloat(((v / total) * 100).toFixed(2));
-
-  const efectivo = pct(item.efectivo);
-  const tarjeta = pct(item.tarjeta);
-  // El tercero se calcula por complemento para que siempre sumen exactamente 100.00
+  const efectivo = pct(ef);
+  const tarjeta = pct(ta);
   const transfer = parseFloat((100 - efectivo - tarjeta).toFixed(2));
 
   return { efectivo, tarjeta, transfer };
 }
 
-// ---------- component ----------
-
 export function CierresView() {
   const [activeTab, setActiveTab] = useState<'diario' | 'periodico'>('diario');
   const [fechaCierre, setFechaCierre] = useState(new Date().toISOString().split('T')[0]);
-  const [tipoPeriodo, setTipoPeriodo] = useState<TipoCierre>('Semanal');
+  const [tipoPeriodo, setTipoPeriodo] = useState<TipoCierre | 'Rango'>('Semanal');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
 
-  // Datos del backend
   const [historial, setHistorial] = useState<CierreHistorialItem[]>([]);
   const [cargando, setCargando] = useState(true);
   const [creandoCierre, setCreandoCierre] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Vista previa del cierre diario
   const [previewData, setPreviewData] = useState<{
     totalIngresos: number;
     totalEgresos: number;
@@ -110,7 +114,6 @@ export function CierresView() {
   } | null>(null);
   const [cargandoPreview, setCargandoPreview] = useState(false);
 
-  // ---------- fetch al montar ----------
   const cargarHistorial = useCallback(async () => {
     setCargando(true);
     setError(null);
@@ -138,7 +141,7 @@ export function CierresView() {
     try {
       const parts = fecha.split('-');
       if (parts.length === 3) {
-        const fechaFormat = `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+        const fechaFormat = `${parts[2]}/${parts[1]}/${parts[0]}`;
         const res = await billingService.previewCierre(fechaFormat);
         if (res.success && res.data) {
           setPreviewData({
@@ -190,7 +193,6 @@ export function CierresView() {
     }
   };
 
-  // ---------- datos derivados para el tab Diario ----------
   const cierreDiarioHoy = historial.find((c) => {
     if (!c.fecha) return false;
     const cDateStr = c.fecha.split('T')[0];
@@ -215,27 +217,91 @@ export function CierresView() {
       utilidadNeta: 0,
     };
 
-  // ---------- datos derivados para el tab Periódico ----------
-  const cierresFiltrados = historial.filter((c) => c.tipo_cierre === tipoPeriodo);
+  const isRangoValido = tipoPeriodo === 'Rango' && !!(fechaInicio && fechaFin);
 
-  const periodicSummary = cierresFiltrados.length > 0
-    ? {
-      ingresos: cierresFiltrados[0].ingresos,
-      egresos: cierresFiltrados[0].egresos,
-      utilidad: cierresFiltrados[0].utilidad,
-      comparativa: calcularComparativa(cierresFiltrados[0], cierresFiltrados[1]),
+  const cierresFiltrados = useMemo(() => {
+    if (isRangoValido) {
+      return historial.filter((c) => {
+        if (!c.fecha) return false;
+        const cDateStr = c.fecha.split('T')[0];
+        return cDateStr >= fechaInicio && cDateStr <= fechaFin;
+      });
     }
-    : { ingresos: 0, egresos: 0, utilidad: 0, comparativa: 0 };
+    if (tipoPeriodo === 'Rango') return [];
+    return historial.filter((c) => c.tipo_cierre === tipoPeriodo);
+  }, [historial, isRangoValido, fechaInicio, fechaFin, tipoPeriodo]);
 
-  const filasTabla = cierresFiltrados.map((item, idx) => ({
-    ...item,
-    comparativa: calcularComparativa(item, cierresFiltrados[idx + 1]),
-    desglose: calcularDesglose(item),
-    periodo: item.tipo_cierre,
-    fecha: formatFechaRango(item),
-  }));
+  const periodicSummary = useMemo(() => {
+    if (cierresFiltrados.length === 0) {
+      return { ingresos: 0, egresos: 0, utilidad: 0, comparativa: 0 };
+    }
 
-  // ---------- render ----------
+    if (isRangoValido) {
+      const ingresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.ingresos), 0);
+      const egresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.egresos), 0);
+      const utilidad = cierresFiltrados.reduce((acc, c) => acc + toNum(c.utilidad), 0);
+
+      let comparativa = 0;
+      const start = new Date(fechaInicio + 'T00:00:00');
+      const end = new Date(fechaFin + 'T23:59:59');
+      const diffMs = end.getTime() - start.getTime();
+
+      const prevStart = new Date(start.getTime() - diffMs - 1);
+      const prevEnd = new Date(start.getTime() - 1);
+
+      const prevStartStr = prevStart.toISOString().split('T')[0];
+      const prevEndStr = prevEnd.toISOString().split('T')[0];
+
+      const cierresPeriodoAnterior = historial.filter((c) => {
+        if (!c.fecha) return false;
+        const cDateStr = c.fecha.split('T')[0];
+        return cDateStr >= prevStartStr && cDateStr <= prevEndStr;
+      });
+
+      const utilidadAnterior = cierresPeriodoAnterior.reduce((acc, c) => acc + toNum(c.utilidad), 0);
+      if (utilidadAnterior !== 0) {
+        comparativa = parseFloat((((utilidad - utilidadAnterior) / Math.abs(utilidadAnterior)) * 100).toFixed(2));
+      }
+
+      return { ingresos, egresos, utilidad, comparativa };
+    }
+
+    const ingresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.ingresos), 0);
+    const egresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.egresos), 0);
+    const utilidad = cierresFiltrados.reduce((acc, c) => acc + toNum(c.utilidad), 0);
+
+    const todosDelTipo = tipoPeriodo !== 'Rango' ? historial.filter((c) => c.tipo_cierre === tipoPeriodo) : [];
+    const utilidadAnterior = todosDelTipo
+      .slice(cierresFiltrados.length)
+      .reduce((acc, c) => acc + toNum(c.utilidad), 0);
+
+    let comparativa = 0;
+    if (utilidadAnterior !== 0) {
+      comparativa = parseFloat((((utilidad - utilidadAnterior) / Math.abs(utilidadAnterior)) * 100).toFixed(2));
+    }
+
+    return { ingresos, egresos, utilidad, comparativa };
+  }, [cierresFiltrados, isRangoValido, fechaInicio, fechaFin, historial, tipoPeriodo]);
+
+  const filasTabla = useMemo(() => {
+    return cierresFiltrados.map((item, idx) => ({
+      ...item,
+      comparativa: isRangoValido
+        ? (() => {
+          const allSorted = [...historial].sort(
+            (a, b) => new Date(b.fecha ?? '').getTime() - new Date(a.fecha ?? '').getTime(),
+          );
+          const currentIdx = allSorted.findIndex((c) => c.id_cierre === item.id_cierre);
+          const prevItem = currentIdx !== -1 ? allSorted[currentIdx + 1] : undefined;
+          return calcularComparativa(item, prevItem);
+        })()
+        : calcularComparativa(item, cierresFiltrados[idx + 1]),
+      desglose: calcularDesgloseItem(item),
+      periodo: item.tipo_cierre,
+      fecha: formatFechaRango(item),
+    }));
+  }, [cierresFiltrados, isRangoValido, historial]);
+
   return (
     <div
       style={{
@@ -247,11 +313,9 @@ export function CierresView() {
         overflowY: 'auto',
       }}
     >
-      {/* Banner de error o éxito global */}
       {error && <Alert variant="error" message={error} />}
       {successMsg && <Alert variant="success" message={successMsg} />}
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           onClick={() => setActiveTab('diario')}
@@ -287,7 +351,6 @@ export function CierresView() {
         </button>
       </div>
 
-      {/* Alertas informativas */}
       {activeTab === 'diario' ? (
         <>
           <Alert
@@ -306,10 +369,8 @@ export function CierresView() {
         />
       )}
 
-      {/* ══════════════════════════════ TAB DIARIO ══════════════════════════════ */}
       {activeTab === 'diario' && (
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {/* Selector de fecha */}
           <div style={{ maxWidth: 400 }}>
             <Input
               type="date"
@@ -331,7 +392,6 @@ export function CierresView() {
             />
           </div>
 
-          {/* Estado de carga */}
           {cargandoPreview ? (
             <p style={{ color: COLORS.muted, fontSize: 14 }}>Cargando vista previa del cierre…</p>
           ) : (
@@ -357,7 +417,6 @@ export function CierresView() {
                   gap: 16,
                 }}
               >
-                {/* Total Ingresos */}
                 <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Total ingresos del día</div>
@@ -368,7 +427,6 @@ export function CierresView() {
                   </div>
                 </div>
 
-                {/* Efectivo */}
                 <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Ingresos en efectivo</div>
@@ -379,7 +437,6 @@ export function CierresView() {
                   </div>
                 </div>
 
-                {/* Tarjeta */}
                 <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Ingresos por tarjeta</div>
@@ -390,7 +447,6 @@ export function CierresView() {
                   </div>
                 </div>
 
-                {/* Transferencia */}
                 <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Ingresos por transferencia</div>
@@ -401,7 +457,6 @@ export function CierresView() {
                   </div>
                 </div>
 
-                {/* Egresos */}
                 <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Total egresos del día</div>
@@ -412,7 +467,6 @@ export function CierresView() {
                   </div>
                 </div>
 
-                {/* Utilidad */}
                 <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Utilidad neta del día</div>
@@ -426,7 +480,6 @@ export function CierresView() {
             </div>
           )}
 
-          {/* Botones */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
             <Button variant="secondary">
               <Download size={16} />
@@ -440,10 +493,8 @@ export function CierresView() {
         </Card>
       )}
 
-      {/* ══════════════════════════ TAB PERIÓDICO ═══════════════════════════════ */}
       {activeTab === 'periodico' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Filtros */}
           <Card>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24 }}>
               <Select
@@ -453,35 +504,42 @@ export function CierresView() {
                   { value: 'Semanal', label: 'Semanal' },
                   { value: 'Quincenal', label: 'Quincenal' },
                   { value: 'Mensual', label: 'Mensual' },
+                  { value: 'Rango', label: 'Rango de fechas' },
                 ]}
                 value={tipoPeriodo}
-                onChange={(v) => setTipoPeriodo(v as TipoCierre)}
+                onChange={(v) => {
+                  setFechaInicio('');
+                  setFechaFin('');
+                  setTipoPeriodo(v as TipoCierre | 'Rango');
+                }}
               />
-              <Input
-                type="date"
-                label="Fecha inicio"
-                badge="required"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
-              <Input
-                type="date"
-                label="Fecha fin"
-                badge="required"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-              />
+              {tipoPeriodo === 'Rango' && (
+                <>
+                  <Input
+                    type="date"
+                    label="Fecha inicio"
+                    badge="required"
+                    value={fechaInicio}
+                    onChange={(e) => setFechaInicio(e.target.value)}
+                  />
+                  <Input
+                    type="date"
+                    label="Fecha fin"
+                    badge="required"
+                    value={fechaFin}
+                    onChange={(e) => setFechaFin(e.target.value)}
+                  />
+                </>
+              )}
             </div>
           </Card>
 
-          {/* Estado de carga */}
           {cargando && (
             <p style={{ color: COLORS.muted, fontSize: 14 }}>Cargando historial de cierres…</p>
           )}
 
           {!cargando && (
             <>
-              {/* Cards de consolidado */}
               <div>
                 <h3 style={{ margin: '0 0 16px 0', color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
                   Consolidado del período
@@ -489,12 +547,13 @@ export function CierresView() {
 
                 {cierresFiltrados.length === 0 && (
                   <p style={{ color: COLORS.muted, fontSize: 13, marginBottom: 16 }}>
-                    No hay cierres {tipoPeriodo.toLowerCase()}es registrados aún.
+                    {isRangoValido
+                      ? 'No hay cierres registrados en el rango de fechas seleccionado.'
+                      : `No hay cierres ${tipoPeriodo.toLowerCase()}es registrados aún.`}
                   </p>
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-                  {/* Ingresos */}
                   <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
                     <div>
                       <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Ingresos totales del periodo</div>
@@ -505,7 +564,6 @@ export function CierresView() {
                     </div>
                   </div>
 
-                  {/* Egresos */}
                   <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
                     <div>
                       <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Egresos totales del periodo</div>
@@ -516,7 +574,6 @@ export function CierresView() {
                     </div>
                   </div>
 
-                  {/* Utilidad */}
                   <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
                     <div>
                       <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Utilidad neta</div>
@@ -527,7 +584,6 @@ export function CierresView() {
                     </div>
                   </div>
 
-                  {/* Comparativa */}
                   <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
                     <div>
                       <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Comparativo vs periodo anterior</div>
@@ -544,7 +600,6 @@ export function CierresView() {
                 </div>
               </div>
 
-              {/* Tabla de historial */}
               <Card style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${COLORS.borderLight}` }}>
                   <h3 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
@@ -570,7 +625,9 @@ export function CierresView() {
                       {filasTabla.length === 0 ? (
                         <tr>
                           <td colSpan={8} style={{ padding: '32px 20px', textAlign: 'center', color: COLORS.muted, fontSize: 13 }}>
-                            No hay cierres registrados para el período seleccionado.
+                            {isRangoValido
+                              ? 'No hay cierres registrados en el rango de fechas seleccionado.'
+                              : 'No hay cierres registrados para el período seleccionado.'}
                           </td>
                         </tr>
                       ) : (
@@ -586,9 +643,9 @@ export function CierresView() {
                             <tr key={fila.id_cierre}>
                               <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, fontWeight: 500, ...borde }}>{fila.periodo}</td>
                               <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, ...borde }}>{fila.fecha}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.primary, fontWeight: 600, ...borde }}>{formatCurrency(fila.ingresos)}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.danger, fontWeight: 600, ...borde }}>{formatCurrency(fila.egresos)}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.success, fontWeight: 600, ...borde }}>{formatCurrency(fila.utilidad)}</td>
+                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.primary, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.ingresos))}</td>
+                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.danger, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.egresos))}</td>
+                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.success, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.utilidad))}</td>
                               <td style={{ padding: '16px 20px', fontSize: 12, color: COLORS.text, ...borde }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                   <span>Efectivo:&nbsp;&nbsp;{fila.desglose.efectivo.toFixed(2)}%</span>
@@ -621,7 +678,6 @@ export function CierresView() {
             </>
           )}
 
-          {/* Botones */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
             <Button variant="secondary">
               <Download size={16} />

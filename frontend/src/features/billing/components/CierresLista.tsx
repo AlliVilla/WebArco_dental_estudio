@@ -1,11 +1,14 @@
 import React from 'react';
 import { Card } from '../../../context';
-import { CierreHistorialItem } from '../../billing/types';
+import { CierreHistorialItem, TipoCierre } from '../../billing/types';
 import { formatCurrency } from '../../../utils/formatters';
 
 interface CierresListaProps {
   cierres?: CierreHistorialItem[];
   titulo?: string;
+  tipoPeriodo?: TipoCierre;
+  fechaInicio?: string;
+  fechaFin?: string;
 }
 
 const COLORS = {
@@ -17,7 +20,28 @@ const COLORS = {
   borderLight: '#E5E7EB',
 };
 
-export function CierresLista({ cierres = [], titulo = 'Cierres de Caja' }: CierresListaProps) {
+export function CierresLista({
+  cierres = [],
+  titulo = 'Cierres de Caja',
+  tipoPeriodo,
+  fechaInicio,
+  fechaFin,
+}: CierresListaProps) {
+  const isRangoValido = !!(fechaInicio && fechaFin);
+
+  const cierresFiltrados = React.useMemo(() => {
+    if (isRangoValido) {
+      return cierres.filter((c) => {
+        if (!c.fecha) return false;
+        const cDateStr = c.fecha.split('T')[0];
+        return c.tipo_cierre === 'Diario' && cDateStr >= fechaInicio && cDateStr <= fechaFin;
+      });
+    } else if (tipoPeriodo) {
+      return cierres.filter((c) => c.tipo_cierre === tipoPeriodo);
+    }
+    return cierres;
+  }, [cierres, isRangoValido, fechaInicio, fechaFin, tipoPeriodo]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Card>
@@ -28,13 +52,15 @@ export function CierresLista({ cierres = [], titulo = 'Cierres de Caja' }: Cierr
           Cierres de caja diarios, semanales y mensuales.
         </p>
 
-        {cierres.length === 0 ? (
+        {cierresFiltrados.length === 0 ? (
           <p style={{ marginTop: 16, fontSize: 13, color: COLORS.muted }}>
-            No hay cierres registrados.
+            {isRangoValido
+              ? 'No hay cierres registrados en el rango de fechas seleccionado.'
+              : 'No hay cierres registrados.'}
           </p>
         ) : (
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {cierres.map((cierre) => (
+            {cierresFiltrados.map((cierre) => (
               <div
                 key={cierre.id_cierre}
                 style={{
@@ -52,11 +78,17 @@ export function CierresLista({ cierres = [], titulo = 'Cierres de Caja' }: Cierr
                     {cierre.tipo_cierre}
                   </div>
                   <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 2 }}>
-                    {new Date(cierre.fecha).toLocaleDateString('es-HN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                    {(() => {
+                      if (!cierre.fecha) return '—';
+                      const parts = cierre.fecha.split('T')[0].split('-');
+                      if (parts.length !== 3) return cierre.fecha;
+                      const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                      return dateObj.toLocaleDateString('es-HN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      });
+                    })()}
                   </div>
                 </div>
 
