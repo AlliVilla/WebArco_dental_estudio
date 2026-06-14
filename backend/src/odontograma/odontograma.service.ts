@@ -127,6 +127,18 @@ export class OdontogramaService {
       );
     }
 
+    // Get previous state (latest record before this consultation)
+    const previousRecord = await this.prisma.odontograma.findFirst({
+      where: {
+        id_diente: toothNumber,
+        consulta: {
+          id_persona: patientId,
+          id_consulta: { not: activeConsulta.id_consulta },
+        },
+      },
+      orderBy: { consulta: { fecha_inicio: 'desc' } },
+    });
+
     const odontograma = await this.prisma.odontograma.upsert({
       where: {
         id_consulta_id_diente: {
@@ -139,6 +151,8 @@ export class OdontogramaService {
         id_diente: toothNumber,
         estado: dto.estado,
         observacion: dto.observacion ?? null,
+        estado_anterior: previousRecord?.estado ?? null,
+        observacion_anterior: previousRecord?.observacion ?? null,
       },
       update: {
         estado: dto.estado,
@@ -181,6 +195,8 @@ export class OdontogramaService {
       },
       estado: odontograma.estado,
       observacion: odontograma.observacion,
+      estado_anterior: odontograma.estado_anterior,
+      observacion_anterior: odontograma.observacion_anterior,
       doctor: {
         id_usuario: odontograma.consulta.doctor.id_usuario,
         nombre: `${odontograma.consulta.doctor.persona.primer_nombre} ${odontograma.consulta.doctor.persona.primer_apellido}`,
@@ -251,6 +267,8 @@ export class OdontogramaService {
         },
         estado: r.estado,
         observacion: r.observacion,
+        estado_anterior: r.estado_anterior,
+        observacion_anterior: r.observacion_anterior,
         doctor: {
           id_usuario: r.consulta.doctor.id_usuario,
           nombre: `${r.consulta.doctor.persona.primer_nombre} ${r.consulta.doctor.persona.primer_apellido}`,
@@ -319,6 +337,8 @@ export class OdontogramaService {
         id_consulta: r.id_consulta,
         estado: r.estado,
         observacion: r.observacion,
+        estado_anterior: r.estado_anterior,
+        observacion_anterior: r.observacion_anterior,
         doctor: {
           id_usuario: r.consulta.doctor.id_usuario,
           nombre: `${r.consulta.doctor.persona.primer_nombre} ${r.consulta.doctor.persona.primer_apellido}`,
@@ -356,11 +376,25 @@ export class OdontogramaService {
       diente: { numero_diente: number; nombre: string | null };
       estado: string | null;
       observacion: string | null;
+      estado_anterior: string | null;
+      observacion_anterior: string | null;
       doctor: { id_usuario: number; nombre: string };
       fecha_consulta: Date;
     }> = [];
     for (const item of items) {
       await this.assertToothExists(item.id_diente);
+
+      // Get previous state for this tooth
+      const previousRecord = await this.prisma.odontograma.findFirst({
+        where: {
+          id_diente: item.id_diente,
+          consulta: {
+            id_persona: consulta.id_persona,
+            id_consulta: { not: consultaId },
+          },
+        },
+        orderBy: { consulta: { fecha_inicio: 'desc' } },
+      });
 
       const odontograma = await this.prisma.odontograma.upsert({
         where: {
@@ -374,6 +408,8 @@ export class OdontogramaService {
           id_diente: item.id_diente,
           estado: item.estado,
           observacion: item.observacion ?? null,
+          estado_anterior: previousRecord?.estado ?? null,
+          observacion_anterior: previousRecord?.observacion ?? null,
         },
         update: {
           estado: item.estado,
@@ -409,6 +445,8 @@ export class OdontogramaService {
         },
         estado: odontograma.estado,
         observacion: odontograma.observacion,
+        estado_anterior: odontograma.estado_anterior,
+        observacion_anterior: odontograma.observacion_anterior,
         doctor: {
           id_usuario: odontograma.consulta.doctor.id_usuario,
           nombre: `${odontograma.consulta.doctor.persona.primer_nombre} ${odontograma.consulta.doctor.persona.primer_apellido}`,

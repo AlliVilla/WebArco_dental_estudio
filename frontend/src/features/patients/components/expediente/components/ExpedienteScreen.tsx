@@ -124,7 +124,8 @@ export function ExpedienteScreen() {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedConsultationForOdontogram, setSelectedConsultationForOdontogram] = useState<{
     id_consulta: number,
-    patient: ExpedientePaciente
+    patient: ExpedientePaciente,
+    consultaFechaInicio: string
   } | null>(null);
   const [selectedConsultationForRespuestas, setSelectedConsultationForRespuestas] = useState<ConsultaHistorica | null>(null);
 
@@ -249,7 +250,14 @@ export function ExpedienteScreen() {
 
   const handleViewOdontogram = (consultaId: number) => {
     if (!activePatient) return;
-    setSelectedConsultationForOdontogram({ id_consulta: consultaId, patient: activePatient });
+    const consulta = activePatient.consultas.find(c => c.id_consulta === consultaId);
+    if (consulta) {
+      setSelectedConsultationForOdontogram({ 
+        id_consulta: consultaId, 
+        patient: activePatient, 
+        consultaFechaInicio: consulta.fecha_inicio 
+      });
+    }
     setViewState('odontograma-view');
   };
 
@@ -460,21 +468,21 @@ export function ExpedienteScreen() {
     {
       key: 'acciones',
       label: 'Acciones',
-      width: '280px',
+      width: '320px',
       render: (_, row) => {
-        const isTerminal = row.estado === 'COMPLETADO' || row.estado === 'DESACTIVADO' || row.estado === 'CANCELADO';
-        if (isTerminal) return null;
-
         const isFullyPaid = (row.saldoPendiente ?? 0) <= 0;
 
+        // All possible states for toggle
+        const allStates = ['ACTIVO', 'COMPLETADO', 'DESACTIVADO'] as const;
+
         return (
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['COMPLETADO', 'DESACTIVADO'] as const).map((est) => {
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {allStates.map((est) => {
               const isCurrent = row.estado === est;
               const cannotComplete = est === 'COMPLETADO' && !isFullyPaid;
               const isDisabled = isCurrent || cannotComplete;
-              const colorMap: Record<string, string> = { COMPLETADO: C.success, DESACTIVADO: C.gray500 };
-              const labelMap: Record<string, string> = { COMPLETADO: 'Completado', DESACTIVADO: 'Desactivar' };
+              const colorMap: Record<string, string> = { ACTIVO: C.primary, COMPLETADO: C.success, DESACTIVADO: C.gray500 };
+              const labelMap: Record<string, string> = { ACTIVO: 'Activar', COMPLETADO: 'Completar', DESACTIVADO: 'Desactivar' };
               return (
                 <button
                   key={est}
@@ -489,7 +497,7 @@ export function ExpedienteScreen() {
                     }
                   }}
                   disabled={isDisabled}
-                  title={cannotComplete ? 'Debe saldar el tratamiento antes de completarlo' : labelMap[est]}
+                  title={cannotComplete ? 'Debe saldar el tratamiento antes de completarlo' : (isCurrent ? 'Estado actual' : labelMap[est])}
                   style={{
                     padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700,
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
@@ -501,7 +509,7 @@ export function ExpedienteScreen() {
                     transition: 'all 0.15s',
                   }}
                 >
-                  {labelMap[est]}
+                  {isCurrent ? '✓ ' : ''}{labelMap[est]}
                 </button>
               );
             })}
@@ -788,6 +796,7 @@ export function ExpedienteScreen() {
             isEmbedded={true}
             isReadOnly={true}
             consultaId={selectedConsultationForOdontogram.id_consulta}
+            consultaFechaInicio={selectedConsultationForOdontogram.consultaFechaInicio}
             patientId={selectedConsultationForOdontogram.patient.id_persona}
             patientName={`${selectedConsultationForOdontogram.patient.primer_nombre} ${selectedConsultationForOdontogram.patient.primer_apellido}`}
             patientIdentidad={selectedConsultationForOdontogram.patient.numero_identidad}
