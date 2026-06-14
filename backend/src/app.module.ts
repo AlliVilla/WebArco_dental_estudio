@@ -66,7 +66,7 @@ import { CierreModule } from './cierre/cierre.module';
     UploadModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/static',
+      serveRoot: '/uploads',
     }),
     CierreModule,
   ],

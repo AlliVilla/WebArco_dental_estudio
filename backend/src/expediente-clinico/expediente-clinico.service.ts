@@ -229,6 +229,20 @@ export class ExpedienteClinicoService {
       );
     }
 
+    // If fecha_fin is provided (finalizing consultation), make sure there's at least one treatment
+    if (dto.fecha_fin) {
+      const hasTratamiento = 
+        dto.tratamiento?.trim() !== '' && dto.tratamiento !== undefined ||
+        dto.tratamientoPacienteId !== undefined ||
+        (dto.tratamientos && dto.tratamientos.length > 0);
+      
+      if (!hasTratamiento) {
+        throw new BadRequestException(
+          'Debe agregar al menos un tratamiento antes de finalizar la consulta.',
+        );
+      }
+    }
+
     const consultaCreada = await this.prisma.$transaction(async (tx) => {
       if (dto.tratamientoPacienteId) {
         const tp = await tx.tratamientoPaciente.findUnique({
@@ -440,6 +454,99 @@ export class ExpedienteClinicoService {
     });
 
     return { message: `${archivos.length} archivo(s) vinculados` };
+  }
+
+  /**
+   * Obtener todos los archivos de un paciente
+   */
+  async obtenerArchivosPaciente(idPaciente: number) {
+    await this.assertPacienteExiste(idPaciente);
+
+    const archivos = await this.prisma.archivo.findMany({
+      where: {
+        consulta: {
+          id_persona: idPaciente,
+        },
+      },
+      include: {
+        consulta: {
+          select: {
+            fecha_inicio: true,
+            fecha_fin: true,
+            motivo: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return archivos;
+  }
+
+  /**
+   * Subir un archivo a una consulta
+   */
+  async subirArchivo(
+    idPaciente: number,
+    file: Express.Multer.File,
+    categoria: string,
+    nombre: string,
+    idConsulta: number,
+  ) {
+    const consulta = await this.prisma.consulta.findFirst({
+      where: { id_consulta: idConsulta, id_persona: idPaciente },
+    });
+    if (!consulta) {
+      throw new NotFoundException('Consulta no encontrada');
+    }
+
+    const url = `/uploads/${file.filename}`;
+
+    const archivo = await this.prisma.archivo.create({
+      data: {
+        id_consulta: idConsulta,
+        nombre: nombre || file.originalname,
+        categoria: categoria as any,
+        url,
+      },
+      include: {
+        consulta: {
+          select: {
+            fecha_inicio: true,
+            fecha_fin: true,
+            motivo: true,
+          },
+        },
+      },
+    });
+
+    return archivo;
+  }
+
+  /**
+   * Eliminar un archivo
+   */
+  async eliminarArchivo(idPaciente: number, idArchivo: number) {
+    await this.assertPacienteExiste(idPaciente);
+
+    const archivo = await this.prisma.archivo.findUnique({
+      where: { id_archivo: idArchivo },
+      include: { consulta: true },
+    });
+
+    if (!archivo) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
+
+    if (archivo.consulta.id_persona !== idPaciente) {
+      throw new BadRequestException('El archivo no pertenece a este paciente');
+    }
+
+    await this.prisma.archivo.delete({
+      where: { id_archivo: idArchivo },
+    });
+
+    return { message: 'Archivo eliminado exitosamente' };
   }
 
   // ─── Helpers privados ───────────────────────────────────────────────────────
