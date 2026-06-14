@@ -8,7 +8,7 @@ CREATE TYPE "Sexo" AS ENUM ('M', 'F');
 CREATE TYPE "CanalRecordatorio" AS ENUM ('WhatsApp', 'SMS', 'Correo');
 
 -- CreateEnum
-CREATE TYPE "EstadoRespuesta" AS ENUM ('pendiente', 'confirmado', 'cancelado', 'sin_respuesta');
+CREATE TYPE "EstadoRespuesta" AS ENUM ('pendiente', 'confirmado', 'cancelado', 'sin_respuesta', 'descartado');
 
 -- CreateEnum
 CREATE TYPE "TipoArchivo" AS ENUM ('Tomografia', 'Radiografia', 'Imagen');

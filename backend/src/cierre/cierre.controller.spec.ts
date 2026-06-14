@@ -3,6 +3,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import { CierreController } from './cierre.controller';
 import { CierreService } from './cierre.service';
 import { TipoCierre } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { Reflector } from '@nestjs/core';
 
 describe('CierreController', () => {
   let controller: CierreController;
@@ -11,13 +13,18 @@ describe('CierreController', () => {
   const serviceMock = {
     createCierre: jest.fn(),
     previewCierre: jest.fn(),
+    previewCierrePorFecha: jest.fn(),
     getHistorial: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CierreController],
-      providers: [{ provide: CierreService, useValue: serviceMock }],
+      providers: [
+        { provide: CierreService, useValue: serviceMock },
+        { provide: PrismaService, useValue: {} }, // Mock mínimo
+        { provide: Reflector, useValue: {} },     // Mock mínimo
+      ],
     }).compile();
 
     controller = module.get<CierreController>(CierreController);
@@ -36,17 +43,17 @@ describe('CierreController', () => {
       user: { id_usuario: 1, ...overrides },
     });
 
-    it('lanza UnauthorizedException si req.user no tiene id_usuario ni sub', async () => {
-      await expect(
-        controller.createCierre({ tipo: undefined }, { user: {} } as any),
-      ).rejects.toThrow(UnauthorizedException);
+    it('lanza UnauthorizedException si req.user no tiene id_usuario ni sub', () => {
+      expect(() => {
+        controller.createCierre({ tipo: undefined }, { user: {} } as any);
+      }).toThrow(UnauthorizedException);
       expect(service.createCierre).not.toHaveBeenCalled();
     });
 
-    it('lanza UnauthorizedException si req.user es undefined', async () => {
-      await expect(
-        controller.createCierre({ tipo: undefined }, { user: undefined } as any),
-      ).rejects.toThrow(UnauthorizedException);
+    it('lanza UnauthorizedException si req.user es undefined', () => {
+      expect(() => {
+        controller.createCierre({ tipo: undefined }, { user: undefined } as any);
+      }).toThrow(UnauthorizedException);
     });
 
     it('llama al service con userId de id_usuario y tipo Diario por defecto', async () => {
@@ -89,27 +96,25 @@ describe('CierreController', () => {
   // ─── previewCierre ────────────────────────────────────────────────────────
 
   describe('previewCierre', () => {
-    it('llama al service con Diario por defecto', async () => {
-      serviceMock.previewCierre.mockResolvedValue({});
+    it('llama al service con la fecha indicada', async () => {
+      serviceMock.previewCierrePorFecha.mockResolvedValue({} as any);
 
-      await controller.previewCierre({ tipo: undefined });
+      await controller.previewCierre('15/05/2026');
 
-      expect(service.previewCierre).toHaveBeenCalledWith('Diario' as TipoCierre);
+      expect(service.previewCierrePorFecha).toHaveBeenCalledWith('15/05/2026');
     });
 
-    it('llama al service con el tipo indicado', async () => {
-      serviceMock.previewCierre.mockResolvedValue({});
-
-      await controller.previewCierre({ tipo: 'Mensual' });
-
-      expect(service.previewCierre).toHaveBeenCalledWith('Mensual' as TipoCierre);
+    it('lanza BadRequestException si no se envía la fecha', async () => {
+      await expect(controller.previewCierre(undefined as any)).rejects.toThrow(
+        'El parámetro fecha es requerido en formato DD/MM/YYYY',
+      );
     });
 
     it('retorna el resultado del service', async () => {
       const mockPreview = { totalIngresos: 5000, totalEgresos: 1000, utilidad: 4000 };
-      serviceMock.previewCierre.mockResolvedValue(mockPreview);
+      serviceMock.previewCierrePorFecha.mockResolvedValue(mockPreview as any);
 
-      const result = await controller.previewCierre({ tipo: 'Diario' });
+      const result = await controller.previewCierre('15/05/2026');
 
       expect(result).toEqual(mockPreview);
     });

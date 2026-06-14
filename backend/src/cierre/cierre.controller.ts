@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, Post, UnauthorizedException, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, UnauthorizedException, BadRequestException, UseGuards, Request, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CierreService } from './cierre.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -30,15 +30,18 @@ export class CierreController {
     return this.cierreService.createCierre(userId, tipoCierre);
   }
 
-  @Post('preview')
+  @Get('preview')
   @HttpCode(HttpStatus.OK)
   @Privileges(14)
-  @ApiOperation({ summary: 'Calcula ingresos, egresos y utilidad del período sin cerrarlo' })
-  @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de cierre (Diario, Semanal, Quincenal, Mensual). Por defecto: Diario.' })
-  @ApiResponse({ status: 200, description: 'Cálculo actual.' })
-  previewCierre(@Query() query: QueryCierreDto) {
-    const tipoCierre = (query.tipo ?? 'Diario') as TipoCierre;
-    return this.cierreService.previewCierre(tipoCierre);
+  @ApiOperation({ summary: 'Obtiene el resumen de ingresos, egresos y utilidad de una fecha específica' })
+  @ApiQuery({ name: 'fecha', required: true, description: 'Fecha para generar el resumen (formato: DD/MM/YYYY).' })
+  @ApiResponse({ status: 200, description: 'Resumen financiero del día.' })
+  @ApiResponse({ status: 400, description: 'Formato de fecha inválido.' })
+  async previewCierre(@Query('fecha') fecha: string) {
+    if (!fecha) {
+        throw new BadRequestException('El parámetro fecha es requerido en formato DD/MM/YYYY');
+    }
+    return this.cierreService.previewCierrePorFecha(fecha);
   }
 
   @Get()

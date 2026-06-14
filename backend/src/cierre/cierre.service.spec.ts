@@ -4,6 +4,15 @@ import { CierreService } from './cierre.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TipoCierre } from '@prisma/client';
 
+jest.mock('@prisma/client', () => ({
+  TipoCierre: {
+    Diario: 'Diario',
+    Semanal: 'Semanal',
+    Quincenal: 'Quincenal',
+    Mensual: 'Mensual',
+  },
+}));
+
 /** Helpers para comparar fechas ignorando milisegundos */
 const daysDiff = (a: Date, b: Date): number =>
   Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
