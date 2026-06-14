@@ -91,7 +91,6 @@ export const billingService = {
   getPagosConsulta: async (consultaId: number): Promise<ApiResponse<any[]>> => {
     return api.get(`/pago-consulta/consulta/${consultaId}`);
   },
-  },
 };
 
 export default billingService;
