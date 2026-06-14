@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CierreService } from './cierre.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -15,6 +15,7 @@ export class CierreController {
   constructor(private readonly cierreService: CierreService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @Privileges(14)
   @ApiOperation({ summary: 'Realiza el cálculo de utilidad y congela el reporte del período' })
   @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de cierre (Diario, Semanal, Quincenal, Mensual). Por defecto: Diario.' })
@@ -27,6 +28,7 @@ export class CierreController {
   }
 
   @Post('preview')
+  @HttpCode(HttpStatus.OK)
   @Privileges(14)
   @ApiOperation({ summary: 'Calcula ingresos, egresos y utilidad del período sin cerrarlo' })
   @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de cierre (Diario, Semanal, Quincenal, Mensual). Por defecto: Diario.' })
@@ -37,6 +39,7 @@ export class CierreController {
   }
 
   @Get()
+  @HttpCode(HttpStatus.OK)
   @Privileges(15)
   @ApiOperation({ summary: 'Retorna el historial de cortes de caja almacenados' })
   @ApiResponse({ status: 200, description: 'Historial de cierres de caja.' })
