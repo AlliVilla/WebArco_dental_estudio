@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CierreService } from './cierre.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
@@ -8,7 +8,8 @@ import { QueryCierreDto } from './dto/query-cierre.dto';
 import { TipoCierre } from '@prisma/client';
 
 @ApiTags('cierre')
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @Controller('cierre')
 export class CierreController {
