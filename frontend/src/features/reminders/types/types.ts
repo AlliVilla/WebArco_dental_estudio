@@ -1,8 +1,8 @@
-export type CanalRecordatorio = 'WhatsApp' | 'SMS' | 'Correo';
+export type CanalRecordatorio = 'WhatsApp' | 'Correo';
 
 export type EstadoEnvio = 'Pendiente' | 'Enviado' | 'Error';
 
-export type RespuestaPaciente = 'Confirmó' | 'Canceló' | 'Sin respuesta';
+export type RespuestaPaciente = 'Confirmó' | 'Canceló' | 'Sin respuesta' | 'Descartado';
 
 export interface ReminderAppointmentOption {
   id: number;
@@ -11,7 +11,7 @@ export interface ReminderAppointmentOption {
 }
 
 export interface RecordatorioRow {
-  id: number;
+  id: string;
   id_cita: number;
   paciente: string;
   contacto: string;
@@ -19,6 +19,7 @@ export interface RecordatorioRow {
   hora_cita: string;       // ISO string
   estado_envio: EstadoEnvio;
   es_proximas_24h: boolean;
+  respuesta?: RespuestaPaciente;
 }
 
 export interface HistorialConfirmacionRow {
