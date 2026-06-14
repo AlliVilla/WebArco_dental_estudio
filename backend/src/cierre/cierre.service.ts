@@ -34,54 +34,34 @@ export class CierreService {
 
   async previewCierre(tipoCierre: TipoCierre = 'Diario') {
     const { start, end } = this.getDateRange(tipoCierre);
+    const fechaWhere = { gte: start, lte: end };
 
-    const ingresos = await this.prisma.pagoPaciente.aggregate({
-      where: {
-        fecha: {
-          gte: start,
-          lte: end,
-        },
-      },
-      _sum: {
-        abono: true,
-      },
-    });
+    // Totales de egresos + desglose de pagos por método
+    const [egresos, pagosPorMetodo] = await Promise.all([
+      this.prisma.egreso.aggregate({
+        where: { fecha: fechaWhere },
+        _sum: { monto: true },
+      }),
+      this.prisma.pagoPaciente.groupBy({
+        by: ['metodo_pago'],
+        where: { fecha: fechaWhere },
+        _sum: { abono: true },
+      }),
+    ]);
 
-    const egresos = await this.prisma.egreso.aggregate({
-      where: {
-        fecha: {
-          gte: start,
-          lte: end,
-        },
-      },
-      _sum: {
-        monto: true,
-      },
-    });
+    // Extraer totales por método de pago del resultado agrupado
+    const sumaMetodo = (metodo: string): number =>
+      Number(
+        pagosPorMetodo.find((r) => r.metodo_pago === metodo)?._sum.abono ?? 0,
+      );
 
-    // Breakdown by payment method
-    const pagosEfectivo = await this.prisma.pagoPaciente.aggregate({
-      where: { fecha: { gte: start, lte: end }, metodo_pago: 'Efectivo' },
-      _sum: { abono: true },
-    });
+    const efectivo = sumaMetodo('Efectivo');
+    const tarjeta = sumaMetodo('Tarjeta');
+    const transferencia = sumaMetodo('Transferencia');
 
-    const pagosTarjeta = await this.prisma.pagoPaciente.aggregate({
-      where: { fecha: { gte: start, lte: end }, metodo_pago: 'Tarjeta' },
-      _sum: { abono: true },
-    });
-
-    const pagosTransferencia = await this.prisma.pagoPaciente.aggregate({
-      where: { fecha: { gte: start, lte: end }, metodo_pago: 'Transferencia' },
-      _sum: { abono: true },
-    });
-
-    const totalIngresos = Number(ingresos._sum.abono || 0);
+    const totalIngresos = efectivo + tarjeta + transferencia;
     const totalEgresos = Number(egresos._sum.monto || 0);
     const utilidad = Number((totalIngresos - totalEgresos).toFixed(2));
-
-    const efectivo = Number(pagosEfectivo._sum.abono || 0);
-    const tarjeta = Number(pagosTarjeta._sum.abono || 0);
-    const transferencia = Number(pagosTransferencia._sum.abono || 0);
 
     return {
       totalIngresos: Number(totalIngresos.toFixed(2)),
