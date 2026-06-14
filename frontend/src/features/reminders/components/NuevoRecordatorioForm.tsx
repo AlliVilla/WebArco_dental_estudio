@@ -266,7 +266,6 @@ export function NuevoRecordatorioForm({
                 error={errors.canal}
                 options={[
                   { value: "WhatsApp", label: "WhatsApp" },
-                  { value: "SMS", label: "SMS" },
                   { value: "Correo", label: "Correo electrónico" },
                 ]}
               />
