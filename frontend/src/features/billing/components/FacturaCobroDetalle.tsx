@@ -114,14 +114,22 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
 
   
   const todosLosPagos = [
-    ...pagosAnterioresPaciente.map(p => ({
-      id: `p-${p.id_pago}`,
-      fecha: p.fecha,
-      monto: Number(p.abono),
-      metodo: p.metodo_pago,
-      obs: p.observacion,
-      tipo: "pago-paciente"
-    })),
+    ...pagosAnterioresPaciente.map(p => {
+      // Prisma @db.Date fields return UTC midnight (T00:00:00.000Z), which causes browsers in negative timezones
+      // (like Honduras -6) to shift the date to the day before. We fix this by shifting the time to noon UTC.
+      let safeDate = p.fecha;
+      if (typeof safeDate === 'string' && safeDate.endsWith('T00:00:00.000Z')) {
+        safeDate = safeDate.replace('T00:00:00.000Z', 'T12:00:00.000Z');
+      }
+      return {
+        id: `p-${p.id_pago}`,
+        fecha: safeDate,
+        monto: Number(p.abono),
+        metodo: p.metodo_pago,
+        obs: p.observacion,
+        tipo: "pago-paciente"
+      };
+    }),
     ...pagosAnterioresConsulta.map(p => ({
       id: `c-${p.id}`,
       fecha: p.fecha,
@@ -246,6 +254,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
         }
       }
 
+      setPlanAbonoAgregado(0);
       onPaymentSuccess();
       // Optional: show success toast
     } catch (error: any) {
@@ -417,8 +426,8 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                     <span>L {montoIsv.toFixed(2)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 600, color: "#0f172a", marginTop: 4 }}>
-                    <span>Costo Total a Pagar</span>
-                    <span>L {totalAPagar.toFixed(2)}</span>
+                    <span>Total de este Desglose</span>
+                    <span>L {(subtotalNeto + montoIsv + planAbonoAgregado).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
