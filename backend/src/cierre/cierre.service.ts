@@ -60,16 +60,16 @@ export class CierreService {
     const transferencia = sumaMetodo('Transferencia');
 
     const totalIngresos = efectivo + tarjeta + transferencia;
-    const totalEgresos = Number(egresos._sum.monto || 0);
-    const utilidad = Number((totalIngresos - totalEgresos).toFixed(2));
+    const totalEgresos = Math.round(Number(egresos._sum.monto || 0) * 100) / 100;
+    const utilidad = Math.round((totalIngresos - totalEgresos) * 100) / 100;
 
     return {
-      totalIngresos: Number(totalIngresos.toFixed(2)),
-      totalEgresos: Number(totalEgresos.toFixed(2)),
+      totalIngresos,
+      totalEgresos,
       utilidad,
-      efectivo: Number(efectivo.toFixed(2)),
-      tarjeta: Number(tarjeta.toFixed(2)),
-      transferencia: Number(transferencia.toFixed(2)),
+      efectivo,
+      tarjeta,
+      transferencia,
       fecha: new Date().toISOString(),
       tipoCierre,
     };
