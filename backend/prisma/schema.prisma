@@ -295,6 +295,8 @@ model PagoPaciente {
   abono          Decimal  @db.Decimal(10, 2)
   observacion    String?  @db.Text
   firma_paciente String?  @db.Text
+  metodo_pago    String   @default("Efectivo") @db.VarChar(50)
+  estado         String   @default("Pagado") @db.VarChar(20)
 
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
 
