@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { ConfirmModal } from "../../../components";
 import { useTheme } from "../../../context";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 import { ConsentFormFlow } from "./ConsentFormFlow";
 import { ConsentListTable } from "./ConsentListTable";
 import { ConsentPreview } from "./ConsentPreview";
@@ -20,13 +22,13 @@ import type {
 
 export function ConsentScreen({ patientName }: ConsentScreenProps) {
   useTheme();
-
+  const { isMobile } = useResponsive();
   const navigate = useNavigate();
   const location = useLocation();
 
   const searchParams = useMemo(
     () => new URLSearchParams(location.search),
-    [location.search],
+    [location.search]
   );
 
   const mode = (searchParams.get("mode") as ConsentMode | null) ?? "list";
@@ -43,29 +45,32 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   const [currentStep, setCurrentStep] = useState<ConsentStep>(1);
   const [patientSignature, setPatientSignature] = useState("");
   const [doctorSignature, setDoctorSignature] = useState("");
-  const [signatureTarget, setSignatureTarget] = useState<SignatureTarget>("patient");
+  const [signatureTarget, setSignatureTarget] =
+    useState<SignatureTarget>("patient");
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
   const selectedConsent = useMemo(
     () => consents.find((consent) => consent.id === selectedId) ?? consents[0],
-    [consents, selectedId],
+    [consents, selectedId]
   );
 
   const totalFirmados = useMemo(
     () => consents.filter((consent) => consent.estado === "firmado").length,
-    [consents],
+    [consents]
   );
 
   const totalPendientesDoctor = useMemo(
-    () => consents.filter((consent) => consent.estado === "pendiente_doctor").length,
-    [consents],
+    () =>
+      consents.filter((consent) => consent.estado === "pendiente_doctor")
+        .length,
+    [consents]
   );
 
   const canContinueForm = Boolean(
     formValues.paciente &&
       formValues.doctor &&
       formValues.procedimiento &&
-      formValues.fechaHora,
+      formValues.fechaHora
   );
 
   function openMode(nextMode: ConsentMode, id?: string) {
@@ -87,14 +92,15 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         pathname: location.pathname,
         search: params.toString(),
       },
-      { replace: false },
+      { replace: false }
     );
   }
 
   function startNewConsent() {
     setFormValues({
       ...defaultFormValues,
-      paciente: patientNameFromQuery ?? patientName ?? defaultFormValues.paciente,
+      paciente:
+        patientNameFromQuery ?? patientName ?? defaultFormValues.paciente,
     });
 
     setPatientSignature("");
@@ -166,8 +172,8 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
                 patientSignature,
                 doctorSignature,
               }
-            : consent,
-        ),
+            : consent
+        )
       );
     } else {
       const nextNumber = consents.length + 1;
@@ -194,7 +200,35 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? 16 : 24,
+        width: "100%",
+      }}
+    >
+      {/* Botón volver al perfil si viene desde uno */}
+      {patientNameFromQuery && (
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#888F94",
+            fontSize: 13,
+            fontWeight: 500,
+            padding: 0,
+            width: "fit-content",
+          }}
+        >
+          <ArrowLeft size={16} /> Volver al perfil
+        </button>
+      )}
       {mode === "list" && (
         <>
           <ConsentSearchCard
