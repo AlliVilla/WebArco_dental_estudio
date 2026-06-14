@@ -61,6 +61,13 @@ api.interceptors.response.use(
           }
         }
       }
+
+      // Handle 401 Unauthorized (token expired or invalid)
+      if (status === 401) {
+        localStorage.removeItem('webarco_auth_token');
+        localStorage.removeItem('webarco_user');
+        window.location.href = '/login';
+      }
     } else if (error.request) {
       // The request was made but no response was received
       message = 'No se pudo establecer conexión con el servidor. Verifique su red.';

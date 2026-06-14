@@ -90,10 +90,6 @@ export class TratamientoPacienteService {
     });
     if (!t) throw new NotFoundException('Tratamiento del paciente no encontrado');
 
-    if (t.estado === 'DESACTIVADO') {
-      throw new BadRequestException('El tratamiento está desactivado y no puede modificarse');
-    }
-
     if (estado === 'COMPLETADO') {
       const totalAbonado = t.abonos.reduce((sum, a) => sum + Number(a.montoAbonado), 0);
       if (totalAbonado < Number(t.costoTotal)) {
@@ -105,12 +101,13 @@ export class TratamientoPacienteService {
 
     const targetEstado = estado === 'CANCELADO' ? 'DESACTIVADO' as TratamientoEstado : estado;
     const shouldSetFechaFin = targetEstado === 'COMPLETADO' || targetEstado === 'DESACTIVADO';
+    const shouldClearFechaFin = targetEstado === 'ACTIVO';
 
     const updated = await this.prisma.tratamientoPaciente.update({
       where: { id },
       data: {
         estado: targetEstado,
-        fechaFin: shouldSetFechaFin ? new Date() : t.fechaFin,
+        fechaFin: shouldSetFechaFin ? new Date() : shouldClearFechaFin ? null : t.fechaFin,
       },
     });
 

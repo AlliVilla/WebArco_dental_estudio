@@ -234,6 +234,9 @@ enum TipoArchivo {
   Tomografia
   Radiografia
   Imagen
+  Antes
+  Después
+  Comparativa
 }
 model Archivo{
   id_archivo Int @id @default(autoincrement())
@@ -241,6 +244,8 @@ model Archivo{
   nombre String @db.VarChar(255)
   categoria TipoArchivo
   url String @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
 }
@@ -278,11 +283,13 @@ model Diente {
 }
 
 model Odontograma {
-  id_odontograma Int     @id @default(autoincrement())
-  id_consulta    Int
-  id_diente      Int
-  estado         String? @db.VarChar(100)
-  observacion    String? @db.Text
+  id_odontograma     Int     @id @default(autoincrement())
+  id_consulta        Int
+  id_diente          Int
+  estado             String? @db.VarChar(100)
+  observacion        String? @db.Text
+  estado_anterior    String? @db.VarChar(100)
+  observacion_anterior String? @db.Text
 
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
   diente   Diente   @relation(fields: [id_diente], references: [numero_diente])
