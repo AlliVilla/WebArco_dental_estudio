@@ -11,7 +11,7 @@ CREATE TYPE "CanalRecordatorio" AS ENUM ('WhatsApp', 'SMS', 'Correo');
 CREATE TYPE "EstadoRespuesta" AS ENUM ('pendiente', 'confirmado', 'cancelado', 'sin_respuesta', 'descartado');
 
 -- CreateEnum
-CREATE TYPE "TipoArchivo" AS ENUM ('Tomografia', 'Radiografia', 'Imagen');
+CREATE TYPE "TipoArchivo" AS ENUM ('Tomografia', 'Radiografia', 'Imagen', 'Antes', 'Después', 'Comparativa');
 
 -- CreateEnum
 CREATE TYPE "TipoMovimiento" AS ENUM ('Entrada', 'Salida');
@@ -185,6 +185,8 @@ CREATE TABLE "Archivo" (
     "nombre" VARCHAR(255) NOT NULL,
     "categoria" "TipoArchivo" NOT NULL,
     "url" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Archivo_pkey" PRIMARY KEY ("id_archivo")
 );
@@ -225,6 +227,8 @@ CREATE TABLE "odontograma" (
     "id_diente" INTEGER NOT NULL,
     "estado" VARCHAR(100),
     "observacion" TEXT,
+    "estado_anterior" VARCHAR(100),
+    "observacion_anterior" TEXT,
 
     CONSTRAINT "odontograma_pkey" PRIMARY KEY ("id_odontograma")
 );
