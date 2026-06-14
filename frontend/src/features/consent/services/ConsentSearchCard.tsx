@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock3, FileText } from "lucide-react";
 import { Card } from "../../../context";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 interface ConsentSearchCardProps {
   totalConsents: number;
@@ -43,7 +44,6 @@ function ConsentSummaryCard({
           >
             {label}
           </p>
-
           <p
             style={{
               fontSize: 24,
@@ -56,7 +56,6 @@ function ConsentSummaryCard({
             {value}
           </p>
         </div>
-
         <div
           style={{
             width: 44,
@@ -82,11 +81,12 @@ export function ConsentSearchCard({
   totalFirmados,
   totalPendientesDoctor,
 }: ConsentSearchCardProps) {
+  const { isMobile } = useResponsive();
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)",
         gap: 16,
       }}
     >
@@ -97,7 +97,6 @@ export function ConsentSearchCard({
         color="#0BC5DF"
         background="#E6F8FB"
       />
-
       <ConsentSummaryCard
         label="Firmados"
         value={totalFirmados}
@@ -105,7 +104,6 @@ export function ConsentSearchCard({
         color="#1D9E75"
         background="#ECFDF5"
       />
-
       <ConsentSummaryCard
         label="Pendientes doctor"
         value={totalPendientesDoctor}
