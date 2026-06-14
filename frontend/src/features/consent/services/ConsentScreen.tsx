@@ -235,6 +235,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
             totalConsents={consents.length}
             totalFirmados={totalFirmados}
             totalPendientesDoctor={totalPendientesDoctor}
+            consents={consents}
           />
 
           <ConsentListTable
