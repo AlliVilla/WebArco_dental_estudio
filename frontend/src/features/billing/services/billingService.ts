@@ -99,7 +99,7 @@ export const billingService = {
   },
 
   createCierre: async (tipo: TipoCierre = 'Diario'): Promise<ApiResponse<{ cierre: CierreHistorialResponse[0] }>> => {
-    return api.post('/cierre', null, { params: { tipo } });
+    return api.post('/cierre', {}, { params: { tipo } });
   },
 
   previewCierre: async (tipo: TipoCierre = 'Diario'): Promise<ApiResponse<{
@@ -112,7 +112,7 @@ export const billingService = {
     fecha: string;
     tipoCierre: TipoCierre;
   }>> => {
-    return api.post('/cierre/preview', null, { params: { tipo } });
+    return api.post('/cierre/preview', {}, { params: { tipo } });
   },
 };
 

@@ -93,7 +93,9 @@ export function CierresView() {
   // Datos del backend
   const [historial, setHistorial] = useState<CierreHistorialItem[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [creandoCierre, setCreandoCierre] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // ---------- fetch al montar ----------
   const cargarHistorial = useCallback(async () => {
@@ -116,6 +118,25 @@ export function CierresView() {
   useEffect(() => {
     cargarHistorial();
   }, [cargarHistorial]);
+
+  const handleCerrarDia = async () => {
+    setCreandoCierre(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await billingService.createCierre('Diario');
+      if (res.success) {
+        setSuccessMsg(res.message ?? 'Cierre de caja generado exitosamente');
+        await cargarHistorial();
+      } else {
+        setError(res.message ?? 'Error al crear el cierre');
+      }
+    } catch (e: any) {
+      setError(e.response?.data?.message ?? 'Error al conectar con el servidor.');
+    } finally {
+      setCreandoCierre(false);
+    }
+  };
 
   // ---------- datos derivados para el tab Diario ----------
   const cierreDiarioHoy: CierreHistorialItem | undefined = historial.find((c) => {
@@ -179,8 +200,9 @@ export function CierresView() {
         overflowY: 'auto',
       }}
     >
-      {/* Banner de error global */}
+      {/* Banner de error o éxito global */}
       {error && <Alert variant="error" message={error} />}
+      {successMsg && <Alert variant="success" message={successMsg} />}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -362,9 +384,9 @@ export function CierresView() {
               <Download size={16} />
               Exportar cierre
             </Button>
-            <Button variant="primary">
+            <Button variant="primary" onClick={handleCerrarDia} disabled={creandoCierre}>
               <Lock size={16} />
-              Cerrar día
+              {creandoCierre ? 'Cerrando...' : 'Cerrar día'}
             </Button>
           </div>
         </Card>
