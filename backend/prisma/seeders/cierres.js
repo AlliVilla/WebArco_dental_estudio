@@ -52,6 +52,9 @@ async function insertCierres() {
       ingresos: 65000.00,
       egresos: 15000.00,
       utilidad: 50000.00,
+      efectivo: 35000.00,
+      tarjeta: 15000.00,
+      transferencia: 15000.00,
       id_usuario: 2,
     },
     {
@@ -60,6 +63,9 @@ async function insertCierres() {
       ingresos: 125000.00,
       egresos: 30000.00,
       utilidad: 95000.00,
+      efectivo: 70000.00,
+      tarjeta: 30000.00,
+      transferencia: 25000.00,
       id_usuario: 2,
     },
   ];
