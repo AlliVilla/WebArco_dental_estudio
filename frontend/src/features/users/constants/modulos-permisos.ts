@@ -12,7 +12,8 @@ export type ModuloPermisoId =
   | 'financiero'
   | 'cierres'
   | 'reportes'
-  | 'configuracion';
+  | 'configuracion'
+  | 'otros';
 
 export type ModuloPermiso = {
   id: ModuloPermisoId;
@@ -22,9 +23,6 @@ export type ModuloPermiso = {
   siempreActivo?: boolean;
 };
 
-/** Privilegios que se conservan aunque no pertenezcan a un módulo visible del sidebar. */
-export const PRIVILEGIOS_SIEMPRE_ACTIVOS: number[] = [33];
-
 /** Orden de pestañas según diseño Figma. */
 export const ORDEN_ROLES_PERMISOS = [
   'Administrador',
@@ -33,10 +31,6 @@ export const ORDEN_ROLES_PERMISOS = [
   'Contador',
 ] as const;
 
-/**
- * Mapeo de módulos del sidebar a IDs de privilegios del backend.
- * Un módulo se considera habilitado cuando todos sus privilegios están asignados al rol.
- */
 export const MODULOS_PERMISOS: ModuloPermiso[] = [
   {
     id: 'login',
@@ -49,7 +43,7 @@ export const MODULOS_PERMISOS: ModuloPermiso[] = [
     id: 'usuarios',
     titulo: 'Usuarios',
     descripcion: 'Gestión completa de usuarios del sistema y asignación de roles',
-    privilegioIds: [6, 7, 8, 9],
+    privilegioIds: [6, 7, 9],
   },
   {
     id: 'dashboard',
@@ -67,13 +61,13 @@ export const MODULOS_PERMISOS: ModuloPermiso[] = [
     id: 'pacientes',
     titulo: 'Pacientes',
     descripcion: 'Búsqueda, listado y gestión del registro de pacientes',
-    privilegioIds: [16, 17, 18, 19, 39, 40, 41],
+    privilegioIds: [16, 17],
   },
   {
     id: 'expediente',
     titulo: 'Expediente',
     descripcion: 'Historial clínico completo y documentación médica del paciente',
-    privilegioIds: [20, 21, 42, 43, 44, 45],
+    privilegioIds: [20, 21, 42, 43],
   },
   {
     id: 'odontograma',
@@ -85,13 +79,13 @@ export const MODULOS_PERMISOS: ModuloPermiso[] = [
     id: 'consentimientos',
     titulo: 'Consentimientos',
     descripcion: 'Generación y firma de consentimientos informados',
-    privilegioIds: [22, 23, 24, 25],
+    privilegioIds: [22, 25],
   },
   {
     id: 'citas',
     titulo: 'Citas',
     descripcion: 'Agenda y calendario de citas médicas programadas',
-    privilegioIds: [26, 27, 28, 29, 46],
+    privilegioIds: [26, 27],
   },
   {
     id: 'recordatorios',
@@ -115,82 +109,29 @@ export const MODULOS_PERMISOS: ModuloPermiso[] = [
     id: 'reportes',
     titulo: 'Reportes',
     descripcion: 'Generación de reportes clínicos y estadísticas personalizadas',
-    privilegioIds: [53],
+    privilegioIds: [],
   },
   {
     id: 'configuracion',
     titulo: 'Configuración',
     descripcion: 'Ajustes del sistema, preferencias y parámetros generales',
-    privilegioIds: [34, 35, 36, 37, 38, 47, 48, 49, 50, 51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66],
+    privilegioIds: [34, 35, 37, 38, 62, 63, 64],
   },
 ];
 
-const IDS_GESTIONADOS = new Set(
-  MODULOS_PERMISOS.flatMap((modulo) => modulo.privilegioIds),
-);
-
-export function moduloEstaHabilitado(
-  modulo: ModuloPermiso,
-  privilegiosAsignados: Set<number>,
-): boolean {
-  if (modulo.siempreActivo) {
-    return true;
-  }
-
-  if (modulo.privilegioIds.length === 0) {
-    return false;
-  }
-
-  return modulo.privilegioIds.every((id) => privilegiosAsignados.has(id));
-}
-
-export function aplicarCambioModulo(
-  privilegiosActuales: Set<number>,
-  modulo: ModuloPermiso,
-  habilitado: boolean,
-): Set<number> {
-  const resultado = new Set(privilegiosActuales);
-
-  if (modulo.siempreActivo || modulo.privilegioIds.length === 0) {
-    return resultado;
-  }
-
-  if (habilitado) {
-    modulo.privilegioIds.forEach((id) => resultado.add(id));
-  } else {
-    modulo.privilegioIds.forEach((id) => resultado.delete(id));
-  }
-
-  return resultado;
-}
-
 export function construirListaPrivilegios(
   privilegiosEditados: Set<number>,
-  privilegiosOriginales: Set<number>,
 ): number[] {
-  const huerfanos = [...privilegiosOriginales].filter(
-    (id) => !IDS_GESTIONADOS.has(id) && !PRIVILEGIOS_SIEMPRE_ACTIVOS.includes(id),
-  );
-
-  const siempreActivos = PRIVILEGIOS_SIEMPRE_ACTIVOS.filter(
-    (id) => privilegiosOriginales.has(id) || privilegiosEditados.has(id),
-  );
-
-  const combinados = new Set<number>([
-    ...privilegiosEditados,
-    ...huerfanos,
-    ...siempreActivos,
-  ]);
-
-  return [...combinados].sort((a, b) => a - b);
-}
-
-export function contarModulosActivos(privilegiosAsignados: Set<number>): number {
-  return MODULOS_PERMISOS.filter((modulo) =>
-    moduloEstaHabilitado(modulo, privilegiosAsignados),
-  ).length;
+  return [...privilegiosEditados].sort((a, b) => a - b);
 }
 
 export function privilegiosDesdeRol(privilegioIds: number[]): Set<number> {
   return new Set(privilegioIds);
+}
+
+export function formatearNombrePrivilegio(nombre: string): string {
+  return nombre
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }

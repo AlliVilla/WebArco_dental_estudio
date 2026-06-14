@@ -11,6 +11,7 @@ import { ListaFinanciera } from "./features/billing/components/ListaFinanciera";
 import { RecordatoriosScreen } from "./features/reminders";
 import { HistorialConfirmacionesScreen } from "./features/reminders/components/HistorialConfirmacionesScreen";
 import { GestionIngresos } from "./features/billing/components/GestionIngresos";
+import { GestionEgresos } from "./features/billing/components/GestionEgresos";
 import { ConsentScreen } from "./features/consent/services/ConsentScreen";
 import { ExpedienteScreen } from "./features/patients/components/expediente/components/ExpedienteScreen";
 import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
@@ -30,6 +31,7 @@ import { Alert, Card, DesignSystemScreen } from "./context";
 import { Dashboard } from "./page layouts/Dashboard";
 import { MainLayout } from "./page layouts/MainLayout";
 import { AuthGuard, GuestGuard } from "./routes/index";
+import { CierresView } from "./features/cierres";
 import { InventoryScreen } from "./features/inventory";
 import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
 import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
@@ -93,97 +95,19 @@ function App() {
         <Route path="/patients/records" element={<ExpedienteScreen />} />
         <Route path="/patients/consent" element={<ConsentScreen />} />
         <Route path="/treatments" element={<TreatmentsScreen />} />
-        <Route
-          path="/treatments/new"
-          element={<TreatmentForm mode="create" />}
-        />
-        <Route
-          path="/treatments/edit/:id"
-          element={<TreatmentForm mode="edit" />}
-        />
-        <Route
-          path="/treatments"
-          element={
-            <div style={{ padding: 20 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Tratamientos
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Módulo de tratamientos en desarrollo.
-                </p>
-              </Card>
-            </div>
-          }
-        />
+        <Route path="/treatments/new" element={<TreatmentForm mode="create" />} />
+        <Route path="/treatments/edit/:id" element={<TreatmentForm mode="edit" />} />
 
         <Route
           path="/billing"
           element={<Navigate to="/billing/income" replace />}
         />
         <Route path="/billing/income" element={<GestionIngresos />} />
-        <Route
-          path="/billing/expense"
-          element={
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <Alert
-                variant="info"
-                message="Módulo de egresos en desarrollo."
-              />
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Gestión de Egresos
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Este módulo te permitirá registrar y administrar los egresos y
-                  gastos de la clínica dental.
-                </p>
-              </Card>
-            </div>
-          }
-        />
+        <Route path="/billing/expense" element={<GestionEgresos />} />
         <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route
           path="/billing/closures"
-          element={
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <Card>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  Cierres de Caja
-                </h3>
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                >
-                  Cierres de caja diarios, semanales y mensuales.
-                </p>
-              </Card>
-            </div>
-          }
+          element={<CierresView />}
         />
 
         <Route path="/inventory" element={<InventoryScreen />} />

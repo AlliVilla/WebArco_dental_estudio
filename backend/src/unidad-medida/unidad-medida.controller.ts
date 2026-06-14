@@ -15,7 +15,7 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 export class UnidadMedidaController {
   constructor(private readonly unidadMedidaService: UnidadMedidaService) {}
 
-  @Privileges(59)
+  @Privileges(64)
   @Post()
   @ApiOperation({ summary: 'Crear una nueva unidad de medida' })
   @ApiCreatedResponse({ description: 'Unidad de medida creada exitosamente.' })
@@ -23,7 +23,7 @@ export class UnidadMedidaController {
     return this.unidadMedidaService.create(createDto);
   }
 
-  @Privileges(58)
+  @Privileges(63)
   @Get()
   @ApiOperation({ summary: 'Obtener todas las unidades de medida' })
   @ApiOkResponse({ description: 'Lista de unidades de medida obtenida exitosamente.' })
@@ -31,7 +31,7 @@ export class UnidadMedidaController {
     return this.unidadMedidaService.findAll();
   }
 
-  @Privileges(58)
+  @Privileges(63)
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una unidad de medida por ID' })
   @ApiOkResponse({ description: 'Unidad de medida obtenida exitosamente.' })
@@ -39,7 +39,7 @@ export class UnidadMedidaController {
     return this.unidadMedidaService.findOne(id);
   }
 
-  @Privileges(60)
+  @Privileges(64)
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una unidad de medida' })
   @ApiOkResponse({ description: 'Unidad de medida actualizada exitosamente.' })
@@ -47,7 +47,7 @@ export class UnidadMedidaController {
     return this.unidadMedidaService.update(id, updateDto);
   }
 
-  @Privileges(61)
+  @Privileges(64)
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar una unidad de medida' })
   @ApiOkResponse({ description: 'Unidad de medida eliminada exitosamente.' })

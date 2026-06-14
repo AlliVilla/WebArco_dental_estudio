@@ -2,20 +2,22 @@
  * Formats a currency value as Honduran Lempiras (L.)
  */
 export const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('es-HN', {
-    style: 'currency',
-    currency: 'HNL',
-  }).format(value).replace('HNL', 'L.');
+  return new Intl.NumberFormat("es-HN", {
+    style: "currency",
+    currency: "HNL",
+  })
+    .format(value)
+    .replace("HNL", "L.");
 };
 
 /**
  * Formats an ISO date string into a legible Spanish format
  */
 export const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
+  if (!dateString) return "";
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('es-HN', {
-    dateStyle: 'medium',
+  return new Intl.DateTimeFormat("es-HN", {
+    dateStyle: "medium",
   }).format(date);
 };
 
@@ -47,6 +49,40 @@ export const formatIdentity = (id: string): string => {
  * Formats an identity card number into standard Honduras format (0000-0000-00000)
  */
 export const formatInitials = (nombre: string): string => {
-  const [a, b] = nombre.trim().split(' ');
-  return ((a?.[0] ?? '') + (b?.[0] ?? '')).toUpperCase();
+  const [a, b] = nombre.trim().split(" ");
+  return ((a?.[0] ?? "") + (b?.[0] ?? "")).toUpperCase();
 };
+
+// Normaliza texto para búsqueda: elimina tildes y convierte a minúsculas
+export function normalizeSearch(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+export const obtenerHoyLocal = (): string => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+};
+
+export const escapeHtml = (text: string): string => {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (c) => map[c]);
+};
+
+export const generateUUID = (): string =>
+  "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });

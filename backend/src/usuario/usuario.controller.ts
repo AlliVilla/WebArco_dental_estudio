@@ -178,7 +178,7 @@ export class UsuarioController {
     return { ...usuario, message: 'Usuario creado correctamente.' };
   }
 
-  @Privileges(8)
+  @Privileges(7)
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -201,7 +201,7 @@ export class UsuarioController {
     return { ...usuario, message: 'Usuario actualizado correctamente.' };
   }
 
-  @Privileges(8)
+  @Privileges(7)
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

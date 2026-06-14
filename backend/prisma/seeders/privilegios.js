@@ -1,91 +1,67 @@
 const prisma = require("../config/database");
 
 async function insertPrivilegios() {
+  await prisma.rolPrivilegio.deleteMany();
+  await prisma.privilegio.deleteMany();
+
   const privilegios = [
-    { nombre: "DASHBOARD_GENERAL" },
-    { nombre: "DASHBOARD_FINANCIERO" },
+    { id_privilegio: 1, nombre: "DASHBOARD_GENERAL" },
+    { id_privilegio: 2, nombre: "DASHBOARD_FINANCIERO" },
 
-    { nombre: "ODONTOGRAMA_VER" },
-    { nombre: "ODONTOGRAMA_EDITAR" },
-    { nombre: "ODONTOGRAMA_HISTORIAL" },
+    { id_privilegio: 3, nombre: "ODONTOGRAMA_VER" },
+    { id_privilegio: 4, nombre: "ODONTOGRAMA_GESTIONAR" },
+    { id_privilegio: 5, nombre: "ODONTOGRAMA_HISTORIAL" },
 
-    { nombre: "USUARIOS_VER" },
-    { nombre: "USUARIOS_CREAR" },
-    { nombre: "USUARIOS_EDITAR" },
-    { nombre: "USUARIOS_PERFIL" },
+    { id_privilegio: 6, nombre: "USUARIOS_VER" },
+    { id_privilegio: 7, nombre: "USUARIOS_GESTIONAR" },
+    { id_privilegio: 9, nombre: "USUARIOS_PERFIL" },
 
-    { nombre: "FINANCIERO_INGRESO_CREAR" },
-    { nombre: "FINANCIERO_EGRESO_CREAR" },
-    { nombre: "FINANCIERO_VER_INGRESOS" },
-    { nombre: "FINANCIERO_VER_EGRESOS" },
+    { id_privilegio: 10, nombre: "FINANCIERO_GESTIONAR_INGRESOS" },
+    { id_privilegio: 11, nombre: "FINANCIERO_GESTIONAR_EGRESOS" },
+    { id_privilegio: 12, nombre: "FINANCIERO_VER_INGRESOS" },
+    { id_privilegio: 13, nombre: "FINANCIERO_VER_EGRESOS" },
 
-    { nombre: "CIERRES_CREAR" },
-    { nombre: "CIERRES_VER" },
+    { id_privilegio: 14, nombre: "CIERRES_GESTIONAR" },
+    { id_privilegio: 15, nombre: "CIERRES_VER" },
 
-    { nombre: "PACIENTES_VER" },
-    { nombre: "PACIENTES_CREAR" },
-    { nombre: "PACIENTES_EDITAR" },
-    { nombre: "PACIENTES_BUSCAR" },
+    { id_privilegio: 16, nombre: "PACIENTES_VER" },
+    { id_privilegio: 17, nombre: "PACIENTES_GESTIONAR" },
 
-    { nombre: "EXPEDIENTE_VER" },
-    { nombre: "EXPEDIENTE_REGISTRAR_ATENCION" },
+    { id_privilegio: 20, nombre: "EXPEDIENTE_VER" },
+    { id_privilegio: 21, nombre: "EXPEDIENTE_GESTIONAR" },
 
-    { nombre: "CONSENTIMIENTOS_CREAR" },
-    { nombre: "CONSENTIMIENTOS_FIRMAR_PACIENTE" },
-    { nombre: "CONSENTIMIENTOS_FIRMAR_DOCTOR" },
-    { nombre: "CONSENTIMIENTOS_VER" },
+    { id_privilegio: 22, nombre: "CONSENTIMIENTOS_GESTIONAR" },
+    { id_privilegio: 25, nombre: "CONSENTIMIENTOS_VER" },
 
-    { nombre: "CITAS_VER" },
-    { nombre: "CITAS_CREAR" },
-    { nombre: "CITAS_EDITAR" },
-    { nombre: "CITAS_DETALLE" },
+    { id_privilegio: 26, nombre: "CITAS_VER" },
+    { id_privilegio: 27, nombre: "CITAS_GESTIONAR" },
 
-    { nombre: "RECORDATORIOS_VER" },
-    { nombre: "RECORDATORIOS_HISTORIAL" },
-    { nombre: "RECORDATORIOS_RESPONDER" },
+    { id_privilegio: 30, nombre: "RECORDATORIOS_VER" },
+    { id_privilegio: 31, nombre: "RECORDATORIOS_HISTORIAL" },
+    { id_privilegio: 32, nombre: "RECORDATORIOS_RESPONDER" },
 
-    { nombre: "FOOTER_VER" },
+    { id_privilegio: 34, nombre: "ROL_VER" },
+    { id_privilegio: 35, nombre: "ROL_GESTIONAR" },
 
-    { nombre: "ROL_VER" },
-    { nombre: "ROL_CREAR" },
-    { nombre: "ROL_EDITAR" },
+    { id_privilegio: 37, nombre: "PRIVILEGIO_VER" },
+    { id_privilegio: 38, nombre: "PRIVILEGIO_GESTIONAR" },
 
-    { nombre: "PRIVILEGIO_VER" },
-    { nombre: "PRIVILEGIO_CREAR" },
+    { id_privilegio: 42, nombre: "CONSULTAS_VER" },
+    { id_privilegio: 43, nombre: "CONSULTAS_GESTIONAR" },
 
-    { nombre: "ANTECEDENTES_VER" },
-    { nombre: "ANTECEDENTES_CREAR" },
-    { nombre: "ANTECEDENTES_EDITAR" },
+    { id_privilegio: 62, nombre: "ES_DOCTOR" },
+    { id_privilegio: 63, nombre: "INVENTARIO_VER" },
+    { id_privilegio: 64, nombre: "INVENTARIO_GESTIONAR" },
 
-    { nombre: "CONSULTAS_VER" },
-    { nombre: "CONSULTAS_CREAR" },
-    { nombre: "CONSULTAS_EDITAR" },
-    { nombre: "CONSULTAS_ELIMINAR" },
-
-    { nombre: "CITAS_ELIMINAR" },
-
-    { nombre: "INSUMO_VER" },
-    { nombre: "INSUMO_CREAR" },
-    { nombre: "INSUMO_EDITAR" },
-    { nombre: "INSUMO_ELIMINAR" },
-    { nombre: "INVENTARIO_MOVIMIENTO_CREAR" },
-    { nombre: "INVENTARIO_MOVIMIENTO_VER" },
-    { nombre: "INSUMO_STATS" },
-    { nombre: "CATEGORIA_INSUMO_VER" },
-    { nombre: "CATEGORIA_INSUMO_CREAR" },
-    { nombre: "CATEGORIA_INSUMO_EDITAR" },
-    { nombre: "CATEGORIA_INSUMO_ELIMINAR" },
-    { nombre: "UNIDAD_MEDIDA_VER" },
-    { nombre: "UNIDAD_MEDIDA_CREAR" },
-    { nombre: "UNIDAD_MEDIDA_EDITAR" },
-    { nombre: "UNIDAD_MEDIDA_ELIMINAR" },
-
-    { nombre: "ES_DOCTOR"},
+    { id_privilegio: 65, nombre: "TRATAMIENTOS_VER" },
+    { id_privilegio: 66, nombre: "TRATAMIENTOS_GESTIONAR" },
+    { id_privilegio: 67, nombre: "ESTADO_ODONTOGRAMA_VER" },
+    { id_privilegio: 68, nombre: "ESTADO_ODONTOGRAMA_GESTIONAR" },
   ];
 
   await prisma.privilegio.createMany({
     data: privilegios,
-    skipDuplicates: true,
+    skipDuplicates: false,
   });
 
   console.log("Privilegios insertados correctamente");

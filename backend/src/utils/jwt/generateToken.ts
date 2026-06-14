@@ -9,7 +9,7 @@ export interface TokenPayload {
 
 export function generateToken(
   payload: TokenPayload,
-  expiresIn: string | number = '24h',
+  expiresIn: string | number = '8h',
   secretKey?: string
 ): string {
   let secret = secretKey

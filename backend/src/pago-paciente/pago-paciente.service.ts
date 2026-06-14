@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -44,6 +44,31 @@ export class PagoPacienteService {
   async create(createPaymentDto: CreatePaymentDto) {
     await this.assertConsultaExists(createPaymentDto.id_consulta);
 
+    if (createPaymentDto.abono <= 0) {
+      throw new BadRequestException('El monto del pago debe ser mayor a 0');
+    }
+
+    const pagosPrevios = await this.prisma.pagoPaciente.findMany({
+      where: { id_consulta: createPaymentDto.id_consulta },
+    });
+
+    const tratamientos = await this.prisma.consulta_Tratamiento.findMany({
+      where: { id_consulta: createPaymentDto.id_consulta },
+    });
+
+    const totalConsulta = tratamientos.reduce(
+      (sum, t) => sum + Number(t.precio) - (t.descuento || 0),
+      0,
+    );
+    const totalPagado = pagosPrevios.reduce((sum, p) => sum + Number(p.abono), 0);
+    const saldoPendiente = Math.max(0, totalConsulta - totalPagado);
+
+    if (createPaymentDto.abono > saldoPendiente) {
+      throw new BadRequestException(
+        `El pago (L. ${createPaymentDto.abono.toFixed(2)}) excede el saldo pendiente (L. ${saldoPendiente.toFixed(2)})`,
+      );
+    }
+
     const pago = await this.prisma.pagoPaciente.create({
       data: {
         id_consulta: createPaymentDto.id_consulta,
@@ -82,6 +107,41 @@ export class PagoPacienteService {
     };
   }
 
+  async findByConsulta(consultaId: number) {
+    const consulta = await this.prisma.consulta.findUnique({
+      where: { id_consulta: consultaId },
+    });
+    if (!consulta) {
+      throw new NotFoundException(`No existe la consulta con id ${consultaId}`);
+    }
+
+    const pagos = await this.prisma.pagoPaciente.findMany({
+      where: { id_consulta: consultaId },
+      orderBy: { fecha: 'desc' },
+    });
+
+    const tratamientos = await this.prisma.consulta_Tratamiento.findMany({
+      where: { id_consulta: consultaId },
+    });
+    const total = tratamientos.reduce(
+      (sum, t) => sum + Number(t.precio) - (t.descuento || 0),
+      0,
+    );
+    const totalPagado = pagos.reduce((sum, p) => sum + Number(p.abono), 0);
+    const saldoPendiente = Math.max(0, total - totalPagado);
+
+    return {
+      consulta: { id_consulta: consultaId, total },
+      pagos,
+      resumen: {
+        total,
+        totalPagado,
+        saldoPendiente,
+        pagadaCompletamente: saldoPendiente <= 0 && total > 0,
+      },
+    };
+  }
+
   private async assertConsultaExists(idConsulta: number) {
     const consulta = await this.prisma.consulta.findUnique({
       where: { id_consulta: idConsulta },
@@ -92,7 +152,6 @@ export class PagoPacienteService {
       throw new NotFoundException(`No se encontró la consulta con id ${idConsulta}`);
     }
   }
-
 
   async update(id: number, updatePaymentDto: UpdatePaymentDto) {
     const pago = await this.prisma.pagoPaciente.findUnique({

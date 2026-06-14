@@ -39,4 +39,13 @@ export class PrivilegioController {
     async insertRolePRivilege(@Body() body: InsertRolePrivilegeDto) {
         return this.privilegioService.insertRolePrivilege(body);
     }
+
+    @Get('doctores')
+    @ApiOperation({
+        summary: 'Listar todos los doctores',
+        description: 'Consigue el usuario e información personal de todos los doctores'
+    })
+    async getAllDoctores(){
+        return this.privilegioService.getAllDoctores();
+    }
 }

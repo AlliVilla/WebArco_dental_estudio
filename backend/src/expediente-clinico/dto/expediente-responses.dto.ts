@@ -64,7 +64,7 @@ export class DoctorResponseDto {
   persona: { primer_nombre: string; primer_apellido: string };
 }
 
-export class AntecedenteResponseDto {
+export class ConsultaRespuestaResponseDto {
   @ApiProperty({ example: 1 })
   id_respuesta: number;
 
@@ -106,29 +106,6 @@ export class OdontogramaResponseDto {
     example: { numero_diente: 18, nombre: 'Tercer Molar Superior Derecho' },
   })
   diente: { numero_diente: number; nombre: string };
-}
-
-export class PagoResponseDto {
-  @ApiProperty({ example: 1 })
-  id_pago: number;
-
-  @ApiProperty({ example: 1 })
-  id_consulta: number;
-
-  @ApiProperty({ example: '2026-06-07' })
-  fecha: string;
-
-  @ApiProperty({ example: 500.0 })
-  abono: number;
-
-  @ApiProperty({ example: 1500.0 })
-  saldo: number;
-
-  @ApiProperty({ example: 'Pago inicial en efectivo', nullable: true })
-  observacion: string | null;
-
-  @ApiProperty({ example: 'data:image/png;base64,...', nullable: true })
-  firma_paciente: string | null;
 }
 
 export class EstadoFirmasDto {
@@ -182,14 +159,11 @@ export class ConsultaResponseDto {
   @ApiProperty({ type: () => DoctorResponseDto })
   doctor: DoctorResponseDto;
 
-  @ApiProperty({ type: [AntecedenteResponseDto] })
-  antecedentes: AntecedenteResponseDto[];
+  @ApiProperty({ type: [ConsultaRespuestaResponseDto] })
+  respuestas: ConsultaRespuestaResponseDto[];
 
   @ApiProperty({ type: [OdontogramaResponseDto] })
   odontogramas: OdontogramaResponseDto[];
-
-  @ApiProperty({ type: [PagoResponseDto] })
-  pagos: PagoResponseDto[];
 
   @ApiProperty({ type: () => EstadoFirmasDto })
   estado_firmas: EstadoFirmasDto;
@@ -245,15 +219,15 @@ export class AlertaFirmaDetalleDto {
   pendientes: string[];
 }
 
-export class RegistrarVisitaResponseDto {
-  @ApiProperty({ example: 'Visita registrada exitosamente' })
+export class RegistrarConsultaResponseDto {
+  @ApiProperty({ example: 'Consulta registrada exitosamente' })
   message: string;
 
   @ApiProperty({ type: () => AlertaFirmaDetalleDto })
   alerta_firmas: AlertaFirmaDetalleDto;
 
   @ApiProperty({ type: () => ConsultaResponseDto })
-  visita: ConsultaResponseDto;
+  consulta: ConsultaResponseDto;
 }
 
 export class ActualizarFirmasResponseDto {
@@ -264,5 +238,5 @@ export class ActualizarFirmasResponseDto {
   alerta_firmas: AlertaFirmaDetalleDto;
 
   @ApiProperty({ type: () => ConsultaResponseDto })
-  visita: ConsultaResponseDto;
+  consulta: ConsultaResponseDto;
 }

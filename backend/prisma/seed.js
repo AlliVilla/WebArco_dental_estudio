@@ -5,24 +5,27 @@ const { insertMunicipios } = require("./seeders/municipios");
 const { insertRoles } = require("./seeders/roles");
 const { insertPrivilegios } = require("./seeders/privilegios");
 const { insertRolesPrivilegios} = require("./seeders/rolesprivilegios");
-const { insertPersonas } = require("./seeders/persona");
 const { insertUsuarios } = require("./seeders/usuarios");
-const { insertAntecedentesPreguntas } = require("./seeders/antecendentespreguntas");
+const { insertPersonas } = require("./seeders/persona");
 const { insertDientes } = require("./seeders/dientes");  
 const { insertCategoriasInsumo } = require("./seeders/categorias-insumo");
 const { insertUnidadesMedida } = require("./seeders/unidades-medida");
 const { insertConsultas } = require("./seeders/consultas");
 const { insertOdontograma } = require("./seeders/odontograma");
+const { insertEspecialidades } = require("./seeders/especialidad");
+const { insertEstadosOdontograma } = require("./seeders/estado-odontograma");
 const { insertTratamientos } = require("./seeders/tratamiento");
+const { insertTratamientosPaciente } = require("./seeders/tratamiento-paciente");
+const { insertPagosConsulta } = require("./seeders/pago-consulta");
 const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
 const { insertArchivos } = require("./seeders/archivos");
+const { insertConsultaPreguntas } = require("./seeders/consulta-preguntas");
 
 async function insertSeeder(){
     try{
         await insertDientes();
         await insertCategoriasInsumo();
         await insertUnidadesMedida();
-        await insertAntecedentesPreguntas();
         await insertRoles();
         await insertPrivilegios();
         await insertRolesPrivilegios();
@@ -33,7 +36,12 @@ async function insertSeeder(){
         await insertConsultas();
         await insertArchivos();
         await insertOdontograma();
+        await insertEstadosOdontograma();
+        await insertConsultaPreguntas();
+        await insertEspecialidades();
         await insertTratamientos();
+        await insertTratamientosPaciente();
+        await insertPagosConsulta();
         await insertConsultaTratamientos();
         console.log("Seeder realizado exitosamente")
     }catch(error){

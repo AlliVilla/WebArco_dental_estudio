@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "../context";
+import { normalizeSearch } from "../utils/formatters";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -347,13 +348,11 @@ export function DataTable<T extends Record<string, unknown>>({
     let rows = data;
 
     if (search) {
-      const q = search.toLowerCase();
+      const q = normalizeSearch(search);
       rows = rows.filter((row) => {
         const keys = searchKeys ?? (Object.keys(row) as (keyof T)[]);
         return keys.some((k) =>
-          String(row[k] ?? "")
-            .toLowerCase()
-            .includes(q)
+          normalizeSearch(String(row[k] ?? "")).includes(q)
         );
       });
     }

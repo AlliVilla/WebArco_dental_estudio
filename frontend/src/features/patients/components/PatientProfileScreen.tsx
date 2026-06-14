@@ -2,18 +2,27 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
   Calendar,
   DollarSign,
   Edit,
   FileText,
+  Hash,
+  Info,
   ShieldCheck,
   Stethoscope,
 } from "lucide-react";
-import { Alert, Button, Card } from "../../../context";
+import { Spinner } from "../../../components";
+import { Alert, Button } from "../../../context";
 import api from "../../../services/api";
 import { calculateAge } from "../../../utils/formatters";
+import { MedicalAlertBadge } from "./MedicalAlertBadge";
 import { AppointmentsTab, FinancialTab } from "./PatientProfileTabs";
 import type { AppointmentHistoryItem, FinancialRow } from "./PatientProfileTabs";
+import {
+  buildMedicalAlertBadges,
+  buildMedicalWarningDetails,
+} from "../utils/patientMedicalAlerts";
 
 type PersonaDetail = {
   id_persona: number;
@@ -138,38 +147,17 @@ export function PatientProfileScreen() {
     return `${patient.primer_nombre?.[0] ?? ""}${patient.primer_apellido?.[0] ?? ""}`.toUpperCase();
   }, [patient]);
 
+  const medicalBadges = useMemo(
+    () => (patient ? buildMedicalAlertBadges(patient) : []),
+    [patient],
+  );
+  const medicalWarningDetails = useMemo(
+    () => (patient ? buildMedicalWarningDetails(patient) : []),
+    [patient],
+  );
+  const showMedicalAlerts = medicalBadges.length > 0;
+
   const age = patient?.fecha_nacimiento ? calculateAge(patient.fecha_nacimiento) : null;
-  const enfermedadesList = useMemo(() => {
-    if (!patient?.enfermedades) return [];
-
-    try {
-      const parsed = JSON.parse(patient.enfermedades);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }, [patient?.enfermedades]);
-
-  const medicalSummary = useMemo(() => {
-    if (!patient) return [];
-
-    const items: string[] = [];
-    if (enfermedadesList.length > 0) items.push(`Enfermedades sistémicas: ${enfermedadesList.join(", ")}`);
-    if (patient.otras_enfermedades) items.push(`Otras enfermedades: ${patient.otras_enfermedades}`);
-    if (patient.medicamentos) items.push(`Medicamentos: ${patient.medicamentos}`);
-    if (patient.alergias) items.push(`Alergias: ${patient.alergias}`);
-    if (patient.reaccion_anestesia) {
-      items.push(
-        patient.reaccion_anestesia === "si"
-          ? "Historial de anestesia: Sí ha tenido reacciones"
-          : "Historial de anestesia: No ha tenido reacciones",
-      );
-    }
-
-    return items;
-  }, [enfermedadesList, patient]);
-
-  const hasMedicalAlerts = medicalSummary.length > 0;
   const code = patient ? `PAC-${String(patient.id_persona).padStart(6, "0")}` : "";
   const patientQuery = patient
     ? new URLSearchParams({
@@ -181,14 +169,20 @@ export function PatientProfileScreen() {
   const location = patient?.municipio
     ? `${patient.municipio.nombre}, ${patient.municipio.departamento?.nombre ?? ""}`.replace(/,\s*$/, "")
     : "Sin ubicación";
-  const lastVisit = appointments[0]?.fecha_inicio ? formatDisplayDate(appointments[0].fecha_inicio) : "Sin visitas registradas";
+  const lastVisit = appointments[0]?.fecha_inicio
+    ? formatDisplayDate(appointments[0].fecha_inicio)
+    : "Sin consultas registradas";
 
   if (!patientId) {
     return <Alert variant="error" message="ID de paciente inválido." />;
   }
 
   if (isLoading) {
-    return <Alert variant="info" message="Cargando perfil del paciente..." />;
+    return (
+      <div style={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: 240 }}>
+        <Spinner size={32} color="#0BC5DF" />
+      </div>
+    );
   }
 
   if (error || !patient) {
@@ -196,135 +190,289 @@ export function PatientProfileScreen() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1180 }}>
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ height: 6, background: "linear-gradient(90deg, var(--arco-primary) 0%, var(--arco-navy) 100%)" }} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 24, padding: 24 }}>
-          <div style={{ display: "flex", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1200, width: "100%" }}>
+      <button
+        onClick={() => navigate(-1)}
+        type="button"
+        style={{
+          alignItems: "center",
+          background: "transparent",
+          border: "none",
+          color: "#5F656A",
+          cursor: "pointer",
+          display: "flex",
+          fontSize: 13,
+          fontWeight: 500,
+          gap: 5,
+          lineHeight: "19.5px",
+          padding: 0,
+          width: "fit-content",
+        }}
+      >
+        <ArrowLeft size={16} />
+        Regresar
+      </button>
+      {/* Tarjeta de perfil */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #D3D7DA",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            background: "linear-gradient(90deg, #0BC5DF 0%, #203F49 100%)",
+            height: 4,
+          }}
+        />
+
+        <div
+          style={{
+            alignItems: "flex-start",
+            display: "flex",
+            gap: 20,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              alignItems: "center",
+              background: "linear-gradient(135deg, #0BC5DF 0%, #0899B0 100%)",
+              border: "2px solid #E6F8FB",
+              borderRadius: 36,
+              color: "#FFFFFF",
+              display: "flex",
+              flexShrink: 0,
+              fontSize: 26,
+              fontWeight: 700,
+              height: 72,
+              justifyContent: "center",
+              lineHeight: "39px",
+              width: 72,
+            }}
+          >
+            {initials}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
                 alignItems: "center",
-                background: "var(--arco-primary)",
-                borderRadius: "50%",
-                color: "#FFFFFF",
                 display: "flex",
-                flexShrink: 0,
-                fontSize: 22,
-                fontWeight: 700,
-                height: 64,
-                justifyContent: "center",
-                width: 64,
+                flexWrap: "wrap",
+                gap: 8,
+                marginBottom: 4,
               }}
             >
-              {initials}
+              <h2 style={{ color: "#203F49", fontSize: 22, fontWeight: 700, lineHeight: "33px", margin: 0 }}>
+                {fullName}
+              </h2>
+              <span
+                style={{
+                  alignItems: "center",
+                  background: "#E6F8FB",
+                  border: "1px solid #B3E8F0",
+                  borderRadius: 20,
+                  color: "#0BC5DF",
+                  display: "inline-flex",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  gap: 5,
+                  lineHeight: "18px",
+                  padding: "4px 12px",
+                }}
+              >
+                <Hash size={11} />
+                {code}
+              </span>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ alignItems: "center", display: "flex", gap: 10, marginBottom: 8 }}>
-                <h2 style={{ color: "#203F49", fontSize: 24, fontWeight: 700, margin: 0 }}>{fullName}</h2>
-                <span
-                  style={{
-                    background: "var(--arco-primary-light)",
-                    borderRadius: 999,
-                    color: "var(--arco-primary)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    padding: "4px 10px",
-                  }}
-                >
-                  # {code}
-                </span>
-              </div>
-              <div style={{ color: "#5F656A", display: "flex", flexWrap: "wrap", fontSize: 13, gap: 14 }}>
-                <span>{age ?? "-"} años</span>
-                <span>{patient.sexo === "F" ? "Femenino" : "Masculino"}</span>
-                <span>{patient.telefono}</span>
-                <span>{patient.correo_electronico || "Sin correo"}</span>
-                <span>{location}</span>
-              </div>
-              <p style={{ color: "#5F656A", fontSize: 13, margin: "14px 0 0" }}>
-                Última visita: {lastVisit}
-              </p>
-              <div style={{ marginTop: 16 }}>
-                <div style={{ alignItems: "center", color: "var(--arco-warning)", display: "flex", fontSize: 12, fontWeight: 700, gap: 6, marginBottom: 8 }}>
-                  <AlertTriangle size={14} />
-                  ALERTAS MÉDICAS
-                </div>
-                {hasMedicalAlerts ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {medicalSummary.map((item) => (
-                      <span key={item} style={{ color: "#5F656A", fontSize: 12 }}>
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span style={{ color: "#888F94", fontSize: 12 }}>
-                    Sin alertas médicas registradas para este paciente.
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <Button variant="primary" onClick={() => navigate(`/patients/edit/${patient.id_persona}`)}>
-              <Edit size={15} />
-              Editar paciente
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/patients/records${patientQuery ? `?${patientQuery}` : ""}`)}
+            <div
+              style={{
+                color: "#5F656A",
+                display: "flex",
+                flexWrap: "wrap",
+                fontSize: 13,
+                gap: 20,
+                lineHeight: "19.5px",
+              }}
             >
-              <FileText size={15} />
-              Ver expediente
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/patients/odontogram${patientQuery ? `?${patientQuery}` : ""}`)}
-            >
-              <Stethoscope size={15} />
-              Odontograma
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/patients/consent${patientQuery ? `?${patientQuery}` : ""}`)}
-            >
-              <ShieldCheck size={15} />
-              Consentimientos
-            </Button>
+              <span>
+                {age ?? "-"} años · {patient.sexo === "F" ? "Femenino" : "Masculino"}
+              </span>
+              <span>{patient.telefono}</span>
+              <span>{patient.correo_electronico || "Sin correo"}</span>
+              <span>{location}</span>
+            </div>
+
+            <p style={{ color: "#5F656A", fontSize: 13, lineHeight: "19.5px", margin: "8px 0 0" }}>
+              Última consulta: {lastVisit}
+            </p>
+
+            <div style={{ marginTop: 14 }}>
+              <div
+                style={{
+                  alignItems: "center",
+                  color: "#EF9F27",
+                  display: "flex",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  gap: 6,
+                  letterSpacing: "0.77px",
+                  lineHeight: "16.5px",
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                }}
+              >
+                <AlertTriangle size={13} />
+                Alertas médicas activas
+              </div>
+
+              {showMedicalAlerts ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {medicalBadges.map((badge) => (
+                    <MedicalAlertBadge key={badge.id} badge={badge} />
+                  ))}
+                </div>
+              ) : (
+                <span style={{ color: "#888F94", fontSize: 12 }}>
+                  Sin alertas médicas registradas para este paciente.
+                </span>
+              )}
+            </div>
           </div>
 
           <div
             style={{
-              background: hasMedicalAlerts ? "rgba(239, 159, 39, 0.08)" : "var(--arco-gray-50)",
-              border: `1px solid ${hasMedicalAlerts ? "rgba(239, 159, 39, 0.35)" : "var(--arco-gray-300)"}`,
-              borderRadius: 8,
-              color: "#5F656A",
-              gridColumn: "1 / -1",
+              display: "flex",
+              flexDirection: "column",
+              flexShrink: 0,
+              gap: 8,
+            }}
+          >
+            <Button
+              fullWidth
+              onClick={() => navigate(`/patients/edit/${patient.id_persona}`)}
+              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              variant="primary"
+            >
+              <Edit size={14} />
+              Editar paciente
+            </Button>
+            <Button
+              fullWidth
+              onClick={() => navigate(`/patients/records${patientQuery ? `?${patientQuery}` : ""}`)}
+              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              variant="secondary"
+            >
+              <FileText size={14} />
+              Ver expediente
+            </Button>
+            <Button
+              fullWidth
+              onClick={() => navigate(`/patients/odontogram${patientQuery ? `?${patientQuery}` : ""}`)}
+              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              variant="secondary"
+            >
+              <Stethoscope size={14} />
+              Odontograma
+            </Button>
+            <Button
+              fullWidth
+              onClick={() => navigate(`/patients/consent${patientQuery ? `?${patientQuery}` : ""}`)}
+              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              variant="secondary"
+            >
+              <ShieldCheck size={14} />
+              Consentimientos
+            </Button>
+          </div>
+        </div>
+
+        {showMedicalAlerts ? (
+          <div
+            style={{
+              background: "#FFFBEB",
+              border: "1px solid #FDE68A",
+              borderRadius: "0 0 12px 12px",
+              display: "flex",
+              gap: 10,
               padding: "12px 16px",
             }}
           >
-            <div style={{ alignItems: "center", display: "flex", gap: 8, fontSize: 13, fontWeight: 700 }}>
-              <AlertTriangle size={15} />
-              {hasMedicalAlerts ? "Información médica registrada para este paciente." : "Sin alertas médicas activas registradas."}
+            <Info color="#B45309" size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <p style={{ color: "#B45309", fontSize: 13, fontWeight: 700, lineHeight: "19.5px", margin: 0 }}>
+                Este paciente tiene alertas médicas activas.
+                <span style={{ color: "#B45309", fontWeight: 400 }}>
+                  {" "}
+                  Revisa alergias y enfermedades antes de iniciar cualquier tratamiento.
+                </span>
+              </p>
+              {medicalWarningDetails.map((detail, index) => (
+                <p
+                  key={`warning-${index}`}
+                  style={{
+                    color: "#92400E",
+                    display: "flex",
+                    fontSize: 12,
+                    gap: 4,
+                    lineHeight: "18px",
+                    margin: 0,
+                    paddingLeft: 15,
+                  }}
+                >
+                  <span style={{ flexShrink: 0, lineHeight: "18px" }}>⚠️</span>
+                  {detail}
+                </p>
+              ))}
             </div>
-            <p style={{ fontSize: 12, margin: "6px 0 0 24px" }}>
-              {hasMedicalAlerts
-                ? "Los antecedentes iniciales fueron guardados en el perfil del paciente y pueden complementarse desde el expediente clínico."
-                : "Los antecedentes médicos se registran por consulta. Cuando existan respuestas asociadas, aparecerán en el expediente clínico."}
-            </p>
           </div>
-        </div>
-      </Card>
+        ) : null}
+      </div>
 
-      <Card>
-        <div style={{ borderBottom: "1px solid #D3D7DA", display: "flex", gap: 28, marginBottom: 20 }}>
-          <ProfileTab active={activeTab === "appointments"} icon={<Calendar size={16} />} label="Citas" onClick={() => setActiveTab("appointments")} />
-          <ProfileTab active={activeTab === "financial"} icon={<DollarSign size={16} />} label="Financiero" onClick={() => setActiveTab("financial")} />
+      {/* Tarjeta de citas / financiero */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #D3D7DA",
+          borderRadius: 12,
+          padding: 21,
+        }}
+      >
+        <div
+          style={{
+            borderBottom: "1px solid #E8EBED",
+            display: "flex",
+            height: 44,
+            marginBottom: 0,
+            padding: "0 8px",
+          }}
+        >
+          <ProfileTab
+            active={activeTab === "appointments"}
+            icon={<Calendar size={15} />}
+            label="Citas"
+            onClick={() => setActiveTab("appointments")}
+          />
+          <ProfileTab
+            active={activeTab === "financial"}
+            icon={<DollarSign size={15} />}
+            label="Financiero"
+            onClick={() => setActiveTab("financial")}
+          />
         </div>
 
-        {activeTab === "appointments" ? <AppointmentsTab appointments={appointments} /> : <FinancialTab rows={financialRows} />}
-      </Card>
+        <div style={{ padding: 24 }}>
+          {activeTab === "appointments" ? (
+            <AppointmentsTab appointments={appointments} />
+          ) : (
+            <FinancialTab rows={financialRows} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -348,14 +496,15 @@ function ProfileTab({
         alignItems: "center",
         background: "transparent",
         border: "none",
-        borderBottom: `2px solid ${active ? "#0BC5DF" : "transparent"}`,
+        borderBottom: `1px solid ${active ? "#0BC5DF" : "transparent"}`,
         color: active ? "#0BC5DF" : "#5F656A",
         cursor: "pointer",
         display: "flex",
         fontSize: 14,
-        fontWeight: active ? 700 : 500,
+        fontWeight: active ? 600 : 400,
         gap: 8,
-        padding: "0 0 12px",
+        lineHeight: "21px",
+        padding: "10px 20px 13px",
       }}
     >
       {icon}
@@ -367,8 +516,7 @@ function ProfileTab({
 function formatDisplayDate(dateValue: string) {
   return new Date(dateValue).toLocaleDateString("es-HN", {
     day: "2-digit",
-    month: "long",
+    month: "short",
     year: "numeric",
   });
 }
-

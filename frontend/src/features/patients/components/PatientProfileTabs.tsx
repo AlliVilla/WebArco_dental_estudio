@@ -3,6 +3,7 @@ import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
 import { Button } from "../../../context";
 import { formatCurrency, formatDate } from "../../../utils/formatters";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 export type AppointmentHistoryItem = {
   id_cita: number;
@@ -35,20 +36,77 @@ export type FinancialRow = Record<string, unknown> & {
   status: "Pagado";
 };
 
-export function AppointmentsTab({ appointments }: { appointments: AppointmentHistoryItem[] }) {
-  const rows: AppointmentRow[] = appointments.map((appointment) => ({
-    id: appointment.id_cita,
-    fecha: appointment.fecha_inicio,
-    titulo: appointment.tipo_cita || appointment.motivo || "Cita dental",
-    doctor: formatDoctorName(appointment),
-    estado: appointment.estado,
+function formatDoctorName(appointment: AppointmentHistoryItem) {
+  const persona = appointment.doctor?.persona;
+  const fullName = [persona?.primer_nombre, persona?.primer_apellido]
+    .filter(Boolean)
+    .join(" ");
+  return fullName || appointment.doctor?.username || "Doctor no asignado";
+}
+
+function StatusPill({ status }: { status: string }) {
+  const n = status.toLowerCase();
+  const isSuccess = ["atendida", "pagado", "completada", "completed"].includes(
+    n
+  );
+  const isPending = [
+    "pendiente",
+    "programada",
+    "pending",
+    "scheduled",
+  ].includes(n);
+  const bg = isSuccess
+    ? "var(--arco-success-soft)"
+    : isPending
+    ? "var(--arco-warning-soft)"
+    : "var(--arco-primary-light)";
+  const color = isSuccess
+    ? "var(--arco-success)"
+    : isPending
+    ? "var(--arco-warning)"
+    : "var(--arco-primary)";
+  return (
+    <span
+      style={{
+        background: bg,
+        borderRadius: 999,
+        color,
+        fontSize: 12,
+        fontWeight: 700,
+        padding: "5px 10px",
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+export function AppointmentsTab({
+  appointments,
+}: {
+  appointments: AppointmentHistoryItem[];
+}) {
+  const rows: AppointmentRow[] = appointments.map((a) => ({
+    id: a.id_cita,
+    fecha: a.fecha_inicio,
+    titulo: a.tipo_cita || a.motivo || "Cita dental",
+    doctor: formatDoctorName(a),
+    estado: a.estado,
   }));
 
   const columns: Column<AppointmentRow>[] = [
-    { key: "fecha", label: "Fecha", render: (_value, row) => formatDate(row.fecha) },
+    {
+      key: "fecha",
+      label: "Fecha",
+      render: (_v, row) => formatDate(row.fecha),
+    },
     { key: "titulo", label: "Cita" },
     { key: "doctor", label: "Doctor" },
-    { key: "estado", label: "Estado", render: (_value, row) => <StatusPill status={row.estado} /> },
+    {
+      key: "estado",
+      label: "Estado",
+      render: (_v, row) => <StatusPill status={row.estado} />,
+    },
   ];
 
   return (
@@ -64,12 +122,14 @@ export function AppointmentsTab({ appointments }: { appointments: AppointmentHis
 }
 
 export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
+  const { isMobile } = useResponsive();
+
   const totals = rows.reduce(
-    (summary, row) => ({
-      paid: summary.paid + (row.status === "Pagado" ? row.amount : 0),
-      pending: summary.pending,
+    (s, r) => ({
+      paid: s.paid + (r.status === "Pagado" ? r.amount : 0),
+      pending: s.pending,
     }),
-    { paid: 0, pending: 0 },
+    { paid: 0, pending: 0 }
   );
   const totalPaid = totals.paid;
   const totalPending = totals.pending;
@@ -77,29 +137,85 @@ export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
 
   return (
     <div>
-      <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+      <div
+        style={{
+          alignItems: isMobile ? "flex-start" : "center",
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          gap: 12,
+          justifyContent: "space-between",
+          marginBottom: 16,
+        }}
+      >
         <div>
-          <h3 style={{ color: "var(--arco-navy)", fontSize: 16, fontWeight: 700, margin: 0 }}>Resumen financiero</h3>
-          <p style={{ color: "var(--arco-gray-500)", fontSize: 12, margin: "4px 0 0" }}>Historial de facturación y estado de cuenta</p>
+          <h3
+            style={{
+              color: "var(--arco-navy)",
+              fontSize: 16,
+              fontWeight: 700,
+              margin: 0,
+            }}
+          >
+            Resumen financiero
+          </h3>
+          <p
+            style={{
+              color: "var(--arco-gray-500)",
+              fontSize: 12,
+              margin: "4px 0 0",
+            }}
+          >
+            Historial de facturación y estado de cuenta
+          </p>
         </div>
-        <Button variant="secondary">
-          <ClipboardList size={15} />
-          Generar estado de cuenta
+        <Button
+          variant="secondary"
+          style={{ width: isMobile ? "100%" : undefined }}
+        >
+          <ClipboardList size={15} /> Generar estado de cuenta
         </Button>
       </div>
 
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginBottom: 18 }}>
-        <FinanceSummary label="Total facturado" tone="neutral" value={totalBilled} />
+      {/* KPIs: 3 cols en desktop, 1 col en móvil */}
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+          marginBottom: 18,
+        }}
+      >
+        <FinanceSummary
+          label="Total facturado"
+          tone="neutral"
+          value={totalBilled}
+        />
         <FinanceSummary label="Total pagado" tone="success" value={totalPaid} />
-        <FinanceSummary label="Saldo pendiente" tone="danger" value={totalPending} />
+        <FinanceSummary
+          label="Saldo pendiente"
+          tone="danger"
+          value={totalPending}
+        />
       </div>
 
       <DataTable<FinancialRow>
         columns={[
-          { key: "date", label: "Fecha", render: (_value, row) => formatDate(row.date) },
+          {
+            key: "date",
+            label: "Fecha",
+            render: (_v, row) => formatDate(row.date),
+          },
           { key: "concept", label: "Concepto" },
-          { key: "amount", label: "Monto", render: (_value, row) => formatCurrency(row.amount) },
-          { key: "status", label: "Estado", render: (_value, row) => <StatusPill status={row.status} /> },
+          {
+            key: "amount",
+            label: "Monto",
+            render: (_v, row) => formatCurrency(row.amount),
+          },
+          {
+            key: "status",
+            label: "Estado",
+            render: (_v, row) => <StatusPill status={row.status} />,
+          },
         ]}
         data={rows}
         emptyMessage="No hay pagos registrados para este paciente."
@@ -111,37 +227,61 @@ export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
   );
 }
 
-function FinanceSummary({ label, tone, value }: { label: string; tone: "neutral" | "success" | "danger"; value: number }) {
+function FinanceSummary({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone: "neutral" | "success" | "danger";
+  value: number;
+}) {
   const styles = {
-    neutral: { bg: "var(--arco-gray-50)", border: "var(--arco-gray-300)", color: "var(--arco-navy)" },
-    success: { bg: "var(--arco-success-soft)", border: "var(--arco-success)", color: "var(--arco-success)" },
-    danger: { bg: "var(--arco-danger-soft)", border: "var(--arco-danger)", color: "var(--arco-danger)" },
+    neutral: {
+      bg: "var(--arco-gray-50)",
+      border: "var(--arco-gray-300)",
+      color: "var(--arco-navy)",
+    },
+    success: {
+      bg: "var(--arco-success-soft)",
+      border: "var(--arco-success)",
+      color: "var(--arco-success)",
+    },
+    danger: {
+      bg: "var(--arco-danger-soft)",
+      border: "var(--arco-danger)",
+      color: "var(--arco-danger)",
+    },
   }[tone];
-
   return (
-    <div style={{ background: styles.bg, border: `1px solid ${styles.border}`, borderRadius: 8, padding: 18 }}>
-      <div style={{ color: "var(--arco-gray-500)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ color: styles.color, fontSize: 24, fontWeight: 800, marginTop: 8 }}>L. {value.toLocaleString("es-HN")}</div>
+    <div
+      style={{
+        background: styles.bg,
+        border: `1px solid ${styles.border}`,
+        borderRadius: 8,
+        padding: 18,
+      }}
+    >
+      <div
+        style={{
+          color: "var(--arco-gray-500)",
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          color: styles.color,
+          fontSize: 24,
+          fontWeight: 800,
+          marginTop: 8,
+        }}
+      >
+        L. {value.toLocaleString("es-HN")}
+      </div>
     </div>
   );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const normalizedStatus = status.toLowerCase();
-  const isSuccess = ["atendida", "pagado", "completada", "completed"].includes(normalizedStatus);
-  const isPending = ["pendiente", "programada", "pending", "scheduled"].includes(normalizedStatus);
-  const bg = isSuccess ? "var(--arco-success-soft)" : isPending ? "var(--arco-warning-soft)" : "var(--arco-primary-light)";
-  const color = isSuccess ? "var(--arco-success)" : isPending ? "var(--arco-warning)" : "var(--arco-primary)";
-
-  return (
-    <span style={{ background: bg, borderRadius: 999, color, fontSize: 12, fontWeight: 700, padding: "5px 10px", textAlign: "center" }}>
-      {status}
-    </span>
-  );
-}
-
-function formatDoctorName(appointment: AppointmentHistoryItem) {
-  const persona = appointment.doctor?.persona;
-  const fullName = [persona?.primer_nombre, persona?.primer_apellido].filter(Boolean).join(" ");
-  return fullName || appointment.doctor?.username || "Doctor no asignado";
 }
