@@ -107,6 +107,19 @@ export class ConsultaController {
   }
 
   @Privileges(43)
+  @Patch(':id/descuentos')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Actualizar descuentos de tratamientos', description: 'Actualiza los descuentos aplicados a los tratamientos de una consulta.' })
+  @ApiParam({ name: 'id', description: 'ID de la consulta', example: 1 })
+  @ApiOkResponse({ description: 'Descuentos actualizados exitosamente' })
+  async updateDescuentos(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { descuentos: { id_consulta_tratamiento: number, descuento: number }[] },
+  ) {
+    return this.consultaService.updateDescuentos(id, body.descuentos);
+  }
+
+  @Privileges(43)
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar una consulta', description: 'Elimina la consulta si no tiene registros asociados (antecedentes, odontogramas o pagos).' })

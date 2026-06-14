@@ -91,6 +91,10 @@ export const billingService = {
   getPagosConsulta: async (consultaId: number): Promise<ApiResponse<any[]>> => {
     return api.get(`/pago-consulta/consulta/${consultaId}`);
   },
+
+  updateConsultaDescuentos: async (consultaId: number, descuentos: { id_consulta_tratamiento: number, descuento: number }[]): Promise<ApiResponse<any>> => {
+    return api.patch(`/consulta/${consultaId}/descuentos`, { descuentos });
+  },
 };
 
 export default billingService;

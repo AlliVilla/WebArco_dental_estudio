@@ -25,6 +25,7 @@ export type NavId =
   | "reminders-historial"
   | "billing"
   | "billing-income"
+  | "billing-facturacion-cobros"
   | "billing-expense"
   | "billing-closures"
   | "billing-list"
@@ -539,6 +540,7 @@ const navGroups: NavGroup[] = [
         icon: <IconFacturacion />,
         subItems: [
           { id: "billing-income", label: "Gestión de Ingresos" },
+          { id: "billing-facturacion-cobros", label: "Gestión de Pago" },
           { id: "billing-expense", label: "Gestión de Egresos" },
           { id: "billing-list", label: "Lista de Ingreso / Egreso" },
           { id: "billing-closures", label: "Cierres" },

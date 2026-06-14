@@ -56,16 +56,18 @@ export class PagoPacienteService {
       where: { id_consulta: createPaymentDto.id_consulta },
     });
 
-    const totalConsulta = tratamientos.reduce(
-      (sum, t) => sum + Number(t.precio) - (t.descuento || 0),
-      0,
-    );
+    const subtotalBruto = tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
+    const totalDescuento = tratamientos.reduce((sum, t) => sum + (Number(t.precio) * ((t.descuento || 0) / 100)), 0);
+    const subtotalNeto = subtotalBruto - totalDescuento;
+    const isv = subtotalNeto * 0.15;
+    const totalConsulta = subtotalNeto + isv;
+
     const totalPagado = pagosPrevios.reduce((sum, p) => sum + Number(p.abono), 0);
     const saldoPendiente = Math.max(0, totalConsulta - totalPagado);
 
-    if (createPaymentDto.abono > saldoPendiente) {
+    if (createPaymentDto.metodoPago !== 'Efectivo' && createPaymentDto.abono > saldoPendiente + 0.01) {
       throw new BadRequestException(
-        `El pago (L. ${createPaymentDto.abono.toFixed(2)}) excede el saldo pendiente (L. ${saldoPendiente.toFixed(2)})`,
+        `El pago (L. ${createPaymentDto.abono.toFixed(2)}) excede el saldo pendiente calculado (L. ${saldoPendiente.toFixed(2)})`
       );
     }
 
