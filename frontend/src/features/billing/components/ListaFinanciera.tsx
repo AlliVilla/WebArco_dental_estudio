@@ -8,6 +8,7 @@ import { Button, Card, Input, Select } from '../../../context';
 import { formatCurrency } from '../../../utils/formatters';
 import type { FinancialRecord, TransactionKind } from '../types';
 import billingService from '../services/billingService';
+import { exportToExcel } from '../../../utils/exportToExcel';
 
 export interface ListaFinancieraProps {
   records?: FinancialRecord[];
@@ -311,6 +312,70 @@ export function ListaFinanciera({ records: recordsProp }: ListaFinancieraProps) 
     [filteredRecords],
   );
 
+  const exportarAExcel = async () => {
+    if (filteredRecords.length === 0) return;
+
+    try {
+      if (tipoActivo === 'ingreso') {
+        const columnas = [
+          { header: 'Tipo', key: 'tipo', width: 14 },
+          { header: 'Fecha', key: 'fecha', width: 14 },
+          { header: 'Paciente', key: 'paciente', width: 28 },
+          { header: 'Concepto', key: 'concepto', width: 35 },
+          { header: 'Monto (L.)', key: 'monto', width: 18 },
+          { header: 'Método de Pago', key: 'metodoPago', width: 20 },
+        ];
+
+        const datos = filteredRecords.map((record) => ({
+          tipo: 'Ingreso',
+          fecha: formatTableDate(record.fecha),
+          paciente: record.paciente ?? '—',
+          concepto: record.concepto,
+          monto: record.monto,
+          metodoPago: record.metodoPago ?? 'Sin método',
+        }));
+
+        await exportToExcel(
+          datos,
+          columnas,
+          'Ingresos',
+          'Lista_Ingresos_WebArco',
+        );
+
+        return;
+      }
+
+      const columnas = [
+        { header: 'Tipo', key: 'tipo', width: 14 },
+        { header: 'Fecha', key: 'fecha', width: 14 },
+        { header: 'Concepto', key: 'concepto', width: 35 },
+        { header: 'Categoría', key: 'categoria', width: 20 },
+        { header: 'Monto (L.)', key: 'monto', width: 18 },
+        { header: 'Observaciones', key: 'observaciones', width: 35 },
+        { header: 'Responsable', key: 'responsable', width: 28 },
+      ];
+
+      const datos = filteredRecords.map((record) => ({
+        tipo: 'Egreso',
+        fecha: formatTableDate(record.fecha),
+        concepto: record.concepto,
+        categoria: record.categoria ?? 'Sin categoría',
+        monto: record.monto,
+        observaciones: record.observaciones ?? '—',
+        responsable: record.responsable || record.creado_por?.nombre_completo || '—',
+      }));
+
+      await exportToExcel(
+        datos,
+        columnas,
+        'Egresos',
+        'Lista_Egresos_WebArco',
+      );
+    } catch {
+      setErrorCarga('Error al exportar a Excel.');
+    }
+  };
+
   const incomeColumns: Column<FinancialRecord>[] = [
     {
       key: 'fecha',
@@ -541,7 +606,10 @@ export function ListaFinanciera({ records: recordsProp }: ListaFinancieraProps) 
             {estaCargando ? 'Actualizando...' : 'Actualizar'}
           </Button>
 
-          <Button variant="secondary" size="sm">
+          <Button variant="secondary" size="sm"
+            onClick={() => void exportarAExcel()}
+            disabled={filteredRecords.length === 0}
+          >
             <FileSpreadsheet size={16} />
             Exportar Excel
           </Button>
