@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, UnauthorizedException, UseGuards, Request, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { CierreService } from './cierre.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -13,7 +13,7 @@ import { TipoCierre } from '@prisma/client';
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @Controller('cierre')
 export class CierreController {
-  constructor(private readonly cierreService: CierreService) {}
+  constructor(private readonly cierreService: CierreService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -23,7 +23,9 @@ export class CierreController {
   @ApiResponse({ status: 201, description: 'Cierre de caja generado exitosamente.' })
   @ApiResponse({ status: 400, description: 'Faltan parámetros o ya existe un cierre.' })
   createCierre(@Query() query: QueryCierreDto, @Request() req: any) {
-    const userId = req.user?.id_usuario ?? req.user?.sub;
+    const userId: number | undefined = req.user?.id_usuario ?? req.user?.sub;
+    if (!userId)
+      throw new UnauthorizedException('No se pudo identificar al usuario autenticado');
     const tipoCierre = (query.tipo ?? 'Diario') as TipoCierre;
     return this.cierreService.createCierre(userId, tipoCierre);
   }
