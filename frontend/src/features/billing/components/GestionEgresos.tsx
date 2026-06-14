@@ -211,7 +211,7 @@ export function GestionEgresos() {
         bg: "#E6F8FB",
       },
       {
-        label: "Promedio Mensual de Egresosio",
+        label: "Promedio Mensual de Egresos",
         value: formatMoneda(resumenEgresos?.egreso_promedio?.total || 0),
         icon: DollarSign,
         color: "#203F49",
@@ -289,7 +289,7 @@ export function GestionEgresos() {
           response = await billingService.getExpensesDay();
           break;
 
-        case "Promedio Mensual de Egresosio":
+        case "Promedio Mensual de Egresos":
           response = await billingService.getExpensesAverageMonth();
           break;
 
