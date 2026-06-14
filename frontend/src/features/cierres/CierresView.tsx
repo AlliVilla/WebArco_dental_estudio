@@ -178,7 +178,11 @@ export function CierresView() {
         setError(res.message ?? 'Error al crear el cierre');
       }
     } catch (e: any) {
-      setError(e.response?.data?.message ?? 'Error al conectar con el servidor.');
+      if (e.response?.status === 400 || e.response?.data?.statusCode === 400) {
+        setError('Ya existe un cierre Diario para el período actual.');
+      } else {
+        setError(e.response?.data?.message ?? 'Error al conectar con el servidor.');
+      }
     } finally {
       setCreandoCierre(false);
     }
