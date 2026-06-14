@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
 import { QueryCierreDto } from './dto/query-cierre.dto';
+import { TipoCierre } from '@prisma/client';
 
 @ApiTags('cierre')
 @ApiBearerAuth()
@@ -21,7 +22,7 @@ export class CierreController {
   @ApiResponse({ status: 400, description: 'Faltan parámetros o ya existe un cierre.' })
   createCierre(@Query() query: QueryCierreDto, @Request() req: any) {
     const userId = req.user?.id_usuario ?? req.user?.sub;
-    const tipoCierre = query.tipo || 'Diario';
+    const tipoCierre = (query.tipo ?? 'Diario') as TipoCierre;
     return this.cierreService.createCierre(userId, tipoCierre);
   }
 
@@ -31,7 +32,7 @@ export class CierreController {
   @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de cierre (Diario, Semanal, Quincenal, Mensual). Por defecto: Diario.' })
   @ApiResponse({ status: 200, description: 'Cálculo actual.' })
   previewCierre(@Query() query: QueryCierreDto) {
-    const tipoCierre = query.tipo || 'Diario';
+    const tipoCierre = (query.tipo ?? 'Diario') as TipoCierre;
     return this.cierreService.previewCierre(tipoCierre);
   }
 

@@ -1,14 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TipoCierre } from '@prisma/client';
 
 @Injectable()
 export class CierreService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
-  private getDateRange(tipoCierre: string): { start: Date, end: Date } {
+  private getDateRange(tipoCierre: TipoCierre): { start: Date; end: Date } {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
-    
+
     const start = new Date(end);
     start.setHours(0, 0, 0, 0);
 
@@ -31,7 +32,7 @@ export class CierreService {
     return { start, end };
   }
 
-  async previewCierre(tipoCierre: string = 'Diario') {
+  async previewCierre(tipoCierre: TipoCierre = 'Diario') {
     const { start, end } = this.getDateRange(tipoCierre);
 
     const ingresos = await this.prisma.pagoPaciente.aggregate({
@@ -63,12 +64,12 @@ export class CierreService {
       where: { fecha: { gte: start, lte: end }, metodo_pago: 'Efectivo' },
       _sum: { abono: true },
     });
-    
+
     const pagosTarjeta = await this.prisma.pagoPaciente.aggregate({
       where: { fecha: { gte: start, lte: end }, metodo_pago: 'Tarjeta' },
       _sum: { abono: true },
     });
-    
+
     const pagosTransferencia = await this.prisma.pagoPaciente.aggregate({
       where: { fecha: { gte: start, lte: end }, metodo_pago: 'Transferencia' },
       _sum: { abono: true },
@@ -77,7 +78,7 @@ export class CierreService {
     const totalIngresos = Number(ingresos._sum.abono || 0);
     const totalEgresos = Number(egresos._sum.monto || 0);
     const utilidad = Number((totalIngresos - totalEgresos).toFixed(2));
-    
+
     const efectivo = Number(pagosEfectivo._sum.abono || 0);
     const tarjeta = Number(pagosTarjeta._sum.abono || 0);
     const transferencia = Number(pagosTransferencia._sum.abono || 0);
@@ -94,12 +95,12 @@ export class CierreService {
     };
   }
 
-  async createCierre(userId: number, tipoCierre: string = 'Diario') {
+  async createCierre(userId: number, tipoCierre: TipoCierre = 'Diario') {
     const { start, end } = this.getDateRange(tipoCierre);
 
     const existing = await this.prisma.cierre.findFirst({
       where: {
-        tipo_cierre: tipoCierre as any,
+        tipo_cierre: tipoCierre,
         fecha: {
           gte: start,
           lte: end,
@@ -116,7 +117,7 @@ export class CierreService {
     const nuevoCierre = await this.prisma.cierre.create({
       data: {
         fecha: new Date(),
-        tipo_cierre: tipoCierre as any,
+        tipo_cierre: tipoCierre,
         ingresos: preview.totalIngresos,
         egresos: preview.totalEgresos,
         utilidad: preview.utilidad,
