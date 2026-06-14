@@ -24,7 +24,6 @@ export class CierreService {
         start.setMonth(start.getMonth() - 1); // 1 month
         break;
       case 'Diario':
-      default:
         // Already set to today
         break;
     }
@@ -33,6 +32,13 @@ export class CierreService {
   }
 
   async previewCierre(tipoCierre: TipoCierre = 'Diario') {
+    const validos = Object.values(TipoCierre);
+    if (!validos.includes(tipoCierre)) {
+      throw new BadRequestException(
+        `Tipo de cierre inválido: "${tipoCierre}". Valores permitidos: ${validos.join(', ')}`,
+      );
+    }
+
     const { start, end } = this.getDateRange(tipoCierre);
     const fechaWhere = { gte: start, lte: end };
 
@@ -76,6 +82,13 @@ export class CierreService {
   }
 
   async createCierre(userId: number, tipoCierre: TipoCierre = 'Diario') {
+    const validos = Object.values(TipoCierre);
+    if (!validos.includes(tipoCierre)) {
+      throw new BadRequestException(
+        `Tipo de cierre inválido: "${tipoCierre}". Valores permitidos: ${validos.join(', ')}`,
+      );
+    }
+
     const { start, end } = this.getDateRange(tipoCierre);
 
     const existing = await this.prisma.cierre.findFirst({
