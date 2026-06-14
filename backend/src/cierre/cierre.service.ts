@@ -82,26 +82,25 @@ export class CierreService {
   }
 
   async previewCierrePorFecha(fechaStr: string) {
+    // Validar formato DD/MM/YYYY
     const parts = fechaStr.split('/');
     if (parts.length !== 3) {
       throw new BadRequestException('Formato de fecha inválido. Use DD/MM/YYYY');
     }
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    
-    if (isNaN(day) || isNaN(month) || isNaN(year)) {
-      throw new BadRequestException('Formato de fecha inválido. Use DD/MM/YYYY');
+    const day   = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+    const year  = parseInt(parts[2], 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year) || day < 1 || day > 31 || month < 0 || month > 11) {
+      throw new BadRequestException('Fecha no válida. Use DD/MM/YYYY con valores correctos (día 01-31, mes 01-12)');
     }
 
-    const start = new Date(year, month, day);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(year, month, day);
-    end.setHours(23, 59, 59, 999);
-
+    // Construir rango en UTC para evitar desfase de zona horaria con @db.Date
+    const start = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const end   = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
     const fechaWhere = { gte: start, lte: end };
 
-    // Totales de egresos + desglose de pagos por método
+    // Totales de egresos + desglose de pagos por método (2 queries en paralelo)
     const [egresos, pagosPorMetodo] = await Promise.all([
       this.prisma.egreso.aggregate({
         where: { fecha: fechaWhere },
@@ -120,23 +119,24 @@ export class CierreService {
         pagosPorMetodo.find((r) => r.metodo_pago === metodo)?._sum.abono ?? 0,
       );
 
-    const efectivo = sumaMetodo('Efectivo');
-    const tarjeta = sumaMetodo('Tarjeta');
+    const efectivo      = sumaMetodo('Efectivo');
+    const tarjeta       = sumaMetodo('Tarjeta');
     const transferencia = sumaMetodo('Transferencia');
 
     const totalIngresos = efectivo + tarjeta + transferencia;
-    const totalEgresos = Math.round(Number(egresos._sum.monto || 0) * 100) / 100;
-    const utilidad = Math.round((totalIngresos - totalEgresos) * 100) / 100;
+    const totalEgresos  = Math.round(Number(egresos._sum.monto || 0) * 100) / 100;
+    const utilidad      = Math.round((totalIngresos - totalEgresos) * 100) / 100;
 
     return {
+      fecha: fechaStr,   // Devolver la fecha solicitada en formato DD/MM/YYYY
       totalIngresos,
       totalEgresos,
       utilidad,
-      efectivo,
-      tarjeta,
-      transferencia,
-      fecha: start.toISOString(),
-      tipoCierre: 'Diario',
+      ingresos: {
+        efectivo,
+        tarjeta,
+        transferencia,
+      },
     };
   }
 
