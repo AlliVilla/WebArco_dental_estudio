@@ -192,7 +192,7 @@ export function PatientProfileScreen() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1200, width: "100%" }}>
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/patients/list", { replace: true })}
         type="button"
         style={{
           alignItems: "center",
@@ -326,8 +326,6 @@ export function PatientProfileScreen() {
                   textTransform: "uppercase",
                 }}
               >
-                <AlertTriangle size={13} />
-                Alertas médicas activas
               </div>
 
               {showMedicalAlerts ? (

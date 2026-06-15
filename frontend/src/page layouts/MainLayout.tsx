@@ -67,6 +67,10 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
     title: "Gestión de Ingresos",
     breadcrumbs: ["Gestión", "Facturación", "Ingresos"],
   },
+  "billing-facturacion-cobros": {
+    title: "Gestión de Pago",
+    breadcrumbs: ["Gestión", "Facturación", "Gestión de Pago"],
+  },
   "billing-expense": {
     title: "Gestión de Egresos",
     breadcrumbs: ["Gestión", "Facturación", "Egresos"],
@@ -169,6 +173,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
     if (pathname.startsWith("/treatments/edit/")) return "treatment-edit";
     if (pathname === "/treatments") return "treatments";
     if (pathname === "/billing/income") return "billing-income";
+    if (pathname === "/billing/facturacion-cobros") return "billing-facturacion-cobros";
     if (pathname === "/billing/expense") return "billing-expense";
     if (pathname === "/billing/list" || pathname.startsWith("/billing/list/"))
       return "billing-list";
@@ -203,6 +208,7 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
       treatments: "/treatments",
       billing: "/billing/income",
       "billing-income": "/billing/income",
+      "billing-facturacion-cobros": "/billing/facturacion-cobros",
       "billing-expense": "/billing/expense",
       "billing-closures": "/billing/closures",
       "billing-list": "/billing/list",

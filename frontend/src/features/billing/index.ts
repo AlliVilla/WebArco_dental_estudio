@@ -3,3 +3,4 @@ export * from "./types";
 export * from "./components/GestionIngresos";
 export * from "./components/GestionEgresos";
 export * from "./components/ListaFinanciera";
+export * from "./components/FacturasDeConsultas";

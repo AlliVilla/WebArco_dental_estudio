@@ -65,7 +65,7 @@ import { join } from 'path';
     UploadModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/static',
+      serveRoot: '/uploads',
     }),
   ],
   controllers: [AppController],

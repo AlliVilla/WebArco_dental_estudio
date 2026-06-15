@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   ParseIntPipe,
@@ -10,7 +11,12 @@ import {
   HttpStatus,
   UseGuards,
   BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import {
   ApiTags,
   ApiOperation,
@@ -21,6 +27,8 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiUnauthorizedResponse,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ExpedienteClinicoService } from './expediente-clinico.service';
 import { RegistrarConsultaDto } from './dto/registrar-consulta.dto';
@@ -35,6 +43,15 @@ import {
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
+
+const storage = diskStorage({
+  destination: './uploads',
+  filename: (req, file, callback) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = extname(file.originalname);
+    callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+  },
+});
 
 @ApiTags('Expediente Clínico')
 @Controller('expediente-clinico')
@@ -221,5 +238,77 @@ export class ExpedienteClinicoController {
       throw new BadRequestException('Debe enviar al menos un archivo');
     }
     return this.expedienteClinicoService.agregarArchivos(patientId, visitId, body.archivos);
+  }
+
+  @Privileges(20)
+  @Get(':patientId/archivos')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtener todos los archivos del paciente' })
+  async obtenerArchivos(
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
+    return this.expedienteClinicoService.obtenerArchivosPaciente(patientId);
+  }
+
+  @Privileges(21)
+  @Post(':patientId/archivos')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor('file', { storage }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        categoria: { type: 'string' },
+        nombre: { type: 'string' },
+        id_consulta: { type: 'number' },
+      },
+    },
+  })
+  async subirArchivo(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('categoria') categoria: string,
+    @Body('nombre') nombre: string,
+    @Body('id_consulta', ParseIntPipe) idConsulta: number,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Archivo requerido');
+    }
+    return this.expedienteClinicoService.subirArchivo(
+      patientId,
+      file,
+      categoria,
+      nombre,
+      idConsulta,
+    );
+  }
+
+  @Privileges(21)
+  @Patch(':patientId/archivos/:archivoId')
+  @HttpCode(HttpStatus.OK)
+  async actualizarCategoriaArchivo(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('archivoId', ParseIntPipe) archivoId: number,
+    @Body('categoria') categoria: string,
+  ) {
+    if (!categoria) {
+      throw new BadRequestException('La categoría es requerida');
+    }
+    return this.expedienteClinicoService.actualizarCategoriaArchivo(patientId, archivoId, categoria);
+  }
+
+  @Privileges(21)
+  @Delete(':patientId/archivos/:archivoId')
+  @HttpCode(HttpStatus.OK)
+  async eliminarArchivo(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('archivoId', ParseIntPipe) archivoId: number,
+  ) {
+    return this.expedienteClinicoService.eliminarArchivo(patientId, archivoId);
   }
 }

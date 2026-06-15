@@ -279,7 +279,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     // ── Planes activos del paciente ──
     const [tratamientosPaciente, setTratamientosPaciente] = useState<TratamientoPacienteResponse[]>([]);
     const [busquedaPlan, setBusquedaPlan] = useState('');
-    const [montoPorPlan, setMontoPorPlan] = useState<Record<number, number>>({});
 
     // ── Creación de plan desde tratamiento seleccionado ──
     const [planForm, setPlanForm] = useState<{
@@ -287,15 +286,8 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         nombre: string;
         costoTotal: string;
         fechaInicio: string;
-        montoAbono: string;
         saving: boolean;
-    }>({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false });
-
-    interface PendingAbono {
-        tratamientoPacienteId: number;
-        montoAbonado: number;
-    }
-    const [pendingAbonos, setPendingAbonos] = useState<PendingAbono[]>([]);
+    }>({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', saving: false });
 
     const loadTratamientosPaciente = useCallback(async () => {
         try {
@@ -453,7 +445,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             nombre: t.nombre,
             costoTotal: String(t.precio),
             fechaInicio: today,
-            montoAbono: '',
             saving: false,
         });
     };
@@ -479,14 +470,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                         t.id === current.treatmentId ? { ...t, tratamientoPacienteId: planData.id } : t,
                     ),
                 );
-                const monto = parseFloat(current.montoAbono);
-                if (!isNaN(monto) && monto > 0) {
-                    setPendingAbonos((prev) => [...prev, {
-                        tratamientoPacienteId: planData.id,
-                        montoAbonado: monto,
-                    }]);
-                }
-                setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false });
+                setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', saving: false });
                 addToast('success', 'Plan de tratamiento creado exitosamente');
                 loadTratamientosPaciente();
             } else {
@@ -515,6 +499,11 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         if (!motivoFinal?.trim()) { addToast('error', 'El motivo de consulta es requerido en las preguntas del Paso 1.'); setStep(1); return; }
         if (!diagnostico.trim()) { addToast('error', 'El diagnóstico clínico es requerido.'); setStep(3); return; }
         if (archivos.some((a) => a.uploading)) { addToast('error', 'Espera a que terminen de cargarse todas las imágenes.'); return; }
+        if (tratamientos.length === 0) { 
+            addToast('error', 'Debe agregar al menos un tratamiento antes de finalizar la consulta.'); 
+            setStep(3); 
+            return; 
+        }
 
         setSaving(true);
 
@@ -620,22 +609,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     } catch { /* ignore odontogram save error */ }
                 }
 
-                if (pendingAbonos.length > 0 && consultaId) {
-                    try {
-                        const totalMonto = pendingAbonos.reduce((s, a) => s + a.montoAbonado, 0);
-                        await pagoConsultaService.create({
-                            consultaId,
-                            monto: totalMonto,
-                            metodoPago: 'EFECTIVO',
-                            observacion: 'Abono registrado durante la consulta',
-                            abonos: pendingAbonos.map((a) => ({
-                                tratamientoPacienteId: a.tratamientoPacienteId,
-                                montoAbonado: a.montoAbonado,
-                            })),
-                        });
-                        setPendingAbonos([]);
-                    } catch { /* ignore payment error */ }
-                }
+
 
                 addToast('success', res.message || 'Consulta registrada exitosamente');
                 setTimeout(onSave, 1000);
@@ -771,47 +745,47 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
                                 <div style={{ gridColumn: 'span 1' }}>
                                     <FieldLabel>Primer Nombre</FieldLabel>
-                                    <TextInput value={primerNombre} onChange={setPrimerNombre} placeholder="Primer nombre" />
+                                    <TextInput value={primerNombre} readOnly placeholder="Primer nombre" />
                                 </div>
                                 <div style={{ gridColumn: 'span 1' }}>
                                     <FieldLabel>Segundo Nombre</FieldLabel>
-                                    <TextInput value={segundoNombre} onChange={setSegundoNombre} placeholder="Segundo nombre" />
+                                    <TextInput value={segundoNombre} readOnly placeholder="Segundo nombre" />
                                 </div>
                                 <div style={{ gridColumn: 'span 1' }}>
                                     <FieldLabel>Primer Apellido</FieldLabel>
-                                    <TextInput value={primerApellido} onChange={setPrimerApellido} placeholder="Primer apellido" />
+                                    <TextInput value={primerApellido} readOnly placeholder="Primer apellido" />
                                 </div>
                                 <div style={{ gridColumn: 'span 1' }}>
                                     <FieldLabel>Segundo Apellido</FieldLabel>
-                                    <TextInput value={segundoApellido} onChange={setSegundoApellido} placeholder="Segundo apellido" />
+                                    <TextInput value={segundoApellido} readOnly placeholder="Segundo apellido" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Nº Identidad</FieldLabel>
-                                    <TextInput value={identidad} onChange={setIdentidad} placeholder="Número de identidad" />
+                                    <TextInput value={identidad} readOnly placeholder="Número de identidad" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Fecha de Nacimiento</FieldLabel>
-                                    <TextInput type="date" value={formatDate(fechaNacimiento)} onChange={(e: any) => setFechaNacimiento(e.target.value)} placeholder="YYYY-MM-DD" />
+                                    <TextInput type="date" value={formatDate(fechaNacimiento)} readOnly placeholder="YYYY-MM-DD" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Teléfono</FieldLabel>
-                                    <TextInput value={telefono} onChange={setTelefono} placeholder="Número de teléfono" />
+                                    <TextInput value={telefono} readOnly placeholder="Número de teléfono" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Correo Electrónico</FieldLabel>
-                                    <TextInput value={correo} onChange={setCorreo} placeholder="Correo electrónico" />
+                                    <TextInput value={correo} readOnly placeholder="Correo electrónico" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Departamento</FieldLabel>
-                                    <TextInput value={departamento} onChange={setDepartamento} placeholder="Departamento de residencia" />
+                                    <TextInput value={departamento} readOnly placeholder="Departamento de residencia" />
                                 </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <FieldLabel>Ciudad / Municipio</FieldLabel>
-                                    <TextInput value={ciudad} onChange={setCiudad} placeholder="Ciudad o municipio de residencia" />
+                                    <TextInput value={ciudad} readOnly placeholder="Ciudad o municipio de residencia" />
                                 </div>
                                 <div style={{ gridColumn: 'span 4' }}>
                                     <FieldLabel>Dirección Completa</FieldLabel>
-                                    <Textarea value={direccion} onChange={setDireccion} placeholder="Dirección exacta de residencia..." rows={2} />
+                                    <Textarea value={direccion} readOnly placeholder="Dirección exacta de residencia..." rows={2} />
                                 </div>
                             </div>
                         </SectionCard>
@@ -1178,30 +1152,10 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                                             />
                                                         </div>
                                                     </div>
-                                                    <div style={{ borderTop: `1px solid ${C.gray300}`, paddingTop: 14, marginBottom: 14 }}>
-                                                        <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.warning, display: 'inline-block' }} />
-                                                            Abono en esta consulta (opcional)
-                                                        </div>
-                                                        <div>
-                                                            <FieldLabel>Monto (L.)</FieldLabel>
-                                                            <input
-                                                                value={planForm.montoAbono}
-                                                                onChange={(e) => setPlanForm((prev) => ({ ...prev, montoAbono: e.target.value }))}
-                                                                type="number" min="0" step="0.01"
-                                                                placeholder="0.00"
-                                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${C.gray300}`, borderRadius: 8, fontSize: 13, color: C.navy, outline: 'none', background: C.white, boxSizing: 'border-box' }}
-                                                            />
-                                                        </div>
-                                                        <div style={{ fontSize: 11, color: C.gray500, marginTop: 6 }}>
-                                                            {pendingAbonos.length > 0 && (
-                                                                <span>Abonos pendientes por registrar: {pendingAbonos.length}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
+
                                                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                                                         <button
-                                                            onClick={() => setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', montoAbono: '', saving: false })}
+                                                            onClick={() => setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', saving: false })}
                                                             style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: C.white, color: C.gray500, border: `1px solid ${C.gray300}`, cursor: 'pointer' }}
                                                         >
                                                             Cancelar
@@ -1288,37 +1242,21 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                                         </div>
                                                     </div>
                                                     {!yaAgregado && (
-                                                        <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12, background: C.gray50 }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>Pago en esta consulta:</span>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: `1px solid ${C.gray300}`, borderRadius: 6, padding: '0 8px', background: C.white }}>
-                                                                    <span style={{ fontSize: 11, color: C.gray500 }}>L.</span>
-                                                                    <input
-                                                                        type="number" min={0} step="0.01"
-                                                                        value={montoPorPlan[plan.id] || ''}
-                                                                        onChange={(e) => setMontoPorPlan(prev => ({ ...prev, [plan.id]: Math.max(0, Number(e.target.value) || 0) }))}
-                                                                        placeholder="0.00"
-                                                                        style={{ width: 90, border: 'none', outline: 'none', fontSize: 13, color: C.navy, padding: '6px 0', background: 'transparent' }}
-                                                                    />
-                                                                </div>
-                                                            </div>
+                                                        <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '12px 18px', display: 'flex', justifyContent: 'flex-end', background: C.gray50 }}>
                                                             <button
                                                                 onClick={() => {
-                                                                    const monto = montoPorPlan[plan.id] || 0;
-                                                                    if (monto <= 0) return;
                                                                     setTratamientos(prev => [...prev, {
                                                                         id: uid(),
                                                                         nombre: `${plan.nombre} (Plan activo)`,
-                                                                        precio: monto,
+                                                                        precio: 0,
                                                                         tratamientoPacienteId: plan.id,
                                                                     }]);
-                                                                    setMontoPorPlan(prev => { const n = { ...prev }; delete n[plan.id]; return n; });
                                                                 }}
                                                                 style={{
                                                                     display: 'flex', alignItems: 'center', gap: 6,
                                                                     background: C.success, color: C.white, border: 'none',
                                                                     borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700,
-                                                                    cursor: 'pointer', marginLeft: 'auto',
+                                                                    cursor: 'pointer',
                                                                 }}
                                                             >
                                                                 <Plus size={14} /> Agregar a consulta

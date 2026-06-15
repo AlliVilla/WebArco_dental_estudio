@@ -17,6 +17,13 @@ export type FotoGaleria = {
     fecha_inicio: string;
     fecha_fin?: string | null;
     motivo?: string | null;
+    doctor?: {
+      id_usuario: number;
+      persona: {
+        primer_nombre: string;
+        primer_apellido: string;
+      };
+    };
   };
 };
 
@@ -48,6 +55,15 @@ export const galeriaService = {
     return api.post(`/expediente-clinico/${pacienteId}/archivos`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+  },
+
+  /** Actualiza la categoría de un archivo. */
+  actualizarCategoria: async (
+    pacienteId: number,
+    archivoId: number,
+    categoria: FotoCategoria
+  ): Promise<ApiResponse<FotoGaleria>> => {
+    return api.patch(`/expediente-clinico/${pacienteId}/archivos/${archivoId}`, { categoria });
   },
 
   /** Elimina un archivo del expediente por ID. */
