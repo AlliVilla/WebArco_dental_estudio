@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     ChevronLeft, ChevronDown, Upload, X, Search, Plus, Trash2, FileText,
     Image as ImageIcon, Stethoscope, Check, AlertCircle,
-    Loader2, Tag, Zap, Clock, User, ShieldAlert, Activity,
+    Loader2, Tag, Zap, ClipboardList, Clock, User, ShieldAlert, Activity,
 } from 'lucide-react';
 import { ExpedientePaciente } from '../types/getAllPacientes';
 import { OdontogramScreen } from '../../odontograma/components/OdontogramaScreen';
@@ -21,6 +21,12 @@ import type { Treatment } from '../../../../treatments/types';
 import { tratamientoPacienteService, type TratamientoPacienteResponse } from '../services/tratamientoPacienteService';
 import { pagoConsultaService } from '../services/pagoConsultaService';
 
+
+const ToothIcon = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5.5 13C3 8 4 6 6 4.5c2-1 4 .5 6 .5s4-1.5 6-.5c2 1.5 3 3.5.5 8.5-1 2 1 1.5-1.5 6.5-3.5 1-3.5-8-5-8s-1.5 9-5 8c-2.5-5-1-4.5-1.5-6.5" />
+  </svg>
+);
 
 // ── Design tokens (CSS vars from theme.css) ───────────────────────────────────
 const C = {
@@ -286,8 +292,15 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         nombre: string;
         costoTotal: string;
         fechaInicio: string;
-        saving: boolean;
-    }>({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', saving: false });
+    }>({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '' });
+
+    // Planes pendientes de crear al guardar la consulta
+    const [pendingPlans, setPendingPlans] = useState<Array<{
+        treatmentId: string;
+        nombre: string;
+        costoTotal: number;
+        fechaInicio: string;
+    }>>([]);
 
     const loadTratamientosPaciente = useCallback(async () => {
         try {
@@ -445,41 +458,23 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             nombre: t.nombre,
             costoTotal: String(t.precio),
             fechaInicio: today,
-            saving: false,
         });
     };
 
-    const handleCreatePlan = async () => {
+    const handleCreatePlan = () => {
         const current = planForm;
         if (!current.treatmentId || !current.nombre || !current.costoTotal) return;
         const costo = parseFloat(current.costoTotal);
         if (isNaN(costo) || costo <= 0) { addToast('error', 'El costo total debe ser un número válido mayor a 0.'); return; }
 
-        setPlanForm((prev) => ({ ...prev, saving: true }));
-        try {
-            const res = await tratamientoPacienteService.create({
-                pacienteId: patient.id_persona,
-                nombre: current.nombre,
-                costoTotal: costo,
-                fechaInicio: current.fechaInicio || new Date().toISOString().slice(0, 10),
-            });
-            const planData = res.data?.data ?? res.data;
-            if (res.success && planData?.id) {
-                setTratamientos((prev) =>
-                    prev.map((t) =>
-                        t.id === current.treatmentId ? { ...t, tratamientoPacienteId: planData.id } : t,
-                    ),
-                );
-                setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', saving: false });
-                addToast('success', 'Plan de tratamiento creado exitosamente');
-                loadTratamientosPaciente();
-            } else {
-                throw new Error(res.message || 'Error al crear el plan');
-            }
-        } catch (e: any) {
-            addToast('error', e?.message || 'Error al crear el plan de tratamiento');
-            setPlanForm((prev) => ({ ...prev, saving: false }));
-        }
+        setPendingPlans(prev => [...prev, {
+            treatmentId: current.treatmentId!,
+            nombre: current.nombre,
+            costoTotal: costo,
+            fechaInicio: current.fechaInicio || new Date().toISOString().slice(0, 10),
+        }]);
+        setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '' });
+        addToast('info', 'Plan pendiente. Se creará al guardar la consulta.');
     };
 
     // ── Save ───────────────────────────────────────────────────────────────────
@@ -507,11 +502,42 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
         setSaving(true);
 
+        // ── Crear planes pendientes antes de guardar la consulta ──
+        let tratamientosFinal = [...tratamientos];
+        if (pendingPlans.length > 0) {
+            for (const plan of pendingPlans) {
+                const treatmentExists = tratamientosFinal.some(t => t.id === plan.treatmentId);
+                if (!treatmentExists) continue;
+                try {
+                    const res = await tratamientoPacienteService.create({
+                        pacienteId: patient.id_persona,
+                        nombre: plan.nombre,
+                        costoTotal: plan.costoTotal,
+                        fechaInicio: plan.fechaInicio,
+                    });
+                    const planData = res.data?.data ?? res.data;
+                    if (res.success && planData?.id) {
+                        tratamientosFinal = tratamientosFinal.map(t =>
+                            t.id === plan.treatmentId ? { ...t, tratamientoPacienteId: planData.id } : t,
+                        );
+                    } else {
+                        throw new Error(res.message || 'Error al crear el plan');
+                    }
+                } catch (e: any) {
+                    addToast('error', e?.message || 'Error al crear plan de tratamiento');
+                    setSaving(false);
+                    return;
+                }
+            }
+            setPendingPlans([]);
+            setTratamientos(tratamientosFinal);
+        }
+
         const fechaISO = new Date(`${fecha}T${hora}:00`).toISOString();
         const idUsuario = doctor?.id_usuario ?? 1;
 
         // Prepare tratamientos payload
-        const catalogTratamientosPayload = tratamientos
+        const catalogTratamientosPayload = tratamientosFinal
             .filter(t => t.id_tratamiento && !t.tratamientoPacienteId)
             .map(t => ({
                 id_tratamiento: t.id_tratamiento!,
@@ -520,8 +546,8 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             }));
 
         // Free concepts + plan items (those without catalog id go to text)
-        const planItems = tratamientos.filter(t => t.tratamientoPacienteId);
-        const freeConceptsText = tratamientos
+        const planItems = tratamientosFinal.filter(t => t.tratamientoPacienteId);
+        const freeConceptsText = tratamientosFinal
             .filter(t => !t.id_tratamiento && !t.tratamientoPacienteId)
             .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`)
             .join('\n');
@@ -827,7 +853,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                         }}>
                             <div>
                                 <div style={{ fontSize: 16, fontWeight: 700, color: C.navy, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Zap size={18} color={C.primary} /> Odontograma de la Consulta
+                                    <ToothIcon size={18} color={C.primary} /> Odontograma de la Consulta
                                 </div>
                                 <div style={{ fontSize: 13, color: C.gray700, marginTop: 6, maxWidth: 600 }}>
                                     Actualiza el odontograma del paciente en tiempo real.
@@ -846,7 +872,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     cursor: 'pointer', flexShrink: 0
                                 }}
                             >
-                                <Zap size={16} /> Abrir Odontograma Interactivo
+                                <ToothIcon size={16} /> Abrir Odontograma Interactivo
                             </button>
                         </div>
 
@@ -1076,12 +1102,13 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     {tratamientos.map((t, idx) => {
                                         const isPlan = !!t.tratamientoPacienteId;
                                         const isCreating = planForm.treatmentId === t.id;
+                                        const isPendingPlan = pendingPlans.some(p => p.treatmentId === t.id);
                                         return (
                                         <div key={t.id} style={{ display: 'flex', flexDirection: 'column', background: C.white, border: `1.5px solid ${isCreating ? C.primary : C.gray300}`, borderRadius: 10, overflow: 'hidden', boxShadow: isCreating ? '0 4px 16px rgba(11, 197, 223, 0.15)' : '0 1px 4px rgba(0,0,0,0.04)' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                                     <span style={{ fontSize: 11, fontWeight: 600, color: C.gray500 }}>
-                                                        {isPlan ? 'Plan activo' : `Item ${idx + 1}`}
+                                                        {isPlan ? 'Plan activo' : isPendingPlan ? 'Plan pendiente' : `Item ${idx + 1}`}
                                                     </span>
                                                     <span style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>{t.nombre}</span>
                                                 </div>
@@ -1089,19 +1116,19 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                                     <span style={{ fontSize: 16, fontWeight: 800, color: C.success }}>
                                                         L. {t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                                     </span>
-                                                    {!isPlan && !isCreating && (
+                                                    {!isPlan && !isCreating && !isPendingPlan && (
                                                         <button
                                                             onClick={() => initPlanForm(t)}
                                                             style={{
                                                                 display: 'flex', alignItems: 'center', gap: 5,
-                                                                background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                                                                background: C.primary,
                                                                 color: C.white, border: 'none', borderRadius: 8,
                                                                 padding: '6px 12px', fontSize: 11, fontWeight: 700,
                                                                 cursor: 'pointer', whiteSpace: 'nowrap',
-                                                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                                                                boxShadow: `0 4px 12px ${C.primary}55`,
                                                             }}
                                                         >
-                                                            <Zap size={13} /> Crear Plan
+                                                            <ClipboardList size={13} /> Crear Plan
                                                         </button>
                                                     )}
                                                     {isPlan && (
@@ -1109,8 +1136,16 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                                             Plan activo
                                                         </span>
                                                     )}
+                                                    {isPendingPlan && (
+                                                        <span style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 12, background: '#fff7e6', color: C.warning, border: `1px solid ${C.warning}44`, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                            Pendiente
+                                                        </span>
+                                                    )}
                                                     {!isPlan && (
-                                                        <button onClick={() => setTratamientos((prev) => prev.filter((x) => x.id !== t.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, padding: 4 }}>
+                                                        <button onClick={() => {
+                                                            setTratamientos((prev) => prev.filter((x) => x.id !== t.id));
+                                                            setPendingPlans(prev => prev.filter(p => p.treatmentId !== t.id));
+                                                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: C.danger, padding: 4 }}>
                                                             <Trash2 size={15} />
                                                         </button>
                                                     )}
@@ -1120,7 +1155,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                             {isCreating && (
                                                 <div style={{ borderTop: `1px solid ${C.gray100}`, padding: '18px', background: C.gray50 }}>
                                                     <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                        <Zap size={15} color={C.primary} /> Nuevo Plan de Tratamiento
+                                                        <ClipboardList size={15} color={C.primary} /> Nuevo Plan de Tratamiento
                                                     </div>
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
                                                         <div>
@@ -1155,23 +1190,21 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
                                                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                                                         <button
-                                                            onClick={() => setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '', saving: false })}
+                                                            onClick={() => setPlanForm({ treatmentId: null, nombre: '', costoTotal: '', fechaInicio: '' })}
                                                             style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: C.white, color: C.gray500, border: `1px solid ${C.gray300}`, cursor: 'pointer' }}
                                                         >
                                                             Cancelar
                                                         </button>
                                                         <button
                                                             onClick={handleCreatePlan}
-                                                            disabled={planForm.saving}
                                                             style={{
                                                                 padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                                                                background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
-                                                                color: C.white, border: 'none', cursor: planForm.saving ? 'not-allowed' : 'pointer',
-                                                                opacity: planForm.saving ? 0.7 : 1,
-                                                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35)',
+                                                                background: C.primary,
+                                                                color: C.white, border: 'none', cursor: 'pointer',
+                                                                boxShadow: `0 4px 12px ${C.primary}55`,
                                                             }}
                                                         >
-                                                            {planForm.saving ? 'Guardando...' : 'Guardar Plan'}
+                                                            Guardar Plan
                                                         </button>
                                                     </div>
                                                 </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "../context";
 import { normalizeSearch } from "../utils/formatters";
 
@@ -509,7 +509,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
           {/* Fila 2: filtros (se envuelven solos) */}
           {filters.length > 0 && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {filters.map((f) => (
                 <FilterDropdown
                   key={f.key}
@@ -519,6 +519,20 @@ export function DataTable<T extends Record<string, unknown>>({
                   onChange={(v) => handleFilter(f.key, v)}
                 />
               ))}
+              {Object.values(filterValues).some(v => v !== "") && (
+                <button
+                  onClick={() => { setFilterValues({}); setPage(1); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    height: 40, padding: "0 16px", borderRadius: 8,
+                    background: "#fff", border: "1px solid #E4E7EC",
+                    fontSize: 12, color: "#6C757D", cursor: "pointer",
+                    whiteSpace: "nowrap", boxSizing: "border-box",
+                  }}
+                >
+                  <X size={14} style={{ color: "#8A9499" }} /> Limpiar
+                </button>
+              )}
             </div>
           )}
         </div>
