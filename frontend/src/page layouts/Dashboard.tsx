@@ -8,6 +8,7 @@ import {
   Clock,
   ChevronRight,
   FileText,
+  type LucideIcon,
 } from "lucide-react";
 import { Card, StatusBadge, Avatar, Alert } from "../context";
 import { useResponsive } from "../hooks/useWindowWidth";
@@ -35,9 +36,9 @@ function formatCurrency(value: number) {
 
 function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
   const W = 420,
-    H = 160,
+    H = 190,
     padL = 28,
-    padB = 24,
+    padB = 54,
     padR = 12,
     padT = 8;
   const maxVal = Math.max(1, ...data.map((d) => d.citas));
@@ -46,8 +47,11 @@ function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
   const groupW = chartW / Math.max(1, data.length);
   const barW = Math.floor(groupW * 0.28);
   const gap = 3;
+  const labelsY = padT + chartH + 18;
+  const legendY = H - 16;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 160 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 190 }}>
       {[0, 0.25, 0.5, 0.75, 1].map((t) => {
         const y = padT + chartH * (1 - t);
         return (
@@ -96,7 +100,7 @@ function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
             />
             <text
               x={cx}
-              y={H - 6}
+              y={labelsY}
               textAnchor="middle"
               fontSize={10}
               fill="#888F94"
@@ -106,21 +110,23 @@ function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
           </g>
         );
       })}
-      <rect x={padL} y={H - 8} width={8} height={8} fill="#B2EDF5" rx={2} />
-      <text x={padL + 11} y={H - 1} fontSize={9} fill="#888F94">
-        Programadas
-      </text>
-      <rect
-        x={padL + 80}
-        y={H - 8}
-        width={8}
-        height={8}
-        fill="#0BC5DF"
-        rx={2}
-      />
-      <text x={padL + 91} y={H - 1} fontSize={9} fill="#888F94">
-        Atendidas
-      </text>
+      <g>
+        <rect x={padL} y={legendY - 8} width={8} height={8} fill="#B2EDF5" rx={2} />
+        <text x={padL + 12} y={legendY - 1} fontSize={9} fill="#888F94">
+          Programadas
+        </text>
+        <rect
+          x={padL + 106}
+          y={legendY - 8}
+          width={8}
+          height={8}
+          fill="#0BC5DF"
+          rx={2}
+        />
+        <text x={padL + 118} y={legendY - 1} fontSize={9} fill="#888F94">
+          Atendidas
+        </text>
+      </g>
     </svg>
   );
 }
@@ -271,7 +277,9 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
   const user = useAuthStore((s) => s.user);
+  const canViewGeneral = user?.privilegios?.includes(1) ?? false;
   const canViewFinancial = user?.privilegios?.includes(2) ?? false;
+  const hasAnyDashboardPermission = canViewGeneral || canViewFinancial;
   const [generalSummary, setGeneralSummary] = useState<DashboardGeneralSummary | null>(null);
   const [financialSummary, setFinancialSummary] = useState<DashboardFinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -297,101 +305,126 @@ export function Dashboard() {
 
     const loadDashboard = async () => {
       setIsLoading(true);
-      try {
-        const generalResponse = await dashboardService.getGeneralSummary();
-        if (!cancelled && generalResponse.success) {
-          setGeneralSummary(generalResponse.data);
-        }
+      setAlert(null);
+      setGeneralSummary(null);
+      setFinancialSummary(null);
 
-        if (canViewFinancial) {
-          try {
-            const financialResponse = await dashboardService.getFinancialSummary();
-            if (!cancelled && financialResponse.success) {
-              setFinancialSummary(financialResponse.data);
-            }
-          } catch {
-            if (!cancelled) {
-              setFinancialSummary(null);
-            }
-          }
-        } else if (!cancelled) {
-          setFinancialSummary(null);
-        }
-      } catch (error: unknown) {
-        if (!cancelled) {
-          const message =
-            error && typeof error === "object" && "message" in error
-              ? String((error as { message: string }).message)
-              : "No se pudo cargar el dashboard.";
-          setAlert({ message, type: "error" });
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+      if (!hasAnyDashboardPermission) {
+        setIsLoading(false);
+        return;
       }
+
+      const errors: string[] = [];
+
+      if (canViewGeneral) {
+        try {
+          const generalResponse = await dashboardService.getGeneralSummary();
+          if (!cancelled && generalResponse.success) {
+            setGeneralSummary(generalResponse.data);
+          }
+        } catch {
+          errors.push("No se pudo cargar la información clínica del dashboard.");
+        }
+      }
+
+      if (canViewFinancial) {
+        try {
+          const financialResponse = await dashboardService.getFinancialSummary();
+          if (!cancelled && financialResponse.success) {
+            setFinancialSummary(financialResponse.data);
+          }
+        } catch {
+          errors.push("No se pudo cargar la información financiera del dashboard.");
+        }
+      }
+
+      if (!cancelled && errors.length > 0) {
+        setAlert({ message: errors.join(" "), type: "warning" });
+      }
+
+      if (!cancelled) setIsLoading(false);
     };
 
     loadDashboard();
     return () => {
       cancelled = true;
     };
-  }, [canViewFinancial]);
+  }, [canViewGeneral, canViewFinancial, hasAnyDashboardPermission]);
 
   const kpis = useMemo(() => {
-    if (!generalSummary) return [];
+    const items: {
+      label: string;
+      value: string;
+      sub: string;
+      icon: LucideIcon;
+      color: string;
+      bg: string;
+    }[] = [];
 
-    const items = [
-      {
-        label: "Citas hoy",
-        value: formatNumber(generalSummary.kpis.citasHoy.value),
-        sub: generalSummary.kpis.citasHoy.sub,
-        icon: Calendar,
-        color: "#0BC5DF",
-        bg: "#E6F8FB",
-      },
-      {
-        label: "Pacientes activos",
-        value: formatNumber(generalSummary.kpis.pacientesActivos.value),
-        sub: generalSummary.kpis.pacientesActivos.sub,
-        icon: Users,
-        color: "#1D9E75",
-        bg: "#ECFDF5",
-      },
-      canViewFinancial && financialSummary
-        ? {
-            label: "Ingresos del mes",
-            value: formatCurrency(financialSummary.kpis.ingresosMes.value),
-            sub: financialSummary.kpis.ingresosMes.sub,
-            icon: TrendingUp,
-            color: "#EF9F27",
-            bg: "#FFFBEB",
-          }
-        : {
-            label: "Consultas del mes",
-            value: formatNumber(generalSummary.kpis.consultasMes.value),
-            sub: generalSummary.kpis.consultasMes.sub,
-            icon: FileText,
-            color: "#EF9F27",
-            bg: "#FFFBEB",
-          },
-      {
+    if (canViewGeneral && generalSummary) {
+      items.push(
+        {
+          label: "Citas hoy",
+          value: formatNumber(generalSummary.kpis.citasHoy.value),
+          sub: generalSummary.kpis.citasHoy.sub,
+          icon: Calendar,
+          color: "#0BC5DF",
+          bg: "#E6F8FB",
+        },
+        {
+          label: "Pacientes activos",
+          value: formatNumber(generalSummary.kpis.pacientesActivos.value),
+          sub: generalSummary.kpis.pacientesActivos.sub,
+          icon: Users,
+          color: "#1D9E75",
+          bg: "#ECFDF5",
+        },
+      );
+    }
+
+    if (canViewFinancial && financialSummary) {
+      items.push({
+        label: "Ingresos del mes",
+        value: formatCurrency(financialSummary.kpis.ingresosMes.value),
+        sub: financialSummary.kpis.ingresosMes.sub,
+        icon: TrendingUp,
+        color: "#EF9F27",
+        bg: "#FFFBEB",
+      });
+    } else if (canViewGeneral && generalSummary) {
+      items.push({
+        label: "Consultas del mes",
+        value: formatNumber(generalSummary.kpis.consultasMes.value),
+        sub: generalSummary.kpis.consultasMes.sub,
+        icon: FileText,
+        color: "#EF9F27",
+        bg: "#FFFBEB",
+      });
+    }
+
+    if (canViewGeneral && generalSummary) {
+      items.push({
         label: "Pendientes hoy",
         value: formatNumber(generalSummary.kpis.pendientesHoy.value),
         sub: generalSummary.kpis.pendientesHoy.sub,
         icon: AlertCircle,
         color: "#E24B4A",
         bg: "#FEF2F2",
-      },
-    ];
+      });
+    }
 
     return items;
-  }, [canViewFinancial, financialSummary, generalSummary]);
+  }, [canViewFinancial, canViewGeneral, financialSummary, generalSummary]);
 
   const kpiCols = isMobile
     ? "1fr 1fr"
     : isTablet
     ? "repeat(2, 1fr)"
     : "repeat(4, 1fr)";
-  const chartCols = isMobile || isTablet || !canViewFinancial ? "1fr" : "1fr 1fr";
+  const showGeneralDashboard = canViewGeneral && Boolean(generalSummary);
+  const showFinancialDashboard = canViewFinancial && Boolean(financialSummary);
+  const visibleChartCount = Number(showGeneralDashboard) + Number(showFinancialDashboard);
+  const chartCols = isMobile || isTablet || visibleChartCount < 2 ? "1fr" : "1fr 1fr";
   const agendaHoy = generalSummary?.agendaHoy ?? [];
   const citasSemana = generalSummary?.citasSemana ?? [];
   const ingresosPorMes = financialSummary?.ingresosPorMes ?? [];
@@ -420,7 +453,18 @@ export function Dashboard() {
         </Card>
       ) : null}
 
-      {!isLoading && !generalSummary ? (
+      {!isLoading && !hasAnyDashboardPermission ? (
+        <Card>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
+            No tienes permisos asignados para ver el dashboard.
+          </div>
+          <div style={{ fontSize: 12, color: "#888F94", marginTop: 4 }}>
+            Solicita el permiso de Dashboard general o Dashboard financiero.
+          </div>
+        </Card>
+      ) : null}
+
+      {!isLoading && hasAnyDashboardPermission && !showGeneralDashboard && !showFinancialDashboard ? (
         <Card>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
             No se pudo cargar la información del dashboard.
@@ -431,7 +475,7 @@ export function Dashboard() {
         </Card>
       ) : null}
 
-      {generalSummary ? (
+      {showGeneralDashboard || showFinancialDashboard ? (
         <>
           <div
             style={{
@@ -506,24 +550,26 @@ export function Dashboard() {
               gap: isMobile ? 10 : 16,
             }}
           >
-            <Card>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#203F49",
-                  marginBottom: 4,
-                }}
-              >
-                Citas — Esta semana
-              </div>
-              <div style={{ fontSize: 11, color: "#888F94", marginBottom: 16 }}>
-                Programadas vs. atendidas
-              </div>
-              <BarChartSVG data={citasSemana} />
-            </Card>
+            {showGeneralDashboard ? (
+              <Card>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#203F49",
+                    marginBottom: 4,
+                  }}
+                >
+                  Citas — Esta semana
+                </div>
+                <div style={{ fontSize: 11, color: "#888F94", marginBottom: 16 }}>
+                  Programadas vs. atendidas
+                </div>
+                <BarChartSVG data={citasSemana} />
+              </Card>
+            ) : null}
 
-            {canViewFinancial && financialSummary ? (
+            {showFinancialDashboard ? (
               <Card>
                 <div
                   style={{
@@ -543,9 +589,10 @@ export function Dashboard() {
             ) : null}
           </div>
 
-          <Card>
-            <div
-              style={{
+          {showGeneralDashboard ? (
+            <Card>
+              <div
+                style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -699,7 +746,8 @@ export function Dashboard() {
                 ))}
               </div>
             )}
-          </Card>
+            </Card>
+          ) : null}
         </>
       ) : null}
     </div>
