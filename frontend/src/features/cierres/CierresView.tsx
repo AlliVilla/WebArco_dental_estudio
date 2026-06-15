@@ -312,7 +312,7 @@ export function CierresView() {
       const fmt = (d: string) => d.split('-').reverse().join('-');
       return `Cierre_Caja_${fmt(fechaInicio)}_${fmt(fechaFin)}`;
     }
-    return `Cierre_Caja_Tipo_${tipoPeriodo}`;
+    return `Cierre_Caja_${tipoPeriodo}`;
   };
 
   const exportarCierreDiario = async () => {
@@ -467,16 +467,7 @@ export function CierresView() {
         'Comparativa',
         'Responsable',
       ]);
-      superHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
-      superHeader.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 12 };
-      superHeader.alignment = { vertical: 'middle', horizontal: 'center' };
       superHeader.height = 22;
-      superHeader.eachCell(applyBorders);
-
-      worksheet.mergeCells(`F${tableHeaderRow1Number}:H${tableHeaderRow1Number}`);
-      ['A', 'B', 'C', 'D', 'E', 'I', 'J'].forEach((col) => {
-        worksheet.mergeCells(`${col}${tableHeaderRow1Number}:${col}${tableHeaderRow1Number + 1}`);
-      });
 
       const subHeader = worksheet.addRow([
         '', '', '', '', '',
@@ -485,11 +476,26 @@ export function CierresView() {
         'Transferencia (%)',
         '', '',
       ]);
-      subHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
-      subHeader.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 11 };
-      subHeader.alignment = { vertical: 'middle', horizontal: 'center' };
       subHeader.height = 20;
-      subHeader.eachCell(applyBorders);
+
+      worksheet.mergeCells(`F${tableHeaderRow1Number}:H${tableHeaderRow1Number}`);
+      ['A', 'B', 'C', 'D', 'E', 'I', 'J'].forEach((col) => {
+        worksheet.mergeCells(`${col}${tableHeaderRow1Number}:${col}${tableHeaderRow1Number + 1}`);
+      });
+
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'].forEach((col) => {
+        const cellTop = superHeader.getCell(col);
+        cellTop.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
+        cellTop.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 12 };
+        cellTop.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        applyBorders(cellTop);
+
+        const cellBot = subHeader.getCell(col);
+        cellBot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
+        cellBot.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 12 };
+        cellBot.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        applyBorders(cellBot);
+      });
 
       filasTabla.forEach((fila, index) => {
         const nombreResponsable = fila.usuario
@@ -524,9 +530,19 @@ export function CierresView() {
         row.getCell(7).numFmt = '#,##0.00"%"';
         row.getCell(8).numFmt = '#,##0.00"%"';
 
-        row.alignment = { vertical: 'middle' };
         row.font = { color: { argb: TEXT_COLOR } };
         row.eachCell(applyBorders);
+
+        row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+        row.getCell(2).alignment = { vertical: 'middle' };
+        row.getCell(3).alignment = { vertical: 'middle' };
+        row.getCell(4).alignment = { vertical: 'middle' };
+        row.getCell(5).alignment = { vertical: 'middle' };
+        row.getCell(6).alignment = { vertical: 'middle' };
+        row.getCell(7).alignment = { vertical: 'middle' };
+        row.getCell(8).alignment = { vertical: 'middle' };
+        row.getCell(9).alignment = { vertical: 'middle', horizontal: 'right' };
+        row.getCell(10).alignment = { vertical: 'middle', horizontal: 'right' };
       });
 
       worksheet.getColumn(1).width = 16;
