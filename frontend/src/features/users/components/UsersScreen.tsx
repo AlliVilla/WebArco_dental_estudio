@@ -365,7 +365,7 @@ function UserCard({
   onToggle: () => void;
 }) {
   const initials = `${user.persona.primer_nombre.charAt(
-    0
+    0,
   )}${user.persona.primer_apellido.charAt(0)}`.toUpperCase();
   return (
     <div
@@ -579,7 +579,7 @@ export function UsersScreen() {
   }
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [statusTargetUser, setStatusTargetUser] = useState<Usuario | null>(
-    null
+    null,
   );
   const [statusTargetValue, setStatusTargetValue] = useState(true);
 
@@ -646,16 +646,7 @@ export function UsersScreen() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const rolFilter =
-        serverParams.filters.rol === "all"
-          ? undefined
-          : serverParams.filters.rol;
-      const res = await userService.getAll({
-        page: serverParams.page,
-        limit: 10,
-        nombre: serverParams.search || undefined,
-        rol: rolFilter || undefined,
-      });
+      const res = await userService.getAll();
       if (!mountedRef.current) return;
       if (res.success) {
         setUsers(res.data.usuarios);
@@ -667,10 +658,10 @@ export function UsersScreen() {
     } catch (err: unknown) {
       if (mountedRef.current)
         setErrorMessage(
-          err instanceof Error ? err.message : "Error al cargar los usuarios."
+          err instanceof Error ? err.message : "Error al cargar los usuarios.",
         );
     }
-  }, [serverParams]);
+  }, []);
 
   useEffect(() => {
     void fetchStats();
@@ -690,7 +681,7 @@ export function UsersScreen() {
     }) => {
       setServerParams(params);
     },
-    []
+    [],
   );
 
   const handleOpenForm = (user?: Usuario) => {
@@ -705,7 +696,7 @@ export function UsersScreen() {
       setFechaNacimiento(
         user.persona.fecha_nacimiento
           ? user.persona.fecha_nacimiento.split("T")[0]
-          : ""
+          : "",
       );
       setSexo(user.persona.sexo);
       setTelefono(user.persona.telefono);
@@ -766,6 +757,8 @@ export function UsersScreen() {
     if (!fechaNacimiento)
       errors.fechaNacimiento = "La fecha de nacimiento es obligatoria";
     if (!telefono.trim()) errors.telefono = "El teléfono es obligatorio";
+    if (!correoElectronico.trim())
+      errors.correoElectronico = "El correo electrónico es obligatorio";
     if (!username.trim())
       errors.username = "El nombre de usuario es obligatorio";
     if (!idDepartamento)
@@ -832,7 +825,7 @@ export function UsersScreen() {
         const res = await userService.create(payload);
         if (res.success) {
           setSuccessMessage(
-            "Usuario creado con éxito. Credenciales temporales listas para el primer inicio."
+            "Usuario creado con éxito. Credenciales temporales listas para el primer inicio.",
           );
           setIsFormOpen(false);
           void fetchUsers();
@@ -864,11 +857,11 @@ export function UsersScreen() {
     try {
       const res = await userService.updateStatus(
         statusTargetUser.id_usuario,
-        statusTargetValue
+        statusTargetValue,
       );
       if (res.success) {
         setSuccessMessage(
-          `Usuario ${statusTargetValue ? "activado" : "desactivado"} con éxito.`
+          `Usuario ${statusTargetValue ? "activado" : "desactivado"} con éxito.`,
         );
         void fetchUsers();
         void fetchStats();
@@ -881,7 +874,7 @@ export function UsersScreen() {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Error al cambiar el estado del usuario."
+          : "Error al cambiar el estado del usuario.",
       );
       addTimer(() => setErrorMessage(null), 4000);
     } finally {
@@ -897,7 +890,7 @@ export function UsersScreen() {
         label: "Usuario",
         render: (_: unknown, row: Usuario) => {
           const initials = `${row.persona.primer_nombre.charAt(
-            0
+            0,
           )}${row.persona.primer_apellido.charAt(0)}`.toUpperCase();
           return (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -991,7 +984,7 @@ export function UsersScreen() {
         ),
       },
     ],
-    []
+    [],
   );
 
   const getRowActions = (row: Usuario) => [
@@ -1007,12 +1000,12 @@ export function UsersScreen() {
       { value: "all", label: "Todos los roles" },
       ...roles.map((r) => ({ value: r.nombre, label: r.nombre })),
     ],
-    [roles]
+    [roles],
   );
 
   const formRoleOptions = useMemo(
     () => roles.map((r) => ({ value: String(r.id_rol), label: r.nombre })),
-    [roles]
+    [roles],
   );
   const sexOptions = [
     { value: "M", label: "Masculino" },
@@ -1020,7 +1013,7 @@ export function UsersScreen() {
   ];
   const selectedMunicipios = useMemo(
     () => MUNICIPIOS_DATA[idDepartamento] || [],
-    [idDepartamento]
+    [idDepartamento],
   );
 
   // Búsqueda local para vista móvil (misma lógica que serverParams)
@@ -1034,17 +1027,45 @@ export function UsersScreen() {
   const filteredUsers = useMemo(
     () =>
       users.filter((u) => {
-        const matchSearch =
-          !mobileSearch ||
-          normalize(
-            `${u.persona.primer_nombre} ${u.persona.primer_apellido}`
-          ).includes(normalize(mobileSearch)) ||
-          normalize(u.username).includes(normalize(mobileSearch));
         const matchRol = !mobileFilterRol || u.rol.nombre === mobileFilterRol;
+        const searchStr = mobileSearch.trim();
+        if (!searchStr) return matchRol;
+        const searchWords = normalize(searchStr).split(/\s+/).filter(Boolean);
+        const fullName = normalize(
+          `${u.persona.primer_nombre} ${u.persona.segundo_nombre || ""} ${u.persona.primer_apellido} ${u.persona.segundo_apellido || ""} ${u.username}`,
+        );
+        const matchSearch = searchWords.every((word) =>
+          fullName.includes(word),
+        );
         return matchSearch && matchRol;
       }),
-    [users, mobileSearch, mobileFilterRol]
+    [users, mobileSearch, mobileFilterRol],
   );
+
+  const filteredUsersDesktop = useMemo(
+    () =>
+      users.filter((u) => {
+        const rolFilter = serverParams.filters.rol;
+        const matchRol =
+          !rolFilter || rolFilter === "all" || u.rol.nombre === rolFilter;
+        const searchStr = serverParams.search.trim();
+        if (!searchStr) return matchRol;
+        const searchWords = normalize(searchStr).split(/\s+/).filter(Boolean);
+        const fullName = normalize(
+          `${u.persona.primer_nombre} ${u.persona.segundo_nombre || ""} ${u.persona.primer_apellido} ${u.persona.segundo_apellido || ""} ${u.username}`,
+        );
+        const matchSearch = searchWords.every((word) =>
+          fullName.includes(word),
+        );
+        return matchRol && matchSearch;
+      }),
+    [users, serverParams.filters.rol, serverParams.search],
+  );
+
+  const paginatedUsersDesktop = useMemo(() => {
+    const startIndex = (serverParams.page - 1) * 10;
+    return filteredUsersDesktop.slice(startIndex, startIndex + 10);
+  }, [filteredUsersDesktop, serverParams.page]);
 
   return (
     <div
@@ -1240,7 +1261,7 @@ export function UsersScreen() {
           title="Gestión de Usuarios"
           description="Administra los usuarios del sistema, sus roles de seguridad y accesos a módulos."
           columns={columns}
-          data={users}
+          data={paginatedUsersDesktop}
           searchable
           searchPlaceholder="Buscar por nombre o apellido..."
           filters={[
@@ -1251,7 +1272,7 @@ export function UsersScreen() {
             },
           ]}
           pageSize={10}
-          totalRecords={totalRecords}
+          totalRecords={filteredUsersDesktop.length}
           isServerSide
           onServerParamsChange={handleServerParamsChange}
           primaryAction={{
@@ -1489,14 +1510,21 @@ export function UsersScreen() {
                     error={formErrors.telefono}
                   />
                 </div>
-                <Input
-                  label="Correo Electrónico"
-                  badge="optional"
-                  type="email"
-                  placeholder="Ej: correo@ejemplo.com"
-                  value={correoElectronico}
-                  onChange={(e) => setCorreoElectronico(e.target.value)}
-                />
+                <div
+                  {...(formErrors.correoElectronico
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Input
+                    label="Correo Electrónico"
+                    badge="required"
+                    type="email"
+                    placeholder="Ej: correo@ejemplo.com"
+                    value={correoElectronico}
+                    onChange={(e) => setCorreoElectronico(e.target.value)}
+                    error={formErrors.correoElectronico}
+                  />
+                </div>
                 <Select
                   label="Departamento"
                   badge="required"
@@ -1658,7 +1686,7 @@ export function UsersScreen() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {users.map((u) => {
             const initials = `${u.persona.primer_nombre.charAt(
-              0
+              0,
             )}${u.persona.primer_apellido.charAt(0)}`.toUpperCase();
             return (
               <div
@@ -1753,7 +1781,7 @@ export function UsersScreen() {
             .filter((u) => u.rol.nombre.toLowerCase() === "doctor")
             .map((u) => {
               const initials = `${u.persona.primer_nombre.charAt(
-                0
+                0,
               )}${u.persona.primer_apellido.charAt(0)}`.toUpperCase();
               return (
                 <div
@@ -1847,7 +1875,7 @@ export function UsersScreen() {
             .filter((u) => u.rol.nombre.toLowerCase() === "especialista")
             .map((u) => {
               const initials = `${u.persona.primer_nombre.charAt(
-                0
+                0,
               )}${u.persona.primer_apellido.charAt(0)}`.toUpperCase();
               return (
                 <div

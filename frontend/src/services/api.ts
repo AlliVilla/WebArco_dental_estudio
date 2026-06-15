@@ -33,7 +33,7 @@ api.interceptors.response.use(
     if (resData && typeof resData === 'object' && 'success' in resData) {
       return resData;
     }
-    
+
     // Fallback if the response does not follow the standard envelope
     return {
       success: true,
@@ -44,12 +44,12 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     let message = 'Ocurrió un error inesperado. Por favor, intente de nuevo.';
     let status = error.response?.status;
-    
+
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
       const errorData = error.response.data as any;
-      
+
       if (errorData && typeof errorData === 'object') {
         // Parse validation errors or generic exception filter format
         if (errorData.message) {
@@ -63,7 +63,7 @@ api.interceptors.response.use(
       }
 
       // Handle 401 Unauthorized (token expired or invalid)
-      if (status === 401) {
+      if (status === 401 && !error.config?.url?.includes('/auth/login')) {
         localStorage.removeItem('webarco_auth_token');
         localStorage.removeItem('webarco_user');
         window.location.href = '/login';
@@ -75,7 +75,7 @@ api.interceptors.response.use(
       // Something happened in setting up the request that triggered an Error
       message = error.message;
     }
-    
+
     return Promise.reject({
       success: false,
       data: null,

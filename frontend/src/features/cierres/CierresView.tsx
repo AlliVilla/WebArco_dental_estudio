@@ -13,10 +13,12 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { Alert, Button, Card, Input, Select } from '../../context';
 import { billingService } from '../billing';
 import { CierreHistorialItem, TipoCierre } from '../billing/types';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, obtenerHoyLocal } from '../../utils/formatters';
 
 const COLORS = {
   primary: '#0BC5DF',
@@ -103,6 +105,9 @@ export function CierresView() {
   const [creandoCierre, setCreandoCierre] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const [exportandoDiario, setExportandoDiario] = useState(false);
+  const [exportandoPeriodico, setExportandoPeriodico] = useState(false);
 
   const [previewData, setPreviewData] = useState<{
     totalIngresos: number;
@@ -302,6 +307,267 @@ export function CierresView() {
     }));
   }, [cierresFiltrados, isRangoValido, historial]);
 
+  const buildNombreArchivoPeriodico = (): string => {
+    if (tipoPeriodo === 'Rango' && fechaInicio && fechaFin) {
+      const fmt = (d: string) => d.split('-').reverse().join('-');
+      return `Cierre_Caja_${fmt(fechaInicio)}_${fmt(fechaFin)}`;
+    }
+    return `Cierre_Caja_${tipoPeriodo}`;
+  };
+
+  const exportarCierreDiario = async () => {
+    setExportandoDiario(true);
+    setError(null);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Cierre Diario');
+
+      const fechaDisplay = fechaCierre.split('-').reverse().join('/');
+
+      worksheet.mergeCells('A1:D1');
+      const titleCell = worksheet.getCell('A1');
+      titleCell.value = `Cierre Diario — ${fechaDisplay}`;
+      titleCell.font = { bold: true, size: 14, color: { argb: 'FF203F49' } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      worksheet.getRow(1).height = 28;
+
+      worksheet.addRow([]);
+
+      const headerRow = worksheet.addRow(['Concepto', 'Monto (L.)']);
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0BC5DF' } };
+      headerRow.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 12 };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      headerRow.height = 22;
+
+      const dataRows = [
+        ['Total ingresos del día', summaryData.totalIngresos],
+        ['Ingresos en efectivo', summaryData.ingresosEfectivo],
+        ['Ingresos por tarjeta', summaryData.ingresosTarjeta],
+        ['Ingresos por transferencia', summaryData.ingresosTransferencia],
+        ['Total egresos del día', summaryData.totalEgresos],
+        ['Utilidad neta del día', summaryData.utilidadNeta],
+      ];
+
+      dataRows.forEach(([concepto, monto], index) => {
+        const row = worksheet.addRow([concepto, monto]);
+        if (index % 2 === 0) {
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
+        }
+        row.getCell(2).numFmt = '"L." #,##0.00';
+        row.alignment = { vertical: 'middle' };
+        row.font = { color: { argb: 'FF203F49' } };
+      });
+
+      worksheet.getColumn(1).width = 36;
+      worksheet.getColumn(2).width = 22;
+
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFD3D7DA' } },
+            left: { style: 'thin', color: { argb: 'FFD3D7DA' } },
+            bottom: { style: 'thin', color: { argb: 'FFD3D7DA' } },
+            right: { style: 'thin', color: { argb: 'FFD3D7DA' } },
+          };
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const fechaArchivo = fechaCierre.split('-').reverse().join('-');
+      saveAs(blob, `Cierre_diario_${fechaArchivo}.xlsx`);
+    } catch {
+      setError('Error al exportar el cierre diario a Excel.');
+    } finally {
+      setExportandoDiario(false);
+    }
+  };
+
+  const exportarConsolidado = async () => {
+    if (filasTabla.length === 0) return;
+    setExportandoPeriodico(true);
+    setError(null);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Consolidado');
+
+      const HEADER_COLOR = 'FF0BC5DF';
+      const HEADER_FONT_COLOR = 'FFFFFFFF';
+      const TEXT_COLOR = 'FF203F49';
+      const ALT_ROW_COLOR = 'FFF8F9FA';
+      const BORDER_COLOR = 'FFD3D7DA';
+
+      const applyBorders = (cell: ExcelJS.Cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: BORDER_COLOR } },
+          left: { style: 'thin', color: { argb: BORDER_COLOR } },
+          bottom: { style: 'thin', color: { argb: BORDER_COLOR } },
+          right: { style: 'thin', color: { argb: BORDER_COLOR } },
+        };
+      };
+
+      worksheet.mergeCells('A1:J1');
+      const titleCell = worksheet.getCell('A1');
+      titleCell.value = 'Consolidado del período';
+      titleCell.font = { bold: true, size: 14, color: { argb: TEXT_COLOR } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      worksheet.getRow(1).height = 28;
+
+      worksheet.addRow([]);
+
+      const summaryTitle = worksheet.addRow(['Resumen del período']);
+      worksheet.mergeCells(`A${summaryTitle.number}:J${summaryTitle.number}`);
+      summaryTitle.getCell(1).font = { bold: true, size: 11, color: { argb: TEXT_COLOR } };
+      summaryTitle.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
+
+      const summaryHeaders = worksheet.addRow([
+        'Ingresos totales del período',
+        'Egresos totales del período',
+        'Utilidad neta',
+        'Comparativo vs período anterior',
+      ]);
+      summaryHeaders.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
+      summaryHeaders.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 11 };
+      summaryHeaders.alignment = { vertical: 'middle', horizontal: 'center' };
+      summaryHeaders.height = 22;
+      summaryHeaders.eachCell(applyBorders);
+      worksheet.mergeCells(`E${summaryHeaders.number}:J${summaryHeaders.number}`);
+
+      const comparativaSign = periodicSummary.comparativa > 0 ? '+' : '';
+      const summaryValues = worksheet.addRow([
+        periodicSummary.ingresos,
+        periodicSummary.egresos,
+        periodicSummary.utilidad,
+        `${comparativaSign}${periodicSummary.comparativa.toFixed(2)}%`,
+      ]);
+      summaryValues.getCell(1).numFmt = '"L." #,##0.00';
+      summaryValues.getCell(2).numFmt = '"L." #,##0.00';
+      summaryValues.getCell(3).numFmt = '"L." #,##0.00';
+      summaryValues.font = { color: { argb: TEXT_COLOR }, size: 11 };
+      summaryValues.alignment = { vertical: 'middle', horizontal: 'center' };
+      summaryValues.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_ROW_COLOR } };
+      summaryValues.eachCell(applyBorders);
+      worksheet.mergeCells(`E${summaryValues.number}:J${summaryValues.number}`);
+
+      worksheet.addRow([]);
+
+      const tableHeaderRow1Number = worksheet.rowCount + 1;
+
+      const superHeader = worksheet.addRow([
+        'Período',
+        'Rango de fechas',
+        'Ingresos',
+        'Egresos',
+        'Utilidad',
+        'Desglose métodos de pago',
+        '',
+        '',
+        'Comparativa',
+        'Responsable',
+      ]);
+      superHeader.height = 22;
+
+      const subHeader = worksheet.addRow([
+        '', '', '', '', '',
+        'Efectivo (%)',
+        'Tarjeta (%)',
+        'Transferencia (%)',
+        '', '',
+      ]);
+      subHeader.height = 20;
+
+      worksheet.mergeCells(`F${tableHeaderRow1Number}:H${tableHeaderRow1Number}`);
+      ['A', 'B', 'C', 'D', 'E', 'I', 'J'].forEach((col) => {
+        worksheet.mergeCells(`${col}${tableHeaderRow1Number}:${col}${tableHeaderRow1Number + 1}`);
+      });
+
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'].forEach((col) => {
+        const cellTop = superHeader.getCell(col);
+        cellTop.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
+        cellTop.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 12 };
+        cellTop.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        applyBorders(cellTop);
+
+        const cellBot = subHeader.getCell(col);
+        cellBot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
+        cellBot.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 12 };
+        cellBot.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        applyBorders(cellBot);
+      });
+
+      filasTabla.forEach((fila, index) => {
+        const nombreResponsable = fila.usuario
+          ? fila.usuario.persona
+            ? `${fila.usuario.persona.primer_nombre} ${fila.usuario.persona.primer_apellido}`
+            : fila.usuario.username
+          : '—';
+
+        const comparativaSign = fila.comparativa > 0 ? '+' : '';
+
+        const row = worksheet.addRow([
+          fila.periodo,
+          fila.fecha,
+          toNum(fila.ingresos),
+          toNum(fila.egresos),
+          toNum(fila.utilidad),
+          fila.desglose.efectivo,
+          fila.desglose.tarjeta,
+          fila.desglose.transfer,
+          `${comparativaSign}${fila.comparativa.toFixed(2)}%`,
+          nombreResponsable,
+        ]);
+
+        if (index % 2 === 0) {
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_ROW_COLOR } };
+        }
+
+        row.getCell(3).numFmt = '"L." #,##0.00';
+        row.getCell(4).numFmt = '"L." #,##0.00';
+        row.getCell(5).numFmt = '"L." #,##0.00';
+        row.getCell(6).numFmt = '#,##0.00"%"';
+        row.getCell(7).numFmt = '#,##0.00"%"';
+        row.getCell(8).numFmt = '#,##0.00"%"';
+
+        row.font = { color: { argb: TEXT_COLOR } };
+        row.eachCell(applyBorders);
+
+        row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+        row.getCell(2).alignment = { vertical: 'middle' };
+        row.getCell(3).alignment = { vertical: 'middle' };
+        row.getCell(4).alignment = { vertical: 'middle' };
+        row.getCell(5).alignment = { vertical: 'middle' };
+        row.getCell(6).alignment = { vertical: 'middle' };
+        row.getCell(7).alignment = { vertical: 'middle' };
+        row.getCell(8).alignment = { vertical: 'middle' };
+        row.getCell(9).alignment = { vertical: 'middle', horizontal: 'right' };
+        row.getCell(10).alignment = { vertical: 'middle', horizontal: 'right' };
+      });
+
+      worksheet.getColumn(1).width = 16;
+      worksheet.getColumn(2).width = 30;
+      worksheet.getColumn(3).width = 20;
+      worksheet.getColumn(4).width = 20;
+      worksheet.getColumn(5).width = 20;
+      worksheet.getColumn(6).width = 16;
+      worksheet.getColumn(7).width = 16;
+      worksheet.getColumn(8).width = 18;
+      worksheet.getColumn(9).width = 18;
+      worksheet.getColumn(10).width = 26;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      saveAs(blob, `${buildNombreArchivoPeriodico()}.xlsx`);
+    } catch {
+      setError('Error al exportar el consolidado a Excel.');
+    } finally {
+      setExportandoPeriodico(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -481,9 +747,13 @@ export function CierresView() {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onClick={() => void exportarCierreDiario()}
+              disabled={exportandoDiario || !previewData}
+            >
               <Download size={16} />
-              Exportar cierre
+              {exportandoDiario ? 'Exportando...' : 'Exportar cierre'}
             </Button>
             <Button variant="primary" onClick={handleCerrarDia} disabled={creandoCierre}>
               <Lock size={16} />
@@ -679,13 +949,13 @@ export function CierresView() {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onClick={() => void exportarConsolidado()}
+              disabled={exportandoPeriodico || filasTabla.length === 0}
+            >
               <Download size={16} />
-              Exportar consolidado
-            </Button>
-            <Button variant="secondary">
-              <LineChart size={16} />
-              Ver comparativo
+              {exportandoPeriodico ? 'Exportando...' : 'Exportar consolidado'}
             </Button>
           </div>
         </div>
