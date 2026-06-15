@@ -70,6 +70,10 @@ Cada endpoint de la API está protegido por privilegios. Los privilegios se defi
 | 62 | ES_DOCTOR | — |
 | 63 | INVENTARIO_VER | Inventario |
 | 64 | INVENTARIO_GESTIONAR | Inventario |
+| 65 | TRATAMIENTOS_VER | Tratamientos |
+| 66 | TRATAMIENTOS_GESTIONAR | Tratamientos |
+| 67 | ESTADO_ODONTOGRAMA_VER | Odontograma |
+| 68 | ESTADO_ODONTOGRAMA_GESTIONAR | Odontograma |
 
 ### Reglas
 - Los IDs de privilegios son inmutables. No reasignar IDs existentes.

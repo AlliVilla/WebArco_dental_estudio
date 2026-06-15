@@ -114,6 +114,8 @@ export const billingService = {
     };
   }>> => {
     return api.get('/cierre/preview', { params: { fecha } });
+  updateConsultaDescuentos: async (consultaId: number, descuentos: { id_consulta_tratamiento: number, descuento: number }[]): Promise<ApiResponse<any>> => {
+    return api.patch(`/consulta/${consultaId}/descuentos`, { descuentos });
   },
 };
 

@@ -18,12 +18,6 @@ export class CreateTratamientoDto {
   @IsString()
   descripcion?: string;
 
-  @ApiProperty({ description: 'Estado a asignar en odontograma', example: 'Corona' })
-  @IsString()
-  @IsNotEmpty({ message: 'El impacto en odontograma es obligatorio' })
-  @MaxLength(60)
-  impactoOdontograma: string;
-
   @ApiProperty({ description: 'Precio base en Lempiras', example: 1200 })
   @IsNumber({}, { message: 'El precio debe ser un número' })
   @Min(0, { message: 'El precio no puede ser negativo' })

@@ -289,6 +289,20 @@ export class ExpedienteClinicoController {
   }
 
   @Privileges(21)
+  @Patch(':patientId/archivos/:archivoId')
+  @HttpCode(HttpStatus.OK)
+  async actualizarCategoriaArchivo(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('archivoId', ParseIntPipe) archivoId: number,
+    @Body('categoria') categoria: string,
+  ) {
+    if (!categoria) {
+      throw new BadRequestException('La categoría es requerida');
+    }
+    return this.expedienteClinicoService.actualizarCategoriaArchivo(patientId, archivoId, categoria);
+  }
+
+  @Privileges(21)
   @Delete(':patientId/archivos/:archivoId')
   @HttpCode(HttpStatus.OK)
   async eliminarArchivo(

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Clock, FileText, PenLine, ShieldCheck, UserRound } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
 import { Button, Card, Input, Select } from "../../../context";
-import { doctorOptions, procedimientoOptions } from "./consentData";
+import { doctorOptions, procedimientoOptions } from "../services/consentData";
 import type { ConsentFormValues } from "../types";
 import { SectionDescription } from "./SectionDescription";
 import { useResponsive } from "../../../hooks/useWindowWidth";

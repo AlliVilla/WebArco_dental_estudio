@@ -12,6 +12,7 @@ import { RecordatoriosScreen } from "./features/reminders";
 import { HistorialConfirmacionesScreen } from "./features/reminders/components/HistorialConfirmacionesScreen";
 import { GestionIngresos } from "./features/billing/components/GestionIngresos";
 import { GestionEgresos } from "./features/billing/components/GestionEgresos";
+import { FacturasDeConsultas } from "./features/billing/components/FacturasDeConsultas";
 import { ConsentScreen } from "./features/consent/services/ConsentScreen";
 import { ExpedienteScreen } from "./features/patients/components/expediente/components/ExpedienteScreen";
 import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
@@ -103,6 +104,7 @@ function App() {
           element={<Navigate to="/billing/income" replace />}
         />
         <Route path="/billing/income" element={<GestionIngresos />} />
+        <Route path="/billing/facturacion-cobros" element={<FacturasDeConsultas />} />
         <Route path="/billing/expense" element={<GestionEgresos />} />
         <Route path="/billing/list" element={<ListaFinanciera />} />
         <Route

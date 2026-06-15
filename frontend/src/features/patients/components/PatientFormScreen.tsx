@@ -34,7 +34,7 @@ type PatientPayload = {
   telefono: string;
   correo_electronico?: string;
   id_municipio: number;
-  direccion_linea?: string;
+  direccion_linea?: string | null;
   sexo: "M" | "F";
   enfermedades?: string;
   otras_enfermedades?: string;
@@ -101,6 +101,7 @@ export function PatientFormScreen() {
   const [municipio, setMunicipio] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [addressLine, setAddressLine] = useState("");
   const [enfermedades, setEnfermedades] = useState<string[]>([]);
   const [otrasDescription, setOtrasDescription] = useState("");
   const [medicamentos, setMedicamentos] = useState("");
@@ -114,6 +115,41 @@ export function PatientFormScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPatient, setIsLoadingPatient] = useState(isEditMode);
   const errorRef = useRef<HTMLDivElement>(null);
+  const todayDate = new Date().toISOString().slice(0, 10);
+  const minBirthDateValue = new Date();
+  minBirthDateValue.setFullYear(minBirthDateValue.getFullYear() - 110);
+  const minBirthDate = minBirthDateValue.toISOString().slice(0, 10);
+
+  const getBirthDateError = (date: string) => {
+    if (!date) return "La fecha de nacimiento es obligatoria";
+
+    if (date > todayDate)
+      return "La fecha de nacimiento no puede ser mayor a la fecha actual";
+
+    if (date < minBirthDate)
+      return "La edad del paciente no puede ser mayor a 110 años";
+
+    return "";
+  };
+
+  const handleBirthDateChange = (nextDate: string) => {
+    const error = getBirthDateError(nextDate);
+
+    if (error && nextDate) {
+      setBirthDate("");
+      setFieldErrors((p) => ({
+        ...p,
+        birthDate: error,
+      }));
+      return;
+    }
+
+    setBirthDate(nextDate);
+    setFieldErrors((p) => ({
+      ...p,
+      birthDate: "",
+    }));
+  };
 
   function scrollToError() {
     setTimeout(() => {
@@ -175,6 +211,7 @@ export function PatientFormScreen() {
         setMunicipio(String(persona.id_municipio ?? ""));
         setPhone(persona.telefono ?? "");
         setEmail(persona.correo_electronico ?? "");
+        setAddressLine(persona.direccion_linea ?? "");
         let enfermedadesList: string[] = [];
         try {
           if (persona.enfermedades)
@@ -216,7 +253,8 @@ export function PatientFormScreen() {
       errors.identityNumber = "El número de identidad es obligatorio";
     else if (identityDigits.length !== 13)
       errors.identityNumber = "La identidad debe tener exactamente 13 dígitos";
-    if (!birthDate) errors.birthDate = "La fecha de nacimiento es obligatoria";
+    const birthDateError = getBirthDateError(birthDate);
+    if (birthDateError) errors.birthDate = birthDateError;
     if (sex !== "M" && sex !== "F")
       errors.sex = "Selecciona el sexo del paciente";
     if (!departamento) errors.departamento = "Selecciona un departamento";
@@ -243,6 +281,7 @@ export function PatientFormScreen() {
       telefono: phone.trim(),
       correo_electronico: email.trim() || undefined,
       id_municipio: Number(municipio),
+      direccion_linea: addressLine.trim() || null,
       sexo: sex as "M" | "F",
       enfermedades: JSON.stringify(enfermedades),
       otras_enfermedades: otrasDescription.trim() || undefined,
@@ -398,10 +437,9 @@ export function PatientFormScreen() {
           badge="required"
           icon={<Calendar size={15} />}
           label="Fecha de nacimiento"
-          onChange={(e) => {
-            setBirthDate(e.target.value);
-            setFieldErrors((p) => ({ ...p, birthDate: "" }));
-          }}
+          min={minBirthDate}
+          max={todayDate}
+          onChange={(e) => handleBirthDateChange(e.target.value)}
           type="date"
           value={birthDate}
           error={fieldErrors.birthDate}
@@ -477,6 +515,16 @@ export function PatientFormScreen() {
           type="email"
           value={email}
         />
+        <FullWidthField>
+          <Textarea
+            badge="optional"
+            label="Dirección"
+            onChange={setAddressLine}
+            placeholder="Ej: Barrio El Centro, frente al parque principal"
+            rows={2}
+            value={addressLine}
+          />
+        </FullWidthField>
       </FormSection>
 
       <FormSection

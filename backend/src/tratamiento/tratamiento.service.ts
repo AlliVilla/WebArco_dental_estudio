@@ -14,7 +14,6 @@ export class TratamientoService {
       especialidad: t.especialidad?.nombre ?? '',
       nombre: t.nombre,
       descripcion: t.descripcion ?? '',
-      impactoOdontograma: t.impacto_odontograma,
       precio: Number(t.precio),
       activo: t.activo,
     };
@@ -60,7 +59,6 @@ export class TratamientoService {
         id_especialidad: dto.idEspecialidad,
         nombre: dto.nombre,
         descripcion: dto.descripcion,
-        impacto_odontograma: dto.impactoOdontograma,
         precio: dto.precio,
       },
       include: { especialidad: true },
@@ -76,7 +74,6 @@ export class TratamientoService {
         id_especialidad: dto.idEspecialidad,
         nombre: dto.nombre,
         descripcion: dto.descripcion,
-        impacto_odontograma: dto.impactoOdontograma,
         precio: dto.precio,
       },
       include: { especialidad: true },

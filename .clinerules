@@ -13,28 +13,59 @@ Maneja fichas clínicas, citas, odontograma, antecedentes médicos y módulo fin
 ## Estructura backend (NestJS)
 ```
 src/
-├── prisma/
-├── rol/
-├── privilegio/
-├── departamento/
-├── municipio/
-├── persona/
-├── usuario/
-├── consulta/
-├── odontograma/
-├── pago-paciente/
-└── antecedente-pregunta/
+├── app.module.ts
+├── main.ts
+├── common/                  # Interceptors, filters, dtos, etc. globales
+├── auth/                    # Autenticación y JWT
+├── categoria-insumo/        # Categorías de insumos de inventario
+├── cita/                    # Gestión de citas
+├── consentimiento/          # Consentimientos informados
+├── consulta/                # Consultas clínicas y expediente
+├── consulta-pregunta/       # Preguntas para antecedentes en consulta
+├── departamento/            # Ubicaciones (departamentos)
+├── egreso/                  # Registro de egresos financieros
+├── especialidad/            # Especialidades odontológicas
+├── estado-odontograma/      # Catálogo de estados de dientes
+├── expediente-clinico/      # Gestión del expediente clínico del paciente
+├── finanzas/                # Reportes y control financiero
+├── guards/                  # Guards para auth y privilegios
+├── insumo/                  # Catálogo de insumos
+├── inventario/              # Gestión de stock y movimientos
+├── municipio/               # Ubicaciones (municipios)
+├── odontograma/             # Gestión de estados del odontograma
+├── pago-consulta/           # Pagos asociados a consultas
+├── pago-paciente/           # Abonos y pagos de tratamientos del paciente
+├── persona/                 # Datos demográficos de pacientes y personal
+├── pipes/                   # Pipes globales de validación
+├── prisma/                  # Módulo e instancia de cliente Prisma
+├── privilegio/              # Catálogo de privilegios
+├── reminder/                # Recordatorios de citas
+├── rol/                     # Roles de usuario
+├── tratamiento/             # Catálogo de tratamientos
+├── tratamiento-paciente/    # Tratamientos asignados a pacientes
+├── unidad-medida/           # Unidades de medida para inventario
+├── upload/                  # Subida de archivos (radiografías, etc.)
+├── usuario/                 # Cuentas de usuario del sistema
+└── utils/                   # Helpers compartidos
 ```
 
 ## Estructura frontend (React)
 ```
 src/
-├── api/
-├── components/
-├── pages/
-├── hooks/
-├── store/
-└── types/
+├── App.tsx                  # Rutas principales y providers
+├── main.tsx                 # Entrada y setup principal
+├── assets/                  # Recursos estáticos (imágenes, logos)
+├── components/              # Componentes reutilizables (DataTable, ConfirmModal, etc.)
+├── config/                  # Archivos de configuración
+├── context/                 # Tema y UIKit primitivo (UIKit.tsx, ThemeContext.tsx)
+├── features/                # Módulos por dominio de negocio (agenda, facturación, etc.)
+├── hooks/                   # Hooks personalizados (useLocalStorage, useTheme)
+├── page layouts/            # Layouts de página (MainLayout, Dashboard)
+├── routes/                  # Definiciones de rutas y guardias
+├── services/                # Conexiones API centralizadas (Axios instance en api.ts)
+├── styles/                  # Hojas de estilo CSS globales y tokens de tema
+├── types/                   # Tipos globales de TypeScript
+└── utils/                   # Utilidades y formateadores (formatters.ts)
 ```
 
 ## Convenciones generales
@@ -57,11 +88,12 @@ src/
 
 ## Convenciones frontend (React)
 - Componentes funcionales con hooks, nunca class components
-- Un componente por archivo
-- Separar lógica de negocio en custom hooks (`useConsultas`, `usePacientes`)
-- Llamadas a la API solo desde la carpeta `api/`, nunca directo en componentes
+- Exportar componentes usando function declarations (`export function MiComponente()`)
+- Agrupar la lógica por módulos de negocio en `src/features/<modulo>/`
+- Llamadas a la API encapsuladas en los servicios del feature (`src/features/<modulo>/services/<modulo>Service.ts`) usando la instancia de Axios en `src/services/api.ts`
 - Tipar todo con TypeScript, prohibido usar `any`
-- Usar React Query para manejo de estado del servidor
+- Tipar genéricos de `DataTable<T>` mediante alias de tipo (`type`) en lugar de `interface` para evitar problemas con la firma de índices
+- Utilizar siempre variables CSS del tema (`var(--background)`, `var(--foreground)`, etc.) para garantizar la compatibilidad con Dark Mode
 
 ## Base de datos
 - Migraciones solo con Prisma Migrate, nunca editar la BD directo

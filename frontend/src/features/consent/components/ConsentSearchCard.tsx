@@ -4,13 +4,18 @@ import { useResponsive } from "../../../hooks/useWindowWidth";
 import { StatsDrawer } from "../../../components";
 import { useState } from "react";
 import type { ConsentRecord } from "../types";
-import { getStatusMeta } from "./consentUtils";
+import { getStatusMeta } from "../services/consentUtils";
+import type { ConsentimientoStats } from "../types/consentimiento"; // ← tipo ya creado
 
 interface ConsentSearchCardProps {
-  totalConsents: number;
-  totalFirmados: number;
-  totalPendientesDoctor: number;
+  // Totales globales — vienen de ConsentimientoStats (API)
+  totalConsents: ConsentimientoStats["total"];
+  totalFirmados: ConsentimientoStats["completos"];
+  totalPendientesDoctor: ConsentimientoStats["pendientes"];
+  // Página actual — para los drawers
   consents: ConsentRecord[];
+  loading?: boolean;
+  error?: string | null;
 }
 
 function StatusBadge({ estado }: { estado: string }) {
@@ -75,44 +80,69 @@ export function ConsentSearchCard({
   totalFirmados,
   totalPendientesDoctor,
   consents,
+  loading = false,
+  error = null,
 }: ConsentSearchCardProps) {
   const { isMobile } = useResponsive();
-  const [openDrawer, setOpenDrawer] = useState<
-    "total" | "firmados" | "pendientes" | null
-  >(null);
+  const [openDrawer, setOpenDrawer] = useState<"total" | "firmados" | "pendientes" | null>(null);
+
+  // Drawer muestra solo la página actual filtrada — es visual/informativo
+  const firmadosLocales = consents.filter((c) => c.estado === "firmado");
+  const pendientesLocales = consents.filter((c) => c.estado === "pendiente_doctor");
 
   const kpis = [
     {
       key: "total" as const,
       label: "Total",
-      value: totalConsents,
+      // ConsentimientoStats["total"] → number
+      value: loading ? "…" : totalConsents,
       icon: <FileText size={20} />,
       color: "#0BC5DF",
       bg: "#E6F8FB",
       items: consents,
+      subtitle: `${totalConsents} consentimiento${totalConsents !== 1 ? "s" : ""}`,
     },
     {
       key: "firmados" as const,
       label: "Firmados",
-      value: totalFirmados,
+      // ConsentimientoStats["completos"] → number
+      value: loading ? "…" : totalFirmados,
       icon: <CheckCircle2 size={20} />,
       color: "#1D9E75",
       bg: "#ECFDF5",
-      items: consents.filter((c) => c.estado === "firmado"),
+      items: firmadosLocales,
+      subtitle: `${totalFirmados} firmado${totalFirmados !== 1 ? "s" : ""}`,
     },
     {
       key: "pendientes" as const,
       label: "Pendientes doctor",
-      value: totalPendientesDoctor,
+      // ConsentimientoStats["pendientes"] → number
+      value: loading ? "…" : totalPendientesDoctor,
       icon: <Clock3 size={20} />,
       color: "#EF9F27",
       bg: "#FFFBEB",
-      items: consents.filter((c) => c.estado === "pendiente_doctor"),
+      items: pendientesLocales,
+      subtitle: `${totalPendientesDoctor} pendiente${totalPendientesDoctor !== 1 ? "s" : ""}`,
     },
   ];
 
   return (
     <>
+      {error && (
+        <div
+          style={{
+            background: "#FEF2F2",
+            border: "1px solid #FECACA",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            color: "#DC2626",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <div
         style={{
           display: "grid",
@@ -197,14 +227,12 @@ export function ConsentSearchCard({
         ))}
       </div>
 
-      {kpis.map(({ key, label, items }) => (
+      {kpis.map(({ key, label, items, subtitle }) => (
         <StatsDrawer
           key={key}
           open={openDrawer === key}
           title={label}
-          subtitle={`${items.length} consentimiento${
-            items.length !== 1 ? "s" : ""
-          }`}
+          subtitle={subtitle}
           onClose={() => setOpenDrawer(null)}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
