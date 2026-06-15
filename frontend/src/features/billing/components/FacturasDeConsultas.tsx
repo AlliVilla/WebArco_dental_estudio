@@ -9,10 +9,126 @@ import { consultationService } from "../../consultations/services/consultationSe
 import { Consultation } from "../../consultations/types";
 import { FacturaCobroDetalle } from "./FacturaCobroDetalle";
 
+interface PaymentRow {
+  id: string;
+  tipo: 'consulta' | 'plan';
+  consulta: Consultation;
+  id_consulta: number;
+  fecha_inicio: string;
+  pacienteStr: string;
+  dentistaStr: string;
+  diagnostico?: string;
+  motivo?: string;
+  itemNombre: string;
+  total: number;
+  pagado: number;
+  pendiente: number;
+  estado: 'Pagada' | 'Pendiente';
+  planEstado?: string;
+  inactivo?: boolean;
+}
+
+function buildPaymentRows(consultations: Consultation[]): PaymentRow[] {
+  const rows: PaymentRow[] = [];
+
+  for (const c of consultations) {
+    const isvRate = 0.15;
+
+    // ── Row: consulta (catalog treatments) ──
+    const tratamientosLista = c.tratamientos || [];
+    const nombres = tratamientosLista
+      .map(t => t.tratamiento?.nombre)
+      .filter(Boolean) as string[];
+    const itemNombre = nombres.length > 0 ? nombres.join(", ") : (c.tratamiento || "Consulta General");
+
+    const subtotalBruto = tratamientosLista.reduce((acc, t) => acc + (Number(t.precio) || Number(t.tratamiento?.precio) || 0), 0);
+    if (subtotalBruto > 0) {
+      const totalDescuento = tratamientosLista.reduce((acc, t) => {
+        const p = Number(t.precio) || Number(t.tratamiento?.precio) || 0;
+        return acc + (p * (Number(t.descuento) / 100));
+      }, 0);
+      const subtotalNeto = subtotalBruto - totalDescuento;
+      const consultaTotal = subtotalNeto + (subtotalNeto * isvRate);
+
+      const pagosConsulta = c.pagos || [];
+      const montoPagadoConsulta = pagosConsulta.reduce((acc, p) => acc + Number((p as any).abono), 0);
+
+      rows.push({
+        id: `consulta-${c.id_consulta}`,
+        tipo: 'consulta',
+        consulta: c,
+        id_consulta: c.id_consulta,
+        fecha_inicio: c.fecha_inicio,
+        pacienteStr: getPacienteStr(c),
+        dentistaStr: getDentistaStr(c),
+        diagnostico: c.diagnostico || undefined,
+        motivo: c.motivo || undefined,
+        itemNombre,
+        total: consultaTotal,
+        pagado: montoPagadoConsulta,
+        pendiente: Math.max(0, consultaTotal - montoPagadoConsulta),
+        estado: Math.max(0, consultaTotal - montoPagadoConsulta) <= 0 ? 'Pagada' : 'Pendiente',
+      });
+    }
+
+    // ── Row: plan (tratamientoPaciente) ──
+    const plan = c.tratamientoPaciente;
+    if (plan) {
+      const planCosto = Number(plan.costoTotal);
+      const planAbonos = plan.abonos || [];
+      const planPagado = planAbonos.reduce((acc, a) => acc + Number(a.montoAbonado), 0);
+
+      const planEstado = plan.estado;
+      const inactivo = planEstado === 'DESACTIVADO' || planEstado === 'CANCELADO';
+      const planPagadoCompleto = Math.max(0, planCosto - planPagado) <= 0;
+      rows.push({
+        id: `plan-${c.id_consulta}-${plan.id}`,
+        tipo: 'plan',
+        consulta: c,
+        id_consulta: c.id_consulta,
+        fecha_inicio: c.fecha_inicio,
+        pacienteStr: getPacienteStr(c),
+        dentistaStr: getDentistaStr(c),
+        diagnostico: undefined,
+        motivo: undefined,
+        itemNombre: `${plan.nombre} (Plan)`,
+        total: planCosto,
+        pagado: planPagado,
+        pendiente: Math.max(0, planCosto - planPagado),
+        estado: planEstado === 'DESACTIVADO' || planEstado === 'CANCELADO' || planEstado === 'COMPLETADO'
+          ? planEstado
+          : (planPagadoCompleto ? 'Pagada' : 'Pendiente'),
+        planEstado,
+        inactivo,
+      });
+    }
+  }
+
+  return rows.sort((a, b) => new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime());
+}
+
+function getPacienteStr(c: Consultation): string {
+  if (!c.persona) return "Desconocido";
+  const nombre = (c.persona as any).primer_nombre || (c.persona as any).nombre || "";
+  const apellido = (c.persona as any).primer_apellido || (c.persona as any).apellido || "";
+  return `${nombre} ${apellido}`.trim() || "Desconocido";
+}
+
+function getDentistaStr(c: Consultation): string {
+  if (!c.doctor) return "N/A";
+  const docPersona = (c.doctor as any).persona;
+  if (docPersona) {
+    return `${docPersona.primer_nombre || ""} ${docPersona.primer_apellido || ""}`.trim();
+  }
+  return (c.doctor as any).nombre || (c.doctor as any).username || "N/A";
+}
+
 export function FacturasDeConsultas() {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConsulta, setSelectedConsulta] = useState<Consultation | null>(null);
+  const [selectedTipo, setSelectedTipo] = useState<'consulta' | 'plan'>('consulta');
+  const [selectedInactivo, setSelectedInactivo] = useState(false);
 
   useEffect(() => {
     loadConsultations();
@@ -24,12 +140,8 @@ export function FacturasDeConsultas() {
       const res = await consultationService.getAll();
       if (res.success && res.data) {
         const dataArray = Array.isArray(res.data) ? res.data : (res.data as any).data;
-        
         if (Array.isArray(dataArray)) {
-          const sorted = [...dataArray].sort(
-            (a, b) => new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime()
-          );
-          setConsultations(sorted);
+          setConsultations(dataArray);
         } else {
           setConsultations([]);
         }
@@ -41,125 +153,117 @@ export function FacturasDeConsultas() {
     }
   };
 
-  const handleSelectConsulta = (consulta: Consultation) => {
-    setSelectedConsulta(consulta);
-  };
+  const paymentRows = buildPaymentRows(consultations);
 
-  const getFinancialTotals = (row: Consultation) => {
-    const isvRate = 0.15;
-    const tratamientosLista = row.tratamientos || [];
-    const subtotalBruto = tratamientosLista.reduce((acc, t) => acc + (Number(t.precio) || Number(t.tratamiento?.precio) || 0), 0);
-    const totalDescuento = tratamientosLista.reduce((acc, t) => {
-      const p = Number(t.precio) || Number(t.tratamiento?.precio) || 0;
-      return acc + (p * (Number(t.descuento) / 100));
-    }, 0);
-    const subtotalNeto = subtotalBruto - totalDescuento;
-    const totalAPagar = subtotalNeto + (subtotalNeto * isvRate);
+  const dentistaOptions = [...new Set(paymentRows.map(r => r.dentistaStr).filter(Boolean))].map(d => ({ value: d, label: d }));
 
-    const pagosAnterioresPaciente = row.pagos || [];
-    const montoPagado = pagosAnterioresPaciente.reduce((acc, p) => {
-      return acc + Number((p as any).abono);
-    }, 0);
-
-    const saldoPendiente = Math.max(0, totalAPagar - montoPagado);
-    return { totalAPagar, montoPagado, saldoPendiente };
+  const handleSelectRow = (row: PaymentRow) => {
+    setSelectedConsulta(row.consulta);
+    setSelectedTipo(row.tipo);
+    setSelectedInactivo(row.inactivo || false);
   };
 
   const columns = [
-    { key: "id_consulta", label: "ID", width: 60 },
+    {
+      key: "tipo",
+      label: "ID",
+      width: 60,
+      render: (_: any, row: PaymentRow) => row.id_consulta,
+    },
+    {
+      key: "pacienteStr",
+      label: "Paciente",
+      render: (val: unknown) => String(val ?? "Desconocido"),
+    },
+    {
+      key: "dentistaStr",
+      label: "Dentista",
+      render: (val: unknown) => String(val ?? "N/A"),
+    },
     {
       key: "fecha_inicio",
       label: "Fecha",
-      render: (val: any) => new Date(val).toLocaleDateString("es-HN", {
+      render: (val: unknown) => new Date(val as string).toLocaleDateString("es-HN", {
         year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
       }),
     },
     {
-      key: "paciente",
-      label: "Paciente",
-      render: (_: any, row: Consultation) => {
-        if (!row.persona) return "Desconocido";
-        const nombre = (row.persona as any).primer_nombre || (row.persona as any).nombre || "";
-        const apellido = (row.persona as any).primer_apellido || (row.persona as any).apellido || "";
-        return `${nombre} ${apellido}`.trim() || "Desconocido";
-      },
-    },
-    {
-      key: "doctor",
-      label: "Dentista",
-      render: (_: any, row: Consultation) => {
-        if (!row.doctor) return "N/A";
-        const docPersona = (row.doctor as any).persona;
-        if (docPersona) {
-          return `${docPersona.primer_nombre || ""} ${docPersona.primer_apellido || ""}`.trim();
-        }
-        return (row.doctor as any).nombre || (row.doctor as any).username || "N/A";
-      },
-    },
-    {
-      key: "diagnostico",
-      label: "Diagnóstico",
-      render: (val: any) => (
-        <span style={{ maxWidth: 150, display: "inline-block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {val || "-"}
-        </span>
-      ),
-    },
-    {
-      key: "motivo",
-      label: "Motivo",
-      render: (val: any) => (
-        <span style={{ maxWidth: 150, display: "inline-block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {val || "-"}
-        </span>
-      ),
-    },
-    {
-      key: "tratamiento",
-      label: "Tratamientos Aplicados",
-      render: (_: any, row: Consultation) => {
-        const nombres = row.tratamientos?.map(t => t.tratamiento?.nombre).filter(Boolean);
-        const text = nombres && nombres.length > 0 ? nombres.join(", ") : (row.tratamiento || "Consulta General");
-        return (
-          <span style={{ maxWidth: 200, display: "inline-block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {text}
+      key: "tipo",
+      label: "Tipo",
+      width: 80,
+      align: "center" as const,
+      render: (val: unknown) => {
+        const t = String(val ?? "");
+        return t === 'plan' ? (
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 8,
+            background: '#ede9fe', color: '#7c3aed', textTransform: 'uppercase',
+            letterSpacing: '0.3px',
+          }}>
+            Plan
+          </span>
+        ) : (
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 8,
+            background: '#e0f2fe', color: '#0284c7', textTransform: 'uppercase',
+            letterSpacing: '0.3px',
+          }}>
+            Consulta
           </span>
         );
       },
     },
     {
-      key: "monto_total",
+      key: "total",
       label: "Total",
-      render: (_: any, row: Consultation) => {
-        const { totalAPagar } = getFinancialTotals(row);
-        return `L ${totalAPagar.toFixed(2)}`;
-      },
+      render: (val: unknown) => `L ${Number(val).toFixed(2)}`,
     },
     {
-      key: "monto_pagado",
+      key: "pagado",
       label: "Pagado",
-      render: (_: any, row: Consultation) => {
-        const { montoPagado } = getFinancialTotals(row);
-        return <span style={{ color: "#10b981", fontWeight: 500 }}>L {montoPagado.toFixed(2)}</span>;
-      },
+      render: (val: unknown) => (
+        <span style={{ color: "#10b981", fontWeight: 500 }}>L {Number(val).toFixed(2)}</span>
+      ),
     },
     {
-      key: "saldo_pendiente",
+      key: "pendiente",
       label: "Pendiente",
-      render: (_: any, row: Consultation) => {
-        const { saldoPendiente } = getFinancialTotals(row);
-        return <span style={{ color: saldoPendiente > 0 ? "#ef4444" : "#64748b", fontWeight: 500 }}>L {saldoPendiente.toFixed(2)}</span>;
+      render: (val: unknown) => {
+        const pending = Number(val);
+        return (
+          <span style={{ color: pending > 0 ? "#ef4444" : "#64748b", fontWeight: 500 }}>L {pending.toFixed(2)}</span>
+        );
       },
     },
     {
       key: "estado",
       label: "Estado",
       align: "center" as const,
-      render: (_: any, row: Consultation) => {
-        const { saldoPendiente } = getFinancialTotals(row);
-        const isPaid = saldoPendiente <= 0;
-        
-        if (isPaid) {
+      render: (val: unknown) => {
+        const e = String(val ?? "");
+        if (e === 'DESACTIVADO') {
+          return (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "4px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500,
+              background: "#F2F4F7", color: "#475467"
+            }}>
+              Desactivado
+            </span>
+          );
+        }
+        if (e === 'CANCELADO') {
+          return (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "4px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500,
+              background: "#FEF3F2", color: "#B42318"
+            }}>
+              Cancelado
+            </span>
+          );
+        }
+        if (e === 'COMPLETADO') {
           return (
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 4,
@@ -170,7 +274,15 @@ export function FacturasDeConsultas() {
             </span>
           );
         }
-        return (
+        return e === 'Pagada' ? (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "4px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500,
+            background: "#ECFDF3", color: "#027A48"
+          }}>
+            <CheckCircle2 size={12} /> Pagada
+          </span>
+        ) : (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             padding: "4px 8px", borderRadius: 12, fontSize: 11, fontWeight: 500,
@@ -182,16 +294,13 @@ export function FacturasDeConsultas() {
       },
     },
     {
-      key: "acciones",
+      key: "id",
       label: "Acción",
       align: "center" as const,
-      render: (_: any, row: Consultation) => {
-        const { saldoPendiente } = getFinancialTotals(row);
-        const isPaid = saldoPendiente <= 0;
-        
-        if (isPaid) {
+      render: (_: unknown, row: PaymentRow) => {
+        if (row.pendiente <= 0 || row.inactivo) {
           return (
-            <Button variant="secondary" size="sm" onClick={() => handleSelectConsulta(row)} style={{ color: "#64748b", borderColor: "#e2e8f0" }}>
+            <Button variant="secondary" size="sm" onClick={() => handleSelectRow(row)} style={{ color: "#64748b", borderColor: "#e2e8f0" }}>
               Ver Detalles
             </Button>
           );
@@ -200,7 +309,7 @@ export function FacturasDeConsultas() {
           <Button 
             variant="primary" 
             size="sm" 
-            onClick={() => handleSelectConsulta(row)}
+            onClick={() => handleSelectRow(row)}
             style={{ background: "#0ea5e9", borderColor: "#0ea5e9", color: "#fff" }}
           >
             Cobrar
@@ -213,17 +322,16 @@ export function FacturasDeConsultas() {
   if (selectedConsulta) {
     return (
       <FacturaCobroDetalle 
-        consulta={selectedConsulta} 
+        consulta={selectedConsulta}
+        tipo={selectedTipo}
+        inactivo={selectedInactivo}
         onBack={() => {
           setSelectedConsulta(null);
+          setSelectedInactivo(false);
           loadConsultations();
         }} 
         onPaymentSuccess={() => {
           loadConsultations();
-          // We don't automatically close so they can see the receipt or the updated status
-          // If we want it to close, we call setSelectedConsulta(null)
-          // Let's reload data but keep the view so it updates to "Pagada".
-          // We need to fetch the updated consultation from the API to show the latest payments.
           consultationService.getById(selectedConsulta.id_consulta).then(res => {
             if (res.success && res.data) {
               setSelectedConsulta(res.data);
@@ -236,16 +344,26 @@ export function FacturasDeConsultas() {
 
   return (
     <div style={{ display: "flex", height: "100%", gap: 20 }}>
-      {/* Columna Izquierda: Tabla */}
       <div style={{ flex: 1, minWidth: 0, transition: "all 0.3s" }}>
         <DataTable
           title="Gestión de Pago"
-          description="Gestión de cobros para los tratamientos aplicados en las consultas."
+          description="Gestión de cobros para los tratamientos aplicados en las consultas y planes vinculados."
           columns={columns}
-          data={consultations}
+          data={paymentRows}
           searchable
-          searchPlaceholder="Buscar por paciente o tratamiento..."
-          searchKeys={["tratamiento", "diagnostico", "motivo"]}
+          searchPlaceholder="Buscar por ID, paciente, dentista o fecha..."
+          searchKeys={["id_consulta", "fecha_inicio", "pacienteStr", "dentistaStr"]}
+          filters={[
+            { key: "tipo", placeholder: "Tipo", options: [{ value: "consulta", label: "Consulta" }, { value: "plan", label: "Plan" }] },
+            { key: "estado", placeholder: "Estado", options: [
+              { value: "Pagada", label: "Pagada" },
+              { value: "Pendiente", label: "Pendiente" },
+              { value: "DESACTIVADO", label: "Desactivado" },
+              { value: "CANCELADO", label: "Cancelado" },
+              { value: "COMPLETADO", label: "Completado" },
+            ] },
+            { key: "dentistaStr", placeholder: "Dentista", options: dentistaOptions },
+          ]}
           pageSize={10}
         />
       </div>

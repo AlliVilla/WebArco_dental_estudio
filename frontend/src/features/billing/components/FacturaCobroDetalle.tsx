@@ -6,6 +6,8 @@ import { billingService } from "../services/billingService";
 
 interface FacturaCobroDetalleProps {
   consulta: Consultation;
+  tipo?: 'consulta' | 'plan';
+  inactivo?: boolean;
   onBack: () => void;
   onPaymentSuccess: () => void;
 }
@@ -61,6 +63,8 @@ function Toast({ toasts, remove }: { toasts: ToastMsg[]; remove: (id: string) =>
 
 export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
   consulta,
+  tipo,
+  inactivo,
   onBack,
   onPaymentSuccess,
 }) => {
@@ -98,9 +102,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
     return acc + (p * (discountPercentage / 100));
   }, 0);
   
-  const subtotalNeto = subtotalBruto - totalDescuento;
-  const isvRate = 0.15; // 15% tax
-  const montoIsv = subtotalNeto * isvRate;
+  const totalNeto = subtotalBruto - totalDescuento;
   
   // Historial de Pagos
   const pagosAnterioresPaciente = consulta.pagos || [];
@@ -108,8 +110,9 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
 
   const historicoPlanAbonos = pagosAnterioresConsulta.reduce((acc, p) => acc + Number(p.monto), 0);
 
-  // Total incluye el subtotal con ISV + abonos de plan previos + El abono al plan nuevo
-  const totalAPagar = subtotalNeto + montoIsv + historicoPlanAbonos + planAbonoAgregado;
+  const totalAPagar = tipo === 'plan'
+    ? planAbonoAgregado
+    : totalNeto + planAbonoAgregado;
 
 
   
@@ -142,7 +145,10 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
 
   const montoPagadoTratamientos = todosLosPagos.filter(p => p.tipo === "pago-paciente").reduce((acc, p) => acc + p.monto, 0);
   const montoPagadoPlan = historicoPlanAbonos;
-  const saldoPendiente = Math.max(0, totalAPagar - (montoPagadoTratamientos + montoPagadoPlan));
+  const consultaSaldoPendiente = Math.max(0, totalNeto - montoPagadoTratamientos);
+  const saldoPendiente = tipo === 'plan'
+    ? planAbonoAgregado
+    : consultaSaldoPendiente + planAbonoAgregado;
 
   // Plan de Tratamiento
   const plan = consulta.tratamientoPaciente;
@@ -316,6 +322,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
         {/* COLUMNA IZQUIERDA: Resúmenes e Historial */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           
+          {tipo !== 'plan' && (
           <Card style={{ padding: 24, borderRadius: 14, border: "1px solid #e2e8f0" }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", borderBottom: "1px solid #e2e8f0", paddingBottom: 12, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
               <Activity size={18} color="#0ea5e9" /> Desglose de Tratamientos de Consulta
@@ -400,14 +407,25 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   </div>
                 )}
 
-                {planAbonoAgregado > 0 && plan && (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "#10b981", borderBottom: "1px solid #f8fafc", paddingBottom: 8 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: "#059669" }}>Abono a Plan: {plan.nombre}</div>
-                      <div style={{ fontSize: 11, color: "#34d399", marginTop: 4 }}>Aplicado a cuenta principal del plan</div>
+                {plan && (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "#8b5cf6", borderBottom: "1px solid #f8fafc", paddingBottom: 8, borderTop: `1px dashed #cbd5e1`, paddingTop: 8, marginTop: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, color: "#7c3aed" }}>{plan.nombre} (Plan de Tratamiento)</div>
+                        <div style={{ fontSize: 11, color: "#a78bfa", marginTop: 4 }}>Costo total del plan</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: "#7c3aed" }}>L {planCostoTotal.toFixed(2)}</div>
                     </div>
-                    <div style={{ fontWeight: 700 }}>+ L {planAbonoAgregado.toFixed(2)}</div>
-                  </div>
+                    {planAbonoAgregado > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "#10b981", borderBottom: "1px solid #f8fafc", paddingBottom: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: "#059669" }}>Abono a Plan hoy</div>
+                          <div style={{ fontSize: 11, color: "#34d399", marginTop: 4 }}>Aplicado a cuenta principal del plan</div>
+                        </div>
+                        <div style={{ fontWeight: 700 }}>+ L {planAbonoAgregado.toFixed(2)}</div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px dashed #cbd5e1", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -421,18 +439,15 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                       <span>- L {totalDescuento.toFixed(2)}</span>
                     </div>
                   )}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#64748b" }}>
-                    <span>ISV (15% s/tratamientos)</span>
-                    <span>L {montoIsv.toFixed(2)}</span>
-                  </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 600, color: "#0f172a", marginTop: 4 }}>
                     <span>Total de este Desglose</span>
-                    <span>L {(subtotalNeto + montoIsv + planAbonoAgregado).toFixed(2)}</span>
+                    <span>L {(totalNeto + planAbonoAgregado).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             )}
           </Card>
+          )}
 
           {plan && (
             <Card style={{ padding: 24, borderRadius: 14, border: "1px solid #e2e8f0" }}>
@@ -459,7 +474,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   </div>
                 </div>
                 
-                {planSaldoPendiente > 0 && (
+                {planSaldoPendiente > 0 && !inactivo && (
                   <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 16 }}>
                     <div style={{ fontSize: 12, color: "#475569", fontWeight: 500, marginBottom: 8 }}>Abonar a este plan hoy:</div>
                     <div style={{ display: "flex", gap: 8 }}>
@@ -531,7 +546,12 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
               </div>
             </div>
 
-            {saldoPendiente > 0 ? (
+            {inactivo ? (
+              <div style={{ background: "#F2F4F7", color: "#475467", padding: "16px", borderRadius: 8, textAlign: "center", border: "1px solid #D0D5DD" }}>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Plan {tipo === 'plan' ? 'Desactivado / Cancelado' : 'Inactivo'}</div>
+                <div style={{ fontSize: 13 }}>No se pueden realizar pagos en este plan. Solo puedes consultar el historial.</div>
+              </div>
+            ) : saldoPendiente > 0 ? (
               <>
                 <h4 style={{ fontSize: 14, color: "#334155", margin: "0 0 12px 0" }}>Método de Pago</h4>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>

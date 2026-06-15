@@ -9,7 +9,6 @@ import {
   DollarSign,
   ChevronRight,
   ChevronDown,
-  Zap,
   X,
   FileText,
   Loader2,
@@ -30,6 +29,12 @@ import type {ConsultaHistorica} from '../types/getAllPacientes';
 import api from '../../../../../services/api';
 import { useResponsive } from '../../../../../hooks/useWindowWidth';
 import { normalizeSearch } from '../../../../../utils/formatters';
+
+const ToothIcon = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5.5 13C3 8 4 6 6 4.5c2-1 4 .5 6 .5s4-1.5 6-.5c2 1.5 3 3.5.5 8.5-1 2 1 1.5-1.5 6.5-3.5 1-3.5-8-5-8s-1.5 9-5 8c-2.5-5-1-4.5-1.5-6.5" />
+  </svg>
+);
 
 const C = {
   primary: 'var(--arco-primary, #0BC5DF)',
@@ -417,7 +422,7 @@ export function ExpedienteScreen() {
       onClick: () => setSelectedConsultaForDetails(row),
     },
     {
-      icon: <Zap size={16} />,
+      icon: <ToothIcon size={16} />,
       label: 'Ver Odontograma',
       onClick: () => handleViewOdontogram(row.id_consulta),
     },
@@ -1085,7 +1090,7 @@ export function ExpedienteScreen() {
                   onClick={() => { setSelectedConsultaForDetails(null); handleViewOdontogram(selectedConsultaForDetails.id_consulta); }}
                   style={{ fontSize: 12 }}
                 >
-                  <Zap size={14} /> Ver Odontograma de la Consulta
+                  <ToothIcon size={14} /> Ver Odontograma de la Consulta
                 </Button>
                 <Button
                   variant="primary"
