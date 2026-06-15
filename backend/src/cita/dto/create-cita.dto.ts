@@ -9,15 +9,9 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { EstadoCita } from '@prisma/client';
 
-export enum EstadoCita {
-  programada = 'programada',
-  confirmada = 'confirmada',
-  atendida = 'atendida',
-  cancelada = 'cancelada',
-  ausente = 'ausente',
-  reprogramada = 'reprogramada',
-}
+export { EstadoCita };
 
 export class CreateCitaDto {
   @ApiProperty({ description: 'ID del paciente', example: 1 })

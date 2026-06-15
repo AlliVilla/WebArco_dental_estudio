@@ -78,3 +78,27 @@ export interface ExpenseSummaryResponse {
   egreso_del_dia: ExpenseMetricResponse;
   egreso_promedio: ExpenseMetricResponse;
 }
+
+export type TipoCierre = 'Diario' | 'Semanal' | 'Quincenal' | 'Mensual';
+
+export interface CierreHistorialItem {
+  id_cierre: number;
+  fecha: string;
+  tipo_cierre: TipoCierre;
+  ingresos: number;
+  egresos: number;
+  utilidad: number;
+  efectivo: number;
+  tarjeta: number;
+  transferencia: number;
+  id_usuario: number;
+  usuario: {
+    username: string;
+    persona: {
+      primer_nombre: string;
+      primer_apellido: string;
+    } | null;
+  } | null;
+}
+
+export type CierreHistorialResponse = CierreHistorialItem[];
