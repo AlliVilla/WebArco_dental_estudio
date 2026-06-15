@@ -683,10 +683,6 @@ export function CierresView() {
               <Download size={16} />
               Exportar consolidado
             </Button>
-            <Button variant="secondary">
-              <LineChart size={16} />
-              Ver comparativo
-            </Button>
           </div>
         </div>
       )}
