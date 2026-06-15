@@ -280,7 +280,6 @@ CREATE TABLE "tratamiento" (
     "id_especialidad" INTEGER NOT NULL,
     "nombre" VARCHAR(150) NOT NULL,
     "descripcion" TEXT,
-    "impacto_odontograma" VARCHAR(60) NOT NULL,
     "precio" DECIMAL(10,2) NOT NULL,
     "activo" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
