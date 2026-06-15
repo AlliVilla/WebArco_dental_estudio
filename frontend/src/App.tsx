@@ -13,7 +13,7 @@ import { HistorialConfirmacionesScreen } from "./features/reminders/components/H
 import { GestionIngresos } from "./features/billing/components/GestionIngresos";
 import { GestionEgresos } from "./features/billing/components/GestionEgresos";
 import { FacturasDeConsultas } from "./features/billing/components/FacturasDeConsultas";
-import { ConsentScreen } from "./features/consent/services/ConsentScreen";
+import { ConsentScreen } from "./features/consent/components/ConsentScreen";
 import { ExpedienteScreen } from "./features/patients/components/expediente/components/ExpedienteScreen";
 import { OdontogramScreen } from "./features/patients/components/odontograma/components/OdontogramaScreen";
 import {
