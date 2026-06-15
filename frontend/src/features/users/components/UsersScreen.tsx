@@ -757,6 +757,8 @@ export function UsersScreen() {
     if (!fechaNacimiento)
       errors.fechaNacimiento = "La fecha de nacimiento es obligatoria";
     if (!telefono.trim()) errors.telefono = "El teléfono es obligatorio";
+    if (!correoElectronico.trim())
+      errors.correoElectronico = "El correo electrónico es obligatorio";
     if (!username.trim())
       errors.username = "El nombre de usuario es obligatorio";
     if (!idDepartamento)
@@ -1508,14 +1510,21 @@ export function UsersScreen() {
                     error={formErrors.telefono}
                   />
                 </div>
-                <Input
-                  label="Correo Electrónico"
-                  badge="optional"
-                  type="email"
-                  placeholder="Ej: correo@ejemplo.com"
-                  value={correoElectronico}
-                  onChange={(e) => setCorreoElectronico(e.target.value)}
-                />
+                <div
+                  {...(formErrors.correoElectronico
+                    ? { "data-field-error": true }
+                    : {})}
+                >
+                  <Input
+                    label="Correo Electrónico"
+                    badge="required"
+                    type="email"
+                    placeholder="Ej: correo@ejemplo.com"
+                    value={correoElectronico}
+                    onChange={(e) => setCorreoElectronico(e.target.value)}
+                    error={formErrors.correoElectronico}
+                  />
+                </div>
                 <Select
                   label="Departamento"
                   badge="required"
