@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Users,
   Calendar,
@@ -7,119 +7,43 @@ import {
   AlertCircle,
   Clock,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import { Card, StatusBadge, Avatar, Alert } from "../context";
 import { useResponsive } from "../hooks/useWindowWidth";
+import { useAuthStore } from "../features/auth/hooks/useAuthStore";
+import { dashboardService } from "../features/dashboard/services/dashboardService";
+import type {
+  DashboardAppointment,
+  DashboardFinancialSummary,
+  DashboardGeneralSummary,
+  DashboardRevenueData,
+  DashboardWeekData,
+} from "../features/dashboard/types";
 
-const appointmentsToday = [
-  {
-    time: "09:00",
-    patient: "María González",
-    treatment: "Limpieza dental",
-    status: "confirmada" as const,
-    avatar: "MG",
-  },
-  {
-    time: "10:30",
-    patient: "Carlos Vega",
-    treatment: "Extracción #36",
-    status: "programada" as const,
-    avatar: "CV",
-  },
-  {
-    time: "11:00",
-    patient: "Ana Torres",
-    treatment: "Blanqueamiento",
-    status: "atendida" as const,
-    avatar: "AT",
-  },
-  {
-    time: "12:00",
-    patient: "Roberto Díaz",
-    treatment: "Revisión ortodoncia",
-    status: "ausente" as const,
-    avatar: "RD",
-  },
-  {
-    time: "14:30",
-    patient: "Lucía Moreno",
-    treatment: "Endodoncia #21",
-    status: "confirmada" as const,
-    avatar: "LM",
-  },
-  {
-    time: "16:00",
-    patient: "Pedro Sánchez",
-    treatment: "Corona cerámica",
-    status: "programada" as const,
-    avatar: "PS",
-  },
-];
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("es-HN").format(value);
+}
 
-const weekData = [
-  { day: "Lun", citas: 8, atendidas: 7 },
-  { day: "Mar", citas: 10, atendidas: 9 },
-  { day: "Mié", citas: 6, atendidas: 6 },
-  { day: "Jue", citas: 9, atendidas: 8 },
-  { day: "Vie", citas: 11, atendidas: 10 },
-  { day: "Sáb", citas: 4, atendidas: 4 },
-];
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-HN", {
+    style: "currency",
+    currency: "HNL",
+    minimumFractionDigits: 2,
+  }).format(value);
+}
 
-const revenueData = [
-  { month: "Ene", monto: 42000 },
-  { month: "Feb", monto: 38000 },
-  { month: "Mar", monto: 51000 },
-  { month: "Abr", monto: 47000 },
-  { month: "May", monto: 55000 },
-  { month: "Jun", monto: 49000 },
-];
-
-const kpis = [
-  {
-    label: "Citas hoy",
-    value: "6",
-    sub: "4 confirmadas",
-    icon: Calendar,
-    color: "#0BC5DF",
-    bg: "#E6F8FB",
-  },
-  {
-    label: "Pacientes activos",
-    value: "248",
-    sub: "+3 este mes",
-    icon: Users,
-    color: "#1D9E75",
-    bg: "#ECFDF5",
-  },
-  {
-    label: "Ingresos del mes",
-    value: "$49,200",
-    sub: "+12% vs anterior",
-    icon: TrendingUp,
-    color: "#EF9F27",
-    bg: "#FFFBEB",
-  },
-  {
-    label: "Pendientes hoy",
-    value: "2",
-    sub: "Requieren atención",
-    icon: AlertCircle,
-    color: "#E24B4A",
-    bg: "#FEF2F2",
-  },
-];
-
-function BarChartSVG({ data }: { data: typeof weekData }) {
+function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
   const W = 420,
     H = 160,
     padL = 28,
     padB = 24,
     padR = 12,
     padT = 8;
-  const maxVal = Math.max(...data.map((d) => d.citas));
+  const maxVal = Math.max(1, ...data.map((d) => d.citas));
   const chartW = W - padL - padR;
   const chartH = H - padB - padT;
-  const groupW = chartW / data.length;
+  const groupW = chartW / Math.max(1, data.length);
   const barW = Math.floor(groupW * 0.28);
   const gap = 3;
   return (
@@ -201,24 +125,26 @@ function BarChartSVG({ data }: { data: typeof weekData }) {
   );
 }
 
-function LineChartSVG({ data }: { data: typeof revenueData }) {
+function LineChartSVG({ data }: { data: DashboardRevenueData[] }) {
   const W = 420,
     H = 160,
-    padL = 40,
+    padL = 48,
     padB = 24,
     padR = 12,
     padT = 8;
+  const safeData = data.length > 0 ? data : [{ month: "", monto: 0 }];
   const chartW = W - padL - padR;
   const chartH = H - padB - padT;
-  const minVal = Math.min(...data.map((d) => d.monto));
-  const maxVal = Math.max(...data.map((d) => d.monto));
+  const minVal = Math.min(0, ...safeData.map((d) => d.monto));
+  const maxVal = Math.max(1, ...safeData.map((d) => d.monto));
   const range = maxVal - minVal || 1;
-  const px = (i: number) => padL + (i / (data.length - 1)) * chartW;
+  const divisor = Math.max(1, safeData.length - 1);
+  const px = (i: number) => padL + (i / divisor) * chartW;
   const py = (v: number) => padT + chartH - ((v - minVal) / range) * chartH;
-  const pathD = data
+  const pathD = safeData
     .map((d, i) => `${i === 0 ? "M" : "L"}${px(i)},${py(d.monto)}`)
     .join(" ");
-  const areaD = `${pathD} L${px(data.length - 1)},${padT + chartH} L${px(0)},${
+  const areaD = `${pathD} L${px(safeData.length - 1)},${padT + chartH} L${px(0)},${
     padT + chartH
   } Z`;
   return (
@@ -249,7 +175,7 @@ function LineChartSVG({ data }: { data: typeof revenueData }) {
               fontSize={9}
               fill="#888F94"
             >
-              ${Math.round(val / 1000)}k
+              L {Math.round(val / 1000)}k
             </text>
           </g>
         );
@@ -263,7 +189,7 @@ function LineChartSVG({ data }: { data: typeof revenueData }) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {data.map((d, i) => (
+      {safeData.map((d, i) => (
         <g key={`dot-${i}`}>
           <circle cx={px(i)} cy={py(d.monto)} r={4} fill="#0BC5DF" />
           <text
@@ -281,8 +207,7 @@ function LineChartSVG({ data }: { data: typeof revenueData }) {
   );
 }
 
-// Card de cita para vista móvil
-function AppointmentCard({ appt }: { appt: (typeof appointmentsToday)[0] }) {
+function AppointmentCard({ appt }: { appt: DashboardAppointment }) {
   return (
     <div
       style={{
@@ -343,10 +268,16 @@ function AppointmentCard({ appt }: { appt: (typeof appointmentsToday)[0] }) {
 
 export function Dashboard() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
+  const user = useAuthStore((s) => s.user);
+  const canViewFinancial = user?.privilegios?.includes(2) ?? false;
+  const [generalSummary, setGeneralSummary] = useState<DashboardGeneralSummary | null>(null);
+  const [financialSummary, setFinancialSummary] = useState<DashboardFinancialSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [alert, setAlert] = useState<{
     message: string;
-    type: "warning" | "error";
+    type: "info" | "warning" | "error";
   } | null>(null);
 
   useEffect(() => {
@@ -359,16 +290,111 @@ export function Dashboard() {
       });
       window.history.replaceState({}, document.title);
     }
-  }, []);
+  }, [location.state]);
 
-  // KPI grid: 4 en desktop, 2 en tablet, 1 en móvil
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDashboard = async () => {
+      setIsLoading(true);
+      try {
+        const generalResponse = await dashboardService.getGeneralSummary();
+        if (!cancelled && generalResponse.success) {
+          setGeneralSummary(generalResponse.data);
+        }
+
+        if (canViewFinancial) {
+          try {
+            const financialResponse = await dashboardService.getFinancialSummary();
+            if (!cancelled && financialResponse.success) {
+              setFinancialSummary(financialResponse.data);
+            }
+          } catch {
+            if (!cancelled) {
+              setFinancialSummary(null);
+            }
+          }
+        } else if (!cancelled) {
+          setFinancialSummary(null);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          const message =
+            error && typeof error === "object" && "message" in error
+              ? String((error as { message: string }).message)
+              : "No se pudo cargar el dashboard.";
+          setAlert({ message, type: "error" });
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadDashboard();
+    return () => {
+      cancelled = true;
+    };
+  }, [canViewFinancial]);
+
+  const kpis = useMemo(() => {
+    if (!generalSummary) return [];
+
+    const items = [
+      {
+        label: "Citas hoy",
+        value: formatNumber(generalSummary.kpis.citasHoy.value),
+        sub: generalSummary.kpis.citasHoy.sub,
+        icon: Calendar,
+        color: "#0BC5DF",
+        bg: "#E6F8FB",
+      },
+      {
+        label: "Pacientes activos",
+        value: formatNumber(generalSummary.kpis.pacientesActivos.value),
+        sub: generalSummary.kpis.pacientesActivos.sub,
+        icon: Users,
+        color: "#1D9E75",
+        bg: "#ECFDF5",
+      },
+      canViewFinancial && financialSummary
+        ? {
+            label: "Ingresos del mes",
+            value: formatCurrency(financialSummary.kpis.ingresosMes.value),
+            sub: financialSummary.kpis.ingresosMes.sub,
+            icon: TrendingUp,
+            color: "#EF9F27",
+            bg: "#FFFBEB",
+          }
+        : {
+            label: "Consultas del mes",
+            value: formatNumber(generalSummary.kpis.consultasMes.value),
+            sub: generalSummary.kpis.consultasMes.sub,
+            icon: FileText,
+            color: "#EF9F27",
+            bg: "#FFFBEB",
+          },
+      {
+        label: "Pendientes hoy",
+        value: formatNumber(generalSummary.kpis.pendientesHoy.value),
+        sub: generalSummary.kpis.pendientesHoy.sub,
+        icon: AlertCircle,
+        color: "#E24B4A",
+        bg: "#FEF2F2",
+      },
+    ];
+
+    return items;
+  }, [canViewFinancial, financialSummary, generalSummary]);
+
   const kpiCols = isMobile
     ? "1fr 1fr"
     : isTablet
     ? "repeat(2, 1fr)"
     : "repeat(4, 1fr)";
-  // Charts: 1 columna en móvil/tablet, 2 en desktop
-  const chartCols = isMobile || isTablet ? "1fr" : "1fr 1fr";
+  const chartCols = isMobile || isTablet || !canViewFinancial ? "1fr" : "1fr 1fr";
+  const agendaHoy = generalSummary?.agendaHoy ?? [];
+  const citasSemana = generalSummary?.citasSemana ?? [];
+  const ingresosPorMes = financialSummary?.ingresosPorMes ?? [];
 
   return (
     <div
@@ -386,263 +412,296 @@ export function Dashboard() {
         />
       )}
 
-      {/* KPIs */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: kpiCols,
-          gap: isMobile ? 10 : 16,
-        }}
-      >
-        {kpis.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Card key={kpi.label}>
+      {isLoading ? (
+        <Card>
+          <div style={{ fontSize: 13, color: "#888F94" }}>
+            Cargando información del dashboard...
+          </div>
+        </Card>
+      ) : null}
+
+      {!isLoading && !generalSummary ? (
+        <Card>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
+            No se pudo cargar la información del dashboard.
+          </div>
+          <div style={{ fontSize: 12, color: "#888F94", marginTop: 4 }}>
+            Verifica tu conexión o tus permisos e intenta nuevamente.
+          </div>
+        </Card>
+      ) : null}
+
+      {generalSummary ? (
+        <>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: kpiCols,
+              gap: isMobile ? 10 : 16,
+            }}
+          >
+            {kpis.map((kpi) => {
+              const Icon = kpi.icon;
+              return (
+                <Card key={kpi.label}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 500,
+                          color: "#888F94",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                          marginBottom: 6,
+                        }}
+                      >
+                        {kpi.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: isMobile ? 22 : 26,
+                          fontWeight: 600,
+                          color: "#203F49",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {kpi.value}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#888F94", marginTop: 4 }}>
+                        {kpi.sub}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: kpi.bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Icon size={16} style={{ color: kpi.color }} />
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: chartCols,
+              gap: isMobile ? 10 : 16,
+            }}
+          >
+            <Card>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#203F49",
+                  marginBottom: 4,
+                }}
+              >
+                Citas — Esta semana
+              </div>
+              <div style={{ fontSize: 11, color: "#888F94", marginBottom: 16 }}>
+                Programadas vs. atendidas
+              </div>
+              <BarChartSVG data={citasSemana} />
+            </Card>
+
+            {canViewFinancial && financialSummary ? (
+              <Card>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#203F49",
+                    marginBottom: 4,
+                  }}
+                >
+                  Ingresos — {new Date().getFullYear()}
+                </div>
+                <div style={{ fontSize: 11, color: "#888F94", marginBottom: 16 }}>
+                  Facturación mensual en lempiras
+                </div>
+                <LineChartSVG data={ingresosPorMes} />
+              </Card>
+            ) : null}
+          </div>
+
+          <Card>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
+                  Agenda de hoy
+                </div>
+                <div style={{ fontSize: 11, color: "#888F94", marginTop: 2 }}>
+                  {new Date()
+                    .toLocaleDateString("es-HN", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                    .replace(/^\w/, (c) => c.toUpperCase())}
+                </div>
+              </div>
+              <button
+                onClick={() => navigate("/agenda")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  color: "#0BC5DF",
+                  fontWeight: 500,
+                }}
+              >
+                Ver agenda <ChevronRight size={13} />
+              </button>
+            </div>
+
+            {agendaHoy.length === 0 ? (
+              <div
+                style={{
+                  border: "0.5px dashed #D3D7DA",
+                  borderRadius: 10,
+                  padding: 18,
+                  color: "#888F94",
+                  fontSize: 13,
+                  textAlign: "center",
+                }}
+              >
+                No hay citas programadas para hoy.
+              </div>
+            ) : isMobile ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {agendaHoy.map((appt) => (
+                  <AppointmentCard key={appt.id} appt={appt} />
+                ))}
+              </div>
+            ) : (
               <div
                 style={{
                   display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
+                  flexDirection: "column",
+                  gap: 0,
+                  overflowX: "auto",
                 }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 500,
-                      color: "#888F94",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {kpi.label}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: isMobile ? 22 : 26,
-                      fontWeight: 600,
-                      color: "#203F49",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {kpi.value}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#888F94", marginTop: 4 }}>
-                    {kpi.sub}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: kpi.bg,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    marginLeft: 8,
-                  }}
-                >
-                  <Icon size={16} style={{ color: kpi.color }} />
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Charts */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: chartCols,
-          gap: isMobile ? 10 : 16,
-        }}
-      >
-        <Card>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#203F49",
-              marginBottom: 4,
-            }}
-          >
-            Citas — Esta semana
-          </div>
-          <div style={{ fontSize: 11, color: "#888F94", marginBottom: 16 }}>
-            Programadas vs. atendidas
-          </div>
-          <BarChartSVG data={weekData} />
-        </Card>
-        <Card>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#203F49",
-              marginBottom: 4,
-            }}
-          >
-            Ingresos — 2026
-          </div>
-          <div style={{ fontSize: 11, color: "#888F94", marginBottom: 16 }}>
-            Facturación mensual (MXN)
-          </div>
-          <LineChartSVG data={revenueData} />
-        </Card>
-      </div>
-
-      {/* Agenda de hoy */}
-      <Card>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
-              Agenda de hoy
-            </div>
-            <div style={{ fontSize: 11, color: "#888F94", marginTop: 2 }}>
-              {new Date()
-                .toLocaleDateString("es-HN", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
-                .replace(/^\w/, (c) => c.toUpperCase())}
-            </div>
-          </div>
-          <button
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 12,
-              color: "#0BC5DF",
-              fontWeight: 500,
-            }}
-          >
-            Ver agenda <ChevronRight size={13} />
-          </button>
-        </div>
-
-        {isMobile ? (
-          // Móvil → cards
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {appointmentsToday.map((appt) => (
-              <AppointmentCard key={appt.time} appt={appt} />
-            ))}
-          </div>
-        ) : (
-          // Tablet y desktop → tabla
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 0,
-              overflowX: "auto",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isTablet
-                  ? "60px 1fr 1fr 130px"
-                  : "70px 1fr 200px 140px",
-                padding: "8px 12px",
-                background: "#F8F9FA",
-                borderRadius: "8px 8px 0 0",
-                borderBottom: "0.5px solid #D3D7DA",
-                minWidth: isTablet ? 400 : "unset",
-              }}
-            >
-              {["Hora", "Paciente", "Tratamiento", "Estado"].map((h) => (
-                <span
-                  key={h}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#888F94",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-            {appointmentsToday.map((appt, i) => (
-              <div
-                key={appt.time}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isTablet
-                    ? "60px 1fr 1fr 130px"
-                    : "70px 1fr 200px 140px",
-                  padding: "12px 12px",
-                  alignItems: "center",
-                  background: i % 2 === 0 ? "#FFFFFF" : "#F8F9FA",
-                  borderBottom:
-                    i < appointmentsToday.length - 1
-                      ? "0.5px solid #F1F3F4"
-                      : "none",
-                  cursor: "pointer",
-                  transition: "background 0.1s",
-                  borderRadius:
-                    i === appointmentsToday.length - 1 ? "0 0 8px 8px" : 0,
-                  minWidth: isTablet ? 400 : "unset",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#E6F8FB")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background =
-                    i % 2 === 0 ? "#FFFFFF" : "#F8F9FA")
-                }
               >
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "#203F49",
+                    display: "grid",
+                    gridTemplateColumns: isTablet
+                      ? "60px 1fr 1fr 130px"
+                      : "70px 1fr 200px 140px",
+                    padding: "8px 12px",
+                    background: "#F8F9FA",
+                    borderRadius: "8px 8px 0 0",
+                    borderBottom: "0.5px solid #D3D7DA",
+                    minWidth: isTablet ? 400 : "unset",
                   }}
                 >
-                  <Clock size={12} style={{ color: "#0BC5DF" }} />
-                  {appt.time}
+                  {["Hora", "Paciente", "Tratamiento", "Estado"].map((h) => (
+                    <span
+                      key={h}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#888F94",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {h}
+                    </span>
+                  ))}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Avatar
-                    initials={appt.avatar}
-                    size={30}
-                    color={appt.status === "atendida" ? "#888F94" : "#0BC5DF"}
-                  />
-                  <span style={{ fontSize: 13, color: "#203F49" }}>
-                    {appt.patient}
-                  </span>
-                </div>
-                <span style={{ fontSize: 13, color: "#5F656A" }}>
-                  {appt.treatment}
-                </span>
-                <StatusBadge status={appt.status} />
+                {agendaHoy.map((appt, i) => (
+                  <div
+                    key={appt.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isTablet
+                        ? "60px 1fr 1fr 130px"
+                        : "70px 1fr 200px 140px",
+                      padding: "12px 12px",
+                      alignItems: "center",
+                      background: i % 2 === 0 ? "#FFFFFF" : "#F8F9FA",
+                      borderBottom:
+                        i < agendaHoy.length - 1 ? "0.5px solid #F1F3F4" : "none",
+                      cursor: "pointer",
+                      transition: "background 0.1s",
+                      borderRadius: i === agendaHoy.length - 1 ? "0 0 8px 8px" : 0,
+                      minWidth: isTablet ? 400 : "unset",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#E6F8FB")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background =
+                        i % 2 === 0 ? "#FFFFFF" : "#F8F9FA")
+                    }
+                    onClick={() => navigate(`/agenda/${appt.id}`)}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#203F49",
+                      }}
+                    >
+                      <Clock size={12} style={{ color: "#0BC5DF" }} />
+                      {appt.time}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Avatar
+                        initials={appt.avatar}
+                        size={30}
+                        color={appt.status === "atendida" ? "#888F94" : "#0BC5DF"}
+                      />
+                      <span style={{ fontSize: 13, color: "#203F49" }}>
+                        {appt.patient}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 13, color: "#5F656A" }}>
+                      {appt.treatment}
+                    </span>
+                    <StatusBadge status={appt.status} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+            )}
+          </Card>
+        </>
+      ) : null}
     </div>
   );
 }
