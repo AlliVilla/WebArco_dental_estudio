@@ -50,6 +50,11 @@ const consultaInclude = {
       nombre: true,
       costoTotal: true,
       estado: true,
+      abonos: {
+        select: {
+          montoAbonado: true,
+        },
+      },
     },
   },
   pagosConsulta: {
@@ -63,6 +68,15 @@ const consultaInclude = {
       },
     },
     orderBy: { fecha: 'desc' },
+  },
+  tratamientos: {
+    include: {
+      tratamiento: {
+        select: {
+          nombre: true,
+        },
+      },
+    },
   },
 } satisfies Prisma.ConsultaInclude;
 
@@ -234,7 +248,29 @@ export class ConsultaService {
       include: consultaInclude,
     });
 
-    return updated;
+    return {
+      message: 'Consulta actualizada exitosamente',
+      data: updated,
+    };
+  }
+
+  async updateDescuentos(id: number, descuentos: { id_consulta_tratamiento: number, descuento: number }[]) {
+    await this.findOne(id); // verifica existencia
+    
+    // Validar y ejecutar en transacción
+    await this.prisma.$transaction(async (tx) => {
+      for (const d of descuentos) {
+        if (d.descuento < 0 || d.descuento > 100) {
+          throw new BadRequestException('El descuento debe estar entre 0 y 100');
+        }
+        await tx.consulta_Tratamiento.update({
+          where: { id_consulta_tratamiento: d.id_consulta_tratamiento },
+          data: { descuento: d.descuento },
+        });
+      }
+    });
+
+    return { message: 'Descuentos actualizados exitosamente' };
   }
 
   async remove(id: number) {

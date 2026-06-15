@@ -30,7 +30,7 @@ Debes generar código React + TypeScript siguiendo ESTRICTAMENTE las siguientes 
 ─────────────────────────────────────────
 1. React y librerías de terceros (react-router-dom, lucide-react)
 2. Componentes reutilizables → import { DataTable, ConfirmModal, FormSection, FullWidthField } from '../components';
-3. UIKit / Contextos      → import { Button, Input, Select, Card, Alert, Toggle, StatusBadge, FieldBadge, SectionBlock } from '../context';
+3. UIKit / Contextos      → import { Button, Input, Select, Card, Alert, Toggle, StatusBadge, FieldBadge, SectionBlock, PasswordInput, Avatar, Combobox } from '../context';
 4. Servicios, hooks, utils → import { api } from '../services/api'; | import { formatCurrency, formatDate } from '../utils/formatters';
 5. Tipos locales del feature → import type { MiTipo } from '../types';
 
@@ -165,23 +165,31 @@ src/
 │   ├── ThemeContext.tsx         # Provider de tema (light/dark)
 │   └── DesignSystemScreen.tsx  # Pantalla de referencia del design system
 ├── features/                   # Módulos de negocio
-│   ├── appointments/
+│   ├── appointments/           # Gestión de citas y agenda
 │   │   ├── components/
 │   │   ├── services/
 │   │   └── types/
-│   ├── billing/
+│   ├── auth/                   # Autenticación y control de acceso
+│   ├── billing/                # Facturación y caja (ingresos/egresos)
 │   │   ├── components/
 │   │   ├── services/
 │   │   └── types/
-│   ├── patients/
+│   ├── cierres/                # Cierres de caja (diarios/mensuales)
+│   ├── consent/                # Firma y gestión de consentimientos informados
+│   ├── consultations/          # Consultas clínicas e historial
+│   ├── inventory/              # Control de insumos e inventario
+│   ├── patients/               # Gestión de expedientes de pacientes
 │   │   ├── components/
-│   │   │   └── odontograma/    # Sub-feature anidada
+│   │   │   ├── consentimientos/# Sub-módulo para firmas de consentimiento del paciente
+│   │   │   ├── expediente/     # Sub-módulo para ficha y datos clínicos del paciente
+│   │   │   └── odontograma/    # Sub-módulo para odontograma interactivo
 │   │   ├── services/
 │   │   └── types/
-│   ├── consent/
-│   ├── consultations/
-│   ├── auth/
-│   └── settings/
+│   ├── reminders/              # Recordatorios de citas (WhatsApp, SMS, Correo)
+│   ├── reports/                # Reportes financieros y operativos
+│   ├── settings/               # Configuración general y del sistema
+│   ├── treatments/             # Catálogo de tratamientos y precios
+│   └── users/                  # Administración de usuarios y roles
 ├── hooks/
 │   └── useLocalStorage.ts
 ├── page layouts/
@@ -511,7 +519,7 @@ import { Spinner } from '../components';
 > Componentes **primitivos** del design system. Importar desde `src/context`.
 
 ```tsx
-import { Button, Input, Select, Card, Alert, Toggle, Avatar, FieldBadge, StatusBadge, SectionBlock, PasswordInput } from '../context';
+import { Button, Input, Select, Card, Alert, Toggle, Avatar, FieldBadge, StatusBadge, SectionBlock, PasswordInput, Combobox } from '../context';
 ```
 
 ### Componentes disponibles
@@ -522,6 +530,7 @@ import { Button, Input, Select, Card, Alert, Toggle, Avatar, FieldBadge, StatusB
 | `Input`          | Input con label, badge (required/optional/conditional), error, hint, icono |
 | `PasswordInput`  | Input de contraseña con toggle de visibilidad            |
 | `Select`         | Select nativo estilizado con label, badge, error         |
+| `Combobox`       | Input con buscador, dropdown y opción de creación inline |
 | `Card`           | Contenedor con borde y border-radius 12px                |
 | `SectionBlock`   | Bloque gris con título uppercase                         |
 | `Alert`          | Banner con variantes `info`, `success`, `warning`, `error` |
@@ -687,7 +696,7 @@ import type { Patient } from '../types';
 import { DataTable, ConfirmModal, FormSection, FullWidthField } from '../components';
 
 // Primitivos de UI (inputs, botones, cards, alerts)
-import { Button, Input, Select, Card, Alert, Toggle, Avatar, StatusBadge, FieldBadge, SectionBlock } from '../context';
+import { Button, Input, Select, Card, Alert, Toggle, Avatar, StatusBadge, FieldBadge, SectionBlock, PasswordInput, Combobox } from '../context';
 
 // Navegación
 import { useNavigate, useLocation } from 'react-router-dom';
