@@ -1,11 +1,14 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, FileSpreadsheet, FileText, Info, RefreshCcw, X } from 'lucide-react';
+
 
 import { DataTable } from '../../../components';
 import type { Column } from '../../../components';
 import { Button, Card, Input, Select } from '../../../context';
 import { formatCurrency } from '../../../utils/formatters';
 import type { FinancialRecord, TransactionKind } from '../types';
+import billingService from '../services/billingService';
+import { exportToExcel } from '../../../utils/exportToExcel';
 
 export interface ListaFinancieraProps {
   records?: FinancialRecord[];
@@ -56,51 +59,6 @@ const financialRecords: FinancialRecord[] = [
     concepto: 'Implante dental - Anticipo',
     monto: 5000,
     metodoPago: 'Transferencia',
-  },
-  {
-    id_registro: 'expense-1',
-    tipo: 'egreso',
-    fecha: '2026-06-03',
-    concepto: 'Compra de guantes látex x500',
-    monto: 450,
-    categoria: 'Insumos',
-    responsable: 'Dr. Karla Arita',
-  },
-  {
-    id_registro: 'expense-2',
-    tipo: 'egreso',
-    fecha: '2026-06-02',
-    concepto: 'Mantenimiento autoclave',
-    monto: 1200,
-    categoria: 'Equipos',
-    responsable: 'Dr. Karla Arita',
-  },
-  {
-    id_registro: 'expense-3',
-    tipo: 'egreso',
-    fecha: '2026-06-01',
-    concepto: 'Pago nómina asistente',
-    monto: 8500,
-    categoria: 'Nómina',
-    responsable: 'Dr. Karla Arita',
-  },
-  {
-    id_registro: 'expense-4',
-    tipo: 'egreso',
-    fecha: '2026-06-01',
-    concepto: 'Resinas dentales x10',
-    monto: 2300,
-    categoria: 'Insumos',
-    responsable: 'Dr. Karla Arita',
-  },
-  {
-    id_registro: 'expense-5',
-    tipo: 'egreso',
-    fecha: '2026-05-31',
-    concepto: 'Servicio de limpieza',
-    monto: 800,
-    categoria: 'Servicios',
-    responsable: 'Dr. Karla Arita',
   },
 ];
 
@@ -257,6 +215,7 @@ function CategoryBadge({ label }: { label: string }) {
     Nómina: { background: '#FDE9BA', color: '#A76B00' },
     Servicios: { background: '#DDF4EA', color: '#3B8F6A' },
   };
+
   const style = badgeStyles[label] ?? { background: '#F1F3F4', color: '#5F656A' };
 
   return (
@@ -277,13 +236,44 @@ function CategoryBadge({ label }: { label: string }) {
   );
 }
 
-export function ListaFinanciera({ records = financialRecords }: ListaFinancieraProps) {
+export function ListaFinanciera({ records: recordsProp }: ListaFinancieraProps) {
   const [tipoActivo, setTipoActivo] = useState<TransactionKind>('ingreso');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [busquedaPaciente, setBusquedaPaciente] = useState('');
   const [metodoPago, setMetodoPago] = useState('');
   const [categoriaEgreso, setCategoriaEgreso] = useState('');
+  const [apiExpenseRecords, setApiExpenseRecords] = useState<FinancialRecord[]>([]);
+  const [estaCargando, setEstaCargando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState('');
+
+  const cargarEgresos = async () => {
+    setEstaCargando(true);
+    setErrorCarga('');
+
+    try {
+      const response = await billingService.getExpenses();
+      setApiExpenseRecords(response.data ?? []);
+    } catch (error: any) {
+      setErrorCarga(error?.message ?? 'No se pudieron cargar los egresos.');
+    } finally {
+      setEstaCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (recordsProp) return;
+
+    void cargarEgresos();
+  }, [recordsProp]);
+
+  const records = useMemo(() => {
+    if (recordsProp) return recordsProp;
+
+    const ingresos = financialRecords.filter((record) => record.tipo === 'ingreso');
+
+    return [...ingresos, ...apiExpenseRecords];
+  }, [apiExpenseRecords, recordsProp]);
 
   const clearFilters = () => {
     setFechaDesde('');
@@ -301,6 +291,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
       if (record.tipo !== tipoActivo) return false;
       if (fechaDesdeIso && record.fecha < fechaDesdeIso) return false;
       if (fechaHastaIso && record.fecha > fechaHastaIso) return false;
+
       if (
         tipoActivo === 'ingreso' &&
         busquedaPaciente &&
@@ -308,6 +299,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
       ) {
         return false;
       }
+
       if (tipoActivo === 'ingreso' && metodoPago && record.metodoPago !== metodoPago) return false;
       if (tipoActivo === 'egreso' && categoriaEgreso && record.categoria !== categoriaEgreso) return false;
 
@@ -319,6 +311,70 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
     () => filteredRecords.reduce((sum, record) => sum + record.monto, 0),
     [filteredRecords],
   );
+
+  const exportarAExcel = async () => {
+    if (filteredRecords.length === 0) return;
+
+    try {
+      if (tipoActivo === 'ingreso') {
+        const columnas = [
+          { header: 'Tipo', key: 'tipo', width: 14 },
+          { header: 'Fecha', key: 'fecha', width: 14 },
+          { header: 'Paciente', key: 'paciente', width: 28 },
+          { header: 'Concepto', key: 'concepto', width: 35 },
+          { header: 'Monto (L.)', key: 'monto', width: 18 },
+          { header: 'Método de Pago', key: 'metodoPago', width: 20 },
+        ];
+
+        const datos = filteredRecords.map((record) => ({
+          tipo: 'Ingreso',
+          fecha: formatTableDate(record.fecha),
+          paciente: record.paciente ?? '—',
+          concepto: record.concepto,
+          monto: record.monto,
+          metodoPago: record.metodoPago ?? 'Sin método',
+        }));
+
+        await exportToExcel(
+          datos,
+          columnas,
+          'Ingresos',
+          'Lista_Ingresos_WebArco',
+        );
+
+        return;
+      }
+
+      const columnas = [
+        { header: 'Tipo', key: 'tipo', width: 14 },
+        { header: 'Fecha', key: 'fecha', width: 14 },
+        { header: 'Concepto', key: 'concepto', width: 35 },
+        { header: 'Categoría', key: 'categoria', width: 20 },
+        { header: 'Monto (L.)', key: 'monto', width: 18 },
+        { header: 'Observaciones', key: 'observaciones', width: 35 },
+        { header: 'Responsable', key: 'responsable', width: 28 },
+      ];
+
+      const datos = filteredRecords.map((record) => ({
+        tipo: 'Egreso',
+        fecha: formatTableDate(record.fecha),
+        concepto: record.concepto,
+        categoria: record.categoria ?? 'Sin categoría',
+        monto: record.monto,
+        observaciones: record.observaciones ?? '—',
+        responsable: record.responsable || record.creado_por?.nombre_completo || '—',
+      }));
+
+      await exportToExcel(
+        datos,
+        columnas,
+        'Egresos',
+        'Lista_Egresos_WebArco',
+      );
+    } catch {
+      setErrorCarga('Error al exportar a Excel.');
+    }
+  };
 
   const incomeColumns: Column<FinancialRecord>[] = [
     {
@@ -359,7 +415,16 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
       label: 'Monto',
       render: (_value, record) => <MoneyText monto={record.monto} tipo="egreso" />,
     },
-    { key: 'responsable', label: 'Responsable' },
+    {
+      key: 'observaciones',
+      label: 'Observaciones',
+      render: (_value, record) => record.observaciones || '—',
+    },
+    {
+      key: 'responsable',
+      label: 'Responsable',
+      render: (_value, record) => record.responsable || record.creado_por?.nombre_completo || '—',
+    },
   ];
 
   const columns = tipoActivo === 'ingreso' ? incomeColumns : expenseColumns;
@@ -368,7 +433,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
     <tfoot>
       <tr style={{ background: tipoActivo === 'ingreso' ? '#E6F8FB' : '#F1F3F4' }}>
         <td
-          colSpan={3}
+          colSpan={tipoActivo === 'ingreso' ? 3 : 4}
           style={{ padding: '12px 8px', color: '#203F49', fontSize: 13, fontWeight: 600 }}
         >
           {tipoActivo === 'ingreso' ? 'Total del periodo filtrado:' : 'Total del periodo:'}
@@ -397,6 +462,19 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
         <Info size={16} style={{ color: '#0BC5DF', flexShrink: 0 }} />
         Mostrando registros de {tipoActivo === 'ingreso' ? 'ingresos' : 'egresos'} del periodo seleccionado
       </div>
+
+      {errorCarga && (
+        <div style={{
+          border: '1px solid #E24B4A',
+          borderRadius: 8,
+          background: '#FEE2E2',
+          padding: '12px 16px',
+          color: '#B91C1C',
+          fontSize: 13,
+        }}>
+          {errorCarga}
+        </div>
+      )}
 
       <div style={{
         display: 'inline-flex',
@@ -465,11 +543,13 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
             value={fechaDesde}
             onChange={setFechaDesde}
           />
+
           <DateFilterField
             label="Hasta"
             value={fechaHasta}
             onChange={setFechaHasta}
           />
+
           {tipoActivo === 'ingreso' ? (
             <>
               <Input
@@ -479,6 +559,7 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
                 onChange={(event) => setBusquedaPaciente(event.target.value)}
                 aria-label="Paciente"
               />
+
               <Select
                 label="Método de Pago"
                 value={metodoPago}
@@ -514,14 +595,25 @@ export function ListaFinanciera({ records = financialRecords }: ListaFinancieraP
             <X size={16} />
             Limpiar Filtros
           </Button>
-          <Button variant="secondary" size="sm">
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void cargarEgresos()}
+            disabled={estaCargando}
+          >
             <RefreshCcw size={16} />
-            Actualizar
+            {estaCargando ? 'Actualizando...' : 'Actualizar'}
           </Button>
-          <Button variant="secondary" size="sm">
+
+          <Button variant="secondary" size="sm"
+            onClick={() => void exportarAExcel()}
+            disabled={filteredRecords.length === 0}
+          >
             <FileSpreadsheet size={16} />
             Exportar Excel
           </Button>
+
           <Button variant="secondary" size="sm">
             <FileText size={16} />
             Exportar PDF

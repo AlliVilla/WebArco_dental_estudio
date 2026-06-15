@@ -1,201 +1,195 @@
 import { api } from '../../../services/api';
-import type { ApiResponse, RecordatorioRow, HistorialConfirmacionRow, SendReminderPayload, ReminderAppointmentOption } from '../types';
+import type {
+  ApiResponse,
+  RecordatorioRow,
+  HistorialConfirmacionRow,
+  SendReminderPayload,
+  ReminderAppointmentOption,
+} from '../types';
 
-// ─── Flag de mock ─────────────────────────────────────────────────────────────
-// Cambiar a false cuando el backend de recordatorios esté disponible
+// ─── Tipos de respuesta del backend ───────────────────────────────────────────
 
-const USE_MOCK = true;
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_QUEUE: RecordatorioRow[] = [
-  {
-    id: 1,
-    id_cita: 101,
-    paciente: 'María González',
-    contacto: '+504 3311-2244',
-    canal: 'WhatsApp',
-    hora_cita: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), // +3h → urgente
-    estado_envio: 'Pendiente',
-    es_proximas_24h: true,
-  },
-{
-  id: 2,
-  id_cita: 102,
-  paciente: 'Carlos Vega',
-  contacto: '+504 9455-1234',
-  canal: 'SMS',
-  hora_cita: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), // +6h → urgente
-  estado_envio: 'Pendiente',
-  es_proximas_24h: true,
-},
-{
-  id: 3,
-  id_cita: 103,
-  paciente: 'Ana López',
-  contacto: 'ana.lopez@example.com',
-  canal: 'Correo',
-  hora_cita: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(), // +30h
-  estado_envio: 'Enviado',
-  es_proximas_24h: false,
-},
-{
-  id: 4,
-  id_cita: 104,
-  paciente: 'Roberto Hernández',
-  contacto: '+504 8877-3322',
-  canal: 'WhatsApp',
-  hora_cita: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), // +48h
-  estado_envio: 'Error',
-  es_proximas_24h: false,
-},
-{
-  id: 5,
-  id_cita: 105,
-  paciente: 'Sofía Martínez',
-  contacto: '+504 9900-1122',
-  canal: 'SMS',
-  hora_cita: new Date(Date.now() + 10 * 60 * 60 * 1000).toISOString(), // +10h → urgente
-  estado_envio: 'Pendiente',
-  es_proximas_24h: true,
-},
-];
-
-const MOCK_HISTORIAL: HistorialConfirmacionRow[] = [
-  {
-    id: 1,
-    id_cita: 90,
-    paciente: 'María González',
-    fecha_envio: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    fecha_respuesta: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
-    respuesta: 'Confirmó',
-    canal: 'WhatsApp',
-  },
-{
-  id: 2,
-  id_cita: 91,
-  paciente: 'Carlos Vega',
-  fecha_envio: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_respuesta: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-  respuesta: 'Canceló',
-  canal: 'SMS',
-},
-{
-  id: 3,
-  id_cita: 92,
-  paciente: 'Ana López',
-  fecha_envio: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_respuesta: null,
-  respuesta: 'Sin respuesta',
-  canal: 'Correo',
-},
-{
-  id: 4,
-  id_cita: 93,
-  paciente: 'Roberto Hernández',
-  fecha_envio: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_respuesta: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
-  respuesta: 'Confirmó',
-  canal: 'WhatsApp',
-},
-{
-  id: 5,
-  id_cita: 94,
-  paciente: 'Sofía Martínez',
-  fecha_envio: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-  fecha_respuesta: null,
-  respuesta: 'Sin respuesta',
-  canal: null,
-},
-];
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-function mockResponse<T>(data: T): Promise<ApiResponse<T>> {
-  return new Promise((resolve) =>
-  setTimeout(() => resolve({ success: true, data, message: 'OK' }), 400)
-  );
+interface PersonaBackend {
+  id_persona: number;
+  primer_nombre: string;
+  segundo_nombre?: string | null;
+  primer_apellido: string;
+  segundo_apellido?: string | null;
+  telefono: string;
+  correo_electronico?: string | null;
 }
 
+interface CitaBackend {
+  id_cita: number;
+  fecha_inicio: string;
+  estado: string;
+  persona?: PersonaBackend;
+}
+
+interface RecordatorioBackend {
+  id: number;
+  id_cita: number;
+  canal: 'WhatsApp' | 'Correo';
+  estado_respuesta: 'pendiente' | 'confirmado' | 'cancelado' | 'sin_respuesta' | 'descartado';
+  fecha_envio: string;
+  fecha_respuesta?: string | null;
+  cita?: CitaBackend;
+}
+
+interface QueueBackendResponse {
+  pendientes_envio: CitaBackend[];
+  esperando_respuesta: RecordatorioBackend[];
+}
+
+// El backend devuelve historial paginado: { records, total, page, limit, totalPages }
+interface HistorialBackendResponse {
+  records: RecordatorioBackend[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// ─── Helpers de mapeo ─────────────────────────────────────────────────────────
+
+function buildNombre(p?: PersonaBackend): string {
+  if (!p) return 'Paciente desconocido';
+  return [p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function buildContacto(p: PersonaBackend | undefined, canal: 'WhatsApp' | 'Correo'): string {
+  if (!p) return 'Sin contacto';
+  if (canal === 'WhatsApp') return p.telefono;
+  return p.correo_electronico || p.telefono;
+}
+
+function isProximas24h(fecha_iso: string): boolean {
+  const cita = new Date(fecha_iso);
+  const now = new Date();
+  const diffHours = (cita.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return diffHours >= 0 && diffHours <= 24;
+}
+
+function mapQueueToRows(data: QueueBackendResponse): RecordatorioRow[] {
+  // Citas sin recordatorio → Pendiente de envío
+  const dePendientes: RecordatorioRow[] = (data.pendientes_envio ?? []).map(
+    (cita) => ({
+      id: `cita-${cita.id_cita}`,   // id temporal – la cita aún no tiene recordatorio
+      id_cita: cita.id_cita,
+      paciente: buildNombre(cita.persona),
+      contacto: buildContacto(cita.persona, 'WhatsApp'),
+      canal: 'WhatsApp' as const,  // canal por defecto; el form de envío lo define
+      hora_cita: cita.fecha_inicio,
+      estado_envio: 'Pendiente' as const,
+      es_proximas_24h: isProximas24h(cita.fecha_inicio),
+    }),
+  );
+
+  // Recordatorios enviados esperando respuesta del paciente → Enviado
+  const deEnviados: RecordatorioRow[] = (data.esperando_respuesta ?? []).map(
+    (rec) => ({
+      id: `rec-${rec.id}`,
+      id_cita: rec.id_cita,
+      paciente: buildNombre(rec.cita?.persona),
+      contacto: buildContacto(rec.cita?.persona, rec.canal),
+      canal: rec.canal,
+      hora_cita: rec.cita?.fecha_inicio ?? rec.fecha_envio,
+      estado_envio: 'Enviado' as const,
+      es_proximas_24h: isProximas24h(rec.cita?.fecha_inicio ?? rec.fecha_envio),
+      respuesta: mapRespuesta(rec.estado_respuesta),
+    }),
+  );
+
+  return [...dePendientes, ...deEnviados];
+}
+
+// Mapea estado_respuesta del backend → RespuestaPaciente del frontend
+function mapRespuesta(
+  estado: RecordatorioBackend['estado_respuesta'],
+): HistorialConfirmacionRow['respuesta'] {
+  if (estado === 'confirmado') return 'Confirmó';
+  if (estado === 'cancelado') return 'Canceló';
+  if (estado === 'descartado') return 'Descartado';
+  return 'Sin respuesta';
+}
+
+function mapHistorialToRows(data: HistorialBackendResponse): HistorialConfirmacionRow[] {
+  return (data.records ?? []).map((rec) => ({
+    id: rec.id,
+    id_cita: rec.id_cita,
+    paciente: buildNombre(rec.cita?.persona),
+    fecha_envio: rec.fecha_envio,
+    fecha_respuesta: rec.fecha_respuesta ?? null,
+    respuesta: mapRespuesta(rec.estado_respuesta),
+    canal: rec.canal ?? null,
+  }));
+}
+
+// ─── Servicio ─────────────────────────────────────────────────────────────────
 
 export const ReminderService = {
-  getQueue: (): Promise<ApiResponse<RecordatorioRow[]>> =>
-  USE_MOCK ? mockResponse(MOCK_QUEUE) : api.get('/reminders/queue'),
-
-  getHistorial: (): Promise<ApiResponse<HistorialConfirmacionRow[]>> =>
-  USE_MOCK ? mockResponse(MOCK_HISTORIAL) : api.get('/reminders/history'),
-
-
-  send: (payload: SendReminderPayload): Promise<ApiResponse<RecordatorioRow>> => {
-    if (USE_MOCK) {
-      const nuevo: RecordatorioRow = {
-        id: Date.now(),
-        id_cita: payload.id_cita,
-        paciente: 'Paciente nuevo',
-        contacto: '—',
-        canal: payload.canal,
-        hora_cita: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        estado_envio: 'Enviado',
-        es_proximas_24h: false,
-      };
-      return mockResponse(nuevo);
-    }
-    return api.post('/reminders/send', payload);
-  },
-
-  retry: (id: number): Promise<ApiResponse<RecordatorioRow>> => {
-    if (USE_MOCK) {
-      const fila = MOCK_QUEUE.find((r) => r.id === id);
-      return mockResponse({ ...(fila ?? MOCK_QUEUE[0]), estado_envio: 'Enviado' });
-    }
-    return api.post(`/reminders/${id}/retry`);
-  },
-
-  exportCsv: (): void => {
-    if (USE_MOCK) {
-      console.info('[Mock] exportCsv — conecta el backend para activar la descarga real.');
-      return;
-    }
-    const base = (import.meta as any).env?.VITE_API_URL ?? '';
-    window.open(`${base}/reminders/export`, '_blank');
-  },
-
-  getAppointments: async (): Promise<ApiResponse<ReminderAppointmentOption[]>> => {
-    if (USE_MOCK) {
-      return mockResponse([
-        {
-          id: 101,
-          paciente: 'María González',
-          fecha_hora: new Date().toISOString(),
-        },
-        {
-          id: 102,
-          paciente: 'Carlos Vega',
-          fecha_hora: new Date().toISOString(),
-        },
-        {
-          id: 103,
-          paciente: 'Ana López',
-          fecha_hora: new Date().toISOString(),
-        },
-      ]);
-    }
-
-    const res = await api.get('/appointments');
-
+  getQueue: async (): Promise<ApiResponse<RecordatorioRow[]>> => {
+    const res: ApiResponse<QueueBackendResponse> = await api.get('/reminders/queue');
     return {
       ...res,
-      data:
-      res.data?.data?.map((cita: any) => ({
-        id: cita.id,
-        paciente:
-        cita.paciente?.nombre_completo ??
-        cita.paciente?.nombre ??
-        `Paciente #${cita.id_persona}`,
-        fecha_hora: cita.fecha_hora,
-      })) ?? [],
+      data: mapQueueToRows(
+        res.data ?? { pendientes_envio: [], esperando_respuesta: [] },
+      ),
     };
   },
 
-};
+  // Bug fix: el backend devuelve { records, total, page, limit, totalPages }, no un array.
+  // El ResponseInterceptor lo envuelve en data, así que response.data es ese objeto.
+  getHistorial: async (): Promise<ApiResponse<HistorialConfirmacionRow[]>> => {
+    const res: ApiResponse<HistorialBackendResponse> = await api.get('/reminders/history', {
+      params: { limit: 100 },
+    });
+    return {
+      ...res,
+      data: mapHistorialToRows(
+        res.data ?? { records: [], total: 0, page: 1, limit: 100, totalPages: 0 },
+      ),
+    };
+  },
 
+  send: async (payload: SendReminderPayload): Promise<ApiResponse<RecordatorioRow>> => {
+    return api.post('/reminders/send', payload);
+  },
+
+  retry: async (id: number): Promise<ApiResponse<void>> => {
+    return api.post(`/reminders/cola-envio/reintentar/${id}`);
+  },
+
+  discardReminder: async (id: string | number): Promise<ApiResponse<void>> => {
+    return api.patch(`/reminders/${id}/discard`);
+  },
+
+  exportCsv: (): void => {
+    const base = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3030';
+    window.open(`${base}/reminders/export`, '_blank');
+  },
+
+  // Bug fix: GET /appointments requiere start y end obligatorios (retorna 400 sin ellos).
+  // Se usa una ventana amplia de 2 años para traer todas las citas disponibles.
+  getAppointments: async (): Promise<ApiResponse<ReminderAppointmentOption[]>> => {
+    const now = new Date();
+    const start = new Date(now.getFullYear() - 1, 0, 1).toISOString().split('T')[0];
+    const end   = new Date(now.getFullYear() + 1, 11, 31).toISOString().split('T')[0];
+
+    const res: ApiResponse<{ data: CitaBackend[] }> = await api.get('/appointments', {
+      params: { start, end },
+    });
+    return {
+      ...res,
+      data: (res.data?.data ?? [])
+        .filter((cita) => cita.estado === 'programada')
+        .map((cita) => ({
+          id: cita.id_cita,
+          paciente: buildNombre(cita.persona),
+          fecha_hora: cita.fecha_inicio,
+        })),
+    };
+  },
+};

@@ -3,12 +3,40 @@ import { PrismaService } from '../prisma/prisma.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
 import { UpdateSignaturesDto } from './dto/update-signatures.dto';
+import { UploadService } from '../upload/upload.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ConsentimientoService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private uploadService: UploadService) { }
 
   // --- Helpers 
+
+  /**
+   * Si el string es un Data URL (base64), lo guarda en disco y retorna la URL.
+   * De lo contrario, retorna el string tal cual (que puede ser ya una URL o null).
+   */
+  private async procesarBase64SiEsNecesario(base64: string | null | undefined, prefix: string): Promise<string | null> {
+    if (!base64 || typeof base64 !== 'string' || !base64.startsWith('data:image')) {
+      return base64 || null;
+    }
+
+    const [header, base64Data] = base64.split(',');
+    if (!base64Data) return base64; // No es un base64 válido
+
+    const extension = header.split(';')[0].split('/')[1] || 'png';
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    const fileName = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extension}`;
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    
+    // Asegurar que la carpeta existe
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    
+    fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+    return `/static/${fileName}`;
+  }
 
   /** Calcula el estado de firmas en memoria a partir de los valores almacenados. */
   private calcularEstadoFirmas(firmaPaciente: string | null, firmaDoctor: string | null) {
@@ -45,7 +73,7 @@ export class ConsentimientoService {
   }
 
   private getEstadoWhere(estado?: string) {
-    const base = { consentimiento: true };
+    const base = {};
 
     let firmaValues: { firma_paciente: any; firma_doctor_snapshot: any };
     switch (estado) {
@@ -89,6 +117,10 @@ export class ConsentimientoService {
       throw new BadRequestException('Fecha inválida');
     }
 
+    // Procesar firmas si vienen en base64 en el JSON inicial
+    const firmaPacPath = await this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
+    const firmaDocPath = await this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
+
     const consulta = await this.prisma.consulta.create({
       data: {
         id_persona: data.id_paciente,
@@ -96,8 +128,8 @@ export class ConsentimientoService {
         fecha_inicio: fecha,
         tratamiento: data.tipo_tratamiento,
         diagnostico: data.diagnostico ?? null,
-        firma_paciente: data.firma_paciente || null,
-        firma_doctor_snapshot: data.firma_doctor || null,
+        firma_paciente: firmaPacPath,
+        firma_doctor_snapshot: firmaDocPath,
         consentimiento: true,
       },
       include: {
@@ -215,8 +247,10 @@ export class ConsentimientoService {
         tiene_firma_paciente: tieneFirmaPaciente,
         tiene_firma_doctor: tieneFirmaDoctor,
         estado_firmas: estadoFirmas,
+        firma_paciente: c.firma_paciente,
+        firma_doctor: c.firma_doctor_snapshot,
         paciente: c.persona,
-        doctor: { id_usuario: c.doctor.id_usuario, username: c.doctor.username },
+        doctor: { id_usuario: c.doctor.id_usuario, username: c.doctor.username, nombre: this.nombresCompletos(c.doctor.persona)},
       };
     });
 
@@ -270,24 +304,39 @@ export class ConsentimientoService {
 
   async updateSignatures(idConsulta: number, data: UpdateSignaturesDto) {
     if (!data.firma_paciente && !data.firma_doctor) {
-      throw new BadRequestException('Debe proporcionar al menos una firma (firma_paciente o firma_doctor)');
+      throw new BadRequestException(
+        'Debe proporcionar al menos una firma (firma_paciente o firma_doctor)',
+      );
     }
 
-    const consulta = await this.prisma.consulta.findUnique({ where: { id_consulta: idConsulta } });
-    if (!consulta) throw new NotFoundException(`Consentimiento con ID ${idConsulta} no encontrado`);
+    const consulta = await this.prisma.consulta.findUnique({
+      where: { id_consulta: idConsulta },
+    });
+    if (!consulta) {
+      throw new NotFoundException(`Consentimiento con ID ${idConsulta} no encontrado`);
+    }
 
     if (data.firma_paciente && consulta.firma_paciente) {
-      throw new ConflictException('La firma del paciente ya existe y no puede sobreescribirse');
+      throw new ConflictException(
+        'La firma del paciente ya existe y no puede sobreescribirse',
+      );
     }
     if (data.firma_doctor && consulta.firma_doctor_snapshot) {
-      throw new ConflictException('La firma del doctor ya existe y no puede sobreescribirse');
+      throw new ConflictException(
+        'La firma del doctor ya existe y no puede sobreescribirse',
+      );
     }
 
+    // Procesar posibles base64 en el DTO (si no vinieron por multer)
+    const firmaPacPath = await this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
+    const firmaDocPath = await this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
+
+    // Las URLs vienen resueltas desde el controller (ej: "/uploads/firma-123.png")
     await this.prisma.consulta.update({
       where: { id_consulta: idConsulta },
       data: {
-        ...(data.firma_paciente && { firma_paciente: data.firma_paciente || null }),
-        ...(data.firma_doctor && { firma_doctor_snapshot: data.firma_doctor || null }),
+        ...(firmaPacPath && { firma_paciente: firmaPacPath }),
+        ...(firmaDocPath && { firma_doctor_snapshot: firmaDocPath }),
       },
     });
 

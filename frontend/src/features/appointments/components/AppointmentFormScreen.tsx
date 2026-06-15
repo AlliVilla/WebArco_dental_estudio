@@ -146,7 +146,6 @@ export function AppointmentFormScreen() {
           idEspecialidad: especialidades[0].id,
           nombre: text,
           descripcion: '',
-          impactoOdontograma: 'Sano',
           precio: 0,
         });
         const created = res.data?.data ?? res.data;

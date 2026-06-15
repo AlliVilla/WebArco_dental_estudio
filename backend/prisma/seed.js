@@ -19,6 +19,7 @@ const { insertTratamientosPaciente } = require("./seeders/tratamiento-paciente")
 const { insertPagosConsulta } = require("./seeders/pago-consulta");
 const { insertConsultaTratamientos } = require("./seeders/consulta-tratamiento");
 const { insertArchivos } = require("./seeders/archivos");
+const { insertCierres } = require("./seeders/cierres");
 const { insertConsultaPreguntas } = require("./seeders/consulta-preguntas");
 
 async function insertSeeder(){
@@ -43,6 +44,7 @@ async function insertSeeder(){
         await insertTratamientosPaciente();
         await insertPagosConsulta();
         await insertConsultaTratamientos();
+        await insertCierres();
         console.log("Seeder realizado exitosamente")
     }catch(error){
         console.error("Error:", error);

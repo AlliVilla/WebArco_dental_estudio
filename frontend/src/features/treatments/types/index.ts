@@ -4,7 +4,6 @@ export interface Treatment {
   especialidad: string;
   nombre: string;
   descripcion?: string;
-  impactoOdontograma: string;
   precio: number;
   activo: boolean;
 }
@@ -13,7 +12,6 @@ export type TreatmentInput = {
   idEspecialidad: number;
   nombre: string;
   descripcion?: string;
-  impactoOdontograma: string;
   precio: number;
 };
 
@@ -22,15 +20,3 @@ export interface Especialidad {
   nombre: string;
 }
 
-export const ESTADOS_ODONTOGRAMA = [
-  "Sano",
-  "Caries",
-  "Obturación",
-  "Extracción",
-  "Ausente",
-  "Endodoncia",
-  "Corona",
-  "Prótesis",
-  "Implante",
-  "Puente",
-] as const;

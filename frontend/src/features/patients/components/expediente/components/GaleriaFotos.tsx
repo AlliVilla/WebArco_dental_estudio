@@ -6,19 +6,18 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Search,
+  ChevronDown,
   Image as ImageIcon,
   Download,
   X,
   Calendar,
   FileImage,
-  Layers,
   AlertCircle,
   Info,
 } from 'lucide-react';
 import { ConfirmModal } from '../../../../../components';
 import { Button, Alert, Select } from '../../../../../context';
-import { galeriaService, FotoGaleria } from '../services/galeriaService';
+import { galeriaService, FotoGaleria, FOTO_CATEGORIAS, FotoCategoria } from '../services/galeriaService';
 import type { ConsultaHistorica } from '../types/getAllPacientes';
 import api from '../../../../../services/api';
 
@@ -38,16 +37,6 @@ const C = {
   white:      'var(--card, #ffffff)',
 };
 
-// ─── Categorías con sus colores (las 3 del Figma) ─────────────────────────────
-type TabCategoria = 'Todas' | 'Antes' | 'Después' | 'Comparativa';
-
-const CATEGORIA_CFG: Record<TabCategoria, { bg: string; color: string; cardBg: string; badgeBg: string }> = {
-  Todas:       { bg: '#E6F8FB', color: '#0BC5DF', cardBg: '#E8E6D9', badgeBg: '#E6F8FB' },
-  Antes:       { bg: '#FFFBEB', color: '#D97706', cardBg: '#D4C9A8', badgeBg: '#FFFBEB' },
-  Después:     { bg: '#ECFDF5', color: '#1D9E75', cardBg: '#B8D4B4', badgeBg: '#ECFDF5' },
-  Comparativa: { bg: '#F1F3F4', color: '#5F656A', cardBg: '#C8C4B4', badgeBg: '#F1F3F4' },
-};
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function buildImageUrl(url: string): string {
   return `${api.defaults.baseURL}/upload/${encodeURIComponent(url)}`;
@@ -57,16 +46,15 @@ function isImage(nombre: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(nombre);
 }
 
+const CATEGORY_COLORS: Record<string, { bg: string; color: string; label: string }> = {
+  Antes:       { bg: '#FFF3E0', color: '#E65100', label: 'Antes' },
+  Después:     { bg: '#E8F5E9', color: '#2E7D32', label: 'Después' },
+  Comparativa: { bg: '#E3F2FD', color: '#1565C0', label: 'Comparativa' },
+};
+
 function formatDate(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-HN');
-}
-
-function getCategoria(categoria: string): TabCategoria {
-  if (categoria.toLowerCase().includes('antes')) return 'Antes';
-  if (categoria.toLowerCase().includes('después') || categoria.toLowerCase().includes('despues')) return 'Después';
-  if (categoria.toLowerCase().includes('comparativa')) return 'Comparativa';
-  return 'Todas';
 }
 
 // ─── Prop Types ───────────────────────────────────────────────────────────────
@@ -89,18 +77,13 @@ function UploadModal({ pacienteId, consultas, onSuccess, onClose }: UploadModalP
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [categoria, setCategoria] = useState<string>('Antes');
   const [consultaId, setConsultaId] = useState<string>(
     consultas[0]?.id_consulta ? String(consultas[0].id_consulta) : ''
   );
+  const [categoria, setCategoria] = useState<string>('Antes');
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const catOptions = [
-    { value: 'Antes', label: 'Antes' },
-    { value: 'Después', label: 'Después' },
-    { value: 'Comparativa', label: 'Comparativa' },
-  ];
   const consultaOptions = consultas.map((c) => ({
     value: String(c.id_consulta),
     label: `Consulta — ${formatDate(c.fecha_fin ?? c.fecha_inicio)}`,
@@ -113,22 +96,20 @@ function UploadModal({ pacienteId, consultas, onSuccess, onClose }: UploadModalP
 
   async function submit() {
     if (!files.length || !consultaId) { setErrorMsg('Selecciona archivos y una consulta.'); return; }
-    // TODO: conectar al backend cuando el endpoint esté listo.
-    // setUploading(true);
-    // setErrorMsg('');
-    // try {
-    //   for (const file of files) {
-    //     await galeriaService.subirFoto(pacienteId, {
-    //       file, categoria: categoria as never, nombre: file.name, id_consulta: Number(consultaId),
-    //     });
-    //   }
-    //   onSuccess();
-    // } catch (e: unknown) {
-    //   setErrorMsg((e as { message?: string })?.message ?? 'Error al subir.');
-    // } finally {
-    //   setUploading(false);
-    // }
-    onSuccess(); // eliminar cuando se conecte el backend
+    setUploading(true);
+    setErrorMsg('');
+    try {
+      for (const file of files) {
+        await galeriaService.subirFoto(pacienteId, {
+          file, categoria: categoria as FotoCategoria, nombre: file.name, id_consulta: Number(consultaId),
+        });
+      }
+      onSuccess();
+    } catch (e: unknown) {
+      setErrorMsg((e as { message?: string })?.message ?? 'Error al subir.');
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -207,7 +188,7 @@ function UploadModal({ pacienteId, consultas, onSuccess, onClose }: UploadModalP
 
           {/* Selects */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Select label="Categoría" badge="required" options={catOptions} value={categoria} onChange={setCategoria} />
+            <Select label="Categoría" badge="required" options={FOTO_CATEGORIAS.map(c => ({ value: c, label: c }))} value={categoria} onChange={setCategoria} placeholder="Seleccionar..." />
             <Select label="Consulta" badge="required" options={consultaOptions} value={consultaId} onChange={setConsultaId} placeholder="Seleccionar..." />
           </div>
 
@@ -357,18 +338,34 @@ function Lightbox({ fotos, index, onClose, onNav }: LightboxProps) {
   );
 }
 
-// ─── Foto Card (matches Figma exactly) ────────────────────────────────────────
+// ─── Foto Card ─────────────────────────────────────────────────────────────────
 interface FotoCardProps {
   foto: FotoGaleria;
+  pacienteId: number;
   onView: () => void;
   onDelete: () => void;
+  onCategoriaChange: () => void;
   isDeleting: boolean;
 }
 
-function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
+function FotoCard({ foto, pacienteId, onView, onDelete, onCategoriaChange, isDeleting }: FotoCardProps) {
   const [hovered, setHovered] = useState(false);
-  const cat = getCategoria(foto.categoria);
-  const cfg = CATEGORIA_CFG[cat];
+  const [editingCat, setEditingCat] = useState(false);
+  const [savingCat, setSavingCat] = useState(false);
+
+  async function handleCategoriaChange(cat: string) {
+    if (cat === foto.categoria) { setEditingCat(false); return; }
+    setSavingCat(true);
+    try {
+      await galeriaService.actualizarCategoria(pacienteId, foto.id_archivo, cat as FotoCategoria);
+      onCategoriaChange();
+      setEditingCat(false);
+    } catch {
+      // ignore
+    } finally {
+      setSavingCat(false);
+    }
+  }
 
   return (
     <div
@@ -378,11 +375,11 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
         background: C.white,
         borderRadius: 10,
         border: `1px solid ${hovered ? C.primary : C.gray300}`,
-        overflow: 'hidden',
         transition: 'border-color 0.18s, box-shadow 0.18s',
         boxShadow: hovered ? '0 4px 16px rgba(11,197,223,0.13)' : '0 1px 4px rgba(0,0,0,0.04)',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}
     >
       {/* Thumbnail */}
@@ -394,7 +391,7 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
         aria-label={`Ver ${foto.nombre}`}
         style={{
           height: 148,
-          background: cfg.cardBg,
+          background: C.primaryBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -411,7 +408,7 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         ) : (
-          <ImageIcon size={36} color="rgba(255,255,255,0.55)" />
+          <ImageIcon size={36} color={C.primary} />
         )}
 
         {/* Hover overlay */}
@@ -434,16 +431,8 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
 
       {/* Card body */}
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {/* Badge row + date */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            padding: '2px 8px', borderRadius: 20,
-            fontSize: 10, fontWeight: 700,
-            background: cfg.badgeBg, color: cfg.color,
-          }}>
-            {cat}
-          </span>
+        {/* Date */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: 10, color: C.gray500 }}>
             {formatDate(foto.consulta?.fecha_fin ?? foto.consulta?.fecha_inicio)}
           </span>
@@ -457,11 +446,60 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
           {foto.nombre}
         </div>
 
+        {/* Category badge (clickable) */}
+        {foto.categoria && (
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setEditingCat(!editingCat)}
+              disabled={savingCat}
+              style={{
+                background: CATEGORY_COLORS[foto.categoria]?.bg ?? C.gray100,
+                border: 'none', cursor: 'pointer', padding: '4px 10px', borderRadius: 9999,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 11, fontWeight: 600,
+                color: CATEGORY_COLORS[foto.categoria]?.color ?? C.gray500,
+              }}
+            >
+              {CATEGORY_COLORS[foto.categoria]?.label ?? foto.categoria}
+              <ChevronDown size={12} style={{ opacity: 0.7 }} />
+            </button>
+
+            {editingCat && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, zIndex: 100,
+                background: C.white, border: `1px solid ${C.gray300}`,
+                borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                padding: 4, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 110,
+              }}>
+                {FOTO_CATEGORIAS.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => handleCategoriaChange(cat)}
+                    style={{
+                      background: cat === foto.categoria ? C.primaryBg : 'none',
+                      border: 'none', borderRadius: 6, padding: '5px 10px',
+                      cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                      color: C.navy, textAlign: 'left',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: CATEGORY_COLORS[cat]?.color ?? C.gray500,
+                      flexShrink: 0,
+                    }} />
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Doctor */}
-        {foto.consulta && (
+        {foto.consulta?.doctor && (
           <div style={{ fontSize: 11, color: C.gray500 }}>
-            {/* doctor name would come from consulta once connected */}
-            Dr. —
+            Dr. {foto.consulta.doctor.persona.primer_nombre} {foto.consulta.doctor.persona.primer_apellido}
           </div>
         )}
 
@@ -504,39 +542,35 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showBanner, setShowBanner] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabCategoria>('Todas');
-  const [filterDoctor, setFilterDoctor] = useState('');
   const [filterConsulta, setFilterConsulta] = useState('');
-  const [search, setSearch] = useState('');
+  const [filterCategoria, setFilterCategoria] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FotoGaleria | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // ── Carga de fotos ─────────────────────────────────────────────────────────
-  // TODO: descomentar cuando el endpoint esté listo en el backend.
   const loadFotos = useCallback(async () => {
-    // setLoading(true);
-    // setError('');
-    // try {
-    //   const res = await galeriaService.getByPaciente(pacienteId);
-    //   if (res.success) {
-    //     setFotos(Array.isArray(res.data) ? res.data : []);
-    //   } else {
-    //     setError(res.message ?? 'Error al cargar la galería.');
-    //   }
-    // } catch (e: unknown) {
-    //   setError((e as { message?: string })?.message ?? 'Error al cargar la galería.');
-    // } finally {
-    //   setLoading(false);
-    // }
-  }, []);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await galeriaService.getByPaciente(pacienteId);
+      if (res.success) {
+        setFotos(Array.isArray(res.data) ? res.data : []);
+      } else {
+        setError(res.message ?? 'Error al cargar la galería.');
+      }
+    } catch (e: unknown) {
+      setError((e as { message?: string })?.message ?? 'Error al cargar la galería.');
+    } finally {
+      setLoading(false);
+    }
+  }, [pacienteId]);
 
   useEffect(() => { loadFotos(); }, [loadFotos]);
 
   // Stats
   const totalFotos = fotos.length;
-  const totalComparativas = fotos.filter((f) => getCategoria(f.categoria) === 'Comparativa').length;
   const ultimaActualizacion = useMemo(() => {
     const fechas = fotos
       .map((f) => f.consulta?.fecha_fin ?? f.consulta?.fecha_inicio)
@@ -545,11 +579,6 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
       .reverse();
     return fechas[0] ? formatDate(fechas[0]) : '—';
   }, [fotos]);
-
-  // Counts per tab
-  const countAntes = fotos.filter((f) => getCategoria(f.categoria) === 'Antes').length;
-  const countDespues = fotos.filter((f) => getCategoria(f.categoria) === 'Después').length;
-  const countComparativa = fotos.filter((f) => getCategoria(f.categoria) === 'Comparativa').length;
 
   // Filter options
   const consultaOptions = useMemo(() => [
@@ -560,21 +589,23 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
     })),
   ], [consultas]);
 
+  // Filter options
+  const categoriaOptions = useMemo(() => [
+    { value: '', label: 'Todas las categorías' },
+    ...FOTO_CATEGORIAS.map((c) => ({ value: c, label: c })),
+  ], []);
+
   // Filtered fotos
   const fotosFiltradas = useMemo(() => {
     let result = fotos;
-    if (activeTab !== 'Todas') {
-      result = result.filter((f) => getCategoria(f.categoria) === activeTab);
-    }
     if (filterConsulta) {
       result = result.filter((f) => String(f.id_consulta) === filterConsulta);
     }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((f) => f.nombre.toLowerCase().includes(q));
+    if (filterCategoria) {
+      result = result.filter((f) => f.categoria === filterCategoria);
     }
     return result;
-  }, [fotos, activeTab, filterConsulta, search]);
+  }, [fotos, filterConsulta, filterCategoria]);
 
   // Lightbox images only
   const fotosImagen = useMemo(() => fotosFiltradas.filter((f) => isImage(f.nombre)), [fotosFiltradas]);
@@ -587,19 +618,16 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    // TODO: conectar al backend cuando el endpoint esté listo.
-    // setIsDeleting(true);
-    // try {
-    //   await galeriaService.eliminarFoto(pacienteId, deleteTarget.id_archivo);
-    //   setFotos((prev) => prev.filter((f) => f.id_archivo !== deleteTarget.id_archivo));
-    // } catch (e: unknown) {
-    //   setError((e as { message?: string })?.message ?? 'Error al eliminar.');
-    // } finally {
-    //   setIsDeleting(false);
-    //   setDeleteTarget(null);
-    // }
-    setFotos((prev) => prev.filter((f) => f.id_archivo !== deleteTarget!.id_archivo)); // eliminar cuando se conecte el backend
-    setDeleteTarget(null);
+    setIsDeleting(true);
+    try {
+      await galeriaService.eliminarFoto(pacienteId, deleteTarget.id_archivo);
+      setFotos((prev) => prev.filter((f) => f.id_archivo !== deleteTarget.id_archivo));
+    } catch (e: unknown) {
+      setError((e as { message?: string })?.message ?? 'Error al eliminar.');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -642,7 +670,7 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
       )}
 
       {/* ── KPI Cards ───────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 20 }}>
         {/* Total de fotos */}
         <div style={{
           background: C.white, border: `1px solid ${C.gray300}`, borderRadius: 12,
@@ -662,28 +690,6 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <ImageIcon size={20} color={C.primary} />
-          </div>
-        </div>
-
-        {/* Comparativas añadidas */}
-        <div style={{
-          background: C.white, border: `1px solid ${C.gray300}`, borderRadius: 12,
-          padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 6 }}>
-              Comparativas añadidas
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: C.navy, lineHeight: 1 }}>
-              {loading ? '—' : totalComparativas}
-            </div>
-          </div>
-          <div style={{
-            width: 44, height: 44, borderRadius: 10,
-            background: C.primaryBg,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Layers size={20} color={C.primary} />
           </div>
         </div>
 
@@ -717,44 +723,19 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
         {/* Filter dropdowns */}
         <div style={{ flex: 1, minWidth: 120, maxWidth: 200 }}>
           <Select
+            options={categoriaOptions}
+            value={filterCategoria}
+            onChange={setFilterCategoria}
+            placeholder="Categoría"
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 120, maxWidth: 200 }}>
+          <Select
             options={consultaOptions}
             value={filterConsulta}
             onChange={setFilterConsulta}
             placeholder="Consulta"
           />
-        </div>
-        <div style={{ flex: 1, minWidth: 120, maxWidth: 200 }}>
-          <Select
-            options={[
-              { value: '', label: 'Doctor' },
-            ]}
-            value={filterDoctor}
-            onChange={setFilterDoctor}
-            placeholder="Doctor"
-          />
-        </div>
-        {/* Search */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          border: `1px solid ${C.gray300}`, borderRadius: 8,
-          padding: '0 12px', background: C.white, flex: 1, minWidth: 140, maxWidth: 220,
-        }}>
-          <Search size={14} color={C.gray500} />
-          <input
-            type="text"
-            placeholder="Buscar..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              flex: 1, border: 'none', outline: 'none',
-              fontSize: 13, color: C.navy, padding: '9px 0', background: 'transparent',
-            }}
-          />
-          {search && (
-            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.gray500, display: 'flex', padding: 0 }}>
-              <X size={12} />
-            </button>
-          )}
         </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
@@ -766,54 +747,14 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
           >
             <Upload size={14} /> Subir foto
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            id="btn-importar-pdf"
-          >
-            <FileImage size={14} /> Importar galería PDF
-          </Button>
         </div>
       </div>
 
-      {/* ── Results count + Tabs ────────────────────────────────────────────── */}
+      {/* ── Results count ────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <span style={{ fontSize: 13, color: C.gray700 }}>
           Mostrando <strong>{fotosFiltradas.length}</strong> de {totalFotos} fotos
         </span>
-
-        {/* Tab pills */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(
-            [
-              { key: 'Antes',       count: countAntes,       label: `Antes (${countAntes})` },
-              { key: 'Después',     count: countDespues,     label: `Después (${countDespues})` },
-              { key: 'Comparativa', count: countComparativa, label: `Comparativa (${countComparativa})` },
-            ] as const
-          ).map(({ key, label }) => {
-            const active = activeTab === key;
-            const cfg = CATEGORIA_CFG[key];
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveTab(active ? 'Todas' : key)}
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: 20,
-                  border: `1.5px solid ${active ? cfg.color : C.gray300}`,
-                  background: active ? cfg.bg : 'transparent',
-                  color: active ? cfg.color : C.gray700,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* ── Photo Grid ──────────────────────────────────────────────────────── */}
@@ -842,19 +783,15 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, marginBottom: 5 }}>
-              {search || activeTab !== 'Todas' ? 'Sin resultados' : 'Sin fotos en la galería'}
+              Sin fotos en la galería
             </div>
             <div style={{ fontSize: 13, color: C.gray500, maxWidth: 300, lineHeight: 1.6 }}>
-              {search || activeTab !== 'Todas'
-                ? 'Prueba con otros filtros.'
-                : 'Sube la primera foto para comenzar el registro visual del paciente.'}
+              Sube la primera foto para comenzar el registro visual del paciente.
             </div>
           </div>
-          {!search && activeTab === 'Todas' && (
-            <Button variant="primary" size="sm" onClick={() => setShowUpload(true)}>
-              <Upload size={13} /> Subir foto
-            </Button>
-          )}
+          <Button variant="primary" size="sm" onClick={() => setShowUpload(true)}>
+            <Upload size={13} /> Subir foto
+          </Button>
         </div>
       ) : (
         <div style={{
@@ -866,9 +803,11 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
             <FotoCard
               key={foto.id_archivo}
               foto={foto}
+              pacienteId={pacienteId}
               onView={() => openLightbox(foto)}
               onDelete={() => setDeleteTarget(foto)}
-              isDeleting={false}
+              onCategoriaChange={loadFotos}
+              isDeleting={isDeleting && deleteTarget?.id_archivo === foto.id_archivo}
             />
           ))}
         </div>

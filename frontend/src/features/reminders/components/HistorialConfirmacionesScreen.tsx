@@ -568,7 +568,6 @@ export function HistorialConfirmacionesScreen(
             >
               <option value="">Canal</option>
               <option value="WhatsApp">WhatsApp</option>
-              <option value="SMS">SMS</option>
               <option value="Correo">Correo</option>
             </select>
           </div>
@@ -675,7 +674,6 @@ export function HistorialConfirmacionesScreen(
               placeholder: "Canal",
               options: [
                 { value: "WhatsApp", label: "WhatsApp" },
-                { value: "SMS", label: "SMS" },
                 { value: "Correo", label: "Correo" },
               ],
             },

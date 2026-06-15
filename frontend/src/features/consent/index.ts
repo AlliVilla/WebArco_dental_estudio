@@ -1,2 +1,2 @@
-export * from "./services/ConsentScreen";
+export * from "./components/ConsentScreen";
 export * from "./types";

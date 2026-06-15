@@ -40,7 +40,7 @@ const DEFAULT_DURATION_MINUTES = 30;
 
 @Injectable()
 export class CitaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(createCitaDto: CreateCitaDto) {
     await this.assertPersonaExists(createCitaDto.id_persona);

@@ -149,6 +149,50 @@ export class ReminderController {
     return this.reminderService.registerResponse(id, dto.respuesta, dto.cambiado_por);
   }
 
+  @Privileges(30)
+  @Post('cola-envio/reintentar/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reintentar envío de recordatorio fallido',
+    description:
+      'Fuerza el reintento de un recordatorio en estado pendiente, actualizando su fecha de envío.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del recordatorio a reintentar',
+    example: 1,
+  })
+  @ApiOkResponse({ description: 'Reintento registrado exitosamente' })
+  @ApiNotFoundResponse({ description: 'Recordatorio no encontrado' })
+  @ApiBadRequestResponse({ description: 'El recordatorio no está en estado pendiente' })
+  async retryReminder(@Param('id', ParseIntPipe) id: number) {
+    return this.reminderService.retry(id);
+  }
+
+  @Privileges(30)
+  @Patch(':id/discard')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Descartar recordatorio de la cola',
+    description:
+      'Marca un recordatorio pendiente como sin_respuesta para sacarlo de la cola de envíos, o marca una cita como notificada.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del recordatorio o cita a descartar (ej. rec-12 o cita-45)',
+    example: 'rec-12',
+  })
+  @ApiOkResponse({ description: 'Descartado exitosamente' })
+  @ApiNotFoundResponse({ description: 'No encontrado' })
+  async discardReminder(@Param('id') id: string) {
+    if (id.startsWith('cita-')) {
+      const realId = parseInt(id.replace('cita-', ''), 10);
+      return this.reminderService.discardCita(realId);
+    }
+    const realId = id.startsWith('rec-') ? parseInt(id.replace('rec-', ''), 10) : parseInt(id, 10);
+    return this.reminderService.discardReminder(realId);
+  }
+
   @Privileges(31)
   @Get('export')
   @HttpCode(HttpStatus.OK)

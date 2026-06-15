@@ -2,8 +2,8 @@ import { CheckCircle2, Clock, Info, Printer, X } from "lucide-react";
 import { FormSection } from "../../../components";
 import { Button, Card, Input } from "../../../context";
 import type { ConsentRecord } from "../types";
-import { getStatusMeta } from "./consentUtils";
-import { printConsentDocuments } from "./printConsentDocuments";
+import { getStatusMeta } from "../services/consentUtils";
+import { printConsentDocuments } from "../services/printConsentDocuments";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
 interface ConsentPreviewProps {
@@ -20,7 +20,14 @@ function ReadOnlySignature({
   signer: string;
   signature?: string;
 }) {
-  const hasImageSignature = signature?.startsWith("data:image");
+  const isBase64 = signature?.startsWith("data:image");
+  const isUrl = signature && (signature.includes("/") || signature.includes("."));
+  const hasImageSignature = isBase64 || isUrl;
+
+  // Construimos la URL completa si es una ruta del servidor (ej: /uploads/...)
+  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3030').replace(/\/api$/, '');
+  const imageSrc = isUrl && !isBase64 ? `${apiBase}${signature}` : signature;
+
   return (
     <div
       style={{
@@ -53,7 +60,7 @@ function ReadOnlySignature({
       >
         {hasImageSignature ? (
           <img
-            src={signature}
+            src={imageSrc}
             alt={title}
             style={{ maxWidth: "100%", maxHeight: 70, objectFit: "contain" }}
           />
@@ -271,7 +278,7 @@ export function ConsentPreview({
             selectedConsent.declaracion,
             selectedConsent.riesgos,
             selectedConsent.clausula,
-          ].map((text) => (
+          ].filter(Boolean).map((text) => (
             <div
               key={text}
               style={{

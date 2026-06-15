@@ -1,6 +1,0 @@
-ALTER TABLE "persona"
-ADD COLUMN IF NOT EXISTS "enfermedades" TEXT,
-ADD COLUMN IF NOT EXISTS "otras_enfermedades" TEXT,
-ADD COLUMN IF NOT EXISTS "medicamentos" TEXT,
-ADD COLUMN IF NOT EXISTS "alergias" TEXT,
-ADD COLUMN IF NOT EXISTS "reaccion_anestesia" VARCHAR(20);
