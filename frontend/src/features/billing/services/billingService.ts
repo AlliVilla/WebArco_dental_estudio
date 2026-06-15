@@ -1,5 +1,5 @@
-import api from '../../../services/api';
-import { ApiResponse } from '../../../types/api';
+import api from "../../../services/api";
+import { ApiResponse } from "../../../types/api";
 import {
   PatientPayment,
   CreatePaymentInput,
@@ -10,7 +10,7 @@ import {
   ExpenseSummaryResponse,
   CierreHistorialResponse,
   TipoCierre,
-} from '../types';
+} from "../types";
 
 export interface PaginatedPayments {
   data: PatientPayment[];
@@ -23,19 +23,28 @@ export interface PaginatedPayments {
 }
 
 export const billingService = {
-  getAll: async (params?: Record<string, any>): Promise<ApiResponse<PaginatedPayments>> => {
-    return api.get('/pago-paciente', { params });
+  getAll: async (
+    params?: Record<string, any>,
+  ): Promise<ApiResponse<PaginatedPayments>> => {
+    return api.get("/pago-paciente", { params });
   },
 
-  getByConsultaId: async (consultaId: number): Promise<ApiResponse<PatientPayment[]>> => {
+  getByConsultaId: async (
+    consultaId: number,
+  ): Promise<ApiResponse<PatientPayment[]>> => {
     return api.get(`/pago-paciente/consulta/${consultaId}`);
   },
 
-  create: async (data: CreatePaymentInput): Promise<ApiResponse<PatientPayment>> => {
-    return api.post('/pago-paciente', data);
+  create: async (
+    data: CreatePaymentInput,
+  ): Promise<ApiResponse<PatientPayment>> => {
+    return api.post("/pago-paciente", data);
   },
 
-  update: async (id: number, data: UpdatePaymentInput): Promise<ApiResponse<PatientPayment>> => {
+  update: async (
+    id: number,
+    data: UpdatePaymentInput,
+  ): Promise<ApiResponse<PatientPayment>> => {
     return api.patch(`/pago-paciente/${id}`, data);
   },
 
@@ -44,7 +53,7 @@ export const billingService = {
   },
 
   getExpenses: async (): Promise<ApiResponse<FinancialRecord[]>> => {
-    return api.get('/egreso');
+    return api.get("/egreso");
   },
 
   getExpenseById: async (id: number): Promise<ApiResponse<FinancialRecord>> => {
@@ -52,23 +61,27 @@ export const billingService = {
   },
 
   getExpenseSummary: async (): Promise<ApiResponse<ExpenseSummaryResponse>> => {
-    return api.get('/egreso/resumen');
+    return api.get("/egreso/resumen");
   },
 
   getExpensesMonth: async (): Promise<ApiResponse<ExpenseMetricResponse>> => {
-    return api.get('/egreso/mes');
+    return api.get("/egreso/mes");
   },
 
   getExpensesDay: async (): Promise<ApiResponse<ExpenseMetricResponse>> => {
-    return api.get('/egreso/dia');
+    return api.get("/egreso/dia");
   },
 
-  getExpensesAverageMonth: async (): Promise<ApiResponse<ExpenseMetricResponse>> => {
-    return api.get('/egreso/promedio-mes');
+  getExpensesAverageMonth: async (): Promise<
+    ApiResponse<ExpenseMetricResponse>
+  > => {
+    return api.get("/egreso/promedio-mes");
   },
 
-  createExpense: async (data: CreateExpenseInput): Promise<ApiResponse<FinancialRecord>> => {
-    return api.post('/egreso', data);
+  createExpense: async (
+    data: CreateExpenseInput,
+  ): Promise<ApiResponse<FinancialRecord>> => {
+    return api.post("/egreso", data);
   },
 
   updateExpense: async (
@@ -82,39 +95,54 @@ export const billingService = {
     return api.delete(`/egreso/${id}`);
   },
 
-  getEstadoFinanciero: async (pacienteId: number): Promise<ApiResponse<any[]>> => {
+  getEstadoFinanciero: async (
+    pacienteId: number,
+  ): Promise<ApiResponse<any[]>> => {
     return api.get(`/pago-consulta/estado-financiero/paciente/${pacienteId}`);
   },
 
   createPagoConsulta: async (data: any): Promise<ApiResponse<any>> => {
-    return api.post('/pago-consulta', data);
+    return api.post("/pago-consulta", data);
   },
 
   getPagosConsulta: async (consultaId: number): Promise<ApiResponse<any[]>> => {
     return api.get(`/pago-consulta/consulta/${consultaId}`);
   },
 
-  getCierreHistorial: async (): Promise<ApiResponse<CierreHistorialResponse>> => {
-    return api.get('/cierre');
+  getCierreHistorial: async (): Promise<
+    ApiResponse<CierreHistorialResponse>
+  > => {
+    return api.get("/cierre");
   },
 
-  createCierre: async (tipo: TipoCierre = 'Diario'): Promise<ApiResponse<{ cierre: CierreHistorialResponse[0] }>> => {
-    return api.post('/cierre', {}, { params: { tipo } });
+  createCierre: async (
+    tipo: TipoCierre = "Diario",
+  ): Promise<ApiResponse<{ cierre: CierreHistorialResponse[0] }>> => {
+    return api.post("/cierre", {}, { params: { tipo } });
   },
 
-  previewCierre: async (fecha: string): Promise<ApiResponse<{
-    fecha: string;
-    totalIngresos: number;
-    totalEgresos: number;
-    utilidad: number;
-    ingresos: {
-      efectivo: number;
-      tarjeta: number;
-      transferencia: number;
-    };
-  }>> => {
-    return api.get('/cierre/preview', { params: { fecha } });
-  updateConsultaDescuentos: async (consultaId: number, descuentos: { id_consulta_tratamiento: number, descuento: number }[]): Promise<ApiResponse<any>> => {
+  previewCierre: async (
+    fecha: string,
+  ): Promise<
+    ApiResponse<{
+      fecha: string;
+      totalIngresos: number;
+      totalEgresos: number;
+      utilidad: number;
+      ingresos: {
+        efectivo: number;
+        tarjeta: number;
+        transferencia: number;
+      };
+    }>
+  > => {
+    return api.get("/cierre/preview", { params: { fecha } });
+  },
+
+  updateConsultaDescuentos: async (
+    consultaId: number,
+    descuentos: { id_consulta_tratamiento: number; descuento: number }[],
+  ): Promise<ApiResponse<any>> => {
     return api.patch(`/consulta/${consultaId}/descuentos`, { descuentos });
   },
 };
