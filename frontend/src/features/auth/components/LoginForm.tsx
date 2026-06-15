@@ -26,6 +26,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       navigate("/dashboard");
     } catch {
       /* error manejado en store */
+      setUsername("");
+      setPassword("");
     }
   }
 
