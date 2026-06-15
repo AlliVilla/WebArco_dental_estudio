@@ -115,9 +115,6 @@ export class InventarioService {
       };
     }
 
-    if (dto.stock_actual !== undefined) {
-      data.stock_actual = dto.stock_actual;
-    }
 
     if (dto.stock_minimo !== undefined) {
       data.stock_minimo = dto.stock_minimo;

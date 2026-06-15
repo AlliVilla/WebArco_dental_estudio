@@ -8,6 +8,7 @@ import { Alert, Button, Card, Input, SectionBlock, Select } from '../../../conte
 import { useTheme } from '../../../context/ThemeContext';
 import { inventoryService } from '../services/inventoryService';
 import { formatDate } from '../../../utils/formatters';
+import { exportToExcel } from '../../../utils/exportToExcel';
 import type {
   InventoryItem,
   InventoryMovement,
@@ -108,8 +109,13 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
     void loadHistory(emptyFilters);
   };
 
-  const exportCsv = () => {
-    exportMovementsCsv(movements);
+  const exportExcel = async () => {
+    if (movements.length === 0) return;
+    try {
+      await exportMovementsToExcel(movements);
+    } catch {
+      setError('Error al exportar historial de inventario a Excel.');
+    }
   };
 
   return (
@@ -126,9 +132,9 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
             <ArrowLeft size={16} />
             Volver
           </Button>
-          <Button variant="secondary" size="sm" onClick={exportCsv}>
+          <Button variant="secondary" size="sm" onClick={exportExcel}>
             <Download size={16} />
-            Exportar CSV
+            Exportar Excel
           </Button>
         </div>
       </Card>
@@ -250,15 +256,26 @@ function getErrorMessage(error: unknown) {
   return 'Ocurrió un error inesperado.';
 }
 
-function exportMovementsCsv(movements: InventoryMovement[]) {
-  const header = ['Fecha', 'Código', 'Producto', 'Tipo', 'Cantidad', 'Responsable', 'Observaciones'];
-  const rows = movements.map((movement) => [movement.fecha, movement.codigo, movement.producto, movement.tipo, movement.cantidad, movement.responsable, movement.observaciones ?? '']);
-  const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `historial-inventario-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+async function exportMovementsToExcel(movements: InventoryMovement[]) {
+  const rows = movements.map((movement) => ({
+    fecha: formatDate(String(movement.fecha)),
+    codigo: movement.codigo,
+    producto: movement.producto,
+    tipo: movement.tipo,
+    cantidad: movement.cantidad,
+    responsable: movement.responsable,
+    observaciones: movement.observaciones ?? '',
+  }));
+
+  const columnas = [
+    { header: 'Fecha', key: 'fecha', width: 14 },
+    { header: 'Código', key: 'codigo', width: 14 },
+    { header: 'Producto', key: 'producto', width: 32 },
+    { header: 'Tipo', key: 'tipo', width: 14 },
+    { header: 'Cantidad', key: 'cantidad', width: 12 },
+    { header: 'Responsable', key: 'responsable', width: 26 },
+    { header: 'Observaciones', key: 'observaciones', width: 36 },
+  ];
+
+  await exportToExcel(rows, columnas, 'Historial', 'Historial_Inventario_WebArco');
 }

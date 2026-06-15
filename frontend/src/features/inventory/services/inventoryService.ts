@@ -9,6 +9,7 @@ import type {
   InventoryMovementHistoryParams,
   InventoryMovementHistoryResponse,
   InventoryStats,
+  UpdateInventoryItemInput,
 } from '../types';
 
 export const inventoryService = {
@@ -29,7 +30,7 @@ export const inventoryService = {
     return api.post('/inventory', data) as Promise<ApiResponse<InventoryItem>>;
   },
 
-  update: async (id: number, data: Partial<CreateInventoryItemInput>): Promise<ApiResponse<InventoryItem>> => {
+  update: async (id: number, data: UpdateInventoryItemInput): Promise<ApiResponse<InventoryItem>> => {
     return api.put(`/inventory/${id}`, data) as Promise<ApiResponse<InventoryItem>>;
   },
 
