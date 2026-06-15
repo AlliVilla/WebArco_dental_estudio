@@ -474,6 +474,17 @@ export class ExpedienteClinicoService {
             fecha_inicio: true,
             fecha_fin: true,
             motivo: true,
+            doctor: {
+              select: {
+                id_usuario: true,
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -515,12 +526,70 @@ export class ExpedienteClinicoService {
             fecha_inicio: true,
             fecha_fin: true,
             motivo: true,
+            doctor: {
+              select: {
+                id_usuario: true,
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
     return archivo;
+  }
+
+  /**
+   * Actualizar la categoría de un archivo
+   */
+  async actualizarCategoriaArchivo(idPaciente: number, idArchivo: number, categoria: string) {
+    await this.assertPacienteExiste(idPaciente);
+
+    const archivo = await this.prisma.archivo.findUnique({
+      where: { id_archivo: idArchivo },
+      include: { consulta: true },
+    });
+
+    if (!archivo) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
+
+    if (archivo.consulta.id_persona !== idPaciente) {
+      throw new BadRequestException('El archivo no pertenece a este paciente');
+    }
+
+    const updated = await this.prisma.archivo.update({
+      where: { id_archivo: idArchivo },
+      data: { categoria: categoria as any },
+      include: {
+        consulta: {
+          select: {
+            fecha_inicio: true,
+            fecha_fin: true,
+            motivo: true,
+            doctor: {
+              select: {
+                id_usuario: true,
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return updated;
   }
 
   /**

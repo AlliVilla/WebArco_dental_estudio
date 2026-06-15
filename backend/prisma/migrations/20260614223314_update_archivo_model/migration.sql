@@ -13,7 +13,7 @@
 
 
 ALTER TYPE "TipoArchivo" ADD VALUE 'Antes';
-ALTER TYPE "TipoArchivo" ADD VALUE 'Despues';
+ALTER TYPE "TipoArchivo" ADD VALUE 'Después';
 ALTER TYPE "TipoArchivo" ADD VALUE 'Comparativa';
 
 -- AlterTable

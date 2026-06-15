@@ -6,6 +6,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Image as ImageIcon,
   Download,
   X,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '../../../../../components';
 import { Button, Alert, Select } from '../../../../../context';
-import { galeriaService, FotoGaleria } from '../services/galeriaService';
+import { galeriaService, FotoGaleria, FOTO_CATEGORIAS, FotoCategoria } from '../services/galeriaService';
 import type { ConsultaHistorica } from '../types/getAllPacientes';
 import api from '../../../../../services/api';
 
@@ -44,6 +45,12 @@ function buildImageUrl(url: string): string {
 function isImage(nombre: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(nombre);
 }
+
+const CATEGORY_COLORS: Record<string, { bg: string; color: string; label: string }> = {
+  Antes:       { bg: '#FFF3E0', color: '#E65100', label: 'Antes' },
+  Después:     { bg: '#E8F5E9', color: '#2E7D32', label: 'Después' },
+  Comparativa: { bg: '#E3F2FD', color: '#1565C0', label: 'Comparativa' },
+};
 
 function formatDate(iso?: string | null): string {
   if (!iso) return '—';
@@ -73,6 +80,7 @@ function UploadModal({ pacienteId, consultas, onSuccess, onClose }: UploadModalP
   const [consultaId, setConsultaId] = useState<string>(
     consultas[0]?.id_consulta ? String(consultas[0].id_consulta) : ''
   );
+  const [categoria, setCategoria] = useState<string>('Antes');
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -93,7 +101,7 @@ function UploadModal({ pacienteId, consultas, onSuccess, onClose }: UploadModalP
     try {
       for (const file of files) {
         await galeriaService.subirFoto(pacienteId, {
-          file, categoria: 'Imagen' as never, nombre: file.name, id_consulta: Number(consultaId),
+          file, categoria: categoria as FotoCategoria, nombre: file.name, id_consulta: Number(consultaId),
         });
       }
       onSuccess();
@@ -179,7 +187,8 @@ function UploadModal({ pacienteId, consultas, onSuccess, onClose }: UploadModalP
           )}
 
           {/* Selects */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Select label="Categoría" badge="required" options={FOTO_CATEGORIAS.map(c => ({ value: c, label: c }))} value={categoria} onChange={setCategoria} placeholder="Seleccionar..." />
             <Select label="Consulta" badge="required" options={consultaOptions} value={consultaId} onChange={setConsultaId} placeholder="Seleccionar..." />
           </div>
 
@@ -329,16 +338,34 @@ function Lightbox({ fotos, index, onClose, onNav }: LightboxProps) {
   );
 }
 
-// ─── Foto Card (matches Figma exactly) ────────────────────────────────────────
+// ─── Foto Card ─────────────────────────────────────────────────────────────────
 interface FotoCardProps {
   foto: FotoGaleria;
+  pacienteId: number;
   onView: () => void;
   onDelete: () => void;
+  onCategoriaChange: () => void;
   isDeleting: boolean;
 }
 
-function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
+function FotoCard({ foto, pacienteId, onView, onDelete, onCategoriaChange, isDeleting }: FotoCardProps) {
   const [hovered, setHovered] = useState(false);
+  const [editingCat, setEditingCat] = useState(false);
+  const [savingCat, setSavingCat] = useState(false);
+
+  async function handleCategoriaChange(cat: string) {
+    if (cat === foto.categoria) { setEditingCat(false); return; }
+    setSavingCat(true);
+    try {
+      await galeriaService.actualizarCategoria(pacienteId, foto.id_archivo, cat as FotoCategoria);
+      onCategoriaChange();
+      setEditingCat(false);
+    } catch {
+      // ignore
+    } finally {
+      setSavingCat(false);
+    }
+  }
 
   return (
     <div
@@ -348,11 +375,11 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
         background: C.white,
         borderRadius: 10,
         border: `1px solid ${hovered ? C.primary : C.gray300}`,
-        overflow: 'hidden',
         transition: 'border-color 0.18s, box-shadow 0.18s',
         boxShadow: hovered ? '0 4px 16px rgba(11,197,223,0.13)' : '0 1px 4px rgba(0,0,0,0.04)',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}
     >
       {/* Thumbnail */}
@@ -419,11 +446,60 @@ function FotoCard({ foto, onView, onDelete, isDeleting }: FotoCardProps) {
           {foto.nombre}
         </div>
 
+        {/* Category badge (clickable) */}
+        {foto.categoria && (
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setEditingCat(!editingCat)}
+              disabled={savingCat}
+              style={{
+                background: CATEGORY_COLORS[foto.categoria]?.bg ?? C.gray100,
+                border: 'none', cursor: 'pointer', padding: '4px 10px', borderRadius: 9999,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 11, fontWeight: 600,
+                color: CATEGORY_COLORS[foto.categoria]?.color ?? C.gray500,
+              }}
+            >
+              {CATEGORY_COLORS[foto.categoria]?.label ?? foto.categoria}
+              <ChevronDown size={12} style={{ opacity: 0.7 }} />
+            </button>
+
+            {editingCat && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, zIndex: 100,
+                background: C.white, border: `1px solid ${C.gray300}`,
+                borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                padding: 4, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 110,
+              }}>
+                {FOTO_CATEGORIAS.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => handleCategoriaChange(cat)}
+                    style={{
+                      background: cat === foto.categoria ? C.primaryBg : 'none',
+                      border: 'none', borderRadius: 6, padding: '5px 10px',
+                      cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                      color: C.navy, textAlign: 'left',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: CATEGORY_COLORS[cat]?.color ?? C.gray500,
+                      flexShrink: 0,
+                    }} />
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Doctor */}
-        {foto.consulta && (
+        {foto.consulta?.doctor && (
           <div style={{ fontSize: 11, color: C.gray500 }}>
-            {/* doctor name would come from consulta once connected */}
-            Dr. —
+            Dr. {foto.consulta.doctor.persona.primer_nombre} {foto.consulta.doctor.persona.primer_apellido}
           </div>
         )}
 
@@ -467,6 +543,7 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
   const [error, setError] = useState('');
   const [showBanner, setShowBanner] = useState(true);
   const [filterConsulta, setFilterConsulta] = useState('');
+  const [filterCategoria, setFilterCategoria] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FotoGaleria | null>(null);
@@ -512,14 +589,23 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
     })),
   ], [consultas]);
 
+  // Filter options
+  const categoriaOptions = useMemo(() => [
+    { value: '', label: 'Todas las categorías' },
+    ...FOTO_CATEGORIAS.map((c) => ({ value: c, label: c })),
+  ], []);
+
   // Filtered fotos
   const fotosFiltradas = useMemo(() => {
     let result = fotos;
     if (filterConsulta) {
       result = result.filter((f) => String(f.id_consulta) === filterConsulta);
     }
+    if (filterCategoria) {
+      result = result.filter((f) => f.categoria === filterCategoria);
+    }
     return result;
-  }, [fotos, filterConsulta]);
+  }, [fotos, filterConsulta, filterCategoria]);
 
   // Lightbox images only
   const fotosImagen = useMemo(() => fotosFiltradas.filter((f) => isImage(f.nombre)), [fotosFiltradas]);
@@ -637,6 +723,14 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
         {/* Filter dropdowns */}
         <div style={{ flex: 1, minWidth: 120, maxWidth: 200 }}>
           <Select
+            options={categoriaOptions}
+            value={filterCategoria}
+            onChange={setFilterCategoria}
+            placeholder="Categoría"
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 120, maxWidth: 200 }}>
+          <Select
             options={consultaOptions}
             value={filterConsulta}
             onChange={setFilterConsulta}
@@ -709,8 +803,10 @@ export function GaleriaFotos({ pacienteId, pacienteNombre, consultas, onBack }: 
             <FotoCard
               key={foto.id_archivo}
               foto={foto}
+              pacienteId={pacienteId}
               onView={() => openLightbox(foto)}
               onDelete={() => setDeleteTarget(foto)}
+              onCategoriaChange={loadFotos}
               isDeleting={isDeleting && deleteTarget?.id_archivo === foto.id_archivo}
             />
           ))}
