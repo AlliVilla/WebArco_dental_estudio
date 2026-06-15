@@ -10,9 +10,21 @@ function escapePrintText(value?: string) {
     .replace(/'/g, "&#039;");
 }
 
+function getSignatureImageSrc(signature?: string): string | null {
+  if (!signature) return null;
+  if (signature.startsWith("data:image")) return signature;
+  // Ruta del servidor: /uploads/... o /static/...
+  if (signature.startsWith("/uploads/") || signature.startsWith("/static/")) {
+    const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:3030").replace(/\/api$/, "");
+    return `${apiBase}${signature}`;
+  }
+  return null;
+}
+
 function renderPrintSignature(title: string, signer: string, signature?: string) {
-  const signatureContent = signature?.startsWith("data:image")
-    ? `<img src="${signature}" alt="${escapePrintText(title)}" />`
+  const imageSrc = getSignatureImageSrc(signature);
+  const signatureContent = imageSrc
+    ? `<img src="${imageSrc}" alt="${escapePrintText(title)}" />`
     : `<span class="signature-status">${signature ? "Firmado" : "Pendiente"}</span>`;
 
   return `
@@ -226,13 +238,48 @@ function buildPrintHtml(documents: ConsentRecord[]) {
   `;
 }
 
-export function printConsentDocuments(documents: ConsentRecord[]) {
+/** Convierte una URL absoluta a base64 data URL para embeber en el HTML de impresión */
+async function fetchAsBase64(url: string): Promise<string> {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Resuelve la firma a base64. Si ya es base64 la devuelve tal cual.
+ *  Si es ruta de servidor, la descarga y convierte. Si falla, devuelve null. */
+async function resolveSignatureToBase64(signature?: string): Promise<string | null> {
+  if (!signature) return null;
+  if (signature.startsWith("data:image")) return signature;
+  const src = getSignatureImageSrc(signature);
+  if (!src) return null;
+  try {
+    return await fetchAsBase64(src);
+  } catch {
+    return src; // fallback: intentar con la URL directa
+  }
+}
+
+export async function printConsentDocuments(documents: ConsentRecord[]) {
   if (!documents.length) return;
+
+  // Pre-resolver todas las firmas a base64 para que estén embebidas en el HTML
+  const resolvedDocs = await Promise.all(
+    documents.map(async (doc) => ({
+      ...doc,
+      patientSignature: await resolveSignatureToBase64(doc.patientSignature) ?? doc.patientSignature,
+      doctorSignature: await resolveSignatureToBase64(doc.doctorSignature) ?? doc.doctorSignature,
+    }))
+  );
 
   const printWindow = window.open("", "_blank", "width=900,height=1100");
   if (!printWindow) return;
 
   printWindow.document.open();
-  printWindow.document.write(buildPrintHtml(documents));
+  printWindow.document.write(buildPrintHtml(resolvedDocs));
   printWindow.document.close();
 }

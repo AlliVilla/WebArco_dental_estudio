@@ -21,12 +21,13 @@ function ReadOnlySignature({
   signature?: string;
 }) {
   const isBase64 = signature?.startsWith("data:image");
-  const isUrl = signature && (signature.includes("/") || signature.includes("."));
-  const hasImageSignature = isBase64 || isUrl;
+  // Es una ruta del servidor si empieza con /uploads/ o /static/
+  const isServerPath = signature?.startsWith("/uploads/") || signature?.startsWith("/static/");
+  const hasImageSignature = isBase64 || isServerPath;
 
   // Construimos la URL completa si es una ruta del servidor (ej: /uploads/...)
-  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/api$/, '');
-  const imageSrc = isUrl && !isBase64 ? `${apiBase}${signature}` : signature;
+  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3030').replace(/\/api$/, '');
+  const imageSrc = isServerPath && !isBase64 ? `${apiBase}${signature}` : signature;
 
   return (
     <div

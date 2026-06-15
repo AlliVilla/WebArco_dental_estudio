@@ -1,4 +1,4 @@
-import { Download, Edit3, Eye, Plus, Printer } from "lucide-react";
+import { Download, Edit3, Eye, Printer } from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column, RowAction } from "../../../components";
 import type { ConsentRecord, ConsentStatus } from "../types";
@@ -17,7 +17,6 @@ interface ConsentListTableProps {
   onFilterChange?: (filters: Partial<QueryConsentimientoParams>) => void;
   onPreview: (id: string) => void;
   onEdit: (consent: ConsentRecord) => void;
-  onNewConsent: () => void;
   onExport: () => void;
 }
 
@@ -241,7 +240,6 @@ export function ConsentListTable({
   onFilterChange,
   onPreview,
   onEdit,
-  onNewConsent,
   onExport,
 }: ConsentListTableProps) {
   const { isMobile, isTablet } = useResponsive();
@@ -273,27 +271,6 @@ export function ConsentListTable({
   if (showCards) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <button
-          onClick={onNewConsent}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            width: "100%",
-            padding: "10px 0",
-            borderRadius: 8,
-            border: "none",
-            background: "#0BC5DF",
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          <Plus size={16} /> Nuevo Consentimiento
-        </button>
-
         <MobileFilters onFilterChange={onFilterChange} />
 
         {loading ? (
@@ -385,11 +362,6 @@ export function ConsentListTable({
       onPageChange={onPageChange}
       getRowKey={(row) => row.id}
       emptyMessage="No hay consentimientos para mostrar."
-      primaryAction={{
-        label: "Nuevo Consentimiento",
-        icon: <Plus size={16} />,
-        onClick: onNewConsent,
-      }}
       secondaryActions={[
         { label: "Exportar", icon: <Download size={16} />, onClick: onExport },
         {

@@ -35,7 +35,7 @@ export class ConsentimientoService {
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     
     fs.writeFileSync(path.join(uploadDir, fileName), buffer);
-    return `/static/${fileName}`;
+    return `/uploads/${fileName}`;
   }
 
   /** Calcula el estado de firmas en memoria a partir de los valores almacenados. */

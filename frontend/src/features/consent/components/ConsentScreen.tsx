@@ -170,20 +170,6 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   }
 
   // ─── Acciones del formulario ─────────────────────────────────────────────
-  function startNewConsent() {
-    setFormValues({
-      ...defaultFormValues,
-      paciente: patientNameFromQuery ?? patientName ?? "",
-    });
-    setPatientSignature("");
-    setDoctorSignature("");
-    setSignatureTarget("patient");
-    setCurrentStep(1);
-    setSelectedPatientId(null);
-    setSelectedDoctorId(null); // ← reset al abrir nuevo
-    openMode("new");
-  }
-
   function startEdit(consent: ConsentRecord) {
     setFormValues({
       paciente: consent.paciente,
@@ -209,60 +195,14 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
     setFormValues((prev) => ({ ...prev, [field]: value }));
   }
 
-  /**
-   * Crea el consentimiento en la base de datos y redirige al paso indicado.
-   * targetStep 2: Va a firma del paciente.
-   * targetStep 4: Va a completado (Guardar sin firmas).
-   */
-  async function handleCreateConsent(targetStep: ConsentStep = 4) {
-    if (!selectedDoctorId || !selectedPatientId) {
-      console.error("Faltan datos obligatorios para crear el consentimiento");
-      return;
-    }
-    try {
-      const res = await consentimientoService.create({
-        id_paciente: selectedPatientId,
-        id_doctor: selectedDoctorId,
-        fecha: formValues.fechaHora,
-        tipo_tratamiento: formValues.procedimiento,
-        diagnostico: formValues.declaracion,
-      });
-
-      const newId = res.data?.id_consulta;
-      if (newId) {
-        // Actualizamos la URL para pasar de 'new' a 'edit' con el ID generado.
-        // Esto permite que selectedId esté disponible para guardar las firmas.
-        const params = new URLSearchParams(location.search);
-        params.set("mode", "edit");
-        params.set("id", String(newId));
-        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-      }
-
-      setCurrentStep(targetStep);
-      if (targetStep === 2) setSignatureTarget("patient");
-
-      fetchConsents();
-    } catch (err) {
-      console.error("Error al crear consentimiento:", err);
-    }
-  }
-
   // ─── Flujo de pasos (firma) ──────────────────────────────────────────────
   function handleContinueFromForm() {
-    if (mode === "new") {
-      handleCreateConsent(2);
-    } else {
-      setCurrentStep(2);
-      setSignatureTarget("patient");
-    }
+    setCurrentStep(2);
+    setSignatureTarget("patient");
   }
 
   function handleSaveWithoutSignatures() {
-    if (mode === "new") {
-      handleCreateConsent(4);
-    } else {
-      setCurrentStep(4);
-    }
+    setCurrentStep(4);
   }
 
   async function handleSavePatientSignature() {
@@ -387,26 +327,24 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
             onFilterChange={handleFilterChange}
             onPreview={(id) => openMode("preview", id)}
             onEdit={startEdit}
-            onNewConsent={startNewConsent}
             onExport={handleExportToExcel}
           />
         </>
       )}
 
-      {(mode === "new" || mode === "edit") && (
-        (mode === "new" || (mode === "edit" && selectedConsent)) ? (
-          <ConsentFormFlow
-          isEditing={mode === "edit"}
+      {mode === "edit" && selectedConsent && (
+        <ConsentFormFlow
+          isEditing
           selectedConsent={selectedConsent}
           formValues={formValues}
           currentStep={currentStep}
           signatureTarget={signatureTarget}
           patientSignature={patientSignature}
           doctorSignature={doctorSignature}
-          selectedDoctorId={selectedDoctorId}          // ← nuevo
-          selectedPatientId={selectedPatientId}        // ← nuevo
-          onPatientIdChange={setSelectedPatientId}     // ← nuevo
-          onDoctorIdChange={setSelectedDoctorId}       // ← nuevo
+          selectedDoctorId={selectedDoctorId}
+          selectedPatientId={selectedPatientId}
+          onPatientIdChange={setSelectedPatientId}
+          onDoctorIdChange={setSelectedDoctorId}
           onFormChange={updateFormValue}
           onCancel={() => setConfirmCloseOpen(true)}
           onContinueFromForm={handleContinueFromForm}
@@ -420,7 +358,6 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
           onSaveDoctorSignature={handleSaveDoctorSignature}
           onFinish={() => openMode("list")}
         />
-        ) : null
       )}
 
       {mode === "preview" && selectedConsent && (
