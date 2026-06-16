@@ -32,6 +32,8 @@ import {
 } from "../../../context";
 import { roleService } from "../services/roleService";
 import { userService } from "../services/userService";
+import { ubicacionService } from "../../ubicacion/services/ubicacionService";
+import type { Departamento, Municipio } from "../../ubicacion/services/ubicacionService";
 import { formatIdentity } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import type {
@@ -42,192 +44,7 @@ import type {
   UserStats,
 } from "../types";
 
-const DEPARTAMENTOS_DATA = [
-  { value: "1", label: "Atlántida" },
-  { value: "2", label: "Choluteca" },
-  { value: "3", label: "Colón" },
-  { value: "4", label: "Comayagua" },
-  { value: "5", label: "Copán" },
-  { value: "6", label: "Cortés" },
-  { value: "7", label: "El Paraíso" },
-  { value: "8", label: "Francisco Morazán" },
-  { value: "9", label: "Gracias a Dios" },
-  { value: "10", label: "Intibucá" },
-  { value: "11", label: "Islas de la Bahía" },
-  { value: "12", label: "La Paz" },
-  { value: "13", label: "Lempira" },
-  { value: "14", label: "Ocotepeque" },
-  { value: "15", label: "Olancho" },
-  { value: "16", label: "Santa Bárbara" },
-  { value: "17", label: "Valle" },
-  { value: "18", label: "Yoro" },
-];
 
-const MUNICIPIOS_DATA: Record<string, { value: string; label: string }[]> = {
-  "1": [
-    { value: "1", label: "La Ceiba" },
-    { value: "2", label: "El Porvenir" },
-    { value: "3", label: "Tela" },
-    { value: "4", label: "Jutiapa" },
-    { value: "5", label: "La Masica" },
-    { value: "6", label: "San Francisco" },
-    { value: "7", label: "Arizona" },
-    { value: "8", label: "Esparta" },
-  ],
-  "2": [
-    { value: "9", label: "Choluteca" },
-    { value: "10", label: "Apacilagua" },
-    { value: "11", label: "Concepción de María" },
-    { value: "12", label: "Duyure" },
-    { value: "13", label: "El Corpus" },
-    { value: "14", label: "El Triunfo" },
-    { value: "15", label: "Marcovia" },
-    { value: "16", label: "Morolica" },
-    { value: "17", label: "Namasigüe" },
-    { value: "18", label: "Orocuina" },
-    { value: "19", label: "Pespire" },
-    { value: "20", label: "San Antonio de Flores" },
-    { value: "21", label: "San Isidro" },
-    { value: "22", label: "San José" },
-    { value: "23", label: "San Marcos de Colón" },
-    { value: "24", label: "Santa Ana de Yusguare" },
-  ],
-  "3": [
-    { value: "25", label: "Trujillo" },
-    { value: "26", label: "Balfate" },
-    { value: "27", label: "Iriona" },
-    { value: "28", label: "Limón" },
-    { value: "29", label: "Sabá" },
-    { value: "30", label: "Santa Fe" },
-    { value: "31", label: "Santa Rosa de Aguán" },
-    { value: "32", label: "Sonaguera" },
-    { value: "33", label: "Tocoa" },
-    { value: "34", label: "Bonito Oriental" },
-  ],
-  "4": [
-    { value: "35", label: "Comayagua" },
-    { value: "36", label: "Ajuterique" },
-    { value: "37", label: "El Rosario" },
-    { value: "38", label: "Esquías" },
-    { value: "39", label: "Humuya" },
-    { value: "40", label: "La Libertad" },
-    { value: "41", label: "Lamaní" },
-    { value: "42", label: "La Trinidad" },
-    { value: "43", label: "Lejamaní" },
-    { value: "44", label: "Meámbar" },
-    { value: "45", label: "Minas de Oro" },
-    { value: "46", label: "Ojos de Agua" },
-    { value: "47", label: "San Jerónimo" },
-    { value: "48", label: "San José de Comayagua" },
-    { value: "49", label: "San José del Potrero" },
-    { value: "50", label: "San Luis" },
-    { value: "51", label: "San Sebastián" },
-    { value: "52", label: "Siguatepeque" },
-    { value: "53", label: "Villa de San Antonio" },
-    { value: "54", label: "Las Lajas" },
-    { value: "55", label: "Taulabé" },
-  ],
-  "5": [
-    { value: "56", label: "Santa Rosa de Copán" },
-    { value: "57", label: "Cabañas" },
-    { value: "58", label: "Concepción" },
-    { value: "59", label: "Copan Ruinas" },
-    { value: "60", label: "Corquín" },
-    { value: "61", label: "Cucuyagua" },
-    { value: "62", label: "Dolores" },
-    { value: "63", label: "Dulce Nombre" },
-    { value: "64", label: "El Paraíso" },
-    { value: "65", label: "Florida" },
-    { value: "66", label: "La Jigua" },
-    { value: "67", label: "La Unión" },
-    { value: "68", label: "Nueva Arcadia" },
-    { value: "69", label: "San Agustín" },
-    { value: "70", label: "San Antonio" },
-    { value: "71", label: "San Jerónimo" },
-    { value: "72", label: "San José" },
-    { value: "73", label: "San Juan de Opoa" },
-    { value: "74", label: "San Nicolás" },
-    { value: "75", label: "San Pedro" },
-    { value: "76", label: "Santa Rita" },
-    { value: "77", label: "Trinidad de Copán" },
-    { value: "78", label: "Veracruz" },
-  ],
-  "6": [
-    { value: "79", label: "San Pedro Sula" },
-    { value: "80", label: "Choloma" },
-    { value: "81", label: "Omoa" },
-    { value: "82", label: "Pimienta" },
-    { value: "83", label: "Potrerillos" },
-    { value: "84", label: "Puerto Cortés" },
-    { value: "85", label: "San Antonio de Cortés" },
-    { value: "86", label: "San Francisco de Yojoa" },
-    { value: "87", label: "San Manuel" },
-    { value: "88", label: "Santa Cruz de Yojoa" },
-    { value: "89", label: "Villanueva" },
-    { value: "90", label: "La Lima" },
-  ],
-  "7": [
-    { value: "91", label: "Yuscarán" },
-    { value: "92", label: "Alauca" },
-    { value: "93", label: "Danlí" },
-    { value: "94", label: "El Paraíso" },
-    { value: "95", label: "Güinope" },
-    { value: "96", label: "Jacaleapa" },
-    { value: "97", label: "Liure" },
-    { value: "98", label: "Morocelí" },
-    { value: "99", label: "Oropolí" },
-    { value: "100", label: "Potrerillos" },
-    { value: "101", label: "San Antonio de Flores" },
-    { value: "102", label: "San Lucas" },
-    { value: "103", label: "San Matías" },
-    { value: "104", label: "Soledad" },
-    { value: "105", label: "Teupasenti" },
-    { value: "106", label: "Texiguat" },
-    { value: "107", label: "Vado Ancho" },
-    { value: "108", label: "Yauyupe" },
-    { value: "109", label: "Trojes" },
-  ],
-  "8": [
-    { value: "110", label: "Tegucigalpa" },
-    { value: "111", label: "Alubarén" },
-    { value: "112", label: "Cedros" },
-    { value: "113", label: "Curarén" },
-    { value: "114", label: "El Porvenir" },
-    { value: "115", label: "Guaimaca" },
-    { value: "116", label: "La Libertad" },
-    { value: "117", label: "La Venta" },
-    { value: "118", label: "Lepaterique" },
-    { value: "119", label: "Maraita" },
-    { value: "120", label: "Marale" },
-    { value: "121", label: "Nueva Armenia" },
-    { value: "122", label: "Ojojona" },
-    { value: "123", label: "Orica" },
-    { value: "124", label: "Reitoca" },
-    { value: "125", label: "Sabanagrande" },
-    { value: "126", label: "San Antonio de Oriente" },
-    { value: "127", label: "San Buenaventura" },
-    { value: "128", label: "San Ignacio" },
-    { value: "129", label: "Cantarranas" },
-    { value: "130", label: "San Miguelito" },
-    { value: "131", label: "Santa Ana" },
-    { value: "132", label: "Santa Lucía" },
-    { value: "133", label: "Talanga" },
-    { value: "134", label: "Tatumbla" },
-    { value: "135", label: "Valle de Ángeles" },
-    { value: "136", label: "Villa de San Francisco" },
-    { value: "137", label: "Vallecillo" },
-  ],
-  "9": [{ value: "138", label: "Puerto Lempira" }],
-  "10": [{ value: "144", label: "La Esperanza" }],
-  "11": [{ value: "161", label: "Roatán" }],
-  "12": [{ value: "165", label: "La Paz" }],
-  "13": [{ value: "185", label: "Gracias" }],
-  "14": [{ value: "214", label: "Ocotepeque" }],
-  "15": [{ value: "230", label: "Juticalpa" }],
-  "16": [{ value: "254", label: "Santa Bárbara" }],
-  "17": [{ value: "283", label: "Nacaome" }],
-  "18": [{ value: "292", label: "Yoro" }],
-};
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
 function StatsDrawer({
@@ -595,6 +412,8 @@ export function UsersScreen() {
   const [correoElectronico, setCorreoElectronico] = useState("");
   const [idDepartamento, setIdDepartamento] = useState("");
   const [idMunicipio, setIdMunicipio] = useState("");
+  const [departamentoOptions, setDepartamentoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [municipioOptions, setMunicipioOptions] = useState<{ value: string; label: string }[]>([]);
   const [direccionLinea, setDireccionLinea] = useState("");
   const [username, setUsername] = useState("");
   const [idRol, setIdRol] = useState("4");
@@ -672,6 +491,36 @@ export function UsersScreen() {
   useEffect(() => {
     void fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    ubicacionService.getDepartamentos().then((res) => {
+      if (res.success) {
+        setDepartamentoOptions(
+          res.data.map((d: Departamento) => ({
+            value: String(d.id_departamento),
+            label: d.nombre,
+          })),
+        );
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!idDepartamento) {
+      setMunicipioOptions([]);
+      return;
+    }
+    ubicacionService.getMunicipiosPorDepartamento(Number(idDepartamento)).then((res) => {
+      if (res.success) {
+        setMunicipioOptions(
+          res.data.map((m: Municipio) => ({
+            value: String(m.id_municipio),
+            label: m.nombre,
+          })),
+        );
+      }
+    });
+  }, [idDepartamento]);
 
   const handleServerParamsChange = useCallback(
     (params: {
@@ -1012,8 +861,8 @@ export function UsersScreen() {
     { value: "F", label: "Femenino" },
   ];
   const selectedMunicipios = useMemo(
-    () => MUNICIPIOS_DATA[idDepartamento] || [],
-    [idDepartamento],
+    () => municipioOptions,
+    [municipioOptions],
   );
 
   // Búsqueda local para vista móvil (misma lógica que serverParams)
@@ -1528,7 +1377,7 @@ export function UsersScreen() {
                 <Select
                   label="Departamento"
                   badge="required"
-                  options={DEPARTAMENTOS_DATA}
+                  options={departamentoOptions}
                   value={idDepartamento}
                   onChange={(v) => {
                     setIdDepartamento(v);

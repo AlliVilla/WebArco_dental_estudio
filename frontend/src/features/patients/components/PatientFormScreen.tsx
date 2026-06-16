@@ -14,12 +14,10 @@ import {
 } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
 import { Alert, Button, Card, Input, Select } from "../../../context";
-import {
-  PATIENT_DEPARTMENTS,
-  PATIENT_MUNICIPALITIES,
-  PATIENT_SYSTEMIC_DISEASES,
-} from "../../../config/constants";
+import { PATIENT_SYSTEMIC_DISEASES } from "../../../config/constants";
 import api from "../../../services/api";
+import { ubicacionService } from "../../ubicacion/services/ubicacionService";
+import type { Departamento, Municipio } from "../../ubicacion/services/ubicacionService";
 import { calculateAge } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { CheckboxGroup, RadioGroup, Textarea } from "./formControls";
@@ -99,6 +97,8 @@ export function PatientFormScreen() {
   const [sex, setSex] = useState<"M" | "F" | "">("");
   const [departamento, setDepartamento] = useState("");
   const [municipio, setMunicipio] = useState("");
+  const [departamentoOptions, setDepartamentoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [municipioOptions, setMunicipioOptions] = useState<{ value: string; label: string }[]>([]);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [addressLine, setAddressLine] = useState("");
@@ -161,9 +161,6 @@ export function PatientFormScreen() {
     isEditMode && patientId
       ? `PAC-${String(patientId).padStart(6, "0")}`
       : "Se generará al guardar";
-  const municipioOptions = departamento
-    ? PATIENT_MUNICIPALITIES[departamento] ?? []
-    : [];
   const otrasChecked = enfermedades.includes("otras");
 
   const age = useMemo(() => {
@@ -181,14 +178,7 @@ export function PatientFormScreen() {
     const departamentoId =
       persona.municipio?.id_departamento ??
       persona.municipio?.departamento?.id_departamento;
-    if (departamentoId) return String(departamentoId);
-    const match = Object.entries(PATIENT_MUNICIPALITIES).find(
-      ([, municipios]) =>
-        municipios.some(
-          (option) => Number(option.value) === persona.id_municipio
-        )
-    );
-    return match?.[0] ?? "";
+    return departamentoId ? String(departamentoId) : "";
   }, []);
 
   useEffect(() => {
@@ -240,6 +230,36 @@ export function PatientFormScreen() {
       ignore = true;
     };
   }, [getDepartamentoFromPersona, patientId]);
+
+  useEffect(() => {
+    ubicacionService.getDepartamentos().then((res) => {
+      if (res.success) {
+        setDepartamentoOptions(
+          res.data.map((d: Departamento) => ({
+            value: String(d.id_departamento),
+            label: d.nombre,
+          })),
+        );
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!departamento) {
+      setMunicipioOptions([]);
+      return;
+    }
+    ubicacionService.getMunicipiosPorDepartamento(Number(departamento)).then((res) => {
+      if (res.success) {
+        setMunicipioOptions(
+          res.data.map((m: Municipio) => ({
+            value: String(m.id_municipio),
+            label: m.nombre,
+          })),
+        );
+      }
+    });
+  }, [departamento]);
 
   const handleSave = async () => {
     const identityDigits = identityNumber.replace(/\D/g, "");
@@ -475,7 +495,7 @@ export function PatientFormScreen() {
             handleDepartamentoChange(v);
             setFieldErrors((p) => ({ ...p, departamento: "", municipio: "" }));
           }}
-          options={PATIENT_DEPARTMENTS}
+          options={departamentoOptions}
           placeholder="Selecciona..."
           value={departamento}
           error={fieldErrors.departamento}
