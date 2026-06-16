@@ -112,6 +112,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const [filterEstado, setFilterEstado] = useState("");
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
+  const [movementViewOnly, setMovementViewOnly] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState<ItemFormState>(emptyItemForm);
@@ -241,7 +242,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     });
     setItemModalOpen(true);
   };
-  const openMovementModal = (item?: InventoryItem) => {
+  const openMovementModal = (item?: InventoryItem, viewOnly = false) => {
     setMovementForm({
       tipo: "",
       id_insumo: item ? String(item.id_insumo) : "",
@@ -249,6 +250,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       fecha: todayInputValue(),
       observaciones: "",
     });
+    setMovementViewOnly(viewOnly);
     setMovementModalOpen(true);
   };
 
@@ -657,8 +659,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               ? [
                   {
                     icon: <Eye size={15} />,
-                    label: "Registrar movimiento",
-                    onClick: () => openMovementModal(row),
+                    label: "Ver movimiento",
+                    onClick: () => openMovementModal(row, true),
                   },
                   {
                     icon: <Edit2 size={15} />,
@@ -689,7 +691,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           emptyMessage={
             loading ? "Cargando inventario..." : "No hay insumos registrados."
           }
-          footer={<InventoryLegend />}
         />
       )}
 
@@ -875,8 +876,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       {/* Modal: Registrar movimiento */}
       {movementModalOpen && (
         <Modal
-          title="Registrar movimiento"
-          subtitle="Los campos marcados con * son obligatorios"
+          title={movementViewOnly ? "Vista previa del movimiento" : "Registrar movimiento"}
+          subtitle={movementViewOnly ? "Visualización del movimiento a registrar" : "Los campos marcados con * son obligatorios"}
           onClose={() => setMovementModalOpen(false)}
           isMobile={isMobile}
         >
@@ -903,6 +904,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                     tipo: value as TipoMovimientoInventario,
                   }))
                 }
+                disabled={movementViewOnly}
               />
               <Select
                 label="Producto"
@@ -918,6 +920,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 onChange={(value) =>
                   setMovementForm((prev) => ({ ...prev, id_insumo: value }))
                 }
+                disabled={movementViewOnly}
               />
               <Input
                 label="Cantidad"
@@ -929,6 +932,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   setMovementForm((prev) => ({ ...prev, cantidad: v }));
                 }}
                 hint="Valor positivo entero"
+                disabled={movementViewOnly}
               />
               <Input
                 label="Fecha"
@@ -942,6 +946,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   }))
                 }
                 hint="Autorrellena con hoy; editable"
+                disabled={movementViewOnly}
               />
               <div
                 style={{
@@ -983,27 +988,30 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                     padding: 12,
                     fontSize: 14,
                     color: "#203F49",
-                    background: "#fff",
+                    background: movementViewOnly ? "#F5F7FA" : "#fff",
                     outline: "none",
-                    resize: "vertical",
+                    resize: movementViewOnly ? "none" : "vertical",
                     fontFamily: "inherit",
                     width: "100%",
                     boxSizing: "border-box",
                   }}
+                  readOnly={movementViewOnly}
                 />
               </div>
             </div>
           </SectionBlock>
           <ModalActions>
             <Button
-              variant="secondary"
+              variant={movementViewOnly ? "primary" : "secondary"}
               onClick={() => setMovementModalOpen(false)}
             >
-              Cancelar
+              {movementViewOnly ? "Cerrar" : "Cancelar"}
             </Button>
-            <Button loading={saving} onClick={saveMovement}>
-              Registrar
-            </Button>
+            {!movementViewOnly && (
+              <Button loading={saving} onClick={saveMovement}>
+                Registrar
+              </Button>
+            )}
           </ModalActions>
         </Modal>
       )}

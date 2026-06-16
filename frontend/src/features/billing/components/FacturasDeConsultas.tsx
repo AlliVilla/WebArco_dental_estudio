@@ -32,8 +32,6 @@ function buildPaymentRows(consultations: Consultation[]): PaymentRow[] {
   const rows: PaymentRow[] = [];
 
   for (const c of consultations) {
-    const isvRate = 0.15;
-
     // ── Row: consulta (catalog treatments) ──
     const tratamientosLista = c.tratamientos || [];
     const nombres = tratamientosLista
@@ -48,7 +46,7 @@ function buildPaymentRows(consultations: Consultation[]): PaymentRow[] {
         return acc + (p * (Number(t.descuento) / 100));
       }, 0);
       const subtotalNeto = subtotalBruto - totalDescuento;
-      const consultaTotal = subtotalNeto + (subtotalNeto * isvRate);
+      const consultaTotal = subtotalNeto;
 
       const pagosConsulta = c.pagos || [];
       const montoPagadoConsulta = pagosConsulta.reduce((acc, p) => acc + Number((p as any).abono), 0);

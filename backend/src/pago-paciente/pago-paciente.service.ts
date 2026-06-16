@@ -59,8 +59,7 @@ export class PagoPacienteService {
     const subtotalBruto = tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
     const totalDescuento = tratamientos.reduce((sum, t) => sum + (Number(t.precio) * ((t.descuento || 0) / 100)), 0);
     const subtotalNeto = subtotalBruto - totalDescuento;
-    const isv = subtotalNeto * 0.15;
-    const totalConsulta = subtotalNeto + isv;
+    const totalConsulta = subtotalNeto;
 
     const totalPagado = pagosPrevios.reduce((sum, p) => sum + Number(p.abono), 0);
     const saldoPendiente = Math.max(0, totalConsulta - totalPagado);

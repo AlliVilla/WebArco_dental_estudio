@@ -42,6 +42,7 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   searchPlaceholder?: string;
   searchKeys?: (keyof T)[];
   filters?: FilterDef[];
+  filterExtra?: React.ReactNode;
   pageSize?: number;
   primaryAction?: {
     label: string;
@@ -320,6 +321,7 @@ export function DataTable<T extends Record<string, unknown>>({
   searchPlaceholder = "Buscar...",
   searchKeys,
   filters = [],
+  filterExtra,
   pageSize = 10,
   primaryAction,
   secondaryActions = [],
@@ -508,7 +510,7 @@ export function DataTable<T extends Record<string, unknown>>({
           </div>
 
           {/* Fila 2: filtros (se envuelven solos) */}
-          {filters.length > 0 && (
+          {(filters.length > 0 || filterExtra) && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               {filters.map((f) => (
                 <FilterDropdown
@@ -533,6 +535,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   <X size={14} style={{ color: "#8A9499" }} /> Limpiar
                 </button>
               )}
+              {filterExtra}
             </div>
           )}
         </div>
