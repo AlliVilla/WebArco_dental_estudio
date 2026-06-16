@@ -635,8 +635,8 @@ export function Sidebar({
 
   const fullName = user
     ? [user.persona?.primer_nombre, user.persona?.primer_apellido]
-        .filter(Boolean)
-        .join(" ") || "Usuario"
+      .filter(Boolean)
+      .join(" ") || "Usuario"
     : "Usuario";
   const roleName = user?.rol?.nombre ?? "Sin rol";
   const initials = (() => {
@@ -802,8 +802,8 @@ export function Sidebar({
                         paddingLeft: collapsed
                           ? 0
                           : isActive || isSubItemActive
-                          ? 14.133
-                          : 14.133,
+                            ? 14.133
+                            : 14.133,
                         borderRadius: 8,
                         border: "none",
                         cursor: "pointer",
@@ -921,7 +921,7 @@ export function Sidebar({
                             border: "1.5px solid #fff",
                           }}
                         />
-                        )}{item.id === 'citas' && !collapsed && (
+                      )}{item.id === 'citas' && !collapsed && (
                         <span style={{
                           background: '#0BC5DF', color: '#fff',
                           fontSize: 10, fontWeight: 600,
@@ -1001,53 +1001,6 @@ export function Sidebar({
             </div>
           ))}
         </nav>
-
-        {/* ── Settings ── */}
-        {hasNavPrivilege("settings") && (
-          <div
-            style={{
-              borderTop: "1.067px solid #D3D7DA",
-              padding: "9px 12px 8px",
-              flexShrink: 0,
-            }}
-          >
-            <button
-              onClick={() => onNavigate("settings")}
-              title={collapsed ? "Configuración" : undefined}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: collapsed ? "center" : "flex-start",
-                gap: 10,
-                padding: "9px 12px",
-                borderRadius: 8,
-                border: "none",
-                cursor: "pointer",
-                background: "transparent",
-                color: "#5F656A",
-                fontSize: 14,
-                fontWeight: 400,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "#F8F9FA";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "transparent";
-              }}
-            >
-              <span style={{ color: "#888F94", display: "flex", flexShrink: 0 }}>
-                <IconSettings />
-              </span>
-              {!collapsed && (
-                <span style={{ whiteSpace: "nowrap" }}>Configuración</span>
-              )}
-            </button>
-          </div>
-        )}
-
         {/* ── User profile ── */}
         <div
           style={{
