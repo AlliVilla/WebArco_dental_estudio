@@ -53,7 +53,7 @@ export class PersonaController {
     return this.personaService.create(createPersonaDto);
   }
 
-  @Privileges(16)
+  @Privileges(16, 20, 3, 42, 43)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar personas', description: 'Obtiene un listado paginado de personas. Permite buscar por número de identidad, nombre o apellido.' })
@@ -91,7 +91,7 @@ export class PersonaController {
     );
   }
 
-  @Privileges(16)
+  @Privileges(16, 20, 3, 42, 43)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener detalle de una persona', description: 'Devuelve la información completa de una persona incluyendo municipio y departamento.' })

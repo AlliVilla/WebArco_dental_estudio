@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { Spinner } from "../components";
 import { useAuthStore } from "../features/auth/hooks/useAuthStore";
@@ -36,6 +37,31 @@ export function GuestGuard({ children }: GuardProps) {
   ) : (
     <Navigate to="/dashboard" replace />
   );
+}
+
+interface PrivilegeGuardProps extends GuardProps {
+  privileges: number[];
+}
+
+/** Verifica que el usuario tenga al menos uno de los privilegios requeridos */
+export function PrivilegeGuard({ children, privileges }: PrivilegeGuardProps) {
+  const user = useAuthStore((s) => s.user);
+  const hasPrivilege = useMemo(
+    () => privileges.some((p) => user?.privilegios?.includes(p)),
+    [privileges, user?.privilegios],
+  );
+
+  if (!hasPrivilege) {
+    return (
+      <Navigate
+        to="/dashboard"
+        state={{ noPermission: true, section: "esta sección" }}
+        replace
+      />
+    );
+  }
+
+  return <>{children}</>;
 }
 
 export default AuthGuard;
