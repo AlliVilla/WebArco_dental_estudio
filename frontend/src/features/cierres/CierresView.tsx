@@ -16,9 +16,16 @@ import {
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Alert, Button, Card, Input, Select } from '../../context';
+import { DataTable, Column } from '../../components';
 import { billingService } from '../billing';
 import { CierreHistorialItem, TipoCierre } from '../billing/types';
 import { formatCurrency, obtenerHoyLocal } from '../../utils/formatters';
+
+type FilaCierre = CierreHistorialItem & {
+  periodo: string;
+  fecha: string;
+  desglose: { efectivo: number; tarjeta: number; transfer: number };
+};
 
 const COLORS = {
   primary: '#0BC5DF',
@@ -62,18 +69,6 @@ function formatFechaRango(item: CierreHistorialItem): string {
   return `${inicio.toLocaleDateString('es-HN', opciones)} – ${fin}`;
 }
 
-function calcularComparativa(
-  actual: CierreHistorialItem,
-  anterior: CierreHistorialItem | undefined,
-): number {
-  if (!anterior) return 0;
-  const utilActual = toNum(actual.utilidad);
-  const utilAnterior = toNum(anterior.utilidad);
-  if (utilAnterior === 0) return 0;
-  const pct = ((utilActual - utilAnterior) / Math.abs(utilAnterior)) * 100;
-  return parseFloat(pct.toFixed(2));
-}
-
 function calcularDesgloseItem(item: CierreHistorialItem): {
   efectivo: number;
   tarjeta: number;
@@ -94,6 +89,8 @@ function calcularDesgloseItem(item: CierreHistorialItem): {
 }
 
 export function CierresView() {
+  const hoy = obtenerHoyLocal();
+
   const [activeTab, setActiveTab] = useState<'diario' | 'periodico'>('diario');
   const [fechaCierre, setFechaCierre] = useState(new Date().toISOString().split('T')[0]);
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoCierre | 'Rango'>('Semanal');
@@ -147,15 +144,16 @@ export function CierresView() {
       const parts = fecha.split('-');
       if (parts.length === 3) {
         const fechaFormat = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        const res = await billingService.previewCierre(fechaFormat);
-        if (res.success && res.data) {
+        const respuesta = await billingService.previewCierre(fechaFormat);
+        // ponytail: la API devuelve data directamente o envuelto segun interceptor
+        if (respuesta.success && respuesta.data) {
           setPreviewData({
-            totalIngresos: res.data.totalIngresos,
-            totalEgresos: res.data.totalEgresos,
-            utilidad: res.data.utilidad,
-            efectivo: res.data.ingresos.efectivo,
-            tarjeta: res.data.ingresos.tarjeta,
-            transferencia: res.data.ingresos.transferencia,
+            totalIngresos: respuesta.data.totalIngresos,
+            totalEgresos: respuesta.data.totalEgresos,
+            utilidad: respuesta.data.utilidad,
+            efectivo: respuesta.data.ingresos.efectivo,
+            tarjeta: respuesta.data.ingresos.tarjeta,
+            transferencia: respuesta.data.ingresos.transferencia,
           });
         } else {
           setError(res.message ?? 'Error al obtener la vista previa.');
@@ -238,74 +236,76 @@ export function CierresView() {
 
   const periodicSummary = useMemo(() => {
     if (cierresFiltrados.length === 0) {
-      return { ingresos: 0, egresos: 0, utilidad: 0, comparativa: 0 };
+      return { ingresos: 0, egresos: 0, utilidad: 0 };
     }
-
-    if (isRangoValido) {
-      const ingresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.ingresos), 0);
-      const egresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.egresos), 0);
-      const utilidad = cierresFiltrados.reduce((acc, c) => acc + toNum(c.utilidad), 0);
-
-      let comparativa = 0;
-      const start = new Date(fechaInicio + 'T00:00:00');
-      const end = new Date(fechaFin + 'T23:59:59');
-      const diffMs = end.getTime() - start.getTime();
-
-      const prevStart = new Date(start.getTime() - diffMs - 1);
-      const prevEnd = new Date(start.getTime() - 1);
-
-      const prevStartStr = prevStart.toISOString().split('T')[0];
-      const prevEndStr = prevEnd.toISOString().split('T')[0];
-
-      const cierresPeriodoAnterior = historial.filter((c) => {
-        if (!c.fecha) return false;
-        const cDateStr = c.fecha.split('T')[0];
-        return cDateStr >= prevStartStr && cDateStr <= prevEndStr;
-      });
-
-      const utilidadAnterior = cierresPeriodoAnterior.reduce((acc, c) => acc + toNum(c.utilidad), 0);
-      if (utilidadAnterior !== 0) {
-        comparativa = parseFloat((((utilidad - utilidadAnterior) / Math.abs(utilidadAnterior)) * 100).toFixed(2));
-      }
-
-      return { ingresos, egresos, utilidad, comparativa };
-    }
-
     const ingresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.ingresos), 0);
     const egresos = cierresFiltrados.reduce((acc, c) => acc + toNum(c.egresos), 0);
     const utilidad = cierresFiltrados.reduce((acc, c) => acc + toNum(c.utilidad), 0);
-
-    const todosDelTipo = tipoPeriodo !== 'Rango' ? historial.filter((c) => c.tipo_cierre === tipoPeriodo) : [];
-    const utilidadAnterior = todosDelTipo
-      .slice(cierresFiltrados.length)
-      .reduce((acc, c) => acc + toNum(c.utilidad), 0);
-
-    let comparativa = 0;
-    if (utilidadAnterior !== 0) {
-      comparativa = parseFloat((((utilidad - utilidadAnterior) / Math.abs(utilidadAnterior)) * 100).toFixed(2));
-    }
-
-    return { ingresos, egresos, utilidad, comparativa };
-  }, [cierresFiltrados, isRangoValido, fechaInicio, fechaFin, historial, tipoPeriodo]);
+    return { ingresos, egresos, utilidad };
+  }, [cierresFiltrados]);
 
   const filasTabla = useMemo(() => {
-    return cierresFiltrados.map((item, idx) => ({
+    return cierresFiltrados.map((item) => ({
       ...item,
-      comparativa: isRangoValido
-        ? (() => {
-          const allSorted = [...historial].sort(
-            (a, b) => new Date(b.fecha ?? '').getTime() - new Date(a.fecha ?? '').getTime(),
-          );
-          const currentIdx = allSorted.findIndex((c) => c.id_cierre === item.id_cierre);
-          const prevItem = currentIdx !== -1 ? allSorted[currentIdx + 1] : undefined;
-          return calcularComparativa(item, prevItem);
-        })()
-        : calcularComparativa(item, cierresFiltrados[idx + 1]),
       desglose: calcularDesgloseItem(item),
       periodo: item.tipo_cierre,
       fecha: formatFechaRango(item),
     }));
-  }, [cierresFiltrados, isRangoValido, historial]);
+  }, [cierresFiltrados]);
+
+  const columns = useMemo<Column<FilaCierre>[]>(() => [
+    { key: 'periodo', label: 'Período' },
+    { key: 'fecha', label: 'Rango de fechas' },
+    {
+      key: 'ingresos',
+      label: 'Ingresos',
+      render: (val) => (
+        <span style={{ color: COLORS.primary, fontWeight: 600 }}>
+          {formatCurrency(toNum(val as string))}
+        </span>
+      ),
+    },
+    {
+      key: 'egresos',
+      label: 'Egresos',
+      render: (val) => (
+        <span style={{ color: COLORS.danger, fontWeight: 600 }}>
+          {formatCurrency(toNum(val as string))}
+        </span>
+      ),
+    },
+    {
+      key: 'utilidad',
+      label: 'Utilidad',
+      render: (val) => (
+        <span style={{ color: COLORS.success, fontWeight: 600 }}>
+          {formatCurrency(toNum(val as string))}
+        </span>
+      ),
+    },
+    {
+      key: 'desglose',
+      label: 'Desglose métodos de pago',
+      render: (_, fila) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+          <span>Efectivo:&nbsp;&nbsp;{fila.desglose.efectivo.toFixed(2)}%</span>
+          <span>Tarjeta:&nbsp;&nbsp;&nbsp;{fila.desglose.tarjeta.toFixed(2)}%</span>
+          <span>Transfer:&nbsp;&nbsp;{fila.desglose.transfer.toFixed(2)}%</span>
+        </div>
+      ),
+    },
+    {
+      key: 'usuario',
+      label: 'Responsable',
+      render: (_, fila) => {
+        const u = fila.usuario;
+        if (!u) return '—';
+        return u.persona
+          ? `${u.persona.primer_nombre} ${u.persona.primer_apellido}`
+          : u.username;
+      },
+    },
+  ], []);
 
   const buildNombreArchivoPeriodico = (): string => {
     if (tipoPeriodo === 'Rango' && fechaInicio && fechaFin) {
@@ -408,7 +408,7 @@ export function CierresView() {
         };
       };
 
-      worksheet.mergeCells('A1:J1');
+      worksheet.mergeCells('A1:I1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = 'Consolidado del período';
       titleCell.font = { bold: true, size: 14, color: { argb: TEXT_COLOR } };
@@ -418,29 +418,26 @@ export function CierresView() {
       worksheet.addRow([]);
 
       const summaryTitle = worksheet.addRow(['Resumen del período']);
-      worksheet.mergeCells(`A${summaryTitle.number}:J${summaryTitle.number}`);
+      worksheet.mergeCells(`A${summaryTitle.number}:I${summaryTitle.number}`);
       summaryTitle.getCell(1).font = { bold: true, size: 11, color: { argb: TEXT_COLOR } };
       summaryTitle.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
 
       const summaryHeaders = worksheet.addRow([
         'Ingresos totales del período',
         'Egresos totales del período',
-        'Utilidad neta',
-        'Comparativo vs período anterior',
+        'Utilidad neta'
       ]);
       summaryHeaders.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
       summaryHeaders.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 11 };
       summaryHeaders.alignment = { vertical: 'middle', horizontal: 'center' };
       summaryHeaders.height = 22;
       summaryHeaders.eachCell(applyBorders);
-      worksheet.mergeCells(`E${summaryHeaders.number}:J${summaryHeaders.number}`);
+      worksheet.mergeCells(`D${summaryHeaders.number}:I${summaryHeaders.number}`);
 
-      const comparativaSign = periodicSummary.comparativa > 0 ? '+' : '';
       const summaryValues = worksheet.addRow([
         periodicSummary.ingresos,
         periodicSummary.egresos,
-        periodicSummary.utilidad,
-        `${comparativaSign}${periodicSummary.comparativa.toFixed(2)}%`,
+        periodicSummary.utilidad
       ]);
       summaryValues.getCell(1).numFmt = '"L." #,##0.00';
       summaryValues.getCell(2).numFmt = '"L." #,##0.00';
@@ -449,7 +446,7 @@ export function CierresView() {
       summaryValues.alignment = { vertical: 'middle', horizontal: 'center' };
       summaryValues.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ALT_ROW_COLOR } };
       summaryValues.eachCell(applyBorders);
-      worksheet.mergeCells(`E${summaryValues.number}:J${summaryValues.number}`);
+      worksheet.mergeCells(`D${summaryValues.number}:I${summaryValues.number}`);
 
       worksheet.addRow([]);
 
@@ -464,7 +461,6 @@ export function CierresView() {
         'Desglose métodos de pago',
         '',
         '',
-        'Comparativa',
         'Responsable',
       ]);
       superHeader.height = 22;
@@ -474,16 +470,16 @@ export function CierresView() {
         'Efectivo (%)',
         'Tarjeta (%)',
         'Transferencia (%)',
-        '', '',
+        '',
       ]);
       subHeader.height = 20;
 
       worksheet.mergeCells(`F${tableHeaderRow1Number}:H${tableHeaderRow1Number}`);
-      ['A', 'B', 'C', 'D', 'E', 'I', 'J'].forEach((col) => {
+      ['A', 'B', 'C', 'D', 'E', 'I'].forEach((col) => {
         worksheet.mergeCells(`${col}${tableHeaderRow1Number}:${col}${tableHeaderRow1Number + 1}`);
       });
 
-      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'].forEach((col) => {
+      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach((col) => {
         const cellTop = superHeader.getCell(col);
         cellTop.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_COLOR } };
         cellTop.font = { color: { argb: HEADER_FONT_COLOR }, bold: true, size: 12 };
@@ -504,8 +500,6 @@ export function CierresView() {
             : fila.usuario.username
           : '—';
 
-        const comparativaSign = fila.comparativa > 0 ? '+' : '';
-
         const row = worksheet.addRow([
           fila.periodo,
           fila.fecha,
@@ -515,7 +509,6 @@ export function CierresView() {
           fila.desglose.efectivo,
           fila.desglose.tarjeta,
           fila.desglose.transfer,
-          `${comparativaSign}${fila.comparativa.toFixed(2)}%`,
           nombreResponsable,
         ]);
 
@@ -542,7 +535,6 @@ export function CierresView() {
         row.getCell(7).alignment = { vertical: 'middle' };
         row.getCell(8).alignment = { vertical: 'middle' };
         row.getCell(9).alignment = { vertical: 'middle', horizontal: 'right' };
-        row.getCell(10).alignment = { vertical: 'middle', horizontal: 'right' };
       });
 
       worksheet.getColumn(1).width = 16;
@@ -554,7 +546,6 @@ export function CierresView() {
       worksheet.getColumn(7).width = 16;
       worksheet.getColumn(8).width = 18;
       worksheet.getColumn(9).width = 18;
-      worksheet.getColumn(10).width = 26;
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
@@ -649,7 +640,7 @@ export function CierresView() {
                   variant="secondary"
                   size="sm"
                   style={{ borderRadius: 8, padding: '4px 12px' }}
-                  onClick={() => setFechaCierre(new Date().toISOString().split('T')[0])}
+                  onClick={() => setFechaCierre(hoy)}
                 >
                   <Calendar size={14} style={{ marginRight: 4 }} />
                   Hoy
@@ -790,14 +781,33 @@ export function CierresView() {
                     label="Fecha inicio"
                     badge="required"
                     value={fechaInicio}
-                    onChange={(e) => setFechaInicio(e.target.value)}
+                    max={hoy}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val > hoy || (fechaFin && val > fechaFin)) {
+                        setError('Por favor asegúrese que el rango de fechas ingresado sea válido.');
+                      } else {
+                        setError(null);
+                        setFechaInicio(val);
+                      }
+                    }}
                   />
                   <Input
                     type="date"
                     label="Fecha fin"
                     badge="required"
                     value={fechaFin}
-                    onChange={(e) => setFechaFin(e.target.value)}
+                    min={fechaInicio}
+                    max={hoy}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val > hoy || (fechaInicio && val < fechaInicio)) {
+                        setError('Por favor asegúrese que el rango de fechas ingresado sea válido.');
+                      } else {
+                        setError(null);
+                        setFechaFin(val);
+                      }
+                    }}
                   />
                 </>
               )}
@@ -812,7 +822,12 @@ export function CierresView() {
             <>
               <div>
                 <h3 style={{ margin: '0 0 16px 0', color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
-                  Consolidado del período
+                  {tipoPeriodo === 'Rango'
+                    ? (fechaInicio && fechaFin
+                      ? `Consolidado del período [${fechaInicio.split('-').reverse().join('/')} al ${fechaFin.split('-').reverse().join('/')}]`
+                      : 'Consolidado del período [seleccione un rango de fechas]')
+                    : `Consolidado del período [${tipoPeriodo.toLowerCase()}]`
+                  }
                 </h3>
 
                 {cierresFiltrados.length === 0 && (
@@ -853,98 +868,22 @@ export function CierresView() {
                       <TrendingUp size={24} color={COLORS.success} />
                     </div>
                   </div>
-
-                  <div style={{ border: `1px solid ${COLORS.borderLight}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
-                    <div>
-                      <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 4 }}>Comparativo vs periodo anterior</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: periodicSummary.comparativa >= 0 ? COLORS.success : COLORS.danger }}>
-                        {periodicSummary.comparativa > 0 ? '+' : ''}{periodicSummary.comparativa.toFixed(2)}%
-                      </div>
-                    </div>
-                    <div style={{ background: periodicSummary.comparativa >= 0 ? '#ECFDF5' : '#FEF2F2', padding: 12, borderRadius: 8, display: 'flex' }}>
-                      {periodicSummary.comparativa >= 0
-                        ? <TrendingUp size={24} color={COLORS.success} />
-                        : <TrendingDown size={24} color={COLORS.danger} />}
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              <Card style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${COLORS.borderLight}` }}>
-                  <h3 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
-                    Historial de cierres
-                  </h3>
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 800 }}>
-                    <thead style={{ background: '#F8F9FA' }}>
-                      <tr>
-                        {['Período', 'Rango de fechas', 'Ingresos', 'Egresos', 'Utilidad', 'Desglose métodos de pago', 'Comparativa', 'Responsable'].map((col) => (
-                          <th
-                            key={col}
-                            style={{ padding: '12px 20px', fontSize: 12, fontWeight: 600, color: COLORS.muted, borderBottom: `1px solid ${COLORS.borderLight}` }}
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filasTabla.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} style={{ padding: '32px 20px', textAlign: 'center', color: COLORS.muted, fontSize: 13 }}>
-                            {isRangoValido
-                              ? 'No hay cierres registrados en el rango de fechas seleccionado.'
-                              : 'No hay cierres registrados para el período seleccionado.'}
-                          </td>
-                        </tr>
-                      ) : (
-                        filasTabla.map((fila, idx) => {
-                          const borde = idx < filasTabla.length - 1 ? { borderBottom: `1px solid ${COLORS.borderLight}` } : {};
-                          const nombreResponsable = fila.usuario
-                            ? fila.usuario.persona
-                              ? `${fila.usuario.persona.primer_nombre} ${fila.usuario.persona.primer_apellido}`
-                              : fila.usuario.username
-                            : '—';
-
-                          return (
-                            <tr key={fila.id_cierre}>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, fontWeight: 500, ...borde }}>{fila.periodo}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, ...borde }}>{fila.fecha}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.primary, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.ingresos))}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.danger, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.egresos))}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.success, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.utilidad))}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 12, color: COLORS.text, ...borde }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  <span>Efectivo:&nbsp;&nbsp;{fila.desglose.efectivo.toFixed(2)}%</span>
-                                  <span>Tarjeta:&nbsp;&nbsp;&nbsp;{fila.desglose.tarjeta.toFixed(2)}%</span>
-                                  <span>Transfer:&nbsp;&nbsp;{fila.desglose.transfer.toFixed(2)}%</span>
-                                </div>
-                              </td>
-                              <td style={{ padding: '16px 20px', ...borde }}>
-                                <div style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                                  padding: '4px 8px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                                  background: fila.comparativa >= 0 ? '#ECFDF5' : '#FEF2F2',
-                                  color: fila.comparativa >= 0 ? COLORS.success : COLORS.danger,
-                                }}>
-                                  {fila.comparativa >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                                  {fila.comparativa > 0 ? '+' : ''}{fila.comparativa.toFixed(2)}%
-                                </div>
-                              </td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, ...borde }}>
-                                {nombreResponsable}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              <DataTable<FilaCierre>
+                columns={columns}
+                data={filasTabla as FilaCierre[]}
+                title="Historial de cierres"
+                getRowKey={(row) => String(row.id_cierre)}
+                emptyMessage={
+                  isRangoValido
+                    ? 'No hay cierres registrados en el rango de fechas seleccionado.'
+                    : 'No hay cierres registrados para el período seleccionado.'
+                }
+                searchable={false} // ponytail: mantenemos la estética original sin el buscador superior de DataTable
+                pageSize={10}
+              />
             </>
           )}
 
