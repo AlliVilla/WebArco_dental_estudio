@@ -341,7 +341,7 @@ async function insertMunicipios() {
     skipDuplicates: true,
   });
 
-  console.log("Municipios insertados correctamente");
+  console.log("Municipios insertados correctamente NIGGERS");
 }
 
 module.exports = { insertMunicipios };
