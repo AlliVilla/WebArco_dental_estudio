@@ -1528,7 +1528,7 @@ export function OdontogramScreen({
         </div>
       )}
     </div>
-    <ManageStatesModal open={manageStatesOpen} onClose={() => { setManageStatesOpen(false); fetchEstados(); }} />
+    <ManageStatesModal open={manageStatesOpen} onClose={() => { setManageStatesOpen(false); fetchEstados(); }} onDeleteError={(msg) => setAlert({ type: 'error', text: msg })} />
     </EstadoConfigCtx.Provider>
   );
 }

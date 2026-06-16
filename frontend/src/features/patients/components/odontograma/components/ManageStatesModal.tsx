@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { estadoOdontogramaService, type EstadoOdontograma } from '../services/estadoOdontogramaService';
 import { Button } from '../../../../../context';
-import { ConfirmModal } from '../../../../../components';
 
 function normalizeNombre(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -14,9 +13,10 @@ function stripAccents(s: string): string {
 interface ManageStatesModalProps {
   open: boolean;
   onClose: () => void;
+  onDeleteError?: (message: string) => void;
 }
 
-export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
+export function ManageStatesModal({ open, onClose, onDeleteError }: ManageStatesModalProps) {
   const [estados, setEstados] = useState<EstadoOdontograma[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,9 @@ export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
   const [newNombre, setNewNombre] = useState('');
   const [newColor, setNewColor] = useState('#A8D5BA');
 
-  const [confirmDelete, setConfirmDelete] = useState<{ id: number; nombre: string } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteNombre, setConfirmDeleteNombre] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -91,15 +93,21 @@ export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
+  const handleDeleteConfirm = async () => {
+    if (confirmDeleteId === null) return;
+    setDeleting(true);
     try {
-      await estadoOdontogramaService.remove(confirmDelete.id);
-      setConfirmDelete(null);
+      await estadoOdontogramaService.remove(confirmDeleteId);
+      setConfirmDeleteId(null);
+      setConfirmDeleteNombre('');
+      setDeleting(false);
       await load();
     } catch (err: any) {
-      setError(err?.message || 'Error al eliminar estado');
-      setConfirmDelete(null);
+      setDeleting(false);
+      setConfirmDeleteId(null);
+      setConfirmDeleteNombre('');
+      onDeleteError?.(err?.message || 'Error al eliminar estado');
+      onClose();
     }
   };
 
@@ -120,6 +128,7 @@ export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
           width: '100%', maxWidth: 520,
           boxShadow: '0px 10px 30px rgba(0,0,0,0.15)', zIndex: 201,
           outline: 'none', maxHeight: '90vh', overflowY: 'auto',
+          position: 'relative',
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -165,7 +174,7 @@ export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
                     <span style={{ flex: 1, fontSize: 14, color: '#203F49', fontWeight: 500 }}>{e.nombre}</span>
                     <span style={{ fontSize: 11, color: '#888F94' }}>{e.color}</span>
                     <button onClick={() => startEdit(e)} style={{ padding: '4px 10px', borderRadius: 6, background: 'transparent', color: '#5F656A', border: '1px solid #D3D7DA', fontSize: 12, cursor: 'pointer' }}>Editar</button>
-                    <button onClick={() => setConfirmDelete({ id: e.id, nombre: e.nombre })} style={{ padding: '4px 10px', borderRadius: 6, background: 'transparent', color: '#E24B4A', border: '1px solid #E24B4A', fontSize: 12, cursor: 'pointer' }}>Eliminar</button>
+                    <button onClick={() => { setConfirmDeleteId(e.id); setConfirmDeleteNombre(e.nombre); setError(null); }} style={{ padding: '4px 10px', borderRadius: 6, background: 'transparent', color: '#E24B4A', border: '1px solid #E24B4A', fontSize: 12, cursor: 'pointer' }}>Eliminar</button>
                   </>
                 )}
               </div>
@@ -196,17 +205,36 @@ export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
           </Button>
         )}
 
-      </div>
+        {/* Inline delete confirmation */}
+        {confirmDeleteId !== null && (
+          <div
+            style={{
+              position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.92)',
+              borderRadius: 12, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, zIndex: 10,
+            }}
+          >
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#E24B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 8V12" stroke="#E24B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 16H12.01" stroke="#E24B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h4 style={{ margin: 0, color: '#203F49', fontSize: 18 }}>Eliminar estado</h4>
+            <p style={{ margin: 0, fontSize: 14, color: '#5F656A', textAlign: 'center', lineHeight: '20px' }}>
+              ¿Estás seguro de eliminar el estado "<strong>{confirmDeleteNombre}</strong>"? Los dientes que usen este estado se mostrarán sin configuración de color.
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <button onClick={() => { setConfirmDeleteId(null); setConfirmDeleteNombre(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: '#F1F3F4', color: '#5F656A', border: '1px solid #D3D7DA', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleDeleteConfirm} disabled={deleting} style={{ padding: '9px 20px', borderRadius: 8, background: deleting ? '#F5A5A5' : '#E24B4A', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        )}
 
-      <ConfirmModal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={handleDelete}
-        variant="danger"
-        title="Eliminar estado"
-        description={`¿Estás seguro de eliminar el estado "${confirmDelete?.nombre}"? Los dientes que usen este estado se mostrarán sin configuración de color. Nota: Si el estado está siendo usado en algún odontograma, NO se podrá eliminar.`}
-        confirmLabel="Eliminar"
-      />
+      </div>
     </div>
   );
 }
