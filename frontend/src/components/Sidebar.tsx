@@ -36,6 +36,7 @@ export type NavId =
   | "roles-management"
   | "treatments"
   | "inventory"
+  | "inventory-history"
   | "records"
   | "registro-pacientes";
 
@@ -571,7 +572,15 @@ const navGroups: NavGroup[] = [
         ],
       },
       { id: "treatments", label: "Tratamientos", icon: <IconTratamientos /> },
-      { id: "inventory", label: "Inventario", icon: <IconInventario /> },
+      {
+        id: "inventory",
+        label: "Inventario",
+        icon: <IconInventario />,
+        subItems: [
+          { id: "inventory", label: "Inventario" },
+          { id: "inventory-history", label: "Historial" },
+        ],
+      },
     ],
   },
 ];

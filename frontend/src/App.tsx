@@ -28,12 +28,12 @@ import {
 } from "./features/users";
 
 import { MiPerfil } from "./features/users/components/MiPerfil";
-import { Alert, Card, DesignSystemScreen } from "./context";
+import { Card, DesignSystemScreen } from "./context";
 import { Dashboard } from "./page layouts/Dashboard";
 import { MainLayout } from "./page layouts/MainLayout";
 import { AuthGuard, GuestGuard } from "./routes/index";
 import { CierresView } from "./features/cierres";
-import { InventoryScreen } from "./features/inventory";
+import { InventoryHistoryScreen, InventoryScreen } from "./features/inventory";
 import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
 import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
 
@@ -113,6 +113,7 @@ function App() {
         />
 
         <Route path="/inventory" element={<InventoryScreen />} />
+        <Route path="/inventory/history" element={<InventoryHistoryScreen />} />
         <Route
           path="/stats"
           element={

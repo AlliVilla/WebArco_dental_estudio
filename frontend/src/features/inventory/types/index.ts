@@ -77,6 +77,8 @@ export type CreateInventoryItemInput = {
   precio_costo: number;
 };
 
+export type UpdateInventoryItemInput = Partial<Omit<CreateInventoryItemInput, 'stock_actual'>>;
+
 export type CreateInventoryMovementInput = {
   tipo: TipoMovimientoInventario;
   id_insumo: number;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type React from "react";
 import {
-  Archive,
+  FileSpreadsheet,
   Boxes,
   DollarSign,
   Edit2,
@@ -29,6 +29,7 @@ import {
 import { useTheme } from "../../../context/ThemeContext";
 import { inventoryService } from "../services/inventoryService";
 import { formatCurrency } from "../../../utils/formatters";
+import { exportToExcel } from "../../../utils/exportToExcel";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import type {
   CategoriaInsumo,
@@ -261,7 +262,14 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     setError("");
     try {
       if (selectedItem) {
-        await inventoryService.update(selectedItem.id_insumo, payload.data);
+        const updatePayload = {
+          nombre: payload.data.nombre,
+          categoria: payload.data.categoria,
+          unidad_medida: payload.data.unidad_medida,
+          stock_minimo: payload.data.stock_minimo,
+          precio_costo: payload.data.precio_costo,
+        };
+        await inventoryService.update(selectedItem.id_insumo, updatePayload);
         setSuccess("Insumo actualizado correctamente.");
       } else {
         await inventoryService.create(payload.data);
@@ -347,6 +355,15 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       return matchSearch && matchCat && matchEstado;
     });
   }, [items, search, filterCat, filterEstado]);
+
+  const exportarInventarioAExcel = async () => {
+    if (items.length === 0) return;
+    try {
+      await exportInventoryToExcel(items);
+    } catch {
+      setError("Error al exportar inventario a Excel.");
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -631,8 +648,8 @@ export function InventoryScreen(_props: InventoryScreenProps) {
             },
             {
               label: "Exportar inventario",
-              icon: <Archive size={16} />,
-              onClick: () => exportInventoryCsv(items),
+              icon: <FileSpreadsheet size={16} />,
+              onClick: exportarInventarioAExcel,
             },
           ]}
           rowActions={(row) =>
@@ -743,10 +760,17 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 badge="required"
                 placeholder="0"
                 value={itemForm.stock_actual}
+                disabled={Boolean(selectedItem)}
                 onChange={(e) => {
+                  if (selectedItem) return;
                   const v = e.target.value.replace(/[^0-9]/g, "");
                   setItemForm((prev) => ({ ...prev, stock_actual: v }));
                 }}
+                hint={
+                  selectedItem
+                    ? "Bloqueado: ajusta el stock registrando una entrada o salida."
+                    : "Stock inicial del insumo"
+                }
               />
               <Input
                 label="Stock mínimo"
@@ -1568,39 +1592,32 @@ function getErrorMessage(error: unknown) {
   return "Ocurrió un error inesperado.";
 }
 
-function exportInventoryCsv(items: InventoryItem[]) {
-  const header = [
-    "Código",
-    "Nombre",
-    "Categoría",
-    "Unidad",
-    "Stock actual",
-    "Stock mínimo",
-    "Precio costo",
-    "Estado stock",
-    "Estado registro",
+async function exportInventoryToExcel(items: InventoryItem[]) {
+  const rows = items.map((item) => ({
+    codigo: item.codigo,
+    nombre: item.nombre,
+    categoria: item.categoria,
+    unidad_medida: item.unidad_medida,
+    stock_actual: item.stock_actual,
+    stock_minimo: item.stock_minimo,
+    precio_costo: Number(item.precio_costo || 0),
+    valor_total: Number(item.stock_actual || 0) * Number(item.precio_costo || 0),
+    estado: item.estado,
+    estado_registro: item.estado_registro,
+  }));
+
+  const columnas = [
+    { header: "Código", key: "codigo", width: 14 },
+    { header: "Nombre", key: "nombre", width: 32 },
+    { header: "Categoría", key: "categoria", width: 18 },
+    { header: "Unidad", key: "unidad_medida", width: 16 },
+    { header: "Stock actual", key: "stock_actual", width: 14 },
+    { header: "Stock mínimo", key: "stock_minimo", width: 14 },
+    { header: "Precio costo (L.)", key: "precio_costo", width: 18 },
+    { header: "Valor total (L.)", key: "valor_total", width: 18 },
+    { header: "Estado stock", key: "estado", width: 16 },
+    { header: "Estado registro", key: "estado_registro", width: 18 },
   ];
-  const rows = items.map((item) => [
-    item.codigo,
-    item.nombre,
-    item.categoria,
-    item.unidad_medida,
-    item.stock_actual,
-    item.stock_minimo,
-    item.precio_costo,
-    item.estado,
-    item.estado_registro,
-  ]);
-  const csv = [header, ...rows]
-    .map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-    )
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `inventario-${todayInputValue()}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+
+  await exportToExcel(rows, columnas, "Inventario", "Inventario_WebArco");
 }

@@ -29,6 +29,7 @@ import { EstadoOdontogramaModule } from './estado-odontograma/estado-odontograma
 import { UploadModule } from './upload/upload.module';
 import { FinanzasModule } from './finanzas/finanzas.module';
 import { EgresoModule } from './egreso/egreso.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';  
@@ -48,6 +49,7 @@ import { CierreModule } from './cierre/cierre.module';
     PagoPacienteModule,
     ConsultaPreguntaModule,
     EgresoModule,
+    DashboardModule,
     ConsentimientoModule,
     AuthModule,
     CitaModule,

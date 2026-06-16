@@ -1,7 +1,7 @@
 import type { NavId } from '../../../components/Sidebar';
 
 export const SIDEBAR_PRIVILEGES: Partial<Record<NavId, number[]>> = {
-  dashboard: [1],
+  dashboard: [1, 2],
 
   "patients-list": [16],
   "patient-expediente": [20],
@@ -26,5 +26,6 @@ export const SIDEBAR_PRIVILEGES: Partial<Record<NavId, number[]>> = {
   "roles-management": [34],
 
   inventory: [63],
+  "inventory-history": [63],
   treatments: [65],
 };

@@ -41,9 +41,12 @@ export async function exportToExcel<T extends Record<string, unknown>>(
       };
     }
 
-    if (row.monto != null && typeof row.monto === "number") {
-      addedRow.getCell("monto").numFmt = '"L." #,##0.00';
-    }
+    const currencyKeys = ["monto", "precio_costo", "valor_total"];
+    currencyKeys.forEach((key) => {
+      if (row[key] != null && typeof row[key] === "number") {
+        addedRow.getCell(key).numFmt = '"L." #,##0.00';
+      }
+    });
 
     addedRow.alignment = { vertical: "middle" };
     addedRow.font = { color: { argb: "FF203F49" } };
