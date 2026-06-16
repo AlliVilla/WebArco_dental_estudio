@@ -106,7 +106,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  // Un solo estado de filtros compartido entre vista móvil y DataTable
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("");
   const [filterEstado, setFilterEstado] = useState("");
@@ -230,6 +229,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     setItemForm(emptyItemForm);
     setItemModalOpen(true);
   };
+
   const openEditItem = (item: InventoryItem) => {
     setSelectedItem(item);
     setItemForm({
@@ -242,6 +242,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     });
     setItemModalOpen(true);
   };
+
   const openMovementModal = (item?: InventoryItem, viewOnly = false) => {
     setMovementForm({
       tipo: "",
@@ -260,8 +261,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       setError(payload.message);
       return;
     }
+
     setSaving(true);
     setError("");
+
     try {
       if (selectedItem) {
         const updatePayload = {
@@ -271,12 +274,14 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           stock_minimo: payload.data.stock_minimo,
           precio_costo: payload.data.precio_costo,
         };
+
         await inventoryService.update(selectedItem.id_insumo, updatePayload);
         setSuccess("Insumo actualizado correctamente.");
       } else {
         await inventoryService.create(payload.data);
         setSuccess("Insumo creado correctamente.");
       }
+
       setItemModalOpen(false);
       await loadInventory();
     } catch (err) {
@@ -292,8 +297,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       setError(payload.message);
       return;
     }
+
     setSaving(true);
     setError("");
+
     try {
       await inventoryService.createMovement(payload.data);
       setSuccess("Movimiento registrado correctamente.");
@@ -308,8 +315,10 @@ export function InventoryScreen(_props: InventoryScreenProps) {
 
   const deleteItem = async () => {
     if (!itemToDelete) return;
+
     setSaving(true);
     setError("");
+
     try {
       await inventoryService.delete(itemToDelete.id_insumo);
       setSuccess("Insumo marcado como inactivo correctamente.");
@@ -325,6 +334,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   const restoreItem = async (item: InventoryItem) => {
     setSaving(true);
     setError("");
+
     try {
       await inventoryService.restore(item.id_insumo);
       setSuccess("Insumo readmitido correctamente.");
@@ -336,17 +346,16 @@ export function InventoryScreen(_props: InventoryScreenProps) {
     }
   };
 
-  // Grid de métricas: 4 en desktop, 2 en tablet/móvil
   const metricCols =
     isMobile || isTablet ? "repeat(2, 1fr)" : "repeat(4, minmax(150px, 1fr))";
 
-  // Items filtrados (compartido entre móvil y DataTable)
   const filteredItems = useMemo(() => {
     const normalize = (s: string) =>
       s
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
+
     return items.filter((item) => {
       const matchSearch =
         !search ||
@@ -360,6 +369,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
 
   const exportarInventarioAExcel = async () => {
     if (items.length === 0) return;
+
     try {
       await exportInventoryToExcel(items);
     } catch {
@@ -374,6 +384,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
         message="El stock se actualiza automáticamente al registrar una entrada o salida."
         onClose={() => undefined}
       />
+
       {stats.stock_bajo > 0 && (
         <Alert
           variant="warning"
@@ -381,6 +392,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           onClose={() => undefined}
         />
       )}
+
       {stats.agotados > 0 && (
         <Alert
           variant="error"
@@ -388,9 +400,11 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           onClose={() => undefined}
         />
       )}
+
       {error && (
         <Alert variant="error" message={error} onClose={() => setError("")} />
       )}
+
       {success && (
         <Alert
           variant="success"
@@ -399,7 +413,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
         />
       )}
 
-      {/* Métricas */}
       <div
         style={{
           display: "grid",
@@ -413,18 +426,21 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           icon={<Boxes size={22} />}
           tone="primary"
         />
+
         <MetricCard
           label="Stock bajo"
           value={String(stats.stock_bajo)}
           icon={<TrendingDown size={22} />}
           tone="warning"
         />
+
         <MetricCard
           label="Agotados"
           value={String(stats.agotados)}
           icon={<TrendingDown size={22} />}
           tone="danger"
         />
+
         <MetricCard
           label="Valor total"
           value={formatCurrency(stats.valor_total)}
@@ -434,9 +450,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
       </div>
 
       {isMobile ? (
-        /* ── Vista móvil: cards ── */
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Búsqueda */}
           <div style={{ position: "relative" }}>
             <Search
               size={15}
@@ -449,6 +463,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 pointerEvents: "none",
               }}
             />
+
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -468,7 +483,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               }}
             />
           </div>
-          {/* Filtros */}
+
           <div style={{ display: "flex", gap: 8 }}>
             <select
               value={filterCat}
@@ -492,6 +507,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 </option>
               ))}
             </select>
+
             <select
               value={filterEstado}
               onChange={(e) => setFilterEstado(e.target.value)}
@@ -513,7 +529,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               <option value="Agotado">Agotado</option>
             </select>
           </div>
-          {/* Acciones */}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <Button
               variant="primary"
@@ -529,6 +545,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
             >
               <Plus size={16} /> Nuevo insumo
             </Button>
+
             <div style={{ display: "flex", gap: 8 }}>
               <Button
                 variant="secondary"
@@ -544,6 +561,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               >
                 <PackagePlus size={15} /> Movimiento
               </Button>
+
               <Button
                 variant="secondary"
                 size="lg"
@@ -561,7 +579,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
             </div>
           </div>
 
-          {/* Cards */}
           {loading ? (
             <p
               style={{
@@ -598,7 +615,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
           )}
         </div>
       ) : (
-        /* ── Vista tablet/desktop: DataTable ── */
         <DataTable<InventoryItem>
           title="Inventario de Insumos"
           description="Gestiona todos los insumos y materiales de la clínica"
@@ -694,7 +710,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
         />
       )}
 
-      {/* Modal: Nuevo / Editar insumo */}
       {itemModalOpen && (
         <Modal
           title={selectedItem ? "Editar insumo" : "Nuevo insumo"}
@@ -719,6 +734,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   hint="Autogenerado por el sistema, no editable"
                 />
               </div>
+
               <div style={{ gridColumn: "1 / -1" }}>
                 <Input
                   label="Nombre del insumo"
@@ -730,6 +746,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   placeholder="Ej. Anestesia Lidocaína 2%"
                 />
               </div>
+
               <Select
                 label="Categoría"
                 badge="required"
@@ -743,6 +760,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   }))
                 }
               />
+
               <Select
                 label="Unidad de medida"
                 badge="required"
@@ -756,6 +774,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   }))
                 }
               />
+
               <Input
                 label="Stock actual"
                 badge="required"
@@ -773,6 +792,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                     : "Stock inicial del insumo"
                 }
               />
+
               <Input
                 label="Stock mínimo"
                 badge="required"
@@ -784,6 +804,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 }}
                 hint="Define el umbral de alerta"
               />
+
               <div style={{ gridColumn: "1 / -1" }}>
                 <label
                   style={{
@@ -797,6 +818,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   Precio unitario de costo{" "}
                   <span style={{ color: "#E24B4A" }}>*</span>
                 </label>
+
                 <div
                   style={{
                     display: "flex",
@@ -825,6 +847,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                   >
                     L
                   </div>
+
                   <input
                     type="text"
                     inputMode="decimal"
@@ -833,8 +856,9 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                     onChange={(e) => {
                       let v = e.target.value.replace(/[^0-9.]/g, "");
                       const parts = v.split(".");
-                      if (parts.length > 2)
+                      if (parts.length > 2) {
                         v = parts[0] + "." + parts.slice(1).join("");
+                      }
                       setItemForm((prev) => ({ ...prev, precio_costo: v }));
                     }}
                     style={{
@@ -849,6 +873,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                     }}
                   />
                 </div>
+
                 <span
                   style={{
                     fontSize: 11,
@@ -862,10 +887,12 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               </div>
             </div>
           </SectionBlock>
+
           <ModalActions>
             <Button variant="secondary" onClick={() => setItemModalOpen(false)}>
               Cancelar
             </Button>
+
             <Button loading={saving} onClick={saveItem}>
               {selectedItem ? "Guardar cambios" : "Crear insumo"}
             </Button>
@@ -873,11 +900,18 @@ export function InventoryScreen(_props: InventoryScreenProps) {
         </Modal>
       )}
 
-      {/* Modal: Registrar movimiento */}
       {movementModalOpen && (
         <Modal
-          title={movementViewOnly ? "Vista previa del movimiento" : "Registrar movimiento"}
-          subtitle={movementViewOnly ? "Visualización del movimiento a registrar" : "Los campos marcados con * son obligatorios"}
+          title={
+            movementViewOnly
+              ? "Vista previa del movimiento"
+              : "Registrar movimiento"
+          }
+          subtitle={
+            movementViewOnly
+              ? "Visualización del movimiento a registrar"
+              : "Los campos marcados con * son obligatorios"
+          }
           onClose={() => setMovementModalOpen(false)}
           isMobile={isMobile}
         >
@@ -906,6 +940,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 }
                 disabled={movementViewOnly}
               />
+
               <Select
                 label="Producto"
                 badge="required"
@@ -922,6 +957,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 }
                 disabled={movementViewOnly}
               />
+
               <Input
                 label="Cantidad"
                 badge="required"
@@ -934,6 +970,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 hint="Valor positivo entero"
                 disabled={movementViewOnly}
               />
+
               <Input
                 label="Fecha"
                 badge="required"
@@ -948,6 +985,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                 hint="Autorrellena con hoy; editable"
                 disabled={movementViewOnly}
               />
+
               <div
                 style={{
                   gridColumn: "1 / -1",
@@ -972,6 +1010,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
                     Opcional
                   </span>
                 </label>
+
                 <textarea
                   value={movementForm.observaciones}
                   onChange={(e) =>
@@ -1000,6 +1039,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
               </div>
             </div>
           </SectionBlock>
+
           <ModalActions>
             <Button
               variant={movementViewOnly ? "primary" : "secondary"}
@@ -1007,6 +1047,7 @@ export function InventoryScreen(_props: InventoryScreenProps) {
             >
               {movementViewOnly ? "Cerrar" : "Cancelar"}
             </Button>
+
             {!movementViewOnly && (
               <Button loading={saving} onClick={saveMovement}>
                 Registrar
@@ -1032,8 +1073,6 @@ export function InventoryScreen(_props: InventoryScreenProps) {
   );
 }
 
-// ─── Sub-componentes ──────────────────────────────────────────────────────────
-
 function InventoryCard({
   item,
   onMove,
@@ -1054,6 +1093,7 @@ function InventoryCard({
     gray500: "#888F94",
     danger: "#E24B4A",
   };
+
   return (
     <div
       style={{
@@ -1063,7 +1103,6 @@ function InventoryCard({
         padding: 16,
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -1085,10 +1124,12 @@ function InventoryCard({
           >
             {item.nombre}
           </p>
+
           <p style={{ fontSize: 12, color: C.gray500, margin: "2px 0 0" }}>
             {item.codigo}
           </p>
         </div>
+
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           {item.activo ? (
             <>
@@ -1107,6 +1148,7 @@ function InventoryCard({
               >
                 <Eye size={15} />
               </button>
+
               <button
                 onClick={onEdit}
                 title="Editar"
@@ -1122,6 +1164,7 @@ function InventoryCard({
               >
                 <Edit2 size={15} />
               </button>
+
               <button
                 onClick={onDelete}
                 title="Eliminar"
@@ -1155,6 +1198,7 @@ function InventoryCard({
               >
                 <RotateCcw size={15} />
               </button>
+
               <button
                 onClick={onEdit}
                 title="Editar"
@@ -1175,7 +1219,6 @@ function InventoryCard({
         </div>
       </div>
 
-      {/* Filas de datos */}
       <div style={{ borderTop: `1px solid ${C.gray50}`, paddingTop: 4 }}>
         <div
           style={{
@@ -1189,6 +1232,7 @@ function InventoryCard({
           <span style={{ fontSize: 12, color: C.gray500 }}>Categoría</span>
           <CategoryBadge value={item.categoria} />
         </div>
+
         <div
           style={{
             padding: "7px 0",
@@ -1203,6 +1247,7 @@ function InventoryCard({
             {item.unidad_medida}
           </span>
         </div>
+
         <div
           style={{
             padding: "7px 0",
@@ -1215,6 +1260,7 @@ function InventoryCard({
           <span style={{ fontSize: 12, color: C.gray500 }}>
             Stock actual / mínimo
           </span>
+
           <span
             style={{
               fontSize: 13,
@@ -1230,6 +1276,7 @@ function InventoryCard({
             {item.stock_actual} / {item.stock_minimo}
           </span>
         </div>
+
         <div
           style={{
             padding: "7px 0",
@@ -1244,6 +1291,7 @@ function InventoryCard({
             {formatCurrency(item.precio_costo)}
           </span>
         </div>
+
         <div
           style={{
             padding: "7px 0",
@@ -1278,7 +1326,9 @@ function MetricCard({
     warning: { bg: "#FFFBEB", color: "#EF9F27" },
     danger: { bg: "#FEF2F2", color: "#E24B4A" },
   };
+
   const selected = map[tone];
+
   return (
     <Card
       style={{
@@ -1292,10 +1342,11 @@ function MetricCard({
         <div style={{ fontSize: 11, color: "#888F94", marginBottom: 8 }}>
           {label}
         </div>
+
         <div
           style={{
             fontSize: 18,
-            color: map[tone].color,
+            color: selected.color,
             fontWeight: 600,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -1305,6 +1356,7 @@ function MetricCard({
           {value}
         </div>
       </div>
+
       <div
         style={{
           width: 44,
@@ -1334,7 +1386,9 @@ function CategoryBadge({ value }: { value: string }) {
     Medicamento: { bg: "#FFFBEB", color: "#EF9F27" },
     Otro: { bg: "#F1F3F4", color: "#5F656A" },
   };
+
   const selected = map[value] ?? map.Otro;
+
   return (
     <span
       style={{
@@ -1357,7 +1411,9 @@ function InventoryStatusBadge({ status }: { status: string }) {
     "Stock bajo": { bg: "#FFFBEB", color: "#EF9F27" },
     Agotado: { bg: "#FEF2F2", color: "#E24B4A" },
   };
+
   const selected = map[status] ?? map.Normal;
+
   return (
     <span
       style={{
@@ -1376,6 +1432,7 @@ function InventoryStatusBadge({ status }: { status: string }) {
 
 function RecordStatusBadge({ status }: { status: string }) {
   const isActive = status === "Activo";
+
   return (
     <span
       style={{
@@ -1389,30 +1446,6 @@ function RecordStatusBadge({ status }: { status: string }) {
     >
       {status}
     </span>
-  );
-}
-
-function InventoryLegend() {
-  return (
-    <tfoot>
-      <tr>
-        <td
-          colSpan={9}
-          style={{
-            padding: "12px 14px",
-            fontSize: 11,
-            color: "#888F94",
-            textAlign: "right",
-          }}
-        >
-          <span style={{ color: "#1D9E75" }}>●</span> Normal&nbsp;&nbsp;&nbsp;
-          <span style={{ color: "#EF9F27" }}>●</span> Stock
-          bajo&nbsp;&nbsp;&nbsp;
-          <span style={{ color: "#E24B4A" }}>●</span> Agotado&nbsp;&nbsp;&nbsp;
-          <span style={{ color: "#5F656A" }}>●</span> Inactivo
-        </td>
-      </tr>
-    </tfoot>
   );
 }
 
@@ -1476,10 +1509,12 @@ function Modal({
             >
               {title}
             </h2>
+
             <p style={{ margin: "8px 0 0", color: "#888F94", fontSize: 13 }}>
               {subtitle}
             </p>
           </div>
+
           <button
             type="button"
             onClick={onClose}
@@ -1495,6 +1530,7 @@ function Modal({
             <X size={22} />
           </button>
         </div>
+
         <div
           style={{
             padding: isMobile ? "20px 20px" : 32,
@@ -1526,8 +1562,6 @@ function ModalActions({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function validateItemForm(
   form: ItemFormState
 ):
@@ -1536,24 +1570,37 @@ function validateItemForm(
   const stockActual = Number(form.stock_actual);
   const stockMinimo = Number(form.stock_minimo);
   const precioCosto = Number(form.precio_costo);
-  if (!form.nombre.trim())
+
+  if (!form.nombre.trim()) {
     return { ok: false, message: "El nombre del insumo es obligatorio." };
-  if (!form.categoria)
+  }
+
+  if (!form.categoria) {
     return { ok: false, message: "La categoría es obligatoria." };
-  if (!form.unidad_medida)
+  }
+
+  if (!form.unidad_medida) {
     return { ok: false, message: "La unidad de medida es obligatoria." };
-  if (!Number.isInteger(stockActual) || stockActual < 0)
+  }
+
+  if (!Number.isInteger(stockActual) || stockActual < 0) {
     return {
       ok: false,
       message: "El stock actual debe ser un entero mayor o igual a 0.",
     };
-  if (!Number.isInteger(stockMinimo) || stockMinimo < 0)
+  }
+
+  if (!Number.isInteger(stockMinimo) || stockMinimo < 0) {
     return {
       ok: false,
       message: "El stock mínimo debe ser un entero mayor o igual a 0.",
     };
-  if (!Number.isFinite(precioCosto) || precioCosto <= 0)
+  }
+
+  if (!Number.isFinite(precioCosto) || precioCosto <= 0) {
     return { ok: false, message: "El precio unitario debe ser mayor a 0." };
+  }
+
   return {
     ok: true,
     data: {
@@ -1574,13 +1621,23 @@ function validateMovementForm(
   | { ok: false; message: string } {
   const cantidad = Number(form.cantidad);
   const idInsumo = Number(form.id_insumo);
-  if (!form.tipo)
+
+  if (!form.tipo) {
     return { ok: false, message: "Selecciona el tipo de movimiento." };
-  if (!Number.isInteger(idInsumo) || idInsumo <= 0)
+  }
+
+  if (!Number.isInteger(idInsumo) || idInsumo <= 0) {
     return { ok: false, message: "Selecciona un producto." };
-  if (!Number.isInteger(cantidad) || cantidad <= 0)
+  }
+
+  if (!Number.isInteger(cantidad) || cantidad <= 0) {
     return { ok: false, message: "La cantidad debe ser un entero mayor a 0." };
-  if (!form.fecha) return { ok: false, message: "La fecha es obligatoria." };
+  }
+
+  if (!form.fecha) {
+    return { ok: false, message: "La fecha es obligatoria." };
+  }
+
   return {
     ok: true,
     data: {
@@ -1594,9 +1651,12 @@ function validateMovementForm(
 }
 
 function getErrorMessage(error: unknown) {
-  if (error && typeof error === "object" && "message" in error)
+  if (error && typeof error === "object" && "message" in error) {
     return String((error as { message: string }).message);
+  }
+
   if (error instanceof Error) return error.message;
+
   return "Ocurrió un error inesperado.";
 }
 
@@ -1627,5 +1687,7 @@ async function exportInventoryToExcel(items: InventoryItem[]) {
     { header: "Estado registro", key: "estado_registro", width: 18 },
   ];
 
-  await exportToExcel(rows, columnas, "Inventario", "Inventario_WebArco");
+  await exportToExcel(rows, columnas, "Inventario", "Inventario_WebArco", {
+    currencyKeys: ["precio_costo", "valor_total"],
+  });
 }

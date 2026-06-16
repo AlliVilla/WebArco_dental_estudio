@@ -17,6 +17,7 @@ import api from "../../../services/api";
 import billingService from "../services/billingService";
 import { consultaService } from "../../patients/services/consultaService";
 import type { CreatePaymentInput, PatientPayment } from "../types";
+import { exportToExcel } from "../../../utils/exportToExcel";
 
 interface IncomeRecord extends Record<string, unknown> {
   id: string;
@@ -292,195 +293,37 @@ export function GestionIngresos() {
     Observaciones: record.observacion || "",
   }));
 
-  const escapeXml = (value: unknown) => String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-
-  const getExcelColumnName = (index: number) => {
-    let columnName = "";
-    let current = index;
-
-    while (current >= 0) {
-      columnName = String.fromCharCode((current % 26) + 65) + columnName;
-      current = Math.floor(current / 26) - 1;
-    }
-
-    return columnName;
-  };
-
-  const createCrc32Table = () => {
-    const table = new Uint32Array(256);
-
-    for (let i = 0; i < 256; i += 1) {
-      let value = i;
-      for (let j = 0; j < 8; j += 1) {
-        value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-      }
-      table[i] = value >>> 0;
-    }
-
-    return table;
-  };
-
-  const crc32Table = createCrc32Table();
-
-  const getCrc32 = (data: Uint8Array) => {
-    let crc = 0xffffffff;
-
-    for (let i = 0; i < data.length; i += 1) {
-      crc = crc32Table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
-    }
-
-    return (crc ^ 0xffffffff) >>> 0;
-  };
-
-  const createZip = (files: Array<{ name: string; content: string }>) => {
-    const encoder = new TextEncoder();
-    const localParts: Uint8Array[] = [];
-    const centralParts: Uint8Array[] = [];
-    let offset = 0;
-
-    const writeUint16 = (view: DataView, position: number, value: number) => view.setUint16(position, value, true);
-    const writeUint32 = (view: DataView, position: number, value: number) => view.setUint32(position, value, true);
-
-    files.forEach((file) => {
-      const nameBytes = encoder.encode(file.name);
-      const contentBytes = encoder.encode(file.content);
-      const crc = getCrc32(contentBytes);
-      const localHeader = new Uint8Array(30 + nameBytes.length);
-      const localView = new DataView(localHeader.buffer);
-
-      writeUint32(localView, 0, 0x04034b50);
-      writeUint16(localView, 4, 20);
-      writeUint16(localView, 6, 0);
-      writeUint16(localView, 8, 0);
-      writeUint16(localView, 10, 0);
-      writeUint16(localView, 12, 0);
-      writeUint32(localView, 14, crc);
-      writeUint32(localView, 18, contentBytes.length);
-      writeUint32(localView, 22, contentBytes.length);
-      writeUint16(localView, 26, nameBytes.length);
-      writeUint16(localView, 28, 0);
-      localHeader.set(nameBytes, 30);
-
-      localParts.push(localHeader, contentBytes);
-
-      const centralHeader = new Uint8Array(46 + nameBytes.length);
-      const centralView = new DataView(centralHeader.buffer);
-
-      writeUint32(centralView, 0, 0x02014b50);
-      writeUint16(centralView, 4, 20);
-      writeUint16(centralView, 6, 20);
-      writeUint16(centralView, 8, 0);
-      writeUint16(centralView, 10, 0);
-      writeUint16(centralView, 12, 0);
-      writeUint16(centralView, 14, 0);
-      writeUint32(centralView, 16, crc);
-      writeUint32(centralView, 20, contentBytes.length);
-      writeUint32(centralView, 24, contentBytes.length);
-      writeUint16(centralView, 28, nameBytes.length);
-      writeUint16(centralView, 30, 0);
-      writeUint16(centralView, 32, 0);
-      writeUint16(centralView, 34, 0);
-      writeUint16(centralView, 36, 0);
-      writeUint32(centralView, 38, 0);
-      writeUint32(centralView, 42, offset);
-      centralHeader.set(nameBytes, 46);
-
-      centralParts.push(centralHeader);
-      offset += localHeader.length + contentBytes.length;
-    });
-
-    const centralDirectoryOffset = offset;
-    const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.length, 0);
-    const endRecord = new Uint8Array(22);
-    const endView = new DataView(endRecord.buffer);
-
-    writeUint32(endView, 0, 0x06054b50);
-    writeUint16(endView, 4, 0);
-    writeUint16(endView, 6, 0);
-    writeUint16(endView, 8, files.length);
-    writeUint16(endView, 10, files.length);
-    writeUint32(endView, 12, centralDirectorySize);
-    writeUint32(endView, 16, centralDirectoryOffset);
-    writeUint16(endView, 20, 0);
-
-    const allParts = [...localParts, ...centralParts, endRecord];
-    const totalLength = allParts.reduce((sum, part) => sum + part.length, 0);
-    const zipBytes = new Uint8Array(totalLength);
-    let position = 0;
-
-    allParts.forEach((part) => {
-      zipBytes.set(part, position);
-      position += part.length;
-    });
-
-    return zipBytes;
-  };
-
-  const createXlsxFile = (rows: Array<Record<string, unknown>>) => {
-    const headers = Object.keys(rows[0]);
-    const sheetRows = [headers, ...rows.map((row) => headers.map((header) => row[header]))];
-    const columnDefinitions = headers.map((_header, index) => `<col min="${index + 1}" max="${index + 1}" width="20" customWidth="1"/>`).join("");
-    const sheetData = sheetRows.map((row, rowIndex) => {
-      const rowNumber = rowIndex + 1;
-      const cells = row.map((cell, columnIndex) => {
-        const cellReference = `${getExcelColumnName(columnIndex)}${rowNumber}`;
-        const style = rowIndex === 0 ? ' s="1"' : "";
-        return `<c r="${cellReference}" t="inlineStr"${style}><is><t>${escapeXml(cell)}</t></is></c>`;
-      }).join("");
-
-      return `<row r="${rowNumber}">${cells}</row>`;
-    }).join("");
-
-    return createZip([
-      {
-        name: "[Content_Types].xml",
-        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
-      },
-      {
-        name: "_rels/.rels",
-        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
-      },
-      {
-        name: "xl/workbook.xml",
-        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Ingresos" sheetId="1" r:id="rId1"/></sheets></workbook>`,
-      },
-      {
-        name: "xl/_rels/workbook.xml.rels",
-        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
-      },
-      {
-        name: "xl/styles.xml",
-        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium9" defaultPivotStyle="PivotStyleLight16"/></styleSheet>`,
-      },
-      {
-        name: "xl/worksheets/sheet1.xml",
-        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${columnDefinitions}</cols><sheetData>${sheetData}</sheetData></worksheet>`,
-      },
-    ]);
-  };
-
-  const handleExportExcel = (rows: IncomeRecord[]) => {
+  const handleExportExcel = async (rows: IncomeRecord[]) => {
     if (!rows.length) {
       alert("No hay ingresos para exportar.");
       return;
     }
 
-    const tableRows = getTableRows(rows);
-    const xlsxFile = createXlsxFile(tableRows);
-    const blob = new Blob([xlsxFile], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `ingresos_${new Date().toISOString().split("T")[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const columnas = [
+      { header: "Fecha", key: "fecha", width: 14 },
+      { header: "Paciente", key: "paciente", width: 25 },
+      { header: "Tratamiento", key: "tratamiento", width: 25 },
+      { header: "No. Consulta", key: "noConsulta", width: 15 },
+      { header: "Monto", key: "monto", width: 16 },
+      { header: "Método de pago", key: "metodoPago", width: 18 },
+      { header: "Doctor", key: "doctor", width: 22 },
+      { header: "Estado", key: "estado", width: 14 },
+      { header: "Observaciones", key: "observaciones", width: 30 },
+    ];
+
+    const datos = rows.map((r) => ({
+      fecha: r.fecha,
+      paciente: r.paciente,
+      tratamiento: r.tratamiento,
+      noConsulta: `#${r.idConsulta}`,
+      monto: r.monto,
+      metodoPago: r.metodoPago,
+      doctor: r.doctor,
+      estado: r.estado,
+      observaciones: r.observacion || "",
+    }));
+
+    await exportToExcel(datos, columnas, "Ingresos", "ingresos", { currencyKeys: ["monto"] });
   };
 
   const handlePrintTable = (rows: IncomeRecord[]) => {
