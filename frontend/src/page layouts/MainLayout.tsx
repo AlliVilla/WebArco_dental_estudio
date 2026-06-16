@@ -271,7 +271,6 @@ export const MainLayout: React.FC<MainLayoutProps> = () => {
         <TopBar
           title={config.title}
           breadcrumbs={config.breadcrumbs}
-          notificationCount={2}
           sidebarWidth={isMobile ? 0 : sidebarWidth}
           showMenuButton={isMobile}
           onMenuClick={() => setSidebarOpen((v) => !v)}

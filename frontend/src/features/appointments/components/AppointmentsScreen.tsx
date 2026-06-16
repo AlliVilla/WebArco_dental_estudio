@@ -8,11 +8,15 @@ import { CalendarMonth } from './CalendarMonth';
 import { appointmentService } from '../services/appointmentService';
 import type { Appointment, UsuarioRecord } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../auth/hooks/useAuthStore';
 import { formatMonthYear, formatDateISO, getWeekDays } from '../utils';
 import { STATUS_COLORS, COLORS, VIEW_OPTIONS, STATUS_STYLES } from '../constants';
 
 export function AppointmentsScreen() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const hasGlobalAccess = user?.privilegios?.includes(69) ?? false;
+  
   const [viewType, setViewType] = useState<'day' | 'week' | 'month'>('week');
   const [selectedDoctor, setSelectedDoctor] = useState('all');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -105,7 +109,7 @@ export function AppointmentsScreen() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, height: '100%', minHeight: 0, overflowY: 'auto' }}>
-      {selectedDoctor !== 'all' && (
+      {hasGlobalAccess && selectedDoctor !== 'all' && (
         <Alert
           variant="info"
           message={`Estás viendo la agenda del ${selectedDoctorName}. Cambia el selector para ver otro doctor.`}
@@ -142,15 +146,17 @@ export function AppointmentsScreen() {
               />
             </div>
 
-            <div style={{ minWidth: 200 }}>
-              <Select
-                label="Doctor"
-                badge="conditional"
-                options={doctors.length > 0 ? doctors : [{ value: 'all', label: 'Cargando...' }]}
-                value={selectedDoctor}
-                onChange={(v) => setSelectedDoctor(v.toString())}
-              />
-            </div>
+            {hasGlobalAccess && (
+              <div style={{ minWidth: 200 }}>
+                <Select
+                  label="Doctor"
+                  badge="conditional"
+                  options={doctors.length > 0 ? doctors : [{ value: 'all', label: 'Cargando...' }]}
+                  value={selectedDoctor}
+                  onChange={(v) => setSelectedDoctor(v.toString())}
+                />
+              </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <Button variant="primary" onClick={() => navigate('/agenda/new')}>

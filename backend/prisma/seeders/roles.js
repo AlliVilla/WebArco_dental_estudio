@@ -14,6 +14,9 @@ async function insertRoles() {
         {
             nombre: "Doctor",
         },
+        {
+            nombre: "Secretario",
+        },
     ];
 
     await prisma.rol.createMany({

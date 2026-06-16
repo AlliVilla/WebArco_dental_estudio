@@ -30,8 +30,14 @@ export function formatTimestamp(timestamp: string): string {
   return `${day}/${month}/${date.getFullYear()} ${hours}:${minutes}`;
 }
 
-export function formatDateISO(date: Date): string {
-  return date.toISOString().split('T')[0];
+export function formatDateISO(date: Date | string): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toISOString().split('T')[0];
+  } catch (error) {
+    return new Date().toISOString().split('T')[0];
+  }
 }
 
 export function formatDayLabel(date: Date): string {
@@ -63,15 +69,18 @@ export function getDurationHours(apt: Appointment): number {
 }
 
 export function getEndTime(startTime: string, fecha_fin?: string): string {
-  if (fecha_fin) return fecha_fin.substring(11, 16);
+  if (fecha_fin) {
+    const d = new Date(fecha_fin);
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  }
   const [h, m] = startTime.split(':').map(Number);
   const end = h * 60 + m + 60;
   return `${Math.floor(end / 60).toString().padStart(2, '0')}:${(end % 60).toString().padStart(2, '0')}`;
 }
 
 export function getMinutesSinceMidnight(isoStr: string): number {
-  const [h, m] = isoStr.substring(11, 16).split(':').map(Number);
-  return h * 60 + m;
+  const d = new Date(isoStr);
+  return d.getHours() * 60 + d.getMinutes();
 }
 
 export function getDurationMinutes(apt: Appointment): number {

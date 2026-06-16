@@ -22,8 +22,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     if (!username || !password) return;
     try {
       await login(username, password);
-      onSuccess?.();
-      navigate("/dashboard");
+      // Solo navegamos si la autenticación fue exitosa en el store
+      if (useAuthStore.getState().isAuthenticated) {
+        onSuccess?.();
+        navigate("/dashboard");
+      }
     } catch {
       /* error manejado en store */
     }

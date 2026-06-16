@@ -90,7 +90,7 @@ export function AppointmentQuickView({ appointment, onClose }: AppointmentQuickV
                 Hora
               </span>
               <span style={{ fontSize: 15, color: '#203F49' }}>
-                {appointment.fecha_inicio.substring(11, 16)} 
+                {new Date(appointment.fecha_inicio).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                 {appointment.fecha_fin ? ` (${Math.max(1, Math.round((new Date(appointment.fecha_fin).getTime() - new Date(appointment.fecha_inicio).getTime()) / 3600000))}h)` : ' (1h)'}
               </span>
             </div>

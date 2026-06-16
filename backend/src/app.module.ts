@@ -34,10 +34,15 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';  
 import { CierreModule } from './cierre/cierre.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { NotificacionModule } from './notificacion/notificacion.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
     PrismaModule,
+    ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     RolModule,
     PrivilegioModule,
     DepartamentoModule,
@@ -75,6 +80,7 @@ import { CierreModule } from './cierre/cierre.module';
       serveRoot: '/static',
     }),
     CierreModule,
+    NotificacionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,6 +9,7 @@ import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { Prisma } from '@prisma/client';
+import { NotificacionService } from '../notificacion/notificacion.service';
 
 const citaInclude = {
   persona: {
@@ -40,7 +41,10 @@ const DEFAULT_DURATION_MINUTES = 30;
 
 @Injectable()
 export class CitaService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private notificacionService: NotificacionService,
+  ) { }
 
   async create(createCitaDto: CreateCitaDto) {
     await this.assertPersonaExists(createCitaDto.id_persona);
@@ -50,6 +54,8 @@ export class CitaService {
     const fechaFin = createCitaDto.fecha_fin
       ? new Date(createCitaDto.fecha_fin)
       : new Date(fechaInicio.getTime() + DEFAULT_DURATION_MINUTES * 60 * 1000);
+
+    this.validateBusinessHours(fechaInicio);
 
     await this.checkTimeConflict(
       createCitaDto.id_usuario,
@@ -90,9 +96,8 @@ export class CitaService {
     end: string,
     id_usuario?: number,
   ) {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(`${start}T00:00:00`);
+    const endDate = new Date(`${end}T23:59:59.999`);
 
     const where: Prisma.CitaWhereInput = {
       fecha_inicio: { gte: startDate, lte: endDate },
@@ -211,6 +216,7 @@ export class CitaService {
       (updateCitaDto.id_usuario !== undefined &&
         updateCitaDto.id_usuario !== existing.id_usuario)
     ) {
+      this.validateBusinessHours(checkStart);
       await this.checkTimeConflict(doctorId, checkStart, checkEnd, id);
     }
 
@@ -295,6 +301,46 @@ export class CitaService {
         },
       }),
     ]);
+
+    // Obtener doctor de la cita para notificarlo
+    const citaConDoctor = await this.prisma.cita.findUnique({
+      where: { id_cita: id },
+      select: {
+        id_usuario: true,
+        persona: { select: { primer_nombre: true, primer_apellido: true } },
+      },
+    });
+
+    if (citaConDoctor) {
+      const pacienteNombre = [
+        citaConDoctor.persona?.primer_nombre,
+        citaConDoctor.persona?.primer_apellido,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      if (changeStatusDto.estado === 'confirmada') {
+        this.notificacionService
+          .crearNotificacion(
+            citaConDoctor.id_usuario,
+            'cita_confirmada',
+            `Cita confirmada por ${pacienteNombre}`,
+            `${pacienteNombre} ha confirmado su asistencia a la cita.`,
+            id,
+          )
+          .catch(() => undefined);
+      } else if (changeStatusDto.estado === 'reprogramada') {
+        this.notificacionService
+          .crearNotificacion(
+            citaConDoctor.id_usuario,
+            'cita_cancelada',
+            `Cita cancelada por ${pacienteNombre}`,
+            `${pacienteNombre} ha cancelado su cita. Se requiere reagendamiento.`,
+            id,
+          )
+          .catch(() => undefined);
+      }
+    }
 
     return updated;
   }
@@ -455,16 +501,22 @@ export class CitaService {
     }
   }
 
-  async getPendingCount() {
+  async getPendingCount(id_usuario?: number) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStart = today.toISOString();
 
+    const where: Prisma.CitaWhereInput = {
+      fecha_inicio: { gte: todayStart },
+      estado: { in: ['programada', 'confirmada'] },
+    };
+
+    if (id_usuario) {
+      where.id_usuario = id_usuario;
+    }
+
     const count = await this.prisma.cita.count({
-      where: {
-        fecha_inicio: { gte: todayStart },
-        estado: { in: ['programada', 'confirmada'] },
-      },
+      where,
     });
 
     return { count };
@@ -479,6 +531,26 @@ export class CitaService {
       throw new BadRequestException(
         `No existe un usuario con el id ${id}`,
       );
+    }
+  }
+
+  private validateBusinessHours(fecha_inicio: Date) {
+    const day = fecha_inicio.getDay(); // 0 is Sunday, 6 is Saturday
+    if (day === 0 || day === 6) {
+      throw new BadRequestException('Las citas solo se pueden agendar de lunes a viernes.');
+    }
+
+    const hours = fecha_inicio.getHours();
+    
+    // De 8:00 AM a 5:00 PM (17:00). 
+    // Como mencionaste "mejor permitelo" para que pueda durar hasta después de las 5, 
+    // solo validamos la hora de inicio: debe estar entre >= 8 y < 17 (hasta las 16:59).
+    // Si inicia exactamente a las 17:00, el hour es 17, se puede permitir si minutos es 0.
+    const minutes = fecha_inicio.getMinutes();
+    const isValidStart = (hours >= 8 && hours < 17) || (hours === 17 && minutes === 0);
+    
+    if (!isValidStart) {
+      throw new BadRequestException('Las citas solo se pueden agendar para iniciar entre las 8:00 AM y las 5:00 PM.');
     }
   }
 }

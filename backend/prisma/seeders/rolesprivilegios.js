@@ -65,6 +65,7 @@ async function insertRolesPrivilegios() {
     { id_rol: 2, id_privilegio: 66 },
     { id_rol: 2, id_privilegio: 67 },
     { id_rol: 2, id_privilegio: 68 },
+    { id_rol: 2, id_privilegio: 69 },
 
     // DOCTOR — todos los privilegios médicos, excluye usuarios, roles, privilegios y financiero
     { id_rol: 4, id_privilegio: 1 },
@@ -99,6 +100,21 @@ async function insertRolesPrivilegios() {
     { id_rol: 3, id_privilegio: 14 },
     { id_rol: 3, id_privilegio: 15 },
     { id_rol: 3, id_privilegio: 63 },
+
+    // SECRETARIO
+    { id_rol: 5, id_privilegio: 1 },
+    { id_rol: 5, id_privilegio: 16 },
+    { id_rol: 5, id_privilegio: 17 },
+    { id_rol: 5, id_privilegio: 20 },
+    { id_rol: 5, id_privilegio: 25 },
+    { id_rol: 5, id_privilegio: 22 },
+    { id_rol: 5, id_privilegio: 26 },
+    { id_rol: 5, id_privilegio: 27 },
+    { id_rol: 5, id_privilegio: 30 },
+    { id_rol: 5, id_privilegio: 31 },
+    { id_rol: 5, id_privilegio: 32 },
+    { id_rol: 5, id_privilegio: 42 },
+    { id_rol: 5, id_privilegio: 69 },
   ];
 
   await prisma.rolPrivilegio.createMany({
