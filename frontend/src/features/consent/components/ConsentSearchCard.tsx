@@ -115,7 +115,7 @@ export function ConsentSearchCard({
     },
     {
       key: "pendientes" as const,
-      label: "Pendientes doctor",
+      label: "Pendientes",
       // ConsentimientoStats["pendientes"] → number
       value: loading ? "…" : totalPendientesDoctor,
       icon: <Clock3 size={20} />,

@@ -7,8 +7,9 @@ import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { PatientSearchInput } from './PatientSearchInput';
 import { appointmentService } from '../services/appointmentService';
 import { treatmentService, especialidadService } from '../../treatments/services/treatmentService';
+import { privilegeService } from '../../patients/components/expediente/services/privilegeService';
 import type { Treatment, Especialidad } from '../../treatments/types';
-import type { CreateAppointmentInput, UsuarioRecord } from '../types';
+import type { CreateAppointmentInput } from '../types';
 import { TIPO_CITA_OPTIONS, CALENDAR_START_HOUR, CALENDAR_END_HOUR } from '../constants';
 
 export function AppointmentFormScreen() {
@@ -38,11 +39,13 @@ export function AppointmentFormScreen() {
   const [initialPatient, setInitialPatient] = useState<{ nombre: string; identidad: string } | null>(null);
 
   useEffect(() => {
-    appointmentService.getUsuarios().then((res) => {
+    privilegeService.getAllDoctores().then((res) => {
       if (res.success && res.data) {
-        const mapped = res.data.map((u: UsuarioRecord) => ({
-          value: String(u.id_usuario),
-          label: `Dr(a). ${u.persona.primer_nombre} ${u.persona.primer_apellido}`.trim(),
+        // Normalizamos la lista de doctores y adaptamos el mapeo al formato de privilegeService
+        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        const mapped = list.map((d: any) => ({
+          value: String(d.id_usuario),
+          label: `${d.sexo === "M" ? "Dr." : "Dra."} ${d.primer_nombre} ${d.primer_apellido}`.trim(),
         }));
         setDoctors(mapped);
       }

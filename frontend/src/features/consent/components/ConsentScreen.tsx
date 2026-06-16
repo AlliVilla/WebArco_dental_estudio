@@ -42,12 +42,7 @@ function apiToLocal(c: Consentimiento): ConsentRecord {
     doctorId: c.doctor.id_usuario,   // Mantenemos el ID real del doctor
     fecha: formatDisplayDate(c.fecha),
     hora: formatDisplayTime(c.fecha),
-    estado:
-      c.estado_firmas === "completo"
-        ? "firmado"
-        : c.estado_firmas === "pendiente"
-          ? "pendiente_doctor"
-          : "pendiente_paciente",
+    estado: c.estado_firmas === "completo" ? "firmado" : "pendiente_doctor",
     patientSignature: (c as any).firma_paciente || "",
     doctorSignature: (c as any).firma_doctor || (c as any).firma_doctor_snapshot || "",
     declaracion: "Declaro que he sido informado sobre el procedimiento y he proporcionado información veraz sobre mi estado de salud.",
@@ -125,7 +120,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         consentimientoService.getStats(),
       ]);
       if (listRes.data) {
-        console.log(listRes.data.data)
+        console.log(listRes.data.data.map(apiToLocal));
         setConsents(listRes.data.data.map(apiToLocal));
         setTotal(listRes.data.total);
         setTotalPages(listRes.data.totalPages);
@@ -171,6 +166,11 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
 
   // ─── Acciones del formulario ─────────────────────────────────────────────
   function startEdit(consent: ConsentRecord) {
+    if (consent.estado === "firmado") {
+      openMode("preview", consent.id);
+      return;
+    }
+
     setFormValues({
       paciente: consent.paciente,
       doctor: consent.doctor,
@@ -332,7 +332,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         </>
       )}
 
-      {mode === "edit" && selectedConsent && (
+      {mode === "edit" && selectedConsent && selectedConsent.estado !== "firmado" && (
         <ConsentFormFlow
           isEditing
           selectedConsent={selectedConsent}
@@ -360,7 +360,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         />
       )}
 
-      {mode === "preview" && selectedConsent && (
+      {(mode === "preview" || (mode === "edit" && selectedConsent?.estado === "firmado")) && selectedConsent && (
         <ConsentPreview
           selectedConsent={selectedConsent}
           onClose={() => openMode("list")}

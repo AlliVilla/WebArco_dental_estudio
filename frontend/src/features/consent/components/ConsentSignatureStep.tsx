@@ -17,6 +17,7 @@ interface ConsentSignatureStepProps {
   signatureTarget: SignatureTarget;
   patientSignature: string;
   doctorSignature: string;
+  readOnly?: boolean;
   onPatientSignatureChange: (value: string) => void;
   onDoctorSignatureChange: (value: string) => void;
 }
@@ -95,6 +96,7 @@ export function ConsentSignatureStep({
   signatureTarget,
   patientSignature,
   doctorSignature,
+  readOnly,
   onPatientSignatureChange,
   onDoctorSignatureChange,
 }: ConsentSignatureStepProps) {
@@ -162,6 +164,7 @@ export function ConsentSignatureStep({
           title={title}
           signerName={signerLabel}
           value={isPatient ? patientSignature : doctorSignature}
+          readOnly={readOnly}
           onChange={
             isPatient ? onPatientSignatureChange : onDoctorSignatureChange
           }
