@@ -800,8 +800,10 @@ export function CierresView() {
             <>
               <div>
                 <h3 style={{ margin: '0 0 16px 0', color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
-                  {tipoPeriodo === 'Rango' && fechaInicio && fechaFin
-                    ? `Consolidado del período [${fechaInicio.split('-').reverse().join('/')} al ${fechaFin.split('-').reverse().join('/')}]`
+                  {tipoPeriodo === 'Rango'
+                    ? (fechaInicio && fechaFin
+                      ? `Consolidado del período [${fechaInicio.split('-').reverse().join('/')} al ${fechaFin.split('-').reverse().join('/')}]`
+                      : 'Consolidado del período [seleccione un rango de fechas]')
                     : `Consolidado del período [${tipoPeriodo.toLowerCase()}]`
                   }
                 </h3>
