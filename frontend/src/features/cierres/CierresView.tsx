@@ -89,6 +89,8 @@ function calcularDesgloseItem(item: CierreHistorialItem): {
 }
 
 export function CierresView() {
+  const hoy = obtenerHoyLocal();
+
   const [activeTab, setActiveTab] = useState<'diario' | 'periodico'>('diario');
   const [fechaCierre, setFechaCierre] = useState(new Date().toISOString().split('T')[0]);
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoCierre | 'Rango'>('Semanal');
@@ -142,15 +144,16 @@ export function CierresView() {
       const parts = fecha.split('-');
       if (parts.length === 3) {
         const fechaFormat = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        const res = await billingService.previewCierre(fechaFormat);
-        if (res.success && res.data) {
+        const respuesta = await billingService.previewCierre(fechaFormat);
+        // ponytail: la API devuelve data directamente o envuelto segun interceptor
+        if (respuesta.success && respuesta.data) {
           setPreviewData({
-            totalIngresos: res.data.totalIngresos,
-            totalEgresos: res.data.totalEgresos,
-            utilidad: res.data.utilidad,
-            efectivo: res.data.ingresos.efectivo,
-            tarjeta: res.data.ingresos.tarjeta,
-            transferencia: res.data.ingresos.transferencia,
+            totalIngresos: respuesta.data.totalIngresos,
+            totalEgresos: respuesta.data.totalEgresos,
+            utilidad: respuesta.data.utilidad,
+            efectivo: respuesta.data.ingresos.efectivo,
+            tarjeta: respuesta.data.ingresos.tarjeta,
+            transferencia: respuesta.data.ingresos.transferencia,
           });
         } else {
           setError(res.message ?? 'Error al obtener la vista previa.');
@@ -637,7 +640,7 @@ export function CierresView() {
                   variant="secondary"
                   size="sm"
                   style={{ borderRadius: 8, padding: '4px 12px' }}
-                  onClick={() => setFechaCierre(new Date().toISOString().split('T')[0])}
+                  onClick={() => setFechaCierre(hoy)}
                 >
                   <Calendar size={14} style={{ marginRight: 4 }} />
                   Hoy
@@ -778,14 +781,33 @@ export function CierresView() {
                     label="Fecha inicio"
                     badge="required"
                     value={fechaInicio}
-                    onChange={(e) => setFechaInicio(e.target.value)}
+                    max={hoy}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val > hoy || (fechaFin && val > fechaFin)) {
+                        setError('Por favor asegúrese que el rango de fechas ingresado sea válido.');
+                      } else {
+                        setError(null);
+                        setFechaInicio(val);
+                      }
+                    }}
                   />
                   <Input
                     type="date"
                     label="Fecha fin"
                     badge="required"
                     value={fechaFin}
-                    onChange={(e) => setFechaFin(e.target.value)}
+                    min={fechaInicio}
+                    max={hoy}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val > hoy || (fechaInicio && val < fechaInicio)) {
+                        setError('Por favor asegúrese que el rango de fechas ingresado sea válido.');
+                      } else {
+                        setError(null);
+                        setFechaFin(val);
+                      }
+                    }}
                   />
                 </>
               )}
