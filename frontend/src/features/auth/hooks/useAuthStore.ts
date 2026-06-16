@@ -31,9 +31,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.login({ username, password });
+      const payload = response.data || (response as any);
+      console.log("LOGIN RESPONSE RECEIVED:", response);
       
-      if (response.success && response.data) {
-        const { access_token, user } = response.data;
+      if (response.success !== false && payload && payload.access_token && payload.user) {
+        const { access_token, user } = payload;
         localStorage.setItem('webarco_auth_token', access_token);
         localStorage.setItem('webarco_user', JSON.stringify(user));
         
@@ -45,9 +47,16 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
           error: null,
         });
       } else {
+        console.error("LOGIN FALLÓ LA VALIDACIÓN DEL PAYLOAD:", payload);
+        const defaultMsg = 'Error al iniciar sesión';
+        let errMsg = response.message || defaultMsg;
+        const lowerMsg = errMsg.toLowerCase();
+        if (lowerMsg.includes('exitos') || lowerMsg.includes('exitosa') || lowerMsg.includes('éxito')) {
+          errMsg = defaultMsg; // Evita mostrar un mensaje de éxito como error si falta algo en la data
+        }
         set({
           isLoading: false,
-          error: response.message || 'Error al iniciar sesión',
+          error: errMsg,
         });
       }
     } catch (error: unknown) {

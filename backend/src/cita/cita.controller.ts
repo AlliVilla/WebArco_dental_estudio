@@ -13,6 +13,7 @@ import {
   HttpStatus,
   UseGuards,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -36,6 +37,7 @@ import { QueryCalendarDto, QueryPatientHistoryDto } from './dto/query-citas.dto'
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
+import type { Request } from 'express';
 
 @ApiTags('Citas (Appointments)')
 @Controller('appointments')
@@ -64,7 +66,7 @@ export class CitaController {
     return this.citaService.create(createCitaDto);
   }
 
-  @Privileges(26)
+  @Privileges(26, 69)
   @Get('pending-count')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -73,11 +75,15 @@ export class CitaController {
       'Obtiene el conteo de citas pendientes (programadas o confirmadas) para hoy y fechas futuras.',
   })
   @ApiOkResponse({ description: 'Conteo de citas pendientes' })
-  async getPendingCount() {
-    return this.citaService.getPendingCount();
+  async getPendingCount(@Req() req: Request) {
+    const userPrivileges: number[] = (req.user as any).privilegios || [];
+    const hasGlobal = userPrivileges.includes(69);
+    const filterUserId = hasGlobal ? undefined : (req.user as any).id_usuario;
+
+    return this.citaService.getPendingCount(filterUserId);
   }
 
-  @Privileges(26)
+  @Privileges(26, 69)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -105,20 +111,27 @@ export class CitaController {
   })
   @ApiOkResponse({ description: 'Listado de citas en el rango solicitado' })
   @ApiBadRequestResponse({ description: 'Parámetros de fecha inválidos' })
-  async findByCalendar(@Query() query: QueryCalendarDto) {
+  async findByCalendar(@Query() query: QueryCalendarDto, @Req() req: Request) {
     if (!query.start || !query.end) {
       throw new BadRequestException(
         'Los parámetros start y end son obligatorios',
       );
     }
+
+    const userPrivileges: number[] = (req.user as any).privilegios || [];
+    const hasGlobal = userPrivileges.includes(69);
+    
+    // Si no tiene el privilegio global, sobrescribimos el filtro con su propio ID
+    const filterUserId = hasGlobal ? query.id_usuario : (req.user as any).id_usuario;
+
     return this.citaService.findByCalendar(
       query.start,
       query.end,
-      query.id_usuario,
+      filterUserId,
     );
   }
 
-  @Privileges(26)
+  @Privileges(26, 69)
   @Get('patient/:patientId/history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -183,7 +196,7 @@ export class CitaController {
     });
   }
 
-  @Privileges(26)
+  @Privileges(26, 69)
   @Get(':id/status-history')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -202,7 +215,7 @@ export class CitaController {
     return this.citaService.getStatusHistory(id);
   }
 
-  @Privileges(26)
+  @Privileges(26, 69)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

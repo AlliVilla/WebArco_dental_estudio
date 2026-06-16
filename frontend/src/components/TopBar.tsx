@@ -1,10 +1,12 @@
-import { Bell, ChevronRight, Menu, Search } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Bell, ChevronRight, Menu } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useNotificationStore } from "../features/notifications/hooks/useNotifications";
+import { NotificationPanel } from "../features/notifications/components/NotificationPanel";
+import { NotificationToast, BellBadge } from "../features/notifications/components/NotificationToast";
 
 interface TopBarProps {
   title: string;
   breadcrumbs: string[];
-  notificationCount?: number;
   sidebarWidth?: number;
   onMenuClick?: () => void;
   showMenuButton?: boolean;
@@ -13,12 +15,28 @@ interface TopBarProps {
 export function TopBar({
   title,
   breadcrumbs,
-  notificationCount = 0,
   sidebarWidth = 240,
   onMenuClick,
   showMenuButton = false,
 }: TopBarProps) {
-  const navigate = useNavigate();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  const { unreadCount, latestNew, clearToast, startPolling } = useNotificationStore();
+
+  // Iniciar polling al montar TopBar (único lugar en el layout)
+  useEffect(() => {
+    const stopPolling = startPolling();
+    return stopPolling;
+  }, []);
+
+  // Auto-clear toast after 4.5s
+  useEffect(() => {
+    if (latestNew) {
+      const t = setTimeout(() => clearToast(), 4500);
+      return () => clearTimeout(t);
+    }
+  }, [latestNew]);
 
   return (
     <header
@@ -95,8 +113,10 @@ export function TopBar({
                 <span
                   style={{
                     fontSize: 11,
-                    color: i === breadcrumbs.length - 1 ? "#888F94" : "#0BC5DF",
-                    cursor: i < breadcrumbs.length - 1 ? "pointer" : "default",
+                    color:
+                      i === breadcrumbs.length - 1 ? "#888F94" : "#0BC5DF",
+                    cursor:
+                      i < breadcrumbs.length - 1 ? "pointer" : "default",
                   }}
                 >
                   {crumb}
@@ -107,68 +127,48 @@ export function TopBar({
         )}
       </div>
 
-
-      {/* Notifications */}
-      <button
-        style={{
-          position: "relative",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: 8,
-          borderRadius: 8,
-          color: "#5F656A",
-          flexShrink: 0,
-        }}
+      {/* Notifications bell + panel */}
+      <div
+        ref={bellRef}
+        style={{ position: "relative", flexShrink: 0 }}
       >
-        <Bell size={18} />
-        {notificationCount > 0 && (
-          <span
-            style={{
-              position: "absolute",
-              top: 4,
-              right: 4,
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "#E24B4A",
-              border: "1.5px solid #fff",
-            }}
+        {/* Toast animado */}
+        {latestNew && (
+          <NotificationToast
+            notification={latestNew}
+            onClose={clearToast}
           />
         )}
-      </button>
 
-      {/* Avatar */}
-      {/* <button
-        onClick={() => navigate("/mi-perfil")}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-          background: "none",
-          border: "none",
-          padding: 0,
-          flexShrink: 0,
-        }}
-      >
-        <div
+        {/* Botón campanita */}
+        <button
+          id="notification-bell-btn"
+          onClick={() => setPanelOpen((v) => !v)}
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "#0BC5DF",
+            position: "relative",
+            background: panelOpen ? "#E6F8FB" : "none",
+            border: panelOpen ? "1.5px solid #0BC5DF" : "none",
+            cursor: "pointer",
+            padding: 8,
+            borderRadius: 8,
+            color: panelOpen ? "#0BC5DF" : "#5F656A",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#fff",
+            transition: "all 0.15s",
           }}
+          aria-label="Notificaciones"
+          aria-expanded={panelOpen}
         >
-          KA
-        </div>
-      </button>*/}
+          <Bell size={18} />
+          <BellBadge count={unreadCount} />
+        </button>
+
+        {/* Panel dropdown */}
+        {panelOpen && (
+          <NotificationPanel onClose={() => setPanelOpen(false)} />
+        )}
+      </div>
     </header>
   );
 }

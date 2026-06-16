@@ -104,10 +104,10 @@ export function AppointmentFormScreen() {
     if (!formData.id_usuario) errors.id_usuario = 'Seleccione un doctor asignado';
     if (!formData.fecha_inicio) errors.fecha_inicio = 'Seleccione una fecha';
     else {
-      const date = new Date(formData.fecha_inicio);
+      const date = new Date(formData.fecha_inicio + 'T00:00:00');
       const dayOfWeek = date.getDay();
-      if (dayOfWeek === 0) {
-        errors.fecha_inicio = 'No se pueden agendar citas los domingos';
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        errors.fecha_inicio = 'Solo se pueden agendar citas de lunes a viernes';
       }
     }
     if (!timeStr) errors.timeStr = 'Ingrese la hora de la cita';

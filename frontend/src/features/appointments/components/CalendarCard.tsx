@@ -26,8 +26,8 @@ export function CalendarCard({ appointment, onClick, style }: CalendarCardProps)
       ? parseFloat(style.height)
       : 60;
 
-  const isCompact = heightPx < 50;
-  const isMedium = heightPx >= 50 && heightPx < 90;
+  const isCompact = heightPx < 45;
+  const isMedium = heightPx >= 45 && heightPx < 70;
 
   const patientName = appointment.persona
     ? `${appointment.persona.primer_nombre} ${appointment.persona.primer_apellido}`
@@ -37,10 +37,14 @@ export function CalendarCard({ appointment, onClick, style }: CalendarCardProps)
     ? `Dr. ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
     : null;
 
-  const startTime = appointment.fecha_inicio.substring(11, 16);
-  const endTime = appointment.fecha_fin
-    ? appointment.fecha_fin.substring(11, 16)
-    : null;
+  const dStart = new Date(appointment.fecha_inicio);
+  const startTime = dStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  
+  let endTime: string | null = null;
+  if (appointment.fecha_fin) {
+    const dEnd = new Date(appointment.fecha_fin);
+    endTime = dEnd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
   return (
     <div
@@ -103,7 +107,7 @@ export function CalendarCard({ appointment, onClick, style }: CalendarCardProps)
       )}
 
       {/* Doctor + motivo — only when there's enough vertical space */}
-      {!isCompact && !isMedium && doctorName && (
+      {!isCompact && doctorName && (
         <div
           style={{
             fontSize: 9,
@@ -119,7 +123,7 @@ export function CalendarCard({ appointment, onClick, style }: CalendarCardProps)
         </div>
       )}
 
-      {!isCompact && !isMedium && (appointment.motivo || appointment.tipo_cita) && (
+      {!isCompact && (appointment.motivo || appointment.tipo_cita) && (
         <div
           style={{
             fontSize: 9,

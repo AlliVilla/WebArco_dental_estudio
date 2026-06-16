@@ -9,7 +9,7 @@ export const SIDEBAR_PRIVILEGES: Partial<Record<NavId, number[]>> = {
 
   "consentimientos-lista": [25],
 
-  citas: [26],
+  citas: [26, 69],
 
   recordatorios: [30],
   "reminders-historial": [30],

@@ -42,6 +42,8 @@ export class PrivilegesGuard implements CanActivate {
 
     const userPrivileges = privilegios.map(p => p.id_privilegio);
 
+    request.user.privilegios = userPrivileges;
+
     return requiredPrivileges.some(p =>
       userPrivileges.includes(p),
     );

@@ -15,7 +15,8 @@ export const formatCurrency = (value: number): string => {
  */
 export const formatDate = (dateString: string): string => {
   if (!dateString) return "";
-  const date = new Date(dateString);
+  const str = dateString.length === 10 ? `${dateString}T00:00:00` : dateString;
+  const date = new Date(str);
   return new Intl.DateTimeFormat("es-HN", {
     dateStyle: "medium",
   }).format(date);
@@ -25,7 +26,8 @@ export const formatDate = (dateString: string): string => {
  * Calculates age from an ISO date string.
  */
 export const calculateAge = (dateString: string): number => {
-  const birth = new Date(dateString);
+  const str = dateString.length === 10 ? `${dateString}T00:00:00` : dateString;
+  const birth = new Date(str);
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
