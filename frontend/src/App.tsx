@@ -28,6 +28,7 @@ import {
 } from "./features/users";
 
 import { MiPerfil } from "./features/users/components/MiPerfil";
+import { ForcePasswordChange } from "./features/auth/components/ForcePasswordChange";
 import { Card, DesignSystemScreen } from "./context";
 import { Dashboard } from "./page layouts/Dashboard";
 import { MainLayout } from "./page layouts/MainLayout";
@@ -57,6 +58,14 @@ function App() {
         }
       />
 
+      <Route
+        path="/force-password-change"
+        element={
+          <AuthGuard>
+            <ForcePasswordChange />
+          </AuthGuard>
+        }
+      />
       <Route
         element={
           <AuthGuard>

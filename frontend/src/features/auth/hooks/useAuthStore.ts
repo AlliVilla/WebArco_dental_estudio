@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import { AuthState } from '../types';
+import type { AuthState, User } from '../types';
 import { authService } from '../services/authService';
 
 interface AuthActions {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  updateUser: (user: User) => void;
 }
 
 function loadInitialState(): Pick<AuthState, 'user' | 'token' | 'isAuthenticated'> {
@@ -92,5 +93,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  updateUser: (user: User) => {
+    localStorage.setItem('webarco_user', JSON.stringify(user));
+    set({ user });
+  },
 }));
 export default useAuthStore;

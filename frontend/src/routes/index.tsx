@@ -24,9 +24,21 @@ function CenteredSpinner() {
 
 /** Solo entra si está autenticado, si no → /login */
 export function AuthGuard({ children }: GuardProps) {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
+  const location = window.location.pathname;
+
   if (isLoading) return <CenteredSpinner />;
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  if (
+    user?.must_change_password &&
+    location !== "/force-password-change"
+  ) {
+    return <Navigate to="/force-password-change" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 /** Solo entra si NO está autenticado, si ya lo está → /dashboard */

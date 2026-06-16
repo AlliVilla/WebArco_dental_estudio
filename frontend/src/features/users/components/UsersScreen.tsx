@@ -14,12 +14,15 @@ import {
   MapPin,
   Shield,
   X,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   DataTable,
   ConfirmModal,
   FormSection,
   FullWidthField,
+  Modal,
 } from "../../../components";
 import {
   Button,
@@ -350,6 +353,11 @@ export function UsersScreen() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [credentialsModal, setCredentialsModal] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
   // Fix: useRef para timers en vez de setTimeout sueltos
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -673,13 +681,13 @@ export function UsersScreen() {
         };
         const res = await userService.create(payload);
         if (res.success) {
-          setSuccessMessage(
-            "Usuario creado con éxito. Credenciales temporales listas para el primer inicio.",
-          );
+          setCredentialsModal({
+            username: payload.username,
+            password: payload.password_temporal,
+          });
           setIsFormOpen(false);
           void fetchUsers();
           void fetchStats();
-          addTimer(() => setSuccessMessage(null), 5000);
         } else {
           setFormErrors({ form: res.message });
           scrollToFirstError({ form: res.message });
@@ -1149,6 +1157,121 @@ export function UsersScreen() {
         confirmLabel={statusTargetValue ? "Activar" : "Desactivar"}
         cancelLabel="Cancelar"
       />
+
+      {/* Modal credenciales temporales */}
+      <Modal
+        open={!!credentialsModal}
+        onClose={() => setCredentialsModal(null)}
+        title="Usuario creado con éxito"
+        icon={<UserPlus size={18} style={{ color: "#0BC5DF" }} />}
+        maxWidth={450}
+      >
+        <div style={{ padding: "20px 24px" }}>
+          <p
+            style={{
+              margin: "0 0 16px",
+              fontSize: 14,
+              color: "#5F656A",
+              lineHeight: 1.5,
+            }}
+          >
+            Comparte estas credenciales con el nuevo usuario. Deberá cambiar su
+            contraseña en el primer inicio de sesión.
+          </p>
+
+          <div
+            style={{
+              background: "#F0F9FF",
+              border: "1px solid #BAE6FD",
+              borderRadius: 10,
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#0369A1",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Usuario
+              </span>
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#203F49",
+                  fontFamily: "monospace",
+                }}
+              >
+                {credentialsModal?.username}
+              </p>
+            </div>
+            <div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#0369A1",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Contraseña temporal
+              </span>
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#203F49",
+                  fontFamily: "monospace",
+                }}
+              >
+                {credentialsModal?.password}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => {
+                if (!credentialsModal) return;
+                const text = `Usuario: ${credentialsModal.username}\nContraseña: ${credentialsModal.password}`;
+                navigator.clipboard.writeText(text).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+            >
+              {copied ? (
+                <>
+                  <Check size={16} /> Copiado
+                </>
+              ) : (
+                <>
+                  <Copy size={16} /> Copiar credenciales
+                </>
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setCredentialsModal(null)}
+            >
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal crear/editar */}
       {isFormOpen && (

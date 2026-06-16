@@ -22,10 +22,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     if (!username || !password) return;
     try {
       await login(username, password);
-      // Solo navegamos si la autenticación fue exitosa en el store
-      if (useAuthStore.getState().isAuthenticated) {
+      const state = useAuthStore.getState();
+      if (state.isAuthenticated) {
         onSuccess?.();
-        navigate("/dashboard");
+        if (state.user?.must_change_password) {
+          navigate("/force-password-change", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
       }
     } catch {
       /* error manejado en store */
