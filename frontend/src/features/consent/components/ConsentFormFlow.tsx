@@ -240,6 +240,11 @@ export function ConsentFormFlow({
   const canSaveSignature = signatureTarget === "patient" ? Boolean(patientSignature) : Boolean(doctorSignature);
   const displayConsentCode = isEditing && selectedConsent ? selectedConsent.id : "Se generará al guardar";
 
+  // Verificamos si la firma ya existía en el registro original para bloquear edición
+  const isAlreadySigned = signatureTarget === "patient" 
+    ? !!selectedConsent?.patientSignature 
+    : !!selectedConsent?.doctorSignature;
+
   const validateForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!formValues.paciente.trim()) errors.paciente = "El nombre del paciente es obligatorio";
@@ -458,17 +463,20 @@ export function ConsentFormFlow({
             signatureTarget={signatureTarget}
             patientSignature={patientSignature}
             doctorSignature={doctorSignature}
+            readOnly={isAlreadySigned}
             onPatientSignatureChange={onPatientSignatureChange}
             onDoctorSignatureChange={onDoctorSignatureChange}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
             <Button type="button" variant="secondary" onClick={() => { setSignatureError(""); if (currentStep === 2) { onStepChange(3); onSignatureTargetChange("doctor"); } else { onSkipToFinish(); } }} style={{ width: isMobile ? "100%" : undefined }}>
-              Omitir
+              {isAlreadySigned ? "Continuar" : "Omitir"}
             </Button>
-            <Button type="button" onClick={handleSaveSignature} style={{ width: isMobile ? "100%" : undefined }}>
-              <Save size={16} />
-              {isMobile ? "Guardar firma" : signatureTarget === "patient" ? "Guardar firma del paciente" : "Guardar firma del doctor"}
-            </Button>
+            {!isAlreadySigned && (
+              <Button type="button" onClick={handleSaveSignature} style={{ width: isMobile ? "100%" : undefined }}>
+                <Save size={16} />
+                {isMobile ? "Guardar firma" : signatureTarget === "patient" ? "Guardar firma del paciente" : "Guardar firma del doctor"}
+              </Button>
+            )}
           </div>
         </div>
       )}

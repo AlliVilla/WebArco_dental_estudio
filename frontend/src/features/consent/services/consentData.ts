@@ -14,8 +14,7 @@ export const defaultFormValues: ConsentFormValues = {
 
 export const statusOptions = [
   { value: "firmado", label: "Firmado" },
-  { value: "pendiente_doctor", label: "Pendiente firma doctor" },
-  { value: "pendiente_paciente", label: "Pendiente firma paciente" },
+  { value: "pendiente_doctor", label: "Pendiente" },
 ];
 
 export const doctorOptions = [

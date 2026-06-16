@@ -1,4 +1,4 @@
-export type ConsentStatus = "firmado" | "pendiente_doctor" | "pendiente_paciente";
+export type ConsentStatus = "firmado" | "pendiente";
 export type ConsentMode = "list" | "new" | "edit" | "preview";
 export type ConsentStep = 1 | 2 | 3 | 4;
 export type SignatureTarget = "patient" | "doctor";
