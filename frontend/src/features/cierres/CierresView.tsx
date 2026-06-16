@@ -16,9 +16,16 @@ import {
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Alert, Button, Card, Input, Select } from '../../context';
+import { DataTable, Column } from '../../components';
 import { billingService } from '../billing';
 import { CierreHistorialItem, TipoCierre } from '../billing/types';
 import { formatCurrency, obtenerHoyLocal } from '../../utils/formatters';
+
+type FilaCierre = CierreHistorialItem & {
+  periodo: string;
+  fecha: string;
+  desglose: { efectivo: number; tarjeta: number; transfer: number };
+};
 
 const COLORS = {
   primary: '#0BC5DF',
@@ -242,6 +249,60 @@ export function CierresView() {
       fecha: formatFechaRango(item),
     }));
   }, [cierresFiltrados]);
+
+  const columns = useMemo<Column<FilaCierre>[]>(() => [
+    { key: 'periodo', label: 'Período' },
+    { key: 'fecha', label: 'Rango de fechas' },
+    {
+      key: 'ingresos',
+      label: 'Ingresos',
+      render: (val) => (
+        <span style={{ color: COLORS.primary, fontWeight: 600 }}>
+          {formatCurrency(toNum(val as string))}
+        </span>
+      ),
+    },
+    {
+      key: 'egresos',
+      label: 'Egresos',
+      render: (val) => (
+        <span style={{ color: COLORS.danger, fontWeight: 600 }}>
+          {formatCurrency(toNum(val as string))}
+        </span>
+      ),
+    },
+    {
+      key: 'utilidad',
+      label: 'Utilidad',
+      render: (val) => (
+        <span style={{ color: COLORS.success, fontWeight: 600 }}>
+          {formatCurrency(toNum(val as string))}
+        </span>
+      ),
+    },
+    {
+      key: 'desglose',
+      label: 'Desglose métodos de pago',
+      render: (_, fila) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+          <span>Efectivo:&nbsp;&nbsp;{fila.desglose.efectivo.toFixed(2)}%</span>
+          <span>Tarjeta:&nbsp;&nbsp;&nbsp;{fila.desglose.tarjeta.toFixed(2)}%</span>
+          <span>Transfer:&nbsp;&nbsp;{fila.desglose.transfer.toFixed(2)}%</span>
+        </div>
+      ),
+    },
+    {
+      key: 'usuario',
+      label: 'Responsable',
+      render: (_, fila) => {
+        const u = fila.usuario;
+        if (!u) return '—';
+        return u.persona
+          ? `${u.persona.primer_nombre} ${u.persona.primer_apellido}`
+          : u.username;
+      },
+    },
+  ], []);
 
   const buildNombreArchivoPeriodico = (): string => {
     if (tipoPeriodo === 'Rango' && fechaInicio && fechaFin) {
@@ -786,70 +847,19 @@ export function CierresView() {
                 </div>
               </div>
 
-              <Card style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${COLORS.borderLight}` }}>
-                  <h3 style={{ margin: 0, color: COLORS.text, fontSize: 16, fontWeight: 600 }}>
-                    Historial de cierres
-                  </h3>
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 800 }}>
-                    <thead style={{ background: '#F8F9FA' }}>
-                      <tr>
-                        {['Período', 'Rango de fechas', 'Ingresos', 'Egresos', 'Utilidad', 'Desglose métodos de pago', 'Responsable'].map((col) => (
-                          <th
-                            key={col}
-                            style={{ padding: '12px 20px', fontSize: 12, fontWeight: 600, color: COLORS.muted, borderBottom: `1px solid ${COLORS.borderLight}` }}
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filasTabla.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} style={{ padding: '32px 20px', textAlign: 'center', color: COLORS.muted, fontSize: 13 }}>
-                            {isRangoValido
-                              ? 'No hay cierres registrados en el rango de fechas seleccionado.'
-                              : 'No hay cierres registrados para el período seleccionado.'}
-                          </td>
-                        </tr>
-                      ) : (
-                        filasTabla.map((fila, idx) => {
-                          const borde = idx < filasTabla.length - 1 ? { borderBottom: `1px solid ${COLORS.borderLight}` } : {};
-                          const nombreResponsable = fila.usuario
-                            ? fila.usuario.persona
-                              ? `${fila.usuario.persona.primer_nombre} ${fila.usuario.persona.primer_apellido}`
-                              : fila.usuario.username
-                            : '—';
-
-                          return (
-                            <tr key={fila.id_cierre}>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, fontWeight: 500, ...borde }}>{fila.periodo}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, ...borde }}>{fila.fecha}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.primary, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.ingresos))}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.danger, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.egresos))}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.success, fontWeight: 600, ...borde }}>{formatCurrency(toNum(fila.utilidad))}</td>
-                              <td style={{ padding: '16px 20px', fontSize: 12, color: COLORS.text, ...borde }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  <span>Efectivo:&nbsp;&nbsp;{fila.desglose.efectivo.toFixed(2)}%</span>
-                                  <span>Tarjeta:&nbsp;&nbsp;&nbsp;{fila.desglose.tarjeta.toFixed(2)}%</span>
-                                  <span>Transfer:&nbsp;&nbsp;{fila.desglose.transfer.toFixed(2)}%</span>
-                                </div>
-                              </td>
-                              <td style={{ padding: '16px 20px', fontSize: 13, color: COLORS.text, ...borde }}>
-                                {nombreResponsable}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              <DataTable<FilaCierre>
+                columns={columns}
+                data={filasTabla as FilaCierre[]}
+                title="Historial de cierres"
+                getRowKey={(row) => String(row.id_cierre)}
+                emptyMessage={
+                  isRangoValido
+                    ? 'No hay cierres registrados en el rango de fechas seleccionado.'
+                    : 'No hay cierres registrados para el período seleccionado.'
+                }
+                searchable={false} // ponytail: mantenemos la estética original sin el buscador superior de DataTable
+                pageSize={10}
+              />
             </>
           )}
 
