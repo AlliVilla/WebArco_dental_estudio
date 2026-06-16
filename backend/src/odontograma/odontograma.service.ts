@@ -127,8 +127,21 @@ export class OdontogramaService {
       );
     }
 
-    // Get previous state (latest record before this consultation)
-    const previousRecord = await this.prisma.odontograma.findFirst({
+    // Get current record for this tooth in this consultation (if exists)
+    const currentRecord = await this.prisma.odontograma.findUnique({
+      where: {
+        id_consulta_id_diente: {
+          id_consulta: activeConsulta.id_consulta,
+          id_diente: toothNumber,
+        },
+      },
+      select: { estado: true, observacion: true },
+    });
+
+    // Get previous state:
+    // - If updating existing record in this consult → use current record's estado
+    // - If creating new record → use latest record from prior consultations
+    const previousRecord = currentRecord ?? await this.prisma.odontograma.findFirst({
       where: {
         id_diente: toothNumber,
         consulta: {
@@ -138,6 +151,9 @@ export class OdontogramaService {
       },
       orderBy: { consulta: { fecha_inicio: 'desc' } },
     });
+
+    const estadoAnterior = currentRecord?.estado ?? previousRecord?.estado ?? null;
+    const observacionAnterior = currentRecord?.observacion ?? previousRecord?.observacion ?? null;
 
     const odontograma = await this.prisma.odontograma.upsert({
       where: {
@@ -151,12 +167,14 @@ export class OdontogramaService {
         id_diente: toothNumber,
         estado: dto.estado,
         observacion: dto.observacion ?? null,
-        estado_anterior: previousRecord?.estado ?? null,
-        observacion_anterior: previousRecord?.observacion ?? null,
+        estado_anterior: estadoAnterior,
+        observacion_anterior: observacionAnterior,
       },
       update: {
         estado: dto.estado,
         observacion: dto.observacion ?? null,
+        estado_anterior: estadoAnterior,
+        observacion_anterior: observacionAnterior,
       },
       include: {
         diente: {
@@ -384,8 +402,21 @@ export class OdontogramaService {
     for (const item of items) {
       await this.assertToothExists(item.id_diente);
 
-      // Get previous state for this tooth
-      const previousRecord = await this.prisma.odontograma.findFirst({
+      // Get current record for this tooth in this consultation (if exists)
+      const currentRecord = await this.prisma.odontograma.findUnique({
+        where: {
+          id_consulta_id_diente: {
+            id_consulta: consultaId,
+            id_diente: item.id_diente,
+          },
+        },
+        select: { estado: true, observacion: true },
+      });
+
+      // Get previous state:
+      // - If updating existing record → use current record's estado
+      // - If creating new record → use latest record from prior consultations
+      const previousRecord = currentRecord ?? await this.prisma.odontograma.findFirst({
         where: {
           id_diente: item.id_diente,
           consulta: {
@@ -395,6 +426,9 @@ export class OdontogramaService {
         },
         orderBy: { consulta: { fecha_inicio: 'desc' } },
       });
+
+      const estadoAnterior = currentRecord?.estado ?? previousRecord?.estado ?? null;
+      const observacionAnterior = currentRecord?.observacion ?? previousRecord?.observacion ?? null;
 
       const odontograma = await this.prisma.odontograma.upsert({
         where: {
@@ -408,12 +442,14 @@ export class OdontogramaService {
           id_diente: item.id_diente,
           estado: item.estado,
           observacion: item.observacion ?? null,
-          estado_anterior: previousRecord?.estado ?? null,
-          observacion_anterior: previousRecord?.observacion ?? null,
+          estado_anterior: estadoAnterior,
+          observacion_anterior: observacionAnterior,
         },
         update: {
           estado: item.estado,
           observacion: item.observacion ?? null,
+          estado_anterior: estadoAnterior,
+          observacion_anterior: observacionAnterior,
         },
         include: {
           diente: {

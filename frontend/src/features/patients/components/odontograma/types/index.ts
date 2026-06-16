@@ -52,6 +52,8 @@ export interface OdontogramaHistorialItem {
   diente: { numero_diente: number; nombre: string };
   estado: string;
   observacion: string | null;
+  estado_anterior: string | null;
+  observacion_anterior: string | null;
   doctor: { id_usuario: number; nombre: string };
   fecha_consulta: string;
   fecha_fin: string | null;

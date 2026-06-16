@@ -6,7 +6,7 @@ import { odontogramaService } from '../services/odontogramaService';
 import { loadOdontogramaDraft, saveOdontogramaDraft, applyDraftToToothMap, buildDraftPayload } from '../services/odontogramaDraftStorage';
 import { estadoOdontogramaService, type EstadoOdontograma } from '../services/estadoOdontogramaService';
 import { ManageStatesModal } from './ManageStatesModal';
-import type { ToothData, HistoryEntry } from '../types';
+import type { ToothData, HistoryEntry, OdontogramaHistorialItem } from '../types';
 import type { Patient } from '../../../types';
 
 // ── Dynamic state config ───────────────────────────────────────────────────────
@@ -159,6 +159,29 @@ function getAge(birthDate: string): number {
   const monthDiff = today.getMonth() - birth.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
   return age;
+}
+
+function derivePreviousStates(items: OdontogramaHistorialItem[]): OdontogramaHistorialItem[] {
+  const grouped = new Map<number, OdontogramaHistorialItem[]>();
+  for (const item of items) {
+    const n = item.diente?.numero_diente;
+    if (n == null) continue;
+    if (!grouped.has(n)) grouped.set(n, []);
+    grouped.get(n)!.push(item);
+  }
+
+  const result: OdontogramaHistorialItem[] = [];
+  for (const [, group] of grouped) {
+    group.sort((a, b) => new Date(a.fecha_consulta).getTime() - new Date(b.fecha_consulta).getTime());
+    for (let i = group.length - 1; i >= 0; i--) {
+      const item = { ...group[i] };
+      if (!item.estado_anterior) {
+        item.estado_anterior = i > 0 ? group[i - 1].estado : 'Sano';
+      }
+      result.push(item);
+    }
+  }
+  return result;
 }
 
 // ── Tooth Crown SVG component ─────────────────────────────────────────────────
@@ -751,7 +774,7 @@ export function OdontogramScreen({
         );
         
         // Keep only the latest record per tooth
-        const latestPerTooth = new Map<number, any>();
+        const latestPerTooth = new Map<number, OdontogramaHistorialItem>();
         for (const record of relevantRecords) {
           const num = record.diente?.numero_diente;
           if (num && !latestPerTooth.has(num)) {
@@ -770,9 +793,7 @@ export function OdontogramScreen({
           }
         });
         
-        const firstWithDoctor = latestPerTooth.values().next().value?.doctor?.nombre 
-          ? Array.from(latestPerTooth.values()).find((d) => d.doctor?.nombre) 
-          : null;
+        const firstWithDoctor = Array.from(latestPerTooth.values()).find((d) => d.doctor?.nombre);
         if (firstWithDoctor?.doctor?.nombre) {
           setDoctorName(firstWithDoctor.doctor.nombre);
         }
@@ -837,20 +858,20 @@ export function OdontogramScreen({
     try {
       const res = await odontogramaService.getHistory(patientId);
       const histData = res.data;
-      const rawEntries = (histData?.historial || []).map((item: any, index: number) => {
-        return {
-          id: item.id_odontograma || index,
-          toothNumber: item.diente?.numero_diente || 0,
-          previousState: item.estado_anterior || null,
-          newState: item.estado || '',
-          observation: item.observacion || '',
-          doctor: item.doctor?.nombre || '',
-          date: item.fecha_consulta ? item.fecha_consulta.split('T')[0] : '',
-          _sort: item.fecha_consulta ? new Date(item.fecha_consulta).getTime() : 0,
-        };
-      });
-      rawEntries.sort((a, b) => b._sort - a._sort); // Already sort descending for display
-      const entries: HistoryEntry[] = rawEntries.map(({ _sort, ...e }) => e);
+      const rawItems: OdontogramaHistorialItem[] = histData?.historial || [];
+
+      // Derive previousState from chronological order when estado_anterior is null
+      const withPrevious = derivePreviousStates(rawItems);
+
+      const entries: HistoryEntry[] = withPrevious.map((item) => ({
+        id: item.id_odontograma,
+        toothNumber: item.diente.numero_diente,
+        previousState: item.estado_anterior,
+        newState: item.estado || '',
+        observation: item.observacion || '',
+        doctor: item.doctor?.nombre || '',
+        date: item.fecha_consulta ? item.fecha_consulta.split('T')[0] : '',
+      }));
       setApiHistory(entries);
     } catch {
       setApiHistory([]);
@@ -909,8 +930,16 @@ export function OdontogramScreen({
   };
 
   const handleSave = async () => {
-    if (!selectedTooth || !pendingState) {
-      setAlert({ type: 'error', text: 'Debes seleccionar un estado antes de guardar el cambio.' }); return;
+    if (!selectedTooth) return;
+    if (!pendingState) {
+      const currentState = teeth[selectedTooth]?.state;
+      setAlert({
+        type: 'warning',
+        text: currentState
+          ? `No se puede eliminar el estado del diente. Solo puedes cambiar el estado actual "${currentState}" a otro estado diferente.`
+          : 'Debes seleccionar un estado antes de guardar el cambio.',
+      });
+      return;
     }
 
     setSaving(true);
@@ -924,7 +953,6 @@ export function OdontogramScreen({
           pendingState,
           pendingObs,
         );
-        await fetchHistory(effectivePatientId);
       }
 
       const updatedTeeth = {
@@ -939,20 +967,17 @@ export function OdontogramScreen({
         ? modifiedTeethList
         : [...modifiedTeethList, selectedTooth];
 
-      let updatedSessionHistory = sessionHistory;
-      if (isEmbedded && !consultaId) {
-        const newEntry: HistoryEntry = {
-          id: Date.now(),
-          toothNumber: selectedTooth,
-          previousState: teeth[selectedTooth]?.state ?? null,
-          newState: pendingState,
-          observation: pendingObs,
-          doctor: embeddedDoctorName || doctorName || '—',
-          date: TODAY,
-        };
-        updatedSessionHistory = [newEntry, ...sessionHistory];
-        setSessionHistory(updatedSessionHistory);
-      }
+      const newEntry: HistoryEntry = {
+        id: Date.now(),
+        toothNumber: selectedTooth,
+        previousState: teeth[selectedTooth]?.state ?? null,
+        newState: pendingState,
+        observation: pendingObs,
+        doctor: embeddedDoctorName || doctorName || '—',
+        date: TODAY,
+      };
+      const updatedSessionHistory = [newEntry, ...sessionHistory];
+      setSessionHistory(updatedSessionHistory);
 
       setTeeth(updatedTeeth);
       setModifiedTeethList(updatedModified);

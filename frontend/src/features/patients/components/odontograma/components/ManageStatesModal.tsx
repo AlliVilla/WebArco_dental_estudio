@@ -204,7 +204,7 @@ export function ManageStatesModal({ open, onClose }: ManageStatesModalProps) {
         onConfirm={handleDelete}
         variant="danger"
         title="Eliminar estado"
-        description={`¿Estás seguro de eliminar el estado "${confirmDelete?.nombre}"? Los dientes que usen este estado se mostrarán sin configuración de color.`}
+        description={`¿Estás seguro de eliminar el estado "${confirmDelete?.nombre}"? Los dientes que usen este estado se mostrarán sin configuración de color. Nota: Si el estado está siendo usado en algún odontograma, NO se podrá eliminar.`}
         confirmLabel="Eliminar"
       />
     </div>
