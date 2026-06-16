@@ -171,7 +171,15 @@ export function TreatmentForm({ mode }: TreatmentFormProps) {
           : treatmentService.update(Number(id), payload);
 
       await request;
-      navigate("/treatments");
+      setAlert({
+        variant: "success",
+        message:
+          mode === "create"
+            ? "Tratamiento creado correctamente."
+            : "Tratamiento actualizado correctamente.",
+      });
+      if (alertTimer.current) clearTimeout(alertTimer.current);
+      alertTimer.current = setTimeout(() => navigate("/treatments"), 1500);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Error al guardar el tratamiento.";
