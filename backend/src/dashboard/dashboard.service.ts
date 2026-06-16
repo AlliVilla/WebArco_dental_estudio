@@ -48,7 +48,12 @@ export class DashboardService {
           },
         }),
         this.prisma.persona.count({
-          where: { usuarios: { none: {} } },
+          where: {
+            OR: [
+              { citas: { some: {} } },
+              { consultas: { some: {} } },
+            ],
+          },
         }),
       ]);
 
@@ -69,7 +74,7 @@ export class DashboardService {
         },
         pacientesActivos: {
           value: pacientesActivos,
-          sub: 'Registrados como pacientes',
+          sub: 'Con citas o consultas registradas',
         },
         consultasMes: {
           value: consultasMes,
@@ -170,16 +175,34 @@ export class DashboardService {
       'Dic',
     ];
 
-    const ingresosPorMes: { month: string; monto: number }[] = [];
-    for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
-      const range = this.getMonthRange(new Date(year, monthIndex, 1));
-      ingresosPorMes.push({
-        month: monthLabels[monthIndex],
-        monto: await this.getIngresosRango(range),
-      });
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
+
+    const [pagosPaciente, pagosConsulta] = await Promise.all([
+      this.prisma.pagoPaciente.findMany({
+        where: { fecha: { gte: yearStart, lte: yearEnd } },
+        select: { fecha: true, abono: true },
+      }),
+      this.prisma.pagoConsulta.findMany({
+        where: { fecha: { gte: yearStart, lte: yearEnd } },
+        select: { fecha: true, monto: true },
+      }),
+    ]);
+
+    const monthlyTotals = Array(12).fill(0);
+
+    for (const pago of pagosPaciente) {
+      monthlyTotals[pago.fecha.getMonth()] += Number(pago.abono ?? 0);
     }
 
-    return ingresosPorMes;
+    for (const pago of pagosConsulta) {
+      monthlyTotals[pago.fecha.getMonth()] += Number(pago.monto ?? 0);
+    }
+
+    return monthLabels.map((month, i) => ({
+      month,
+      monto: monthlyTotals[i],
+    }));
   }
 
   private async getIngresosRango(range: DateRange): Promise<number> {
