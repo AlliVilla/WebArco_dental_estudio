@@ -47,14 +47,12 @@ const C = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Step = 1 | 2 | 3;
 
-type FileCategory = 'Radiografía Periapical' | 'Radiografía Panorámica' | 'Fotografía Clínica Intraoral/Extraoral';
 type PrismaTipoArchivo = 'Tomografia' | 'Radiografia' | 'Imagen';
 
 interface ArchivoItem {
     id: string;
     file: File;
     preview: string;
-    categoria: FileCategory;
     uploading: boolean;
 }
 
@@ -72,17 +70,6 @@ interface ToastMsg {
     message: string;
 }
 
-const FILE_CATEGORIES: FileCategory[] = [
-    'Radiografía Periapical',
-    'Radiografía Panorámica',
-    'Fotografía Clínica Intraoral/Extraoral',
-];
-
-// Map frontend categories to Prisma enum
-const mapFileCategoryToPrisma = (cat: FileCategory): PrismaTipoArchivo => {
-    if (cat.includes('Radiografía')) return 'Radiografia';
-    return 'Imagen';
-};
 
 const STEP_LABELS = ['Paciente y Cita', 'Odontograma', 'Tratamientos y Diagnóstico'];
 
@@ -270,7 +257,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const [diagnostico, setDiagnostico] = useState('');
     const [notas, setNotas] = useState('');
     const [archivos, setArchivos] = useState<ArchivoItem[]>([]);
-    const [activeCategory, setActiveCategory] = useState<FileCategory>(FILE_CATEGORIES[0]);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -410,7 +396,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const preview = ev.target?.result as string;
-                setArchivos((prev) => [...prev, { id, file, preview, categoria: activeCategory, uploading: true }]);
+                setArchivos((prev) => [...prev, { id, file, preview, uploading: true }]);
                 // Simulate upload
                 setTimeout(() => {
                     setArchivos((prev) => prev.map((a) => a.id === id ? { ...a, uploading: false } : a));
@@ -418,7 +404,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             };
             reader.readAsDataURL(file);
         });
-    }, [activeCategory, addToast]);
+    }, [addToast]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -608,7 +594,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                 archivosVinculados.push({
                                     nombre: archivo.file.name,
                                     url: uploadRes.data.data.filename,
-                                    categoria: mapFileCategoryToPrisma(archivo.categoria),
+                                    categoria: 'Imagen',
                                 });
                             }
                         } catch { /* ignore single file error */ }
@@ -903,26 +889,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
 
                         {/* 2. Carga de Archivos */}
                         <SectionCard icon={<ImageIcon size={17} />} title="Radiografías y Fotos Clínicas">
-                            {/* Category selector */}
-                            <div style={{ marginBottom: 20 }}>
-                                <FieldLabel>Categoría del archivo a cargar</FieldLabel>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                                    {FILE_CATEGORIES.map((cat) => (
-                                        <button
-                                            key={cat}
-                                            onClick={() => setActiveCategory(cat)}
-                                            style={{
-                                                padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
-                                                border: `1.5px solid ${activeCategory === cat ? C.primary : C.gray300}`,
-                                                background: activeCategory === cat ? C.primaryBg : C.white,
-                                                color: activeCategory === cat ? C.primary : C.gray500,
-                                            }}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
 
                             {/* Drop zone */}
                             <div
@@ -945,9 +911,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>Arrastra imágenes aquí</div>
                                     <div style={{ fontSize: 11, color: C.gray500, marginTop: 4 }}>o haz clic para seleccionar · PNG, JPEG · Máx. 10 MB por archivo</div>
                                 </div>
-                                <span style={{ fontSize: 10, background: C.primaryBg, color: C.primary, padding: '2px 10px', borderRadius: 20, fontWeight: 500 }}>
-                                    Cargando en: {activeCategory}
-                                </span>
                                 <input ref={fileInputRef} type="file" multiple accept=".png,.jpg,.jpeg" style={{ display: 'none' }} onChange={(e) => processFiles(e.target.files)} />
                             </div>
 
@@ -983,7 +946,6 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                                 </button>
                                                 <div style={{ padding: '6px 8px', background: C.white }}>
                                                     <div style={{ fontSize: 10, fontWeight: 500, color: C.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{archivo.file.name}</div>
-                                                    <div style={{ fontSize: 9, color: C.gray500, marginTop: 1 }}>{archivo.categoria.split(' ').slice(0, 2).join(' ')}</div>
                                                 </div>
                                             </div>
                                         ))}

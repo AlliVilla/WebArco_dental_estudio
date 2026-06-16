@@ -49,7 +49,6 @@ function isImage(nombre: string): boolean {
 const CATEGORY_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   Antes:       { bg: '#FFF3E0', color: '#E65100', label: 'Antes' },
   Después:     { bg: '#E8F5E9', color: '#2E7D32', label: 'Después' },
-  Comparativa: { bg: '#E3F2FD', color: '#1565C0', label: 'Comparativa' },
 };
 
 function formatDate(iso?: string | null): string {

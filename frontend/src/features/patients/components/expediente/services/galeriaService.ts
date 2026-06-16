@@ -3,9 +3,9 @@ import { ApiResponse } from '../../../../../types/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-export type FotoCategoria = 'Antes' | 'Después' | 'Comparativa';
+export type FotoCategoria = 'Antes' | 'Después';
 
-export const FOTO_CATEGORIAS: FotoCategoria[] = ['Antes', 'Después', 'Comparativa'];
+export const FOTO_CATEGORIAS: FotoCategoria[] = ['Antes', 'Después'];
 
 export type FotoGaleria = {
   id_archivo: number;
