@@ -4,11 +4,16 @@ import { obtenerHoyLocal } from "./formatters";
 
 type Column = { header: string; key: string; width: number };
 
+type ExportToExcelOptions = {
+  currencyKeys?: string[];
+};
+
 export async function exportToExcel<T extends Record<string, unknown>>(
   data: T[],
   columns: Column[],
   sheetName: string,
   fileName: string,
+  options?: ExportToExcelOptions,
 ): Promise<void> {
   if (data.length === 0) return;
 
@@ -41,7 +46,7 @@ export async function exportToExcel<T extends Record<string, unknown>>(
       };
     }
 
-    const currencyKeys = ["monto", "precio_costo", "valor_total"];
+    const currencyKeys = options?.currencyKeys ?? ["monto"];
     currencyKeys.forEach((key) => {
       if (row[key] != null && typeof row[key] === "number") {
         addedRow.getCell(key).numFmt = '"L." #,##0.00';
