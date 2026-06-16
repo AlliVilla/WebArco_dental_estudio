@@ -7,7 +7,6 @@ import {
 } from "./features/appointments";
 import { LoginForm } from "./features/auth/components/LoginForm";
 import { ResetPasswordPage } from "./features/auth/components/ResetPasswordPage";
-import { ListaFinanciera } from "./features/billing/components/ListaFinanciera";
 import { RecordatoriosScreen } from "./features/reminders";
 import { HistorialConfirmacionesScreen } from "./features/reminders/components/HistorialConfirmacionesScreen";
 import { GestionIngresos } from "./features/billing/components/GestionIngresos";
@@ -250,14 +249,6 @@ function App() {
           element={
             <PrivilegeGuard privileges={[13]}>
               <GestionEgresos />
-            </PrivilegeGuard>
-          }
-        />
-        <Route
-          path="/billing/list"
-          element={
-            <PrivilegeGuard privileges={[12, 13]}>
-              <ListaFinanciera />
             </PrivilegeGuard>
           }
         />

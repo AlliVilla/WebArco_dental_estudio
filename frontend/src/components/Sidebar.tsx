@@ -543,7 +543,7 @@ const navGroups: NavGroup[] = [
           { id: "billing-income", label: "Gestión de Ingresos" },
           { id: "billing-facturacion-cobros", label: "Gestión de Pago" },
           { id: "billing-expense", label: "Gestión de Egresos" },
-          { id: "billing-list", label: "Lista de Ingreso / Egreso" },
+
           { id: "billing-closures", label: "Cierres" },
         ],
       },

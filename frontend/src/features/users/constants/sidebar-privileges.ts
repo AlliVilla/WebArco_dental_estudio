@@ -17,7 +17,7 @@ export const SIDEBAR_PRIVILEGES: Partial<Record<NavId, number[]>> = {
   'billing-income': [12],
   'billing-facturacion-cobros': [12],
   'billing-expense': [13],
-  'billing-list': [12, 13],
+
   'billing-closures': [15],
 
   "estado-resultado": [2],

@@ -422,6 +422,7 @@ export function UsersScreen() {
   const [idMunicipio, setIdMunicipio] = useState("");
   const [departamentoOptions, setDepartamentoOptions] = useState<{ value: string; label: string }[]>([]);
   const [municipioOptions, setMunicipioOptions] = useState<{ value: string; label: string }[]>([]);
+  const [municipioDepartamentoMap, setMunicipioDepartamentoMap] = useState<Record<number, number>>({});
   const [direccionLinea, setDireccionLinea] = useState("");
   const [username, setUsername] = useState("");
   const [idRol, setIdRol] = useState("4");
@@ -501,15 +502,27 @@ export function UsersScreen() {
   }, [fetchUsers]);
 
   useEffect(() => {
-    ubicacionService.getDepartamentos().then((res) => {
-      if (res.success) {
-        setDepartamentoOptions(
-          res.data.map((d: Departamento) => ({
-            value: String(d.id_departamento),
-            label: d.nombre,
-          })),
-        );
-      }
+    ubicacionService.getDepartamentos().then(async (res) => {
+      if (!res.success) return;
+      const depts = res.data as Departamento[];
+      setDepartamentoOptions(
+        depts.map((d) => ({
+          value: String(d.id_departamento),
+          label: d.nombre,
+        })),
+      );
+      const map: Record<number, number> = {};
+      const results = await Promise.all(
+        depts.map((d) => ubicacionService.getMunicipiosPorDepartamento(d.id_departamento)),
+      );
+      results.forEach((mRes) => {
+        if (mRes.success) {
+          (mRes.data as Municipio[]).forEach((m) => {
+            map[m.id_municipio] = m.id_departamento;
+          });
+        }
+      });
+      setMunicipioDepartamentoMap(map);
     });
   }, []);
 
@@ -558,16 +571,7 @@ export function UsersScreen() {
       setSexo(user.persona.sexo);
       setTelefono(user.persona.telefono);
       setCorreoElectronico(user.persona.correo_electronico || "");
-      let foundDept = "8";
-      for (const [deptId, municipios] of Object.entries(MUNICIPIOS_DATA)) {
-        if (
-          municipios.some((m) => Number(m.value) === user.persona.id_municipio)
-        ) {
-          foundDept = deptId;
-          break;
-        }
-      }
-      setIdDepartamento(foundDept);
+      setIdDepartamento(String(municipioDepartamentoMap[user.persona.id_municipio] ?? "8"));
       setIdMunicipio(String(user.persona.id_municipio));
       setDireccionLinea(user.persona.direccion_linea || "");
       setUsername(user.username);
