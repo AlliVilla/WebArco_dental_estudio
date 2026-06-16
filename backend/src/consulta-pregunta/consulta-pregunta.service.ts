@@ -132,7 +132,13 @@ export class ConsultaPreguntaService {
   }
 
   async update(id_pregunta: number, dto: UpdatePreguntaDto) {
-    await this.assertPreguntaNotUsed(id_pregunta);
+    const hasOnlyObligatorio =
+      Object.keys(dto).length === 1 && 'obligatorio' in dto;
+
+    if (!hasOnlyObligatorio) {
+      await this.assertPreguntaNotUsed(id_pregunta);
+    }
+
     try {
       return await this.prisma.consultaPregunta.update({
         where: { id_pregunta },

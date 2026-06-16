@@ -88,9 +88,12 @@ function EditPreguntaForm({ pregunta, onSave, onCancel, onError }: EditFormProps
         if (!text.trim()) { onError('El texto de la pregunta no puede estar vacío.'); return; }
         setSaving(true);
         try {
-            const res = await expedientService.updatePregunta(pregunta.id_pregunta, {
-                pregunta: text.trim(), categoria, requiere_explicacion: requiere, obligatorio,
-            });
+            const payload: Record<string, unknown> = {};
+            if (text.trim() !== pregunta.pregunta) payload.pregunta = text.trim();
+            if (categoria !== pregunta.categoria) payload.categoria = categoria;
+            if (requiere !== pregunta.requiere_explicacion) payload.requiere_explicacion = requiere;
+            if (obligatorio !== pregunta.obligatorio) payload.obligatorio = obligatorio;
+            const res = await expedientService.updatePregunta(pregunta.id_pregunta, payload);
             const updated = (res.data as any)?.data ?? res.data as any;
             onSave({
                 ...pregunta,

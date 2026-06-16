@@ -631,9 +631,10 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                             observacion: teethState[num].observation || undefined,
                         }));
                         await odontogramaService.bulkSave(consultaId, items);
-                        clearOdontogramaDraft(patient.id_persona);
                     } catch { /* ignore odontogram save error */ }
                 }
+
+                clearOdontogramaDraft(patient.id_persona);
 
 
 
