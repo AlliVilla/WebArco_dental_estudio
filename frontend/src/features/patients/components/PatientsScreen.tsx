@@ -1,20 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Edit,
-  Eye,
-  Hash,
-  Phone,
-  Plus,
-  User,
-  X,
-} from "lucide-react";
+import { Edit, Eye, Hash, Phone, Plus, User, X } from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
 import { Alert, Button, Card, Input } from "../../../context";
 import { DEFAULT_PAGE_SIZE } from "../../../config/constants";
 import api from "../../../services/api";
 import { formatDate } from "../../../utils/formatters";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 type Patient = Record<string, unknown> & {
   id: number;
@@ -82,12 +75,142 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
   };
 };
 
+// ─── Card móvil/tablet ──────────────────────────────────────────────────────
+function PatientCard({
+  patient,
+  onEdit,
+  onView,
+}: {
+  patient: Patient;
+  onEdit: () => void;
+  onView: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <button
+            onClick={onView}
+            type="button"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#0BC5DF",
+              cursor: "pointer",
+              fontSize: 14,
+              fontWeight: 600,
+              padding: 0,
+              textAlign: "left",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              display: "block",
+              width: "100%",
+            }}
+          >
+            {patient.fullName}
+          </button>
+          <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+            {patient.code}
+          </p>
+        </div>
+        <button
+          onClick={onEdit}
+          style={{
+            padding: 6,
+            borderRadius: 8,
+            border: "none",
+            background: "#F8F9FA",
+            cursor: "pointer",
+            color: "#203F49",
+            display: "flex",
+            flexShrink: 0,
+          }}
+        >
+          <Edit size={15} />
+        </button>
+      </div>
+      <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+            borderBottom: "1px solid #F8F9FA",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Teléfono</span>
+          <span style={{ fontSize: 13, color: "#203F49" }}>
+            {patient.phone || "N/A"}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>
+            Última consulta
+          </span>
+          <span style={{ fontSize: 13, color: "#203F49" }}>
+            {patient.lastVisit
+              ? formatDate(patient.lastVisit)
+              : "Sin consultas"}
+          </span>
+        </div>
+        <button
+          onClick={onView}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            padding: "8px 0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            border: "1px solid #D3D7DA",
+            borderRadius: 8,
+            background: "#fff",
+            fontSize: 13,
+            color: "#203F49",
+            cursor: "pointer",
+          }}
+        >
+          <Eye size={14} /> Ver información médica
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PatientsScreen({
   onCreatePatient,
   onEditPatient,
   onViewPatient,
 }: PatientsScreenProps) {
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useResponsive();
+  const showCards = isMobile || isTablet;
+
   const [searchName, setSearchName] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
   const [searchCode, setSearchCode] = useState("");
@@ -104,39 +227,49 @@ export function PatientsScreen({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchVersion, setSearchVersion] = useState(0);
-  const activeFilterKeyRef = useRef(JSON.stringify({ nombre: "", telefono: "", codigo: "" }));
+  const activeFilterKeyRef = useRef(
+    JSON.stringify({ nombre: "", telefono: "", codigo: "" })
+  );
 
   useEffect(() => {
     let ignore = false;
     setIsLoading(true);
     setError("");
 
-    api.get<PersonasListResponse>("/persona", {
-      params: {
-        page: currentPage,
-        limit: DEFAULT_PAGE_SIZE,
-        nombre: activeFilters.nombre || undefined,
-        telefono: activeFilters.telefono || undefined,
-        codigo: activeFilters.codigo || undefined,
-        includeConsulta: false,
-      },
-    })
+    api
+      .get<PersonasListResponse>("/persona", {
+        params: {
+          page: currentPage,
+          limit: DEFAULT_PAGE_SIZE,
+          nombre: activeFilters.nombre || undefined,
+          telefono: activeFilters.telefono || undefined,
+          codigo: activeFilters.codigo || undefined,
+          includeConsulta: false,
+        },
+      })
       .then((response: { data: PersonasListResponse }) => {
         if (ignore) return;
 
         const personas = response.data?.data ?? [];
         const patients = personas.map(mapPersonaToPatient);
         setSearchResults(patients);
-        setPagination(response.data?.pagination ?? {
-          total: patients.length,
-          page: currentPage,
-          limit: DEFAULT_PAGE_SIZE,
-          pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
-        });
+        setPagination(
+          response.data?.pagination ?? {
+            total: patients.length,
+            page: currentPage,
+            limit: DEFAULT_PAGE_SIZE,
+            pages: Math.max(1, Math.ceil(patients.length / DEFAULT_PAGE_SIZE)),
+          }
+        );
       })
-      .catch((requestError: { message?: string }) => {
+      .catch((err: unknown) => {
         if (ignore) return;
-        setError(requestError.message ?? "No se pudieron cargar los pacientes.");
+        if (import.meta.env.DEV) console.error("[PatientsScreen]", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar los pacientes."
+        );
         setSearchResults([]);
       })
       .finally(() => {
@@ -160,7 +293,11 @@ export function PatientsScreen({
       if (activeFilterKeyRef.current === nextFilterKey) return;
 
       activeFilterKeyRef.current = nextFilterKey;
-      setHasSearched(Boolean(nextFilters.nombre || nextFilters.telefono || nextFilters.codigo));
+      setHasSearched(
+        Boolean(
+          nextFilters.nombre || nextFilters.telefono || nextFilters.codigo
+        )
+      );
       setActiveFilters(nextFilters);
       setSearchVersion((v) => v + 1);
       setCurrentPage(1);
@@ -175,7 +312,11 @@ export function PatientsScreen({
     setSearchName("");
     setSearchPhone("");
     setSearchCode("");
-    activeFilterKeyRef.current = JSON.stringify({ nombre: "", telefono: "", codigo: "" });
+    activeFilterKeyRef.current = JSON.stringify({
+      nombre: "",
+      telefono: "",
+      codigo: "",
+    });
     setHasSearched(false);
     setActiveFilters({});
     setSearchVersion((v) => v + 1);
@@ -192,46 +333,68 @@ export function PatientsScreen({
     navigate(`/patients/profile/${patientId}`);
   };
 
-  const handleTableParamsChange = useCallback(({ page }: { page: number }) => {
-    if (page === currentPage) return;
-    setIsLoading(true);
-    setError("");
-    setCurrentPage(page);
-  }, [currentPage]);
+  const handleTableParamsChange = useCallback(
+    ({ page }: { page: number }) => {
+      if (page === currentPage) return;
+      setIsLoading(true);
+      setError("");
+      setCurrentPage(page);
+    },
+    [currentPage]
+  );
 
-  const columns: Column<Patient>[] = [
-    {
-      key: "code",
-      label: "Código del paciente",
-      width: 160,
-      render: (_value, patient) => (
-        <span style={{ color: "var(--arco-primary)", fontSize: 13, fontWeight: 500 }}>
-          {patient.code}
-        </span>
-      ),
-    },
-    {
-      key: "fullName",
-      label: "Nombre completo",
-      render: (_value, patient) => (
-        <PatientNameButton
-          name={patient.fullName}
-          onClick={() => handleViewMedicalInfo(patient.id)}
-        />
-      ),
-    },
-    { key: "phone", label: "Teléfono", width: 160 },
-    {
-      key: "lastVisit",
-      label: "Fecha última consulta",
-      width: 170,
-      render: (_value, patient) => patient.lastVisit ? formatDate(patient.lastVisit) : "Sin consultas",
-    },
-  ];
+  const columns: Column<Patient>[] = useMemo(
+    () => [
+      {
+        key: "code",
+        label: "Código del paciente",
+        width: 160,
+        render: (_value, patient) => (
+          <span
+            style={{
+              color: "var(--arco-primary)",
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            {patient.code}
+          </span>
+        ),
+      },
+      {
+        key: "fullName",
+        label: "Nombre completo",
+        render: (_value, patient) => (
+          <PatientNameButton
+            name={patient.fullName}
+            onClick={() => handleViewMedicalInfo(patient.id)}
+          />
+        ),
+      },
+      { key: "phone", label: "Teléfono", width: 160 },
+      {
+        key: "lastVisit",
+        label: "Fecha última consulta",
+        width: 170,
+        render: (_value, patient) =>
+          patient.lastVisit ? formatDate(patient.lastVisit) : "Sin consultas",
+      },
+    ],
+    []
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, width: "100%" }}>
-      {error ? <Alert variant="error" message={error} onClose={() => setError("")} /> : null}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? 16 : 24,
+        width: "100%",
+      }}
+    >
+      {error ? (
+        <Alert variant="error" message={error} onClose={() => setError("")} />
+      ) : null}
 
       <Card>
         <div style={{ marginBottom: 20 }}>
@@ -259,14 +422,15 @@ export function PatientsScreen({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
             marginBottom: 20,
           }}
         >
           <Input
             label="Búsqueda por nombre"
-            badge="optional"
             placeholder="Ej: María López"
             value={searchName}
             onChange={(event) => setSearchName(event.target.value)}
@@ -274,7 +438,6 @@ export function PatientsScreen({
           />
           <Input
             label="Búsqueda por teléfono"
-            badge="optional"
             placeholder="Ej: 9876-5432"
             value={searchPhone}
             onChange={(event) => setSearchPhone(event.target.value)}
@@ -282,7 +445,6 @@ export function PatientsScreen({
           />
           <Input
             label="Búsqueda por código autogenerado"
-            badge="optional"
             placeholder="Ej: PAC-000124"
             value={searchCode}
             onChange={(event) => setSearchCode(event.target.value)}
@@ -290,16 +452,28 @@ export function PatientsScreen({
           />
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "flex-end" }}>
-          <Button variant="secondary" onClick={handleClear} disabled={isLoading}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            flexWrap: "wrap",
+            gap: 12,
+            justifyContent: "flex-end",
+          }}
+        >
+          <Button
+            variant="secondary"
+            onClick={handleClear}
+            disabled={isLoading}
+            style={{ width: isMobile ? "100%" : undefined }}
+          >
             <X size={16} />
             Limpiar filtros
           </Button>
           <Button
             variant="primary"
-            onClick={
-              onCreatePatient ?? (() => navigate("/patients/new"))
-            }
+            onClick={onCreatePatient ?? (() => navigate("/patients/new"))}
+            style={{ width: isMobile ? "100%" : undefined }}
           >
             <Plus size={16} />
             Crear nuevo paciente
@@ -307,39 +481,125 @@ export function PatientsScreen({
         </div>
       </Card>
 
-      <DataTable<Patient>
-        key={`patients-table-${searchVersion}`}
-        columns={columns}
-        data={isLoading ? [] : searchResults}
-        description={
-          isLoading
-            ? "Cargando pacientes registrados..."
-            : hasSearched
-              ? `${pagination.total} resultado${pagination.total === 1 ? "" : "s"} encontrados`
-              : `Total de ${pagination.total} pacientes registrados`
-        }
-        emptyMessage={isLoading ? "Cargando pacientes..." : "No hay pacientes para mostrar."}
-        getRowKey={(patient) => String(patient.id)}
-        isServerSide
-        onServerParamsChange={handleTableParamsChange}
-        pageSize={DEFAULT_PAGE_SIZE}
-        rowActions={(patient) => [
-          {
-            icon: <Edit size={14} />,
-            label: "Editar paciente",
-            onClick: () => handleEditPatient(patient.id),
-          },
-          {
-            icon: <Eye size={14} />,
-            label: "Ver información médica",
-            onClick: () => handleViewMedicalInfo(patient.id),
-          },
-        ]}
-        searchable={false}
-        title={hasSearched ? "Resultados de búsqueda" : "Listado de pacientes"}
-        totalRecords={pagination.total}
-      />
+      {showCards ? (
+        // ── Vista móvil/tablet: cards ────────────────────────────────────────
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ fontSize: 13, color: "#888F94", margin: 0 }}>
+            {isLoading
+              ? "Cargando pacientes registrados..."
+              : hasSearched
+              ? `${pagination.total} resultado${
+                  pagination.total === 1 ? "" : "s"
+                } encontrados`
+              : `Total de ${pagination.total} pacientes registrados`}
+          </p>
 
+          {isLoading ? (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#888F94",
+                fontSize: 14,
+                padding: 24,
+              }}
+            >
+              Cargando pacientes...
+            </p>
+          ) : searchResults.length === 0 ? (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#888F94",
+                fontSize: 14,
+                padding: 24,
+              }}
+            >
+              No hay pacientes para mostrar.
+            </p>
+          ) : (
+            searchResults.map((patient) => (
+              <PatientCard
+                key={patient.id}
+                patient={patient}
+                onEdit={() => handleEditPatient(patient.id)}
+                onView={() => handleViewMedicalInfo(patient.id)}
+              />
+            ))
+          )}
+
+          {/* Paginación simple en móvil */}
+          {pagination.pages > 1 && (
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() =>
+                  handleTableParamsChange({
+                    page: Math.max(1, currentPage - 1),
+                  })
+                }
+                style={{ flex: 1 }}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={currentPage >= pagination.pages}
+                onClick={() =>
+                  handleTableParamsChange({ page: currentPage + 1 })
+                }
+                style={{ flex: 1 }}
+              >
+                Siguiente
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        // ── Vista desktop: tabla ───────────────────────────────────────────────
+        <DataTable<Patient>
+          key={`patients-table-${searchVersion}`}
+          columns={columns}
+          data={isLoading ? [] : searchResults}
+          description={
+            isLoading
+              ? "Cargando pacientes registrados..."
+              : hasSearched
+              ? `${pagination.total} resultado${
+                  pagination.total === 1 ? "" : "s"
+                } encontrados`
+              : `Total de ${pagination.total} pacientes registrados`
+          }
+          emptyMessage={
+            isLoading
+              ? "Cargando pacientes..."
+              : "No hay pacientes para mostrar."
+          }
+          getRowKey={(patient) => String(patient.id)}
+          isServerSide
+          onServerParamsChange={handleTableParamsChange}
+          pageSize={DEFAULT_PAGE_SIZE}
+          rowActions={(patient) => [
+            {
+              icon: <Edit size={14} />,
+              label: "Editar paciente",
+              onClick: () => handleEditPatient(patient.id),
+            },
+            {
+              icon: <Eye size={14} />,
+              label: "Ver información médica",
+              onClick: () => handleViewMedicalInfo(patient.id),
+            },
+          ]}
+          searchable={false}
+          title={
+            hasSearched ? "Resultados de búsqueda" : "Listado de pacientes"
+          }
+          totalRecords={pagination.total}
+        />
+      )}
     </div>
   );
 }
