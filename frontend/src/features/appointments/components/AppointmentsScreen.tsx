@@ -302,9 +302,9 @@ export function AppointmentsScreen() {
                     ? `Dr. ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
                     : null;
 
-                  const startTime = apt.fecha_inicio.substring(11, 16);
+                  const startTime = new Date(apt.fecha_inicio).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                   const endTime = apt.fecha_fin
-                    ? apt.fecha_fin.substring(11, 16)
+                    ? new Date(apt.fecha_fin).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                     : null;
 
                   return (

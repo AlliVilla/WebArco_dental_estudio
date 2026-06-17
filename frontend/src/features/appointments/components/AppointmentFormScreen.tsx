@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { Button, Select, Input, Card, Alert, SectionBlock, FieldBadge, Combobox } from '../../../context';
+import { Button, Select, Input, Card, Alert, SectionBlock, FieldBadge, MultiCombobox } from '../../../context';
 import { FormSection, FullWidthField } from '../../../components';
 import { DatePickerCalendar } from '../../../components/DatePickerCalendar';
 import { PatientSearchInput } from './PatientSearchInput';
@@ -35,6 +35,7 @@ export function AppointmentFormScreen() {
   });
 
   const [timeStr, setTimeStr] = useState('');
+  const [motivosSeleccionados, setMotivosSeleccionados] = useState<string[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [initialPatient, setInitialPatient] = useState<{ nombre: string; identidad: string } | null>(null);
 
@@ -81,6 +82,7 @@ export function AppointmentFormScreen() {
             notas: apt.notas || '',
             estado: apt.estado,
           });
+          setMotivosSeleccionados(apt.motivo ? apt.motivo.split(',').map((m: string) => m.trim()).filter(Boolean) : []);
           setTimeStr(apt.fecha_inicio.substring(11, 16));
           if (apt.persona) {
             setInitialPatient({
@@ -121,7 +123,7 @@ export function AppointmentFormScreen() {
       }
     }
     if (!formData.tipo_cita) errors.tipo_cita = 'Seleccione el tipo de cita';
-    if (!formData.motivo) errors.motivo = 'Especifique el motivo';
+    if (motivosSeleccionados.length === 0) errors.motivosSeleccionados = 'Especifique el motivo';
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -138,25 +140,31 @@ export function AppointmentFormScreen() {
     setError('');
 
     try {
-      const text = (formData.motivo || '').trim();
-      const match = treatments.find(
-        (t) => t.nombre.toLowerCase() === text.toLowerCase(),
-      );
-      let motivo = text;
-
-      if (!match && text && especialidades.length > 0) {
-        const res = await treatmentService.create({
-          idEspecialidad: especialidades[0].id,
-          nombre: text,
-          descripcion: '',
-          precio: 0,
-        });
-        const created = res.data?.data ?? res.data;
-        if (created) {
-          motivo = created.nombre;
-          setTreatments((prev) => [...prev, created]);
+      let finalMotivos: string[] = [];
+      for (const text of motivosSeleccionados) {
+        if (!text.trim()) continue;
+        const match = treatments.find(
+          (t) => t.nombre.toLowerCase() === text.trim().toLowerCase(),
+        );
+        if (!match && especialidades.length > 0) {
+          const res = await treatmentService.create({
+            idEspecialidad: especialidades[0].id,
+            nombre: text.trim(),
+            descripcion: '',
+            precio: 0,
+          });
+          const created = res.data?.data ?? res.data;
+          if (created) {
+            finalMotivos.push(created.nombre);
+            setTreatments((prev) => [...prev, created]);
+          } else {
+            finalMotivos.push(text.trim());
+          }
+        } else {
+          finalMotivos.push(text.trim());
         }
       }
+      const finalMotivoString = finalMotivos.join(', ');
 
       const fechaInicio = `${formData.fecha_inicio}T${timeStr}:00`;
       const startDate = new Date(fechaInicio);
@@ -171,7 +179,7 @@ export function AppointmentFormScreen() {
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         tipo_cita: formData.tipo_cita,
-        motivo,
+        motivo: finalMotivoString,
         notas: formData.notas || undefined,
         estado: formData.estado,
       };
@@ -275,6 +283,13 @@ export function AppointmentFormScreen() {
                   setTimeStr(e.target.value);
                   if (formErrors.timeStr) setFormErrors({ ...formErrors, timeStr: '' });
                 }}
+                onInvalid={(e: React.InvalidEvent<HTMLInputElement>) => {
+                  const format12H = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
+                  e.target.setCustomValidity(`El horario disponible es de ${format12H(CALENDAR_START_HOUR)} a ${format12H(CALENDAR_END_HOUR)}`);
+                }}
+                onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                  (e.target as HTMLInputElement).setCustomValidity('');
+                }}
                 error={formErrors.timeStr}
               />
             </FormSection>
@@ -299,17 +314,17 @@ export function AppointmentFormScreen() {
                 />
               </div>
 
-              <Combobox
+              <MultiCombobox
                 label="Motivo o tratamiento a realizar"
                 badge="required"
                 placeholder="Seleccionar o escribir nuevo tratamiento"
-                value={formData.motivo || ''}
-                onChange={(val) => {
-                  setFormData({ ...formData, motivo: val });
-                  if (formErrors.motivo) setFormErrors({ ...formErrors, motivo: '' });
+                values={motivosSeleccionados}
+                onChange={(vals) => {
+                  setMotivosSeleccionados(vals);
+                  if (formErrors.motivosSeleccionados) setFormErrors({ ...formErrors, motivosSeleccionados: '' });
                 }}
                 options={treatments.map((t) => ({ value: String(t.id), label: t.nombre }))}
-                error={formErrors.motivo}
+                error={formErrors.motivosSeleccionados}
               />
             </FormSection>
 
@@ -322,6 +337,7 @@ export function AppointmentFormScreen() {
                 <textarea
                   value={formData.notas || ''}
                   onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                  maxLength={500}
                   placeholder="Información adicional sobre la cita o paciente..."
                   style={{
                     width: '100%',

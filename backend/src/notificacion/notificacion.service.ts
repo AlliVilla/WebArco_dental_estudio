@@ -278,7 +278,7 @@ export class NotificacionService {
         const isGlobal = privs.includes(69);
 
         const minutos = user.configuracion_notificaciones?.minutos_anticipacion ?? 60;
-        const ventanaInicio = now; // Desde este mismo momento
+        const ventanaInicio = new Date(now.getTime() - 30 * 60 * 1000); // Desde hace 30 minutos (por si se retrasó el cron o se agendó muy sobre la hora)
         const ventanaFin = new Date(now.getTime() + (minutos + 3) * 60 * 1000); // Hasta los X minutos + tolerancia
 
         const whereCitas: Prisma.CitaWhereInput = {
