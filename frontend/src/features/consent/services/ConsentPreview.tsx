@@ -5,6 +5,7 @@ import type { ConsentRecord } from "../types";
 import { getStatusMeta } from "../services/consentUtils";
 import { printConsentDocuments } from "../services/printConsentDocuments";
 import { useResponsive } from "../../../hooks/useWindowWidth";
+import { API_URL } from "../../../config/constants";
 
 interface ConsentPreviewProps {
   selectedConsent: ConsentRecord;
@@ -26,7 +27,7 @@ function ReadOnlySignature({
   const hasImageSignature = isBase64 || isServerPath;
 
   // Construimos la URL completa si es una ruta del servidor (ej: /uploads/...)
-  const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3030').replace(/\/api$/, '');
+  const apiBase = API_URL.replace(/\/api$/, '');
   const imageSrc = isServerPath && !isBase64 ? `${apiBase}${signature}` : signature;
 
   return (
