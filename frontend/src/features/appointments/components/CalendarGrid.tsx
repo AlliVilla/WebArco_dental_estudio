@@ -1,19 +1,22 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
-import { CalendarCard } from './CalendarCard';
-import type { Appointment } from '../types';
+import { useMemo, useRef } from "react";
+import { Clock } from "lucide-react";
+import { CalendarCard } from "./CalendarCard";
+import type { Appointment } from "../types";
 import {
   getMinutesFromStart,
   getDurationMinutes,
   formatDateISO,
   formatDayLabel,
-} from '../utils';
+} from "../utils";
 import {
   CALENDAR_START_HOUR,
   CALENDAR_END_HOUR,
   PX_PER_HOUR,
   VISIBLE_HOURS,
   COLORS,
-} from '../constants';
+  STATUS_STYLES,
+} from "../constants";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 // ─── Track assignment ────────────────────────────────────────────────────────
 
@@ -29,10 +32,12 @@ interface TrackResult {
 }
 
 function assignTracks(appointments: Appointment[]): TrackResult {
-  if (appointments.length === 0) return { placed: [], hiddenCount: 0, hiddenAppointments: [] };
+  if (appointments.length === 0)
+    return { placed: [], hiddenCount: 0, hiddenAppointments: [] };
 
   const sorted = [...appointments].sort(
-    (a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()
+    (a, b) =>
+      new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()
   );
 
   const MAX_TRACKS = 10; // Limitar a 10 tracks visibles
@@ -89,7 +94,231 @@ interface CalendarGridProps {
   displayDates: Date[];
   appointments: Appointment[];
   onSelectAppointment: (apt: Appointment) => void;
-  onShowHiddenAppointments?: (date: Date, hiddenAppointments: Appointment[]) => void;
+  onShowHiddenAppointments?: (
+    date: Date,
+    hiddenAppointments: Appointment[]
+  ) => void;
+}
+
+// ─── Vista lista para móvil ────────────────────────────────────────────────────
+// El grid de horas con columnas y tracks es ilegible en pantallas angostas
+// (gutter de 60px deja muy poco espacio y el texto de 9px no se puede leer).
+// En móvil mostramos una lista cronológica de citas, agrupada por día si hay
+// más de una fecha visible (vista semana).
+
+function MobileAppointmentList({
+  displayDates,
+  appointments,
+  onSelectAppointment,
+}: CalendarGridProps) {
+  const todayStr = formatDateISO(new Date());
+
+  const getDayAppointments = (date: Date): Appointment[] => {
+    const dateStr = formatDateISO(date);
+    return appointments
+      .filter((apt) => apt.fecha_inicio.startsWith(dateStr))
+      .sort(
+        (a, b) =>
+          new Date(a.fecha_inicio).getTime() -
+          new Date(b.fecha_inicio).getTime()
+      );
+  };
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        paddingBottom: 8,
+      }}
+    >
+      {displayDates.map((date, idx) => {
+        const dayAppts = getDayAppointments(date);
+        const dateStr = formatDateISO(date);
+        const isToday = dateStr === todayStr;
+
+        return (
+          <div key={idx}>
+            {displayDates.length > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 8,
+                  padding: "0 4px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: isToday ? COLORS.primary : COLORS.muted,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {formatDayLabel(date)} {date.getDate()}
+                </span>
+                {isToday && (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      color: COLORS.primary,
+                      background: COLORS.todayBg,
+                      padding: "1px 6px",
+                      borderRadius: 10,
+                    }}
+                  >
+                    HOY
+                  </span>
+                )}
+              </div>
+            )}
+
+            {dayAppts.length === 0 ? (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: COLORS.muted,
+                  padding: "8px 4px",
+                  margin: 0,
+                }}
+              >
+                Sin citas programadas.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {dayAppts.map((apt) => {
+                  const styleConfig = STATUS_STYLES[apt.estado] ?? {
+                    bg: COLORS.primary,
+                    border: "rgba(255,255,255,0.2)",
+                    text: "#fff",
+                    label: apt.estado,
+                  };
+                  const patientName = apt.persona
+                    ? `${apt.persona.primer_nombre} ${apt.persona.primer_apellido}`
+                    : "—";
+                  const doctorName = apt.doctor?.persona
+                    ? `Dr. ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
+                    : null;
+                  const startTime = apt.fecha_inicio.substring(11, 16);
+                  const endTime = apt.fecha_fin
+                    ? apt.fecha_fin.substring(11, 16)
+                    : null;
+
+                  return (
+                    <button
+                      key={apt.id_cita}
+                      onClick={() => onSelectAppointment(apt)}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        textAlign: "left",
+                        border: `1px solid ${styleConfig.border}`,
+                        borderRadius: 10,
+                        background: styleConfig.bg,
+                        padding: 12,
+                        cursor: "pointer",
+                        width: "100%",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          minWidth: 56,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: styleConfig.text,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Clock size={11} />
+                          {startTime}
+                        </span>
+                        {endTime && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: styleConfig.text,
+                              opacity: 0.75,
+                            }}
+                          >
+                            –{endTime}
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 2,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: styleConfig.text,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {patientName}
+                        </span>
+                        {doctorName && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: styleConfig.text,
+                              opacity: 0.85,
+                            }}
+                          >
+                            {doctorName}
+                          </span>
+                        )}
+                        {(apt.motivo || apt.tipo_cita) && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: styleConfig.text,
+                              opacity: 0.75,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {apt.motivo || apt.tipo_cita}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -101,18 +330,11 @@ export function CalendarGrid({
   onShowHiddenAppointments,
 }: CalendarGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const { isMobile } = useResponsive();
 
   const hours = useMemo(
-    () => Array.from({ length: VISIBLE_HOURS }, (_, i) => CALENDAR_START_HOUR + i),
+    () =>
+      Array.from({ length: VISIBLE_HOURS }, (_, i) => CALENDAR_START_HOUR + i),
     []
   );
 
@@ -125,22 +347,32 @@ export function CalendarGrid({
 
   const PX_PER_MIN = PX_PER_HOUR / 60;
 
+  if (isMobile) {
+    return (
+      <MobileAppointmentList
+        displayDates={displayDates}
+        appointments={appointments}
+        onSelectAppointment={onSelectAppointment}
+      />
+    );
+  }
+
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column',
+        display: "flex",
+        flexDirection: "column",
         flex: 1,
-        overflow: 'hidden',
+        overflow: "hidden",
         minHeight: 0,
       }}
     >
       {/* ── Sticky header row ── */}
       <div
         style={{
-          display: 'flex',
+          display: "flex",
           flexShrink: 0,
-          borderBottom: '1px solid #D3D7DA',
+          borderBottom: "1px solid #D3D7DA",
           background: COLORS.white,
           zIndex: 10,
         }}
@@ -151,13 +383,13 @@ export function CalendarGrid({
             width: GUTTER_WIDTH,
             minWidth: GUTTER_WIDTH,
             flexShrink: 0,
-            borderRight: '1px solid #D3D7DA',
+            borderRight: "1px solid #D3D7DA",
             height: HEADER_HEIGHT,
           }}
         />
 
         {/* Day headers */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
           {displayDates.map((date, idx) => {
             const dateStr = formatDateISO(date);
             const isToday = dateStr === todayStr;
@@ -168,13 +400,13 @@ export function CalendarGrid({
                   flex: 1,
                   minWidth: 0,
                   height: HEADER_HEIGHT,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
                   background: isToday ? COLORS.todayBg : COLORS.headerBg,
-                  borderLeft: idx > 0 ? '1px solid #D3D7DA' : 'none',
-                  padding: '6px 4px',
+                  borderLeft: idx > 0 ? "1px solid #D3D7DA" : "none",
+                  padding: "6px 4px",
                 }}
               >
                 <span
@@ -182,8 +414,8 @@ export function CalendarGrid({
                     fontSize: 10,
                     fontWeight: 600,
                     color: COLORS.muted,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
                   }}
                 >
                   {formatDayLabel(date)}
@@ -209,10 +441,10 @@ export function CalendarGrid({
       <div
         ref={scrollRef}
         style={{
-          display: 'flex',
+          display: "flex",
           flex: 1,
-          overflowY: 'auto',
-          overflowX: 'auto',
+          overflowY: "auto",
+          overflowX: "auto",
           minHeight: 0,
         }}
       >
@@ -222,9 +454,9 @@ export function CalendarGrid({
             width: GUTTER_WIDTH,
             minWidth: GUTTER_WIDTH,
             flexShrink: 0,
-            position: 'relative',
+            position: "relative",
             height: BODY_HEIGHT,
-            borderRight: '1px solid #D3D7DA',
+            borderRight: "1px solid #D3D7DA",
             background: COLORS.white,
           }}
         >
@@ -232,16 +464,16 @@ export function CalendarGrid({
             <div
               key={hour}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: (hour - CALENDAR_START_HOUR) * PX_PER_HOUR,
                 left: 0,
                 right: 0,
                 height: PX_PER_HOUR,
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "center",
                 paddingTop: 4,
-                boxSizing: 'border-box',
+                boxSizing: "border-box",
               }}
             >
               <span
@@ -249,13 +481,13 @@ export function CalendarGrid({
                   fontSize: 11,
                   color: COLORS.muted,
                   fontWeight: 500,
-                  userSelect: 'none',
+                  userSelect: "none",
                   lineHeight: 1,
                 }}
               >
                 {(() => {
                   const h = hour % 12 || 12;
-                  const ampm = hour < 12 ? 'AM' : 'PM';
+                  const ampm = hour < 12 ? "AM" : "PM";
                   return `${h}:00 ${ampm}`;
                 })()}
               </span>
@@ -266,17 +498,16 @@ export function CalendarGrid({
         {/* ── Day columns ── */}
         <div
           style={{
-            display: 'flex',
+            display: "flex",
             flex: 1,
-            position: 'relative',
-            minWidth: displayDates.length > 1
-              ? Math.min(displayDates.length * 120, windowWidth - 100)
-              : Math.min(200, windowWidth - 100),
+            position: "relative",
+            minWidth: displayDates.length > 1 ? displayDates.length * 120 : 200,
           }}
         >
           {displayDates.map((date, colIdx) => {
             const dayAppts = getDayAppointments(date);
-            const { placed, hiddenCount, hiddenAppointments } = assignTracks(dayAppts);
+            const { placed, hiddenCount, hiddenAppointments } =
+              assignTracks(dayAppts);
 
             return (
               <div
@@ -284,9 +515,9 @@ export function CalendarGrid({
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  position: 'relative',
+                  position: "relative",
                   height: BODY_HEIGHT,
-                  borderLeft: colIdx > 0 ? '1px solid #D3D7DA' : 'none',
+                  borderLeft: colIdx > 0 ? "1px solid #D3D7DA" : "none",
                   background: COLORS.background,
                 }}
               >
@@ -295,23 +526,24 @@ export function CalendarGrid({
                   <div
                     key={hour}
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: (hour - CALENDAR_START_HOUR) * PX_PER_HOUR,
                       left: 0,
                       right: 0,
                       height: PX_PER_HOUR,
-                      borderBottom: idx < hours.length - 1 ? '1px solid #EAECEE' : 'none',
-                      boxSizing: 'border-box',
+                      borderBottom:
+                        idx < hours.length - 1 ? "1px solid #EAECEE" : "none",
+                      boxSizing: "border-box",
                     }}
                   >
                     {/* Half-hour tick */}
                     <div
                       style={{
-                        position: 'absolute',
+                        position: "absolute",
                         top: PX_PER_HOUR / 2,
                         left: 0,
                         right: 0,
-                        borderBottom: '1px dashed #F1F3F4',
+                        borderBottom: "1px dashed #F1F3F4",
                       }}
                     />
                   </div>
@@ -326,7 +558,8 @@ export function CalendarGrid({
                   const durationMinutes = Math.min(
                     getDurationMinutes(apt),
                     // clamp to end of visible range
-                    (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * 60 - minutesFromStart
+                    (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * 60 -
+                      minutesFromStart
                   );
 
                   const trackWidth = 100 / apt.totalTracks;
@@ -337,7 +570,7 @@ export function CalendarGrid({
                       appointment={apt}
                       onClick={() => onSelectAppointment(apt)}
                       style={{
-                        position: 'absolute',
+                        position: "absolute",
                         top: minutesFromStart * PX_PER_MIN,
                         height: Math.max(durationMinutes * PX_PER_MIN, 24),
                         left: `${apt.track * trackWidth + 0.5}%`,
@@ -350,19 +583,21 @@ export function CalendarGrid({
                 {/* ── Hidden appointments indicator ── */}
                 {hiddenCount > 0 && (
                   <div
-                    onClick={() => onShowHiddenAppointments?.(date, hiddenAppointments)}
+                    onClick={() =>
+                      onShowHiddenAppointments?.(date, hiddenAppointments)
+                    }
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 0,
                       right: 0,
                       background: COLORS.primary,
-                      color: '#fff',
+                      color: "#fff",
                       fontSize: 10,
                       fontWeight: 600,
-                      padding: '2px 6px',
+                      padding: "2px 6px",
                       borderRadius: 4,
                       zIndex: 20,
-                      cursor: 'pointer',
+                      cursor: "pointer",
                     }}
                   >
                     +{hiddenCount} más

@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { COLORS, STATUS_COLORS } from '../constants';
-import type { Appointment } from '../types';
-import { formatDateISO } from '../utils';
+import { useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { COLORS, STATUS_COLORS } from "../constants";
+import type { Appointment } from "../types";
+import { formatDateISO } from "../utils";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 interface CalendarMonthProps {
   currentDate: Date;
@@ -12,19 +13,26 @@ interface CalendarMonthProps {
   onNextMonth: () => void;
 }
 
-export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMonth, onNextMonth }: CalendarMonthProps) {
+export function CalendarMonth({
+  currentDate,
+  appointments,
+  onDateClick,
+  onPrevMonth,
+  onNextMonth,
+}: CalendarMonthProps) {
+  const { isMobile } = useResponsive();
   const monthData = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    
+
     const startDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const totalDays = lastDay.getDate();
-    
+
     const days: Array<{ date: Date; isCurrentMonth: boolean }> = [];
-    
+
     // Add days from previous month
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
@@ -33,7 +41,7 @@ export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMo
         isCurrentMonth: false,
       });
     }
-    
+
     // Add days from current month
     for (let i = 1; i <= totalDays; i++) {
       days.push({
@@ -41,7 +49,7 @@ export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMo
         isCurrentMonth: true,
       });
     }
-    
+
     // Add days from next month
     const remainingDays = 42 - days.length; // 6 rows x 7 days = 42
     for (let i = 1; i <= remainingDays; i++) {
@@ -50,8 +58,14 @@ export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMo
         isCurrentMonth: false,
       });
     }
-    
-    return { days, monthName: firstDay.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) };
+
+    return {
+      days,
+      monthName: firstDay.toLocaleDateString("es-ES", {
+        month: "long",
+        year: "numeric",
+      }),
+    };
   }, [currentDate]);
 
   const getAppointmentsForDate = (date: Date) => {
@@ -59,49 +73,65 @@ export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMo
     return appointments.filter((apt) => apt.fecha_inicio.startsWith(dateStr));
   };
 
-  const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const weekDays = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '16px 20px',
-        background: COLORS.white,
-        borderBottom: '1px solid #D3D7DA',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: isMobile ? "12px 12px" : "16px 20px",
+          background: COLORS.white,
+          borderBottom: "1px solid #D3D7DA",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: isMobile ? 8 : 12,
+          }}
+        >
           <button
             onClick={onPrevMonth}
             style={{
-              background: 'none',
-              border: '1px solid #D3D7DA',
+              background: "none",
+              border: "1px solid #D3D7DA",
               borderRadius: 6,
-              padding: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              padding: "6px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <ChevronLeft size={18} color={COLORS.text} />
           </button>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: COLORS.text }}>
-            {monthData.monthName.charAt(0).toUpperCase() + monthData.monthName.slice(1)}
+          <h2
+            style={{
+              margin: 0,
+              fontSize: isMobile ? 15 : 18,
+              fontWeight: 600,
+              color: COLORS.text,
+            }}
+          >
+            {monthData.monthName.charAt(0).toUpperCase() +
+              monthData.monthName.slice(1)}
           </h2>
           <button
             onClick={onNextMonth}
             style={{
-              background: 'none',
-              border: '1px solid #D3D7DA',
+              background: "none",
+              border: "1px solid #D3D7DA",
               borderRadius: 6,
-              padding: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              padding: "6px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <ChevronRight size={18} color={COLORS.text} />
@@ -110,105 +140,136 @@ export function CalendarMonth({ currentDate, appointments, onDateClick, onPrevMo
       </div>
 
       {/* Week day headers */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        padding: '8px 20px',
-        background: COLORS.headerBg,
-        borderBottom: '1px solid #D3D7DA',
-      }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          padding: isMobile ? "6px 8px" : "8px 20px",
+          background: COLORS.headerBg,
+          borderBottom: "1px solid #D3D7DA",
+        }}
+      >
         {weekDays.map((day) => (
           <div
             key={day}
             style={{
-              textAlign: 'center',
-              fontSize: 11,
+              textAlign: "center",
+              fontSize: isMobile ? 9 : 11,
               fontWeight: 600,
               color: COLORS.muted,
-              textTransform: 'uppercase',
+              textTransform: "uppercase",
             }}
           >
-            {day}
+            {isMobile ? day.slice(0, 1) : day}
           </div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        flex: 1,
-        padding: '8px',
-        gap: 4,
-      }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          flex: 1,
+          padding: isMobile ? 4 : 8,
+          gap: isMobile ? 2 : 4,
+        }}
+      >
         {monthData.days.map(({ date, isCurrentMonth }, idx) => {
           const dayAppointments = getAppointmentsForDate(date);
           const isToday = formatDateISO(date) === formatDateISO(new Date());
-          
+
           return (
             <div
               key={idx}
               onClick={() => onDateClick(date)}
               style={{
                 background: isToday ? COLORS.todayBg : COLORS.white,
-                border: isToday ? `1px solid ${COLORS.primary}` : '1px solid #D3D7DA',
-                borderRadius: 6,
-                padding: '8px',
-                cursor: 'pointer',
-                minHeight: 80,
+                border: isToday
+                  ? `1px solid ${COLORS.primary}`
+                  : "1px solid #D3D7DA",
+                borderRadius: isMobile ? 4 : 6,
+                padding: isMobile ? 4 : 8,
+                cursor: "pointer",
+                minHeight: isMobile ? 48 : 80,
                 opacity: isCurrentMonth ? 1 : 0.4,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (isCurrentMonth) {
-                  e.currentTarget.style.background = COLORS.todayBg;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isToday) {
-                  e.currentTarget.style.background = COLORS.white;
-                }
+                transition: "all 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: isMobile ? "center" : "stretch",
               }}
             >
-              <div style={{
-                fontSize: 14,
-                fontWeight: isToday ? 600 : 400,
-                color: isToday ? COLORS.primary : COLORS.text,
-                marginBottom: 4,
-              }}>
+              <div
+                style={{
+                  fontSize: isMobile ? 12 : 14,
+                  fontWeight: isToday ? 600 : 400,
+                  color: isToday ? COLORS.primary : COLORS.text,
+                  marginBottom: isMobile ? 2 : 4,
+                }}
+              >
                 {date.getDate()}
               </div>
-              
-              {dayAppointments.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {dayAppointments.slice(0, 3).map((apt) => (
-                    <div
-                      key={apt.id_cita}
-                      style={{
-                        fontSize: 9,
-                        padding: '2px 4px',
-                        borderRadius: 2,
-                        background: STATUS_COLORS[apt.estado] ?? COLORS.primary,
-                        color: '#fff',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {apt.fecha_inicio.substring(11, 16)} {apt.doctor?.persona?.primer_nombre}
-                    </div>
-                  ))}
-                  {dayAppointments.length > 3 && (
-                    <div style={{
-                      fontSize: 8,
-                      color: COLORS.muted,
-                      fontWeight: 500,
-                    }}>
-                      +{dayAppointments.length - 3} más
-                    </div>
-                  )}
-                </div>
-              )}
+
+              {dayAppointments.length > 0 &&
+                (isMobile ? (
+                  // En móvil: solo puntos indicadores, sin texto (ilegible en celdas tan chicas)
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 2,
+                      flexWrap: "wrap",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {dayAppointments.slice(0, 4).map((apt) => (
+                      <div
+                        key={apt.id_cita}
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          background:
+                            STATUS_COLORS[apt.estado] ?? COLORS.primary,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 2 }}
+                  >
+                    {dayAppointments.slice(0, 3).map((apt) => (
+                      <div
+                        key={apt.id_cita}
+                        style={{
+                          fontSize: 9,
+                          padding: "2px 4px",
+                          borderRadius: 2,
+                          background:
+                            STATUS_COLORS[apt.estado] ?? COLORS.primary,
+                          color: "#fff",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {apt.fecha_inicio.substring(11, 16)}{" "}
+                        {apt.doctor?.persona?.primer_nombre}
+                      </div>
+                    ))}
+                    {dayAppointments.length > 3 && (
+                      <div
+                        style={{
+                          fontSize: 8,
+                          color: COLORS.muted,
+                          fontWeight: 500,
+                        }}
+                      >
+                        +{dayAppointments.length - 3} más
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
           );
         })}
