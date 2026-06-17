@@ -4,13 +4,59 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
 
+type PersonaIdRow = {
+  id_persona: number;
+};
+
 @Injectable()
 export class PersonaService {
   constructor(private prisma: PrismaService) {}
+
+  private normalizeSearchText(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+
+  private escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+  }
+
+  private async findPersonaIdsByNormalizedName(search: string): Promise<number[]> {
+    const words = this.normalizeSearchText(search).split(' ').filter(Boolean);
+    if (words.length === 0) return [];
+
+    const normalizedFullName = Prisma.sql`
+      translate(
+        lower(concat_ws(' ', p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido)),
+        'áàäâãéèëêíìïîóòöôõúùüûñç',
+        'aaaaaeeeeiiiiooooouuuunc'
+      )
+    `;
+
+    const wordFilters = Prisma.join(
+      words.map((word) =>
+        Prisma.sql`${normalizedFullName} LIKE ${`%${this.escapeLikePattern(word)}%`} ESCAPE ${'\\'}`,
+      ),
+      ' AND ',
+    );
+
+    const rows = await this.prisma.$queryRaw<PersonaIdRow[]>(Prisma.sql`
+      SELECT p.id_persona
+      FROM persona p
+      WHERE ${wordFilters}
+    `);
+
+    return rows.map((row) => row.id_persona);
+  }
 
   async create(createPersonaDto: CreatePersonaDto) {
     const { numero_identidad, correo_electronico } = createPersonaDto;
@@ -88,6 +134,7 @@ export class PersonaService {
       if (search) {
         const searchLower = search.toLowerCase();
         const numericSearch = search.replace(/\D/g, '');
+        const matchingNameIds = await this.findPersonaIdsByNormalizedName(search);
         andFilters.push({
           OR: [
             ...(numericSearch
@@ -109,44 +156,16 @@ export class PersonaService {
                 mode: 'insensitive',
               },
             },
-            {
-              primer_nombre: {
-                contains: searchLower,
-                mode: 'insensitive',
-              },
-            },
-            {
-              segundo_nombre: {
-                contains: searchLower,
-                mode: 'insensitive',
-              },
-            },
-            {
-              primer_apellido: {
-                contains: searchLower,
-                mode: 'insensitive',
-              },
-            },
-            {
-              segundo_apellido: {
-                contains: searchLower,
-                mode: 'insensitive',
-              },
-            },
+            ...(matchingNameIds.length
+              ? [{ id_persona: { in: matchingNameIds } }]
+              : []),
           ],
         });
       }
 
       if (filters?.nombre?.trim()) {
-        const nombre = filters.nombre.trim().toLowerCase();
-        andFilters.push({
-          OR: [
-            { primer_nombre: { contains: nombre, mode: 'insensitive' } },
-            { segundo_nombre: { contains: nombre, mode: 'insensitive' } },
-            { primer_apellido: { contains: nombre, mode: 'insensitive' } },
-            { segundo_apellido: { contains: nombre, mode: 'insensitive' } },
-          ],
-        });
+        const matchingNameIds = await this.findPersonaIdsByNormalizedName(filters.nombre);
+        andFilters.push({ id_persona: { in: matchingNameIds } });
       }
 
       if (filters?.identidad?.trim()) {

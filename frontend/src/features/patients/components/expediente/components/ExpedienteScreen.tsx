@@ -28,7 +28,7 @@ import {ExpedientePaciente} from '../types/getAllPacientes';
 import type {ConsultaHistorica} from '../types/getAllPacientes';
 import api from '../../../../../services/api';
 import { useResponsive } from '../../../../../hooks/useWindowWidth';
-import { normalizeSearch } from '../../../../../utils/formatters';
+import { matchesNormalizedSearch } from '../../../../../utils/formatters';
 
 const ToothIcon = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -209,7 +209,7 @@ export function ExpedienteScreen() {
   const filteredExps = useMemo(
     () => !mobileSearch ? expedientes : expedientes.filter((e) => {
       const nombre = [e.primer_nombre, e.segundo_nombre, e.primer_apellido, e.segundo_apellido].filter(Boolean).join(' ');
-      return normalizeSearch(nombre).includes(normalizeSearch(mobileSearch)) || e.numero_identidad.includes(mobileSearch) || e.telefono.includes(mobileSearch);
+      return matchesNormalizedSearch(nombre, mobileSearch) || e.numero_identidad.includes(mobileSearch) || (e.telefono ?? '').includes(mobileSearch);
     }),
     [expedientes, mobileSearch],
   );

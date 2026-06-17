@@ -55,12 +55,25 @@ export const formatInitials = (nombre: string): string => {
   return ((a?.[0] ?? "") + (b?.[0] ?? "")).toUpperCase();
 };
 
-// Normaliza texto para búsqueda: elimina tildes y convierte a minúsculas
+// Normaliza texto para búsqueda: elimina tildes, compacta espacios y convierte a minúsculas
 export function normalizeSearch(s: string): string {
   return s
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+export function matchesNormalizedSearch(text: string, search: string): boolean {
+  const normalizedSearch = normalizeSearch(search);
+  if (!normalizedSearch) return true;
+
+  const normalizedText = normalizeSearch(text);
+  return normalizedSearch
+    .split(" ")
+    .filter(Boolean)
+    .every((word) => normalizedText.includes(word));
 }
 
 export const obtenerHoyLocal = (): string => {

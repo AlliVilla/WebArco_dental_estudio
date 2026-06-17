@@ -6,7 +6,7 @@ import { ReminderService } from "../services/ReminderService";
 import {
   formatDate,
   formatInitials,
-  normalizeSearch,
+  matchesNormalizedSearch,
 } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Z } from "../../../utils/zIndex";
@@ -487,8 +487,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
       rows.filter((r) => {
         const matchSearch =
           !mobileSearch ||
-          normalizeSearch(r.paciente).includes(normalizeSearch(mobileSearch)) ||
-          normalizeSearch(r.contacto).includes(normalizeSearch(mobileSearch));
+          matchesNormalizedSearch(`${r.paciente} ${r.contacto}`, mobileSearch);
         const matchEstado =
           !mobileFilterEstado || r.estado_envio === mobileFilterEstado;
         const matchCanal = !mobileFilterCanal || r.canal === mobileFilterCanal;
