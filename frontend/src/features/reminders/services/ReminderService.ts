@@ -1,4 +1,5 @@
 import { api } from '../../../services/api';
+import { API_URL } from '../../../config/constants';
 import type {
   ApiResponse,
   RecordatorioRow,
@@ -167,7 +168,7 @@ export const ReminderService = {
   },
 
   exportCsv: (): void => {
-    const base = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3030';
+    const base = API_URL;
     window.open(`${base}/reminders/export`, '_blank');
   },
 

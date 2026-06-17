@@ -1,5 +1,6 @@
 import type { ConsentRecord, ConsentStatus } from "../types";
 import { getStatusMeta } from "./consentUtils";
+import { API_URL } from "../../../config/constants";
 
 function escapePrintText(value?: string) {
   return String(value ?? "")
@@ -15,7 +16,7 @@ function getSignatureImageSrc(signature?: string): string | null {
   if (signature.startsWith("data:image")) return signature;
   // Ruta del servidor: /uploads/... o /static/...
   if (signature.startsWith("/uploads/") || signature.startsWith("/static/")) {
-    const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:3030").replace(/\/api$/, "");
+    const apiBase = API_URL.replace(/\/api$/, "");
     return `${apiBase}${signature}`;
   }
   return null;
