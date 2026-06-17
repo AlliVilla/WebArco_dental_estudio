@@ -231,11 +231,14 @@ export class UsuarioService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo.');
     }
 
-    if (updateProfileDto.username !== undefined) {
+    if (updateProfileDto.username !== undefined && updateProfileDto.username !== usuarioExists.username) {
       await this.validateUniqueUsername(updateProfileDto.username, id_usuario);
     }
 
-    if (updateProfileDto.email !== undefined) {
+    if (
+      updateProfileDto.email !== undefined &&
+      updateProfileDto.email !== usuarioExists.persona.correo_electronico
+    ) {
       await this.validateUniquePersonaFields(
         {
           correo_electronico: updateProfileDto.email,
@@ -471,18 +474,43 @@ export class UsuarioService {
 
     await this.validateMunicipioDepartamento(idDepartamento, idMunicipio);
 
-    if (updateUsuarioDto.username !== undefined) {
+    if (updateUsuarioDto.username !== undefined && updateUsuarioDto.username !== usuarioExists.username) {
       await this.validateUniqueUsername(updateUsuarioDto.username, id);
     }
 
-    await this.validateUniquePersonaFields(
-      {
-        numero_identidad: updateUsuarioDto.numero_identidad,
-        correo_electronico: updateUsuarioDto.correo_electronico,
-        telefono: updateUsuarioDto.telefono,
-      },
-      usuarioExists.persona.id_persona,
-    );
+    const fieldsToValidate: {
+      numero_identidad?: string;
+      correo_electronico?: string | null;
+      telefono?: string;
+    } = {};
+
+    if (
+      updateUsuarioDto.numero_identidad !== undefined &&
+      updateUsuarioDto.numero_identidad !== usuarioExists.persona.numero_identidad
+    ) {
+      fieldsToValidate.numero_identidad = updateUsuarioDto.numero_identidad;
+    }
+
+    if (
+      updateUsuarioDto.correo_electronico !== undefined &&
+      updateUsuarioDto.correo_electronico !== usuarioExists.persona.correo_electronico
+    ) {
+      fieldsToValidate.correo_electronico = updateUsuarioDto.correo_electronico;
+    }
+
+    if (
+      updateUsuarioDto.telefono !== undefined &&
+      updateUsuarioDto.telefono !== usuarioExists.persona.telefono
+    ) {
+      fieldsToValidate.telefono = updateUsuarioDto.telefono;
+    }
+
+    if (Object.keys(fieldsToValidate).length > 0) {
+      await this.validateUniquePersonaFields(
+        fieldsToValidate,
+        usuarioExists.persona.id_persona,
+      );
+    }
 
     const usuarioData: Prisma.UsuarioUpdateInput = {};
     const personaData: Prisma.PersonaUpdateInput = {};
@@ -734,13 +762,15 @@ export class UsuarioService {
       const existingPersonaByPhone = await prismaClient.persona.findFirst({
         where: {
           telefono: fields.telefono,
+          ...(ignorePersonaId && {
+            id_persona: {
+              not: ignorePersonaId,
+            },
+          }),
         },
       });
 
-      if (
-        existingPersonaByPhone &&
-        existingPersonaByPhone.id_persona !== ignorePersonaId
-      ) {
+      if (existingPersonaByPhone) {
         throw new ConflictException(
           `Ya existe una persona registrada con el teléfono ${fields.telefono}`,
         );
