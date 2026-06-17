@@ -29,7 +29,7 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
 COPY . .
-RUN npm run build
+RUN npx vite build
 
 # ─────────────────────────────────────────
 # Production stage — nginx sirve el bundle
