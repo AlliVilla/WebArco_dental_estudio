@@ -10,7 +10,7 @@ import {
 import { type Treatment, type Especialidad } from "../types";
 import { useAuthStore } from "../../../features/auth/hooks/useAuthStore";
 import { useResponsive } from "../../../hooks/useWindowWidth";
-import { normalizeSearch, formatCurrency } from "../../../utils/formatters";
+import { matchesNormalizedSearch, formatCurrency } from "../../../utils/formatters";
 import { Z } from "../../../utils/zIndex";
 
 function useHasPrivilege(privilegeIds: number[]) {
@@ -512,7 +512,7 @@ export function TreatmentsScreen({
       treatments.filter((t) => {
         const matchSearch =
           !mobileSearch ||
-          normalizeSearch(t.nombre).includes(normalizeSearch(mobileSearch));
+          matchesNormalizedSearch(t.nombre, mobileSearch);
         const matchEsp = !mobileFilterEsp || t.especialidad === mobileFilterEsp;
         return matchSearch && matchEsp;
       }),

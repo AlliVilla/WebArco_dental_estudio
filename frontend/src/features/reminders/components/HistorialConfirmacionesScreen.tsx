@@ -5,7 +5,7 @@ import { ReminderService } from "../services/ReminderService";
 import {
   formatDate,
   formatInitials,
-  normalizeSearch,
+  matchesNormalizedSearch,
 } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import type {
@@ -265,7 +265,7 @@ export function HistorialConfirmacionesScreen(
       rows.filter((r) => {
         const matchSearch =
           !mobileSearch ||
-          normalizeSearch(r.paciente).includes(normalizeSearch(mobileSearch));
+          matchesNormalizedSearch(r.paciente, mobileSearch);
         const matchResp =
           !mobileFilterRespuesta || r.respuesta === mobileFilterRespuesta;
         const matchCanal = !mobileFilterCanal || r.canal === mobileFilterCanal;

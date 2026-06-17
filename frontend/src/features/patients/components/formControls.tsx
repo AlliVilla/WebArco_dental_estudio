@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { AlertCircle, Check } from 'lucide-react';
 import { FieldBadge } from '../../../context';
 
 type BadgeType = 'required' | 'optional' | 'conditional';
@@ -7,8 +7,10 @@ type BadgeType = 'required' | 'optional' | 'conditional';
 export function Textarea({
   badge,
   disabled,
+  error,
   hint,
   label,
+  maxLength,
   onChange,
   placeholder,
   rows = 3,
@@ -16,8 +18,10 @@ export function Textarea({
 }: {
   badge?: BadgeType;
   disabled?: boolean;
+  error?: string;
   hint?: string;
   label?: string;
+  maxLength?: number;
   onChange?: (value: string) => void;
   placeholder?: string;
   rows?: number;
@@ -42,12 +46,19 @@ export function Textarea({
         onBlur={() => setFocused(false)}
         onChange={(event) => onChange?.(event.target.value)}
         onFocus={() => setFocused(true)}
+        maxLength={maxLength}
         placeholder={placeholder}
         rows={rows}
         value={value}
         style={{
           background: disabled ? 'var(--secondary, #F1F3F4)' : 'var(--card, #FFFFFF)',
-          border: `1px solid ${focused ? 'var(--arco-primary, #0BC5DF)' : 'var(--border, #D3D7DA)'}`,
+          border: `1px solid ${
+            error
+              ? 'var(--arco-danger, #E24B4A)'
+              : focused
+                ? 'var(--arco-primary, #0BC5DF)'
+                : 'var(--border, #D3D7DA)'
+          }`,
           borderRadius: 8,
           boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
           color: 'var(--foreground, #203F49)',
@@ -61,7 +72,14 @@ export function Textarea({
           width: '100%',
         }}
       />
-      {hint ? <span style={{ color: 'var(--muted-foreground, #888F94)', fontSize: 11 }}>{hint}</span> : null}
+      {error ? (
+        <span style={{ alignItems: 'center', color: 'var(--arco-danger, #E24B4A)', display: 'flex', fontSize: 11, gap: 4 }}>
+          <AlertCircle size={11} />
+          {error}
+        </span>
+      ) : hint ? (
+        <span style={{ color: 'var(--muted-foreground, #888F94)', fontSize: 11 }}>{hint}</span>
+      ) : null}
     </div>
   );
 }
