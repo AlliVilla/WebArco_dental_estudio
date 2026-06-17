@@ -7,6 +7,7 @@ import {
   IsDateString,
   Length,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { CreatePersonaDto, Sexo } from './create-persona.dto';
@@ -55,6 +56,9 @@ export class UpdatePersonaDto extends PartialType(CreatePersonaDto) {
   @ApiPropertyOptional({ description: 'Número de teléfono', example: '88889991' })
   @IsOptional()
   @IsString({ message: 'teléfono debe ser texto' })
+  @Matches(/^(?:\+?504[\s-]?)?[2389]\d{3}[\s-]?\d{4}$/, {
+    message: 'teléfono debe ser válido de Honduras (8 dígitos, puede incluir +504)',
+  })
   telefono?: string;
 
   @ApiPropertyOptional({ description: 'Correo electrónico', example: 'juan.lopez@gmail.com' })
@@ -70,6 +74,7 @@ export class UpdatePersonaDto extends PartialType(CreatePersonaDto) {
   @ApiPropertyOptional({ description: 'Dirección detallada', example: 'Barrio El Centro, frente al parque principal' })
   @IsOptional()
   @IsString({ message: 'dirección debe ser texto' })
+  @MaxLength(255, { message: 'dirección no puede superar 255 caracteres' })
   direccion_linea?: string;
 
   @ApiPropertyOptional({

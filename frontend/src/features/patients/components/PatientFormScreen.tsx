@@ -66,6 +66,10 @@ type PersonaDetail = {
   };
 };
 
+const ADDRESS_MAX_LENGTH = 255;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const HONDURAS_PHONE_PATTERN = /^(?:\+?504[\s-]?)?[2389]\d{3}[\s-]?\d{4}$/;
+
 function SectionDescription({ children }: { children: string }) {
   return (
     <FullWidthField>
@@ -280,6 +284,12 @@ export function PatientFormScreen() {
     if (!departamento) errors.departamento = "Selecciona un departamento";
     if (!municipio) errors.municipio = "Selecciona un municipio";
     if (!phone.trim()) errors.phone = "El teléfono es obligatorio";
+    else if (!HONDURAS_PHONE_PATTERN.test(phone.trim()))
+      errors.phone = "Ingresa un teléfono válido de Honduras (8 dígitos, puede incluir +504)";
+    if (email.trim() && !EMAIL_PATTERN.test(email.trim()))
+      errors.email = "Ingresa un correo electrónico válido";
+    if (addressLine.length > ADDRESS_MAX_LENGTH)
+      errors.addressLine = `La dirección no puede superar ${ADDRESS_MAX_LENGTH} caracteres`;
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -530,16 +540,26 @@ export function PatientFormScreen() {
         <Input
           icon={<Mail size={15} />}
           label="Correo electrónico"
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setFieldErrors((p) => ({ ...p, email: "" }));
+          }}
           placeholder="Ej: maria@correo.com"
           type="email"
           value={email}
+          error={fieldErrors.email}
         />
         <FullWidthField>
           <Textarea
             badge="optional"
+            error={fieldErrors.addressLine}
+            hint={`${addressLine.length}/${ADDRESS_MAX_LENGTH} caracteres`}
             label="Dirección"
-            onChange={setAddressLine}
+            maxLength={ADDRESS_MAX_LENGTH}
+            onChange={(value) => {
+              setAddressLine(value);
+              setFieldErrors((p) => ({ ...p, addressLine: "" }));
+            }}
             placeholder="Ej: Barrio El Centro, frente al parque principal"
             rows={2}
             value={addressLine}
