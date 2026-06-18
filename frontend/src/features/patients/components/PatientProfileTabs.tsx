@@ -81,11 +81,70 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
+function AppointmentCard({ row }: { row: AppointmentRow }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--arco-navy)",
+              margin: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {row.titulo}
+          </p>
+          <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+            {formatDate(row.fecha)}
+          </p>
+        </div>
+        <StatusPill status={row.estado} />
+      </div>
+      <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Doctor</span>
+          <span style={{ fontSize: 13, color: "#203F49" }}>{row.doctor}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AppointmentsTab({
   appointments,
 }: {
   appointments: AppointmentHistoryItem[];
 }) {
+  const { isMobile, isTablet } = useResponsive();
+  const showCards = isMobile || isTablet;
+
   const rows: AppointmentRow[] = appointments.map((a) => ({
     id: a.id_cita,
     fecha: a.fecha_inicio,
@@ -109,6 +168,31 @@ export function AppointmentsTab({
     },
   ];
 
+  if (showCards) {
+    if (rows.length === 0) {
+      return (
+        <p
+          style={{
+            textAlign: "center",
+            color: "#888F94",
+            fontSize: 14,
+            padding: 24,
+            margin: 0,
+          }}
+        >
+          Este paciente no tiene citas registradas.
+        </p>
+      );
+    }
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {rows.map((row) => (
+          <AppointmentCard key={row.id} row={row} />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <DataTable<AppointmentRow>
       columns={columns}
@@ -121,8 +205,67 @@ export function AppointmentsTab({
   );
 }
 
+function FinancialCard({ row }: { row: FinancialRow }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--arco-navy)",
+              margin: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {row.concept}
+          </p>
+          <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+            {formatDate(row.date)}
+          </p>
+        </div>
+        <StatusPill status={row.status} />
+      </div>
+      <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Monto</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#203F49" }}>
+            {formatCurrency(row.amount)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
+  const showCards = isMobile || isTablet;
 
   const totals = rows.reduce(
     (s, r) => ({
@@ -198,31 +341,53 @@ export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
         />
       </div>
 
-      <DataTable<FinancialRow>
-        columns={[
-          {
-            key: "date",
-            label: "Fecha",
-            render: (_v, row) => formatDate(row.date),
-          },
-          { key: "concept", label: "Concepto" },
-          {
-            key: "amount",
-            label: "Monto",
-            render: (_v, row) => formatCurrency(row.amount),
-          },
-          {
-            key: "status",
-            label: "Estado",
-            render: (_v, row) => <StatusPill status={row.status} />,
-          },
-        ]}
-        data={rows}
-        emptyMessage="No hay pagos registrados para este paciente."
-        getRowKey={(row) => row.id}
-        hidePagination
-        searchable={false}
-      />
+      {showCards ? (
+        rows.length === 0 ? (
+          <p
+            style={{
+              textAlign: "center",
+              color: "#888F94",
+              fontSize: 14,
+              padding: 24,
+              margin: 0,
+            }}
+          >
+            No hay pagos registrados para este paciente.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {rows.map((row) => (
+              <FinancialCard key={row.id} row={row} />
+            ))}
+          </div>
+        )
+      ) : (
+        <DataTable<FinancialRow>
+          columns={[
+            {
+              key: "date",
+              label: "Fecha",
+              render: (_v, row) => formatDate(row.date),
+            },
+            { key: "concept", label: "Concepto" },
+            {
+              key: "amount",
+              label: "Monto",
+              render: (_v, row) => formatCurrency(row.amount),
+            },
+            {
+              key: "status",
+              label: "Estado",
+              render: (_v, row) => <StatusPill status={row.status} />,
+            },
+          ]}
+          data={rows}
+          emptyMessage="No hay pagos registrados para este paciente."
+          getRowKey={(row) => row.id}
+          hidePagination
+          searchable={false}
+        />
+      )}
     </div>
   );
 }
