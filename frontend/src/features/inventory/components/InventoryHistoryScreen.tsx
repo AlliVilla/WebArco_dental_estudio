@@ -1,21 +1,30 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type React from 'react';
-import { Activity, ArrowLeft, FileSpreadsheet, RefreshCw, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type React from "react";
+import {
+  Activity,
+  ArrowLeft,
+  FileSpreadsheet,
+  RefreshCw,
+  Search,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 
-import { DataTable, type Column } from '../../../components';
-import { Alert, Button, Card } from '../../../context';
-import { useTheme } from '../../../context/ThemeContext';
-import { inventoryService } from '../services/inventoryService';
-import { formatDate } from '../../../utils/formatters';
-import { exportToExcel } from '../../../utils/exportToExcel';
+import { DataTable, type Column } from "../../../components";
+import { Alert, Button, Card } from "../../../context";
+import { useTheme } from "../../../context/ThemeContext";
+import { useResponsive } from "../../../hooks/useWindowWidth";
+import { inventoryService } from "../services/inventoryService";
+import { formatDate } from "../../../utils/formatters";
+import { exportToExcel } from "../../../utils/exportToExcel";
 import type {
   InventoryItem,
   InventoryMovement,
   InventoryMovementHistoryParams,
   InventoryMovementSummary,
   TipoMovimientoInventario,
-} from '../types';
+} from "../types";
 
 export interface InventoryHistoryScreenProps {}
 
@@ -27,41 +36,95 @@ const emptySummary: InventoryMovementSummary = {
 };
 
 const movementTypeOptions = [
-  { value: 'Entrada', label: 'Entrada' },
-  { value: 'Salida', label: 'Salida' },
+  { value: "Entrada", label: "Entrada" },
+  { value: "Salida", label: "Salida" },
 ];
 
 export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
   useTheme();
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useResponsive();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
-  const [summary, setSummary] = useState<InventoryMovementSummary>(emptySummary);
+  const [summary, setSummary] =
+    useState<InventoryMovementSummary>(emptySummary);
   const [totalRecords, setTotalRecords] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [fechaFin, setFechaFin] = useState('');
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
-  const serverFiltersRef = useRef({ search: '', id_insumo: '', tipo: '' as TipoMovimientoInventario | '' });
+  const serverFiltersRef = useRef({
+    search: "",
+    id_insumo: "",
+    tipo: "" as TipoMovimientoInventario | "",
+  });
 
   const productOptions = useMemo(
-    () => items.map((item) => ({ value: String(item.id_insumo), label: `${item.codigo} - ${item.nombre}` })),
-    [items],
+    () =>
+      items.map((item) => ({
+        value: String(item.id_insumo),
+        label: `${item.codigo} - ${item.nombre}`,
+      })),
+    [items]
   );
 
   const columns: Column<InventoryMovement>[] = useMemo(
     () => [
-      { key: 'fecha', label: 'Fecha', width: 128, render: (value) => formatDate(String(value)) },
-      { key: 'codigo', label: 'Código', width: 100, render: (value) => <strong style={{ color: '#203F49', fontWeight: 500 }}>{String(value)}</strong> },
-      { key: 'producto', label: 'Producto', render: (value) => <span style={{ color: '#203F49', fontWeight: 500 }}>{String(value)}</span> },
-      { key: 'tipo', label: 'Tipo', align: 'center', width: 112, render: (value) => <MovementBadge type={String(value)} /> },
-      { key: 'cantidad', label: 'Cantidad', align: 'center', width: 94, render: (value, row) => <QuantityValue value={Number(value)} type={row.tipo} /> },
-      { key: 'responsable', label: 'Responsable', width: 170 },
-      { key: 'observaciones', label: 'Observaciones', render: (value) => <span style={{ color: value ? '#203F49' : '#888F94' }}>{String(value || 'Sin observaciones')}</span> },
+      {
+        key: "fecha",
+        label: "Fecha",
+        width: 128,
+        render: (value) => formatDate(String(value)),
+      },
+      {
+        key: "codigo",
+        label: "Código",
+        width: 100,
+        render: (value) => (
+          <strong style={{ color: "#203F49", fontWeight: 500 }}>
+            {String(value)}
+          </strong>
+        ),
+      },
+      {
+        key: "producto",
+        label: "Producto",
+        render: (value) => (
+          <span style={{ color: "#203F49", fontWeight: 500 }}>
+            {String(value)}
+          </span>
+        ),
+      },
+      {
+        key: "tipo",
+        label: "Tipo",
+        align: "center",
+        width: 112,
+        render: (value) => <MovementBadge type={String(value)} />,
+      },
+      {
+        key: "cantidad",
+        label: "Cantidad",
+        align: "center",
+        width: 94,
+        render: (value, row) => (
+          <QuantityValue value={Number(value)} type={row.tipo} />
+        ),
+      },
+      { key: "responsable", label: "Responsable", width: 170 },
+      {
+        key: "observaciones",
+        label: "Observaciones",
+        render: (value) => (
+          <span style={{ color: value ? "#203F49" : "#888F94" }}>
+            {String(value || "Sin observaciones")}
+          </span>
+        ),
+      },
     ],
-    [],
+    []
   );
 
   const loadProducts = useCallback(async () => {
@@ -73,23 +136,29 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
     }
   }, []);
 
-  const fetchHistory = useCallback(async (params: InventoryMovementHistoryParams) => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await inventoryService.getMovementHistory(params);
-      setMovements(response.data.data);
-      setSummary(response.data.summary);
-      setTotalRecords(response.data.pagination?.total ?? 0);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchHistory = useCallback(
+    async (params: InventoryMovementHistoryParams) => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await inventoryService.getMovementHistory(params);
+        setMovements(response.data.data);
+        setSummary(response.data.summary);
+        setTotalRecords(response.data.pagination?.total ?? 0);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   const buildParams = useCallback(
-    (server: { search: string; id_insumo: string; tipo: string }, page = 1): InventoryMovementHistoryParams => {
+    (
+      server: { search: string; id_insumo: string; tipo: string },
+      page = 1
+    ): InventoryMovementHistoryParams => {
       const params: InventoryMovementHistoryParams = { page, limit: 10 };
       if (server.search) params.search = server.search;
       if (server.id_insumo) params.id_insumo = Number(server.id_insumo);
@@ -98,24 +167,28 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
       if (fechaFin) params.fechaFin = fechaFin;
       return params;
     },
-    [fechaInicio, fechaFin],
+    [fechaInicio, fechaFin]
   );
 
   const handleServerParams = useCallback(
-    (params: { page: number; search: string; filters: Record<string, string> }) => {
+    (params: {
+      page: number;
+      search: string;
+      filters: Record<string, string>;
+    }) => {
       serverFiltersRef.current = {
         search: params.search,
-        id_insumo: params.filters.id_insumo ?? '',
-        tipo: (params.filters.tipo ?? '') as TipoMovimientoInventario | '',
+        id_insumo: params.filters.id_insumo ?? "",
+        tipo: (params.filters.tipo ?? "") as TipoMovimientoInventario | "",
       };
       void fetchHistory(buildParams(serverFiltersRef.current, params.page));
     },
-    [fetchHistory, buildParams],
+    [fetchHistory, buildParams]
   );
 
   useEffect(() => {
     void loadProducts();
-    handleServerParams({ page: 1, search: '', filters: {} });
+    handleServerParams({ page: 1, search: "", filters: {} });
   }, [handleServerParams, loadProducts]);
 
   const applyFilters = () => {
@@ -123,10 +196,10 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
   };
 
   const clearFilters = () => {
-    setFechaInicio('');
-    setFechaFin('');
-    serverFiltersRef.current = { search: '', id_insumo: '', tipo: '' };
-    void fetchHistory(buildParams({ search: '', id_insumo: '', tipo: '' }));
+    setFechaInicio("");
+    setFechaFin("");
+    serverFiltersRef.current = { search: "", id_insumo: "", tipo: "" };
+    void fetchHistory(buildParams({ search: "", id_insumo: "", tipo: "" }));
   };
 
   const exportExcel = async () => {
@@ -134,15 +207,27 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
     try {
       await exportMovementsToExcel(movements);
     } catch {
-      setError('Error al exportar historial de inventario a Excel.');
+      setError("Error al exportar historial de inventario a Excel.");
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {error && <Alert variant="error" message={error} onClose={() => setError('')} />}
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {error && (
+        <Alert variant="error" message={error} onClose={() => setError("")} />
+      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(150px, 1fr))', gap: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : isTablet
+            ? "repeat(2, 1fr)"
+            : "repeat(4, minmax(150px, 1fr))",
+          gap: 16,
+        }}
+      >
         <MetricCard
           label="Movimientos"
           value={String(summary.total_movimientos)}
@@ -173,19 +258,22 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
         title="Detalle de movimientos"
         description="Listado cronológico de entradas y salidas de insumos"
         columns={columns}
+        // MOCK TEMPORAL: si todavía no hay movimientos reales, se usa el mock
+        // de arriba solo para poder ver las cards responsive. Borrar el
+        // "|| MOCK_MOVEMENTS" cuando el backend ya esté devolviendo datos.
         data={movements}
         searchable
         searchPlaceholder="Buscar código o producto..."
-        searchKeys={['codigo', 'producto']}
+        searchKeys={["codigo", "producto"]}
         filters={[
           {
-            key: 'id_insumo',
-            placeholder: 'Todos los productos',
+            key: "id_insumo",
+            placeholder: "Todos los productos",
             options: productOptions,
           },
           {
-            key: 'tipo',
-            placeholder: 'Tipo',
+            key: "tipo",
+            placeholder: "Tipo",
             options: movementTypeOptions,
           },
         ]}
@@ -193,6 +281,7 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
         totalRecords={totalRecords}
         onServerParamsChange={handleServerParams}
         pageSize={10}
+        renderMobileCard={(row) => <MovementCard movement={row} />}
         filterExtra={
           <>
             <input
@@ -202,15 +291,16 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
               placeholder="Desde"
               style={{
                 height: 40,
-                padding: '0 12px',
-                border: '1px solid #E4E7EC',
+                padding: "0 12px",
+                border: "1px solid #E4E7EC",
                 borderRadius: 8,
-                background: '#fff',
+                background: "#fff",
                 fontSize: 12,
-                color: fechaInicio ? '#203F49' : '#98A2B3',
-                outline: 'none',
-                boxSizing: 'border-box',
+                color: fechaInicio ? "#203F49" : "#98A2B3",
+                outline: "none",
+                boxSizing: "border-box",
                 minWidth: 140,
+                flex: isMobile ? "1 1 100%" : undefined,
               }}
             />
             <input
@@ -220,40 +310,56 @@ export function InventoryHistoryScreen(_props: InventoryHistoryScreenProps) {
               placeholder="Hasta"
               style={{
                 height: 40,
-                padding: '0 12px',
-                border: '1px solid #E4E7EC',
+                padding: "0 12px",
+                border: "1px solid #E4E7EC",
                 borderRadius: 8,
-                background: '#fff',
+                background: "#fff",
                 fontSize: 12,
-                color: fechaFin ? '#203F49' : '#98A2B3',
-                outline: 'none',
-                boxSizing: 'border-box',
+                color: fechaFin ? "#203F49" : "#98A2B3",
+                outline: "none",
+                boxSizing: "border-box",
                 minWidth: 140,
+                flex: isMobile ? "1 1 100%" : undefined,
               }}
             />
-            <Button variant="primary" size="sm" onClick={applyFilters} loading={loading}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={applyFilters}
+              loading={loading}
+              style={{ flex: isMobile ? "1 1 calc(50% - 5px)" : undefined }}
+            >
               <Search size={16} />
               Buscar
             </Button>
-            <Button variant="secondary" size="sm" onClick={clearFilters}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={clearFilters}
+              style={{ flex: isMobile ? "1 1 calc(50% - 5px)" : undefined }}
+            >
               Limpiar
             </Button>
           </>
         }
         secondaryActions={[
           {
-            label: 'Exportar Excel',
+            label: "Exportar Excel",
             icon: <FileSpreadsheet size={16} />,
             onClick: exportExcel,
           },
           {
-            label: 'Volver',
+            label: "Volver",
             icon: <ArrowLeft size={16} />,
-            onClick: () => navigate('/inventory'),
+            onClick: () => navigate("/inventory"),
           },
         ]}
         getRowKey={(row) => String(row.id_movimiento)}
-        emptyMessage={loading ? 'Cargando historial...' : 'No hay movimientos que coincidan con los filtros.'}
+        emptyMessage={
+          loading
+            ? "Cargando historial..."
+            : "No hay movimientos que coincidan con los filtros."
+        }
       />
     </div>
   );
@@ -268,26 +374,26 @@ function MetricCard({
   label: string;
   value: string;
   icon: React.ReactNode;
-  tone: 'primary' | 'success' | 'warning' | 'danger';
+  tone: "primary" | "success" | "warning" | "danger";
 }) {
   const map = {
-    primary: { bg: '#E6F8FB', color: '#0BC5DF' },
-    success: { bg: '#ECFDF5', color: '#1D9E75' },
-    warning: { bg: '#FFFBEB', color: '#EF9F27' },
-    danger: { bg: '#FEF2F2', color: '#E24B4A' },
+    primary: { bg: "#E6F8FB", color: "#0BC5DF" },
+    success: { bg: "#ECFDF5", color: "#1D9E75" },
+    warning: { bg: "#FFFBEB", color: "#EF9F27" },
+    danger: { bg: "#FEF2F2", color: "#E24B4A" },
   };
   const selected = map[tone];
   return (
     <Card
       style={{
         padding: 16,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: '#888F94', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: "#888F94", marginBottom: 8 }}>
           {label}
         </div>
         <div
@@ -295,9 +401,9 @@ function MetricCard({
             fontSize: 18,
             color: selected.color,
             fontWeight: 600,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {value}
@@ -310,9 +416,9 @@ function MetricCard({
           borderRadius: 12,
           background: selected.bg,
           color: selected.color,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           flexShrink: 0,
           marginLeft: 12,
         }}
@@ -324,16 +430,16 @@ function MetricCard({
 }
 
 function MovementBadge({ type }: { type: string }) {
-  const isEntry = type === 'Entrada';
+  const isEntry = type === "Entrada";
   return (
     <span
       style={{
         fontSize: 10,
         fontWeight: 600,
-        padding: '4px 10px',
+        padding: "4px 10px",
         borderRadius: 20,
-        background: isEntry ? '#ECFDF5' : '#FEF2F2',
-        color: isEntry ? '#1D9E75' : '#E24B4A',
+        background: isEntry ? "#ECFDF5" : "#FEF2F2",
+        color: isEntry ? "#1D9E75" : "#E24B4A",
       }}
     >
       {type}
@@ -341,24 +447,123 @@ function MovementBadge({ type }: { type: string }) {
   );
 }
 
-function QuantityValue({ value, type }: { value: number; type: TipoMovimientoInventario }) {
-  const isEntry = type === 'Entrada';
+function QuantityValue({
+  value,
+  type,
+}: {
+  value: number;
+  type: TipoMovimientoInventario;
+}) {
+  const isEntry = type === "Entrada";
   return (
     <strong
       style={{
-        color: isEntry ? '#1D9E75' : '#E24B4A',
+        color: isEntry ? "#1D9E75" : "#E24B4A",
         fontWeight: 600,
       }}
     >
-      {isEntry ? '+' : '-'}{value}
+      {isEntry ? "+" : "-"}
+      {value}
     </strong>
   );
 }
 
+function MovementCard({ movement }: { movement: InventoryMovement }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#203F49",
+              margin: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {movement.producto}
+          </p>
+          <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+            {movement.codigo} · {formatDate(movement.fecha)}
+          </p>
+        </div>
+        <MovementBadge type={movement.tipo} />
+      </div>
+      <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+            borderBottom: "1px solid #F8F9FA",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Cantidad</span>
+          <QuantityValue value={movement.cantidad} type={movement.tipo} />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+            borderBottom: "1px solid #F8F9FA",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Responsable</span>
+          <span style={{ fontSize: 13, color: "#203F49" }}>
+            {movement.responsable}
+          </span>
+        </div>
+        <div style={{ padding: "7px 0" }}>
+          <span
+            style={{
+              fontSize: 12,
+              color: "#888F94",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Observaciones
+          </span>
+          <span
+            style={{
+              fontSize: 13,
+              color: movement.observaciones ? "#203F49" : "#888F94",
+            }}
+          >
+            {movement.observaciones || "Sin observaciones"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getErrorMessage(error: unknown) {
-  if (error && typeof error === 'object' && 'message' in error) return String((error as { message: string }).message);
+  if (error && typeof error === "object" && "message" in error)
+    return String((error as { message: string }).message);
   if (error instanceof Error) return error.message;
-  return 'Ocurrió un error inesperado.';
+  return "Ocurrió un error inesperado.";
 }
 
 async function exportMovementsToExcel(movements: InventoryMovement[]) {
@@ -369,18 +574,23 @@ async function exportMovementsToExcel(movements: InventoryMovement[]) {
     tipo: movement.tipo,
     cantidad: movement.cantidad,
     responsable: movement.responsable,
-    observaciones: movement.observaciones ?? '',
+    observaciones: movement.observaciones ?? "",
   }));
 
   const columnas = [
-    { header: 'Fecha', key: 'fecha', width: 14 },
-    { header: 'Código', key: 'codigo', width: 14 },
-    { header: 'Producto', key: 'producto', width: 32 },
-    { header: 'Tipo', key: 'tipo', width: 14 },
-    { header: 'Cantidad', key: 'cantidad', width: 12 },
-    { header: 'Responsable', key: 'responsable', width: 26 },
-    { header: 'Observaciones', key: 'observaciones', width: 36 },
+    { header: "Fecha", key: "fecha", width: 14 },
+    { header: "Código", key: "codigo", width: 14 },
+    { header: "Producto", key: "producto", width: 32 },
+    { header: "Tipo", key: "tipo", width: 14 },
+    { header: "Cantidad", key: "cantidad", width: 12 },
+    { header: "Responsable", key: "responsable", width: 26 },
+    { header: "Observaciones", key: "observaciones", width: 36 },
   ];
 
-  await exportToExcel(rows, columnas, 'Historial', 'Historial_Inventario_WebArco');
+  await exportToExcel(
+    rows,
+    columnas,
+    "Historial",
+    "Historial_Inventario_WebArco"
+  );
 }
