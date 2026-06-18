@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button, Input, PasswordInput, Alert } from "../../../context";
 import { useAuthStore } from "../hooks/useAuthStore";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
-import heroBg from "../../../assets/hero.png";
+import heroBg from "../../../assets/fondo_login.png";
 
 export interface LoginFormProps {
   onSuccess?: () => void;
