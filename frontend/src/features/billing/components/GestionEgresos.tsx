@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { Card, Alert, Button } from "../../../context";
-import { formatCurrency, obtenerHoyLocal, escapeHtml, generateUUID } from "../../../utils/formatters";
+import {
+  formatCurrency,
+  obtenerHoyLocal,
+  escapeHtml,
+  generateUUID,
+} from "../../../utils/formatters";
 import { exportToExcel } from "../../../utils/exportToExcel";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { StatsDrawerContent, StatsItem } from "./StatsDrawerContent";
 import billingService from "../services/billingService";
-import { inventoryService } from "../../inventory/services/inventoryService";
-import type { InventoryItem } from "../../inventory/types";
 import type {
   CreateExpenseInput,
   ExpenseMetricResponse,
@@ -26,6 +29,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DataTable, ConfirmModal } from "../../../components";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 type CategoriaEgreso = "Insumos" | "Equipos" | "Nómina" | "Servicios";
 const CATEGORIAS: CategoriaEgreso[] = [
@@ -53,7 +57,10 @@ type DrawerIndicadorState = {
   totalValue?: string;
 };
 
-const inputStyle = (filled: boolean, disabled = false): React.CSSProperties => ({
+const inputStyle = (
+  filled: boolean,
+  disabled = false
+): React.CSSProperties => ({
   width: "100%",
   padding: "10px 12px",
   borderRadius: 8,
@@ -104,9 +111,7 @@ const convertirAStatsItems = (registros: FinancialRecord[]): StatsItem[] => {
     monto: Number(r.monto || 0),
     fecha: r.fecha,
     responsable:
-      r.responsable ||
-      r.creado_por?.nombre_completo ||
-      "Usuario Autenticado",
+      r.responsable || r.creado_por?.nombre_completo || "Usuario Autenticado",
     observaciones: r.observaciones || "",
   }));
 };
@@ -117,26 +122,31 @@ const formatMoneda = (val: number) =>
     maximumFractionDigits: 2,
   })}`;
 export function GestionEgresos() {
+  const { isMobile } = useResponsive();
   const [estaModalAbierto, setEstaModalAbierto] = useState(false);
   const [modoModal, setModoModal] = useState<"crear" | "editar" | "ver">(
-    "crear",
+    "crear"
   );
   const [registros, setRegistros] = useState<RegistroEgreso[]>([]);
-  const [resumenEgresos, setResumenEgresos] = useState<ExpenseSummaryResponse | null>(null);
+  const [resumenEgresos, setResumenEgresos] =
+    useState<ExpenseSummaryResponse | null>(null);
   const [estaCargando, setEstaCargando] = useState(false);
 
   const [estaModalConfirmacionAbierto, setEstaModalConfirmacionAbierto] =
     useState(false);
   const [registroAEliminar, setRegistroAEliminar] = useState<number | null>(
-    null,
+    null
   );
 
   const [error, setError] = useState<string | null>(null);
-  const [userStored] = useLocalStorage<Record<string, unknown>>("webarco_user", {});
+  const [userStored] = useLocalStorage<Record<string, unknown>>(
+    "webarco_user",
+    {}
+  );
 
   const [estaDrawerAbierto, setEstaDrawerAbierto] = useState(false);
   const [drawerActual, setDrawerActual] = useState<DrawerIndicadorState | null>(
-    null,
+    null
   );
 
   const nombreAutenticado = useMemo(() => {
@@ -165,104 +175,6 @@ export function GestionEgresos() {
   const [observaciones, setObservaciones] = useState("");
   const [idSeleccionado, setIdSeleccionado] = useState<number | null>(null);
   const [responsable, setResponsable] = useState(nombreAutenticado);
-
-  const [tempInsumoId, setTempInsumoId] = useState("");
-  const [tempCantidad, setTempCantidad] = useState("");
-  const [insumosDisponibles, setInsumosDisponibles] = useState<InventoryItem[]>([]);
-  const [insumosSeleccionados, setInsumosSeleccionados] = useState<{
-    id_insumo: number;
-    nombre: string;
-    cantidad: number;
-    precio_costo: number;
-    stock_actual: number;
-  }[]>([]);
-
-  useEffect(() => {
-    if (estaModalAbierto && categoria === "Insumos" && insumosDisponibles.length === 0) {
-      const cargarInsumos = async () => {
-        try {
-          const res = await inventoryService.getAll({ estadoRegistro: "activo" });
-          if (res.success && res.data) {
-            setInsumosDisponibles(res.data.data || []);
-          }
-        } catch (err: any) {
-          console.error("Error al cargar insumos", err);
-        }
-      };
-      void cargarInsumos();
-    }
-  }, [estaModalAbierto, categoria, insumosDisponibles.length]);
-
-  const agregarInsumoALista = () => {
-    if (!tempInsumoId) {
-      setError("Por favor seleccione un insumo.");
-      return;
-    }
-    const cant = parseInt(tempCantidad, 10);
-    if (isNaN(cant) || cant <= 0) {
-      setError("Por favor ingrese una cantidad válida mayor a 0.");
-      return;
-    }
-
-    const insumoObj = insumosDisponibles.find(
-      (ins) => ins.id_insumo === Number(tempInsumoId)
-    );
-    if (!insumoObj) {
-      setError("Insumo no encontrado.");
-      return;
-    }
-
-    if (cant > insumoObj.stock_actual) {
-      setError(`No hay stock suficiente. Stock disponible de "${insumoObj.nombre}": ${insumoObj.stock_actual}`);
-      return;
-    }
-
-    const yaExiste = insumosSeleccionados.find(
-      (item) => item.id_insumo === insumoObj.id_insumo
-    );
-    if (yaExiste) {
-      setError("Este insumo ya ha sido agregado. Elimínelo primero si desea cambiar la cantidad.");
-      return;
-    }
-
-    const nuevaLista = [
-      ...insumosSeleccionados,
-      {
-        id_insumo: insumoObj.id_insumo,
-        nombre: insumoObj.nombre,
-        cantidad: cant,
-        precio_costo: insumoObj.precio_costo,
-        stock_actual: insumoObj.stock_actual,
-      },
-    ];
-
-    setInsumosSeleccionados(nuevaLista);
-
-    // Auto-calculate and update total amount
-    const total = nuevaLista.reduce(
-      (acc, item) => acc + item.cantidad * item.precio_costo,
-      0
-    );
-    setMonto(total.toFixed(2));
-
-    setTempInsumoId("");
-    setTempCantidad("");
-    setError(null);
-  };
-
-  const removerInsumoDeLista = (index: number) => {
-    const nuevaLista = [...insumosSeleccionados];
-    nuevaLista.splice(index, 1);
-    setInsumosSeleccionados(nuevaLista);
-
-    // Auto-calculate and update total amount
-    const total = nuevaLista.reduce(
-      (acc, item) => acc + item.cantidad * item.precio_costo,
-      0
-    );
-    setMonto(nuevaLista.length > 0 ? total.toFixed(2) : "");
-  };
-
 
   const cargarEgresos = async () => {
     setEstaCargando(true);
@@ -326,7 +238,7 @@ export function GestionEgresos() {
 
   const filtros = useMemo(() => {
     const responsablesUnicos = Array.from(
-      new Set(registros.map((r) => r.responsable).filter(Boolean)),
+      new Set(registros.map((r) => r.responsable).filter(Boolean))
     );
     return [
       {
@@ -409,7 +321,9 @@ export function GestionEgresos() {
         totalValue: formatMoneda(response.data.total || 0),
       });
     } catch (err: any) {
-      setError(err?.message || "No se pudieron cargar los registros del indicador.");
+      setError(
+        err?.message || "No se pudieron cargar los registros del indicador."
+      );
     }
   };
 
@@ -444,14 +358,6 @@ export function GestionEgresos() {
       categoria,
       monto: parsedMonto,
       observaciones: observaciones.trim() || undefined,
-      ...(categoria === "Insumos" && insumosSeleccionados.length > 0
-        ? {
-            insumos: insumosSeleccionados.map((item) => ({
-              id_insumo: item.id_insumo,
-              cantidad: item.cantidad,
-            })),
-          }
-        : {}),
     };
 
     setEstaCargando(true);
@@ -507,19 +413,14 @@ export function GestionEgresos() {
     setResponsable(nombreAutenticado);
     setError(null);
     setIdSeleccionado(null);
-    setTempInsumoId("");
-    setTempCantidad("");
-    setInsumosSeleccionados([]);
   };
 
-  const abrirModal = async (
+  const abrirModal = (
     modo: "crear" | "editar" | "ver",
-    registro?: RegistroEgreso,
+    registro?: RegistroEgreso
   ) => {
     setError(null);
     setModoModal(modo);
-    setTempInsumoId("");
-    setTempCantidad("");
     if (registro) {
       setIdSeleccionado(registro.id);
       setFecha(registro.fecha);
@@ -528,20 +429,6 @@ export function GestionEgresos() {
       setMonto(Number(registro.monto).toFixed(2));
       setObservaciones(registro.observaciones);
       setResponsable(registro.responsable);
-
-      if (registro.categoria === "Insumos") {
-        try {
-          const res = await billingService.getExpenseById(registro.id);
-          if (res.success && res.data) {
-            const insumos = (res.data as any).insumos || [];
-            setInsumosSeleccionados(insumos);
-          }
-        } catch (err: any) {
-          console.error("Error al cargar detalles del egreso", err);
-        }
-      } else {
-        setInsumosSeleccionados([]);
-      }
     } else {
       limpiarFormulario();
     }
@@ -575,13 +462,23 @@ export function GestionEgresos() {
       .map(
         (r) => `
       <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.fecha)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.concepto)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.categoria)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: bold; text-align: right;">${formatCurrency(r.monto)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(r.responsable)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.fecha
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.concepto
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.categoria
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: bold; text-align: right;">${formatCurrency(
+          r.monto
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.responsable
+        )}</td>
       </tr>
-    `,
+    `
       )
       .join("");
 
@@ -611,8 +508,12 @@ export function GestionEgresos() {
               <p class="subtitle">Reporte de Control de Egresos y Gastos</p>
             </div>
             <div class="meta">
-              <p style="margin: 0;">Fecha de impresión: ${new Date().toLocaleDateString("es-HN")}</p>
-              <p style="margin: 5px 0 0 0;">Total Registros: ${registros.length}</p>
+              <p style="margin: 0;">Fecha de impresión: ${new Date().toLocaleDateString(
+                "es-HN"
+              )}</p>
+              <p style="margin: 5px 0 0 0;">Total Registros: ${
+                registros.length
+              }</p>
             </div>
           </div>
           <table>
@@ -629,7 +530,9 @@ export function GestionEgresos() {
               ${filasHtml}
               <tr class="total-row">
                 <td colspan="3" class="total-cell" style="text-align: right;">Total General:</td>
-                <td class="total-cell" style="text-align: right; color: #EF4444;">${formatCurrency(totalEgresos)}</td>
+                <td class="total-cell" style="text-align: right; color: #EF4444;">${formatCurrency(
+                  totalEgresos
+                )}</td>
                 <td class="total-cell"></td>
               </tr>
             </tbody>
@@ -805,6 +708,13 @@ export function GestionEgresos() {
         ]}
         rowActions={obtenerAccionesFila}
         getRowKey={(fila) => String(fila.id)}
+        renderMobileCard={(registro) => (
+          <ExpenseCard
+            registro={registro}
+            obtenerBadgeCategoria={obtenerBadgeCategoria}
+            actions={obtenerAccionesFila(registro)}
+          />
+        )}
       />
 
       <ConfirmModal
@@ -874,8 +784,8 @@ export function GestionEgresos() {
                   {modoModal === "ver"
                     ? "Detalles del Egreso"
                     : modoModal === "editar"
-                      ? "Editar Egreso"
-                      : "Registrar Nuevo Egreso"}
+                    ? "Editar Egreso"
+                    : "Registrar Nuevo Egreso"}
                 </h3>
               </div>
               <button
@@ -911,7 +821,7 @@ export function GestionEgresos() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                   gap: 12,
                 }}
               >
@@ -952,13 +862,9 @@ export function GestionEgresos() {
                     <select
                       required
                       value={categoria}
-                      onChange={(e) => {
-                        const newCat = e.target.value as CategoriaEgreso;
-                        setCategoria(newCat);
-                        if (newCat !== "Insumos") {
-                          setInsumosSeleccionados([]);
-                        }
-                      }}
+                      onChange={(e) =>
+                        setCategoria(e.target.value as CategoriaEgreso)
+                      }
                       style={{
                         ...inputStyle(!!categoria),
                         cursor: "pointer",
@@ -994,7 +900,7 @@ export function GestionEgresos() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                   gap: 12,
                 }}
               >
@@ -1044,177 +950,9 @@ export function GestionEgresos() {
                 </div>
               </div>
 
-              {categoria === "Insumos" && (
-                <div
-                  style={{
-                    border: "1px solid #EAECEE",
-                    borderRadius: 8,
-                    padding: 12,
-                    backgroundColor: "#F8F9FA",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                  }}
-                >
-                  <h4
-                    style={{
-                      margin: 0,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#203F49",
-                    }}
-                  >
-                    Insumos restados de inventario
-                  </h4>
-
-                  {/* Form to add an insumo - ONLY in 'crear' or 'editar' mode */}
-                  {modoModal !== "ver" && (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 100px auto",
-                        gap: 8,
-                        alignItems: "flex-end",
-                      }}
-                    >
-                      <div style={fieldGroupStyle}>
-                        <label style={{ ...labelStyle, fontSize: 11 }}>
-                          Seleccionar Insumo
-                        </label>
-                        <select
-                          value={tempInsumoId}
-                          onChange={(e) => setTempInsumoId(e.target.value)}
-                          style={{
-                            ...inputStyle(!!tempInsumoId),
-                            padding: "8px 10px",
-                            fontSize: 13,
-                          }}
-                        >
-                          <option value="">-- Seleccione --</option>
-                          {insumosDisponibles.map((ins) => (
-                            <option key={ins.id_insumo} value={ins.id_insumo}>
-                              {ins.nombre} (Stock: {ins.stock_actual})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={fieldGroupStyle}>
-                        <label style={{ ...labelStyle, fontSize: 11 }}>
-                          Cantidad
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          placeholder="Cant"
-                          value={tempCantidad}
-                          onChange={(e) => setTempCantidad(e.target.value)}
-                          style={{
-                            ...inputStyle(!!tempCantidad),
-                            padding: "8px 10px",
-                            fontSize: 13,
-                          }}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={agregarInsumoALista}
-                        variant="secondary"
-                        style={{
-                          height: 38,
-                          padding: "0 12px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        Agregar
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Selected insumos list */}
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 6,
-                      marginTop: 4,
-                    }}
-                  >
-                    {insumosSeleccionados.length === 0 ? (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "#888F94",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        No hay insumos seleccionados.
-                      </span>
-                    ) : (
-                      insumosSeleccionados.map((item, index) => (
-                        <div
-                          key={item.id_insumo}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            background: "#fff",
-                            padding: "6px 10px",
-                            borderRadius: 6,
-                            border: "1px solid #E2E8F0",
-                            fontSize: 13,
-                          }}
-                        >
-                          <div>
-                            <span
-                              style={{ fontWeight: 500, color: "#203F49" }}
-                            >
-                              {item.nombre}
-                            </span>
-                            <span
-                              style={{
-                                marginLeft: 8,
-                                color: "#888F94",
-                                fontSize: 11,
-                              }}
-                            >
-                              (Cant:{" "}
-                              <strong style={{ color: "#203F49" }}>
-                                {item.cantidad}
-                              </strong>
-                              )
-                            </span>
-                          </div>
-                          {modoModal !== "ver" && (
-                            <button
-                              type="button"
-                              onClick={() => removerInsumoDeLista(index)}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#EF4444",
-                                cursor: "pointer",
-                                fontSize: 12,
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div style={fieldGroupStyle}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <label style={labelStyle}>
-                    Observaciones
-                  </label>
+                  <label style={labelStyle}>Observaciones</label>
                   {modoModal !== "ver" && (
                     <span
                       style={{
@@ -1288,6 +1026,136 @@ export function GestionEgresos() {
         iconColor={drawerActual?.iconColor}
         totalValue={drawerActual?.totalValue}
       />
+    </div>
+  );
+}
+
+function ExpenseCard({
+  registro,
+  obtenerBadgeCategoria,
+  actions,
+}: {
+  registro: RegistroEgreso;
+  obtenerBadgeCategoria: (categoria: string) => React.ReactNode;
+  actions: {
+    icon: React.ReactNode;
+    label?: string;
+    onClick: (row: RegistroEgreso) => void;
+    danger?: boolean;
+  }[];
+}) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #D3D7DA",
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#203F49",
+              margin: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {registro.concepto}
+          </p>
+          <p style={{ fontSize: 12, color: "#888F94", margin: "2px 0 0" }}>
+            {registro.fecha}
+          </p>
+        </div>
+        {obtenerBadgeCategoria(registro.categoria)}
+      </div>
+
+      <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+            borderBottom: "1px solid #F8F9FA",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Monto</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#EF4444" }}>
+            {formatCurrency(Number(registro.monto || 0))}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "7px 0",
+            borderBottom: "1px solid #F8F9FA",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#888F94" }}>Responsable</span>
+          <span style={{ fontSize: 13, color: "#203F49" }}>
+            {registro.responsable}
+          </span>
+        </div>
+        {registro.observaciones && (
+          <div style={{ padding: "7px 0" }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: "#888F94",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Observaciones
+            </span>
+            <span style={{ fontSize: 13, color: "#203F49" }}>
+              {registro.observaciones}
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          {actions.map((action, i) => (
+            <button
+              key={i}
+              title={action.label}
+              onClick={() => action.onClick(registro)}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "8px 0",
+                borderRadius: 8,
+                border: "1px solid #D3D7DA",
+                background: "#fff",
+                color: action.danger ? "#E24B4A" : "#5F656A",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              {action.icon}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
