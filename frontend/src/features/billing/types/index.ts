@@ -66,6 +66,7 @@ export interface CreateExpenseInput {
   categoria: ExpenseCategory;
   fecha: string;
   observaciones?: string;
+  insumos?: { id_insumo: number; cantidad: number }[];
 }
 
 export interface ExpenseMetricResponse {

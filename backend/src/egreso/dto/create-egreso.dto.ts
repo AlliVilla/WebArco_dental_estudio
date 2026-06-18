@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 export enum CategoriaEgreso {
@@ -16,6 +19,17 @@ export enum CategoriaEgreso {
   Equipos = 'Equipos',
   Nomina = 'Nómina',
   Servicios = 'Servicios',
+}
+
+export class EgresoInsumoDto {
+  @ApiProperty({ description: 'ID del Insumo', example: 1 })
+  @IsInt()
+  id_insumo: number;
+
+  @ApiProperty({ description: 'Cantidad a restar de inventario', example: 5 })
+  @IsInt()
+  @Min(1)
+  cantidad: number;
 }
 
 export class CreateEgresoDto {
@@ -65,4 +79,15 @@ export class CreateEgresoDto {
   @IsString()
   @MaxLength(255)
   observaciones?: string;
-}
+
+  @ApiPropertyOptional({
+    description: 'Lista de insumos a restar de inventario',
+    type: [EgresoInsumoDto],
+    example: [{ id_insumo: 1, cantidad: 5 }],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EgresoInsumoDto)
+  insumos?: EgresoInsumoDto[];
+}
