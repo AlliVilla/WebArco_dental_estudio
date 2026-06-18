@@ -62,8 +62,9 @@ export class CitaController {
   @ApiConflictResponse({
     description: 'Conflicto de horario con otra cita del doctor',
   })
-  async create(@Body() createCitaDto: CreateCitaDto) {
-    return this.citaService.create(createCitaDto);
+  async create(@Body() createCitaDto: CreateCitaDto, @Req() req: Request) {
+    const userId = (req.user as any).id_usuario;
+    return this.citaService.create(createCitaDto, userId);
   }
 
   @Privileges(26, 69)
@@ -258,8 +259,10 @@ export class CitaController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCitaDto: UpdateCitaDto,
+    @Req() req: Request,
   ) {
-    return this.citaService.update(id, updateCitaDto);
+    const userId = (req.user as any).id_usuario;
+    return this.citaService.update(id, updateCitaDto, userId);
   }
 
   @Privileges(27)

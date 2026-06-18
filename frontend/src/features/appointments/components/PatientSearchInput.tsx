@@ -196,7 +196,7 @@ export function PatientSearchInput({ value, onChange, error, disabled, initialPa
                 ))
               )}
             </div>
-            {(selectedPatient || value) && (
+            {!!(selectedPatient || value) && (
               <div
                 onClick={handleClear}
                 style={{

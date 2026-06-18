@@ -7,7 +7,7 @@ async function insertCitasNotificaciones() {
   const paciente = await prisma.persona.findUnique({ where: { id_persona: 1 } });
 
   if (!doctor || !paciente || !admin) {
-    console.log("[seed] Doctores, admins o pacientes no encontrados, omitiendo citas-notificaciones");
+    console.log("[seed] Doctores, admins o pacientes no encontrados, omitiendo citas");
     return;
   }
 
@@ -108,47 +108,11 @@ async function insertCitasNotificaciones() {
     });
 
     if (!existe) {
-      const cita = await prisma.cita.create({ data: citaData });
-
-      // 3. Crear las notificaciones correspondientes
-      if (cita.estado === 'programada') {
-        const notiData = {
-          tipo: 'cita_proxima',
-          titulo: 'Cita próxima en 60 minutos',
-          id_cita: cita.id_cita,
-          leida: false,
-        };
-        await prisma.notificacion.create({
-          data: { ...notiData, id_usuario: doctor.id_usuario, mensaje: `Tu cita con ${paciente.primer_nombre} ${paciente.primer_apellido} está programada para dentro de 60 minutos.` }
-        });
-        await prisma.notificacion.create({
-          data: { ...notiData, id_usuario: admin.id_usuario, mensaje: `Cita de ${paciente.primer_nombre} ${paciente.primer_apellido} con Dr(a). ${doctor.username} programada para dentro de 60 minutos.` }
-        });
-      } else if (cita.estado === 'confirmada') {
-        const notiData = {
-          tipo: 'cita_confirmada',
-          titulo: `Cita confirmada por ${paciente.primer_nombre} ${paciente.primer_apellido}`,
-          mensaje: `${paciente.primer_nombre} ha confirmado su asistencia a la cita de limpieza.`,
-          id_cita: cita.id_cita,
-          leida: false,
-        };
-        await prisma.notificacion.create({ data: { ...notiData, id_usuario: doctor.id_usuario } });
-        await prisma.notificacion.create({ data: { ...notiData, id_usuario: admin.id_usuario } });
-      } else if (cita.estado === 'reprogramada') {
-        const notiData = {
-          tipo: 'cita_cancelada',
-          titulo: `Cita cancelada por ${paciente.primer_nombre} ${paciente.primer_apellido}`,
-          mensaje: `${paciente.primer_nombre} ha cancelado su cita. Se requiere reagendamiento.`,
-          id_cita: cita.id_cita,
-          leida: true,
-        };
-        await prisma.notificacion.create({ data: { ...notiData, id_usuario: doctor.id_usuario } });
-        await prisma.notificacion.create({ data: { ...notiData, id_usuario: admin.id_usuario } });
-      }
+      await prisma.cita.create({ data: citaData });
     }
   }
 
-  console.log("Citas y Notificaciones semilla insertadas correctamente");
+  console.log("Citas semilla insertadas correctamente");
 }
 
 module.exports = { insertCitasNotificaciones };

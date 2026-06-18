@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Eye, EyeOff, ChevronDown, AlertCircle, CheckCircle, Info, AlertTriangle, Plus } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown, AlertCircle, CheckCircle, Info, AlertTriangle, Plus, X } from 'lucide-react';
 
 // ─── Badge Components ────────────────────────────────────────────────────────
 
@@ -576,6 +576,179 @@ export function Avatar({ initials, size = 36, color = '#0BC5DF', square = false 
       fontSize: size * 0.35, fontWeight: 600, color: '#fff', flexShrink: 0,
     }}>
       {initials}
+    </div>
+  );
+}
+
+// ─── MultiCombobox ────────────────────────────────────────────────────────────
+
+interface MultiComboboxProps {
+  label?: string;
+  badge?: 'required' | 'optional' | 'conditional';
+  options: { value: string; label: string }[];
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+}
+
+export function MultiCombobox({ label, badge, options, values, onChange, placeholder, disabled, error }: MultiComboboxProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const plainValue = stripAccents(inputValue.toLowerCase());
+
+  const filtered = inputValue
+    ? options.filter((o) => stripAccents(o.label.toLowerCase()).includes(plainValue) && !values.includes(o.label))
+    : options.filter((o) => !values.includes(o.label));
+
+  const isExactMatch = options.some(
+    (o) => stripAccents(o.label.toLowerCase()) === plainValue.trim(),
+  );
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        listRef.current && !listRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.parentElement?.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (labelToAdd: string) => {
+    if (!values.includes(labelToAdd)) {
+      onChange([...values, labelToAdd]);
+    }
+    setInputValue('');
+    setIsOpen(false);
+  };
+
+  const handleRemove = (labelToRemove: string) => {
+    onChange(values.filter(v => v !== labelToRemove));
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative' }}>
+      {(label || badge) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {label && <label style={{ fontSize: 13, fontWeight: 500, color: '#203F49' }}>{label}</label>}
+          {badge && <FieldBadge type={badge} />}
+        </div>
+      )}
+      <div 
+        style={{
+          display: 'flex', flexWrap: 'wrap', gap: 6,
+          border: `1px solid ${error ? '#E24B4A' : focused ? '#0BC5DF' : '#D3D7DA'}`,
+          borderRadius: 8, padding: '6px 36px 6px 8px',
+          background: disabled ? '#F1F3F4' : '#fff',
+          minHeight: 40,
+          boxShadow: focused ? '0 0 0 3px rgba(11,197,223,0.12)' : 'none',
+          boxSizing: 'border-box',
+          position: 'relative',
+          cursor: disabled ? 'not-allowed' : 'text',
+        }}
+        onClick={() => !disabled && inputRef.current?.focus()}
+      >
+        {values.map((v, i) => (
+          <span key={i} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            background: '#E6F8FB', color: '#0899B0',
+            padding: '2px 8px', borderRadius: 16, fontSize: 13, fontWeight: 500
+          }}>
+            {v}
+            <X size={12} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={(e) => { e.stopPropagation(); handleRemove(v); }} />
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          disabled={disabled}
+          value={inputValue}
+          onChange={(e) => { setInputValue(e.target.value); setIsOpen(true); }}
+          onFocus={() => { setFocused(true); setIsOpen(true); }}
+          onBlur={() => setFocused(false)}
+          placeholder={values.length === 0 ? placeholder : ''}
+          style={{
+            flex: 1, minWidth: 100, border: 'none', background: 'transparent',
+            outline: 'none', fontSize: 14, color: '#203F49', padding: '4px 0',
+          }}
+          onKeyDown={(e) => {
+             if (e.key === 'Backspace' && inputValue === '' && values.length > 0) {
+                 handleRemove(values[values.length - 1]);
+             }
+             if (e.key === 'Enter' && inputValue.trim()) {
+                 e.preventDefault();
+                 const exact = filtered.find(f => stripAccents(f.label.toLowerCase()) === plainValue.trim());
+                 handleSelect(exact ? exact.label : inputValue.trim());
+             }
+          }}
+        />
+        <ChevronDown
+          size={15}
+          style={{
+            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+            color: '#888F94', pointerEvents: 'none',
+          }}
+        />
+      </div>
+      {isOpen && !disabled && (
+        <div
+          ref={listRef}
+          style={{
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+            background: '#fff', border: `1px solid #D3D7DA`, borderRadius: 8,
+            marginTop: 4, maxHeight: 200, overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          }}
+        >
+          {filtered.length > 0 && filtered.map((o) => (
+            <div
+              key={o.value}
+              onClick={() => handleSelect(o.label)}
+              style={{
+                padding: '10px 12px', fontSize: 14, color: '#203F49',
+                cursor: 'pointer', borderBottom: '1px solid #F1F3F4',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#F8F9FA'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {o.label}
+            </div>
+          ))}
+          {inputValue.trim() && !isExactMatch && !values.map(v=>stripAccents(v.toLowerCase())).includes(plainValue.trim()) && (
+            <div
+              onClick={() => handleSelect(inputValue.trim())}
+              style={{
+                padding: '10px 12px', fontSize: 14, color: '#0BC5DF',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                borderTop: filtered.length > 0 ? '1px solid #F1F3F4' : 'none',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#F8F9FA'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Plus size={14} />
+              Crear "{inputValue.trim()}"
+            </div>
+          )}
+          {!inputValue.trim() && filtered.length === 0 && (
+            <div style={{ padding: '10px 12px', fontSize: 13, color: '#888F94' }}>
+              No hay más opciones disponibles
+            </div>
+          )}
+        </div>
+      )}
+      {error && (
+        <span style={{ fontSize: 11, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <AlertCircle size={11} />{error}
+        </span>
+      )}
     </div>
   );
 }

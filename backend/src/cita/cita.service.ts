@@ -46,7 +46,7 @@ export class CitaService {
     private notificacionService: NotificacionService,
   ) { }
 
-  async create(createCitaDto: CreateCitaDto) {
+  async create(createCitaDto: CreateCitaDto, creatorUserId?: number) {
     await this.assertPersonaExists(createCitaDto.id_persona);
     await this.assertUsuarioExists(createCitaDto.id_usuario);
 
@@ -84,7 +84,7 @@ export class CitaService {
         id_cita: cita.id_cita,
         estado_anterior: null,
         estado_nuevo: estado,
-        cambiado_por: createCitaDto.id_usuario,
+        cambiado_por: creatorUserId ?? createCitaDto.id_usuario,
       },
     });
 
@@ -160,7 +160,7 @@ export class CitaService {
     return cita;
   }
 
-  async update(id: number, updateCitaDto: UpdateCitaDto) {
+  async update(id: number, updateCitaDto: UpdateCitaDto, updaterUserId?: number) {
     const existing = await this.findOne(id);
 
     if (
@@ -235,7 +235,7 @@ export class CitaService {
           id_cita: id,
           estado_anterior: existing.estado,
           estado_nuevo: updateCitaDto.estado,
-          cambiado_por: updateCitaDto.id_usuario ?? existing.id_usuario,
+          cambiado_por: updaterUserId ?? updateCitaDto.id_usuario ?? existing.id_usuario,
         },
       });
     }

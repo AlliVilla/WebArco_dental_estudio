@@ -181,8 +181,14 @@ export function AppointmentDetailScreen() {
     ? `${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
     : "Doctor no asignado";
 
-  const startTime = appointment.fecha_inicio.substring(11, 16);
-  const endTime = getEndTime(startTime, appointment.fecha_fin);
+  const startDateObj = new Date(appointment.fecha_inicio);
+  const startTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  let endTime = '';
+  if (appointment.fecha_fin) {
+    endTime = new Date(appointment.fecha_fin).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } else {
+    endTime = new Date(startDateObj.getTime() + 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
