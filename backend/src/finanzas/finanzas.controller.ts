@@ -60,7 +60,7 @@ export class FinanzasController {
   }
 
   @Get('estado-resultado')
-  @Privileges(63)
+  @Privileges(2, 63)
   @ApiOperation({
     summary: 'Obtener rentabilidad',
     description: 'Calcula ingresos menos gastos por rango de fechas.'
