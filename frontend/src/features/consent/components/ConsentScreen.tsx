@@ -126,6 +126,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
         setTotalPages(listRes.data.totalPages);
       }
       if (statsRes.data) {
+        
         setStats(statsRes.data);
       }
     } catch (err) {
@@ -312,7 +313,7 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
           <ConsentSearchCard
             totalConsents={total}
             totalFirmados={stats?.completos ?? 0}
-            totalPendientesDoctor={stats?.pendientes ?? 0}
+            totalPendientesDoctor={(stats?.incompletos ?? 0) + (stats?.pendientes ?? 0)}
             consents={consents}
             loading={loading}
             error={error}

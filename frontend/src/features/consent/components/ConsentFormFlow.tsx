@@ -468,7 +468,22 @@ export function ConsentFormFlow({
             onDoctorSignatureChange={onDoctorSignatureChange}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
-            <Button type="button" variant="secondary" onClick={() => { setSignatureError(""); if (currentStep === 2) { onStepChange(3); onSignatureTargetChange("doctor"); } else { onSkipToFinish(); } }} style={{ width: isMobile ? "100%" : undefined }}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setSignatureError("");
+                if (currentStep === 2) {
+                  if (!isAlreadySigned) onPatientSignatureChange(""); // Limpiar si se omite y no estaba firmado
+                  onStepChange(3);
+                  onSignatureTargetChange("doctor");
+                } else {
+                  if (!isAlreadySigned) onDoctorSignatureChange(""); // Limpiar si se omite y no estaba firmado
+                  onSkipToFinish();
+                }
+              }}
+              style={{ width: isMobile ? "100%" : undefined }}
+            >
               {isAlreadySigned ? "Continuar" : "Omitir"}
             </Button>
             {!isAlreadySigned && (
