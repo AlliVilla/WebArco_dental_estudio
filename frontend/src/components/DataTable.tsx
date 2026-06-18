@@ -1,7 +1,14 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Search, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from "lucide-react";
 import { Button } from "../context";
 import { matchesNormalizedSearch } from "../utils/formatters";
+import { useResponsive } from "../hooks/useWindowWidth";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +74,11 @@ export interface DataTableProps<T extends Record<string, unknown>> {
     search: string;
     filters: Record<string, string>;
   }) => void;
+  /**
+   * Si se provee, en mobile/tablet se renderiza una card por fila usando esta
+   * función en lugar de la tabla nativa. La tabla en desktop no cambia.
+   */
+  renderMobileCard?: (row: T, index: number) => React.ReactNode;
 }
 
 // ── FilterDropdown ────────────────────────────────────────────────────────────
@@ -334,10 +346,13 @@ export function DataTable<T extends Record<string, unknown>>({
   isServerSide = false,
   totalRecords = 0,
   onServerParamsChange,
+  renderMobileCard,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+  const { isMobile, isTablet } = useResponsive();
+  const showCards = Boolean(renderMobileCard) && (isMobile || isTablet);
 
   useEffect(() => {
     if (isServerSide && onServerParamsChange) {
@@ -497,7 +512,14 @@ export function DataTable<T extends Record<string, unknown>>({
                     key={i}
                     variant="secondary"
                     size="sm"
-                    onClick={() => a.onClick({ filteredData, pagedData, search, filters: filterValues })}
+                    onClick={() =>
+                      a.onClick({
+                        filteredData,
+                        pagedData,
+                        search,
+                        filters: filterValues,
+                      })
+                    }
                   >
                     {a.icon}
                     {a.label}
@@ -509,7 +531,14 @@ export function DataTable<T extends Record<string, unknown>>({
 
           {/* Fila 2: filtros (se envuelven solos) */}
           {(filters.length > 0 || filterExtra) && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
               {filters.map((f) => (
                 <FilterDropdown
                   key={f.key}
@@ -519,15 +548,26 @@ export function DataTable<T extends Record<string, unknown>>({
                   onChange={(v) => handleFilter(f.key, v)}
                 />
               ))}
-              {Object.values(filterValues).some(v => v !== "") && (
+              {Object.values(filterValues).some((v) => v !== "") && (
                 <button
-                  onClick={() => { setFilterValues({}); setPage(1); }}
+                  onClick={() => {
+                    setFilterValues({});
+                    setPage(1);
+                  }}
                   style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    height: 40, padding: "0 16px", borderRadius: 8,
-                    background: "#fff", border: "1px solid #E4E7EC",
-                    fontSize: 12, color: "#6C757D", cursor: "pointer",
-                    whiteSpace: "nowrap", boxSizing: "border-box",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    height: 40,
+                    padding: "0 16px",
+                    borderRadius: 8,
+                    background: "#fff",
+                    border: "1px solid #E4E7EC",
+                    fontSize: 12,
+                    color: "#6C757D",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    boxSizing: "border-box",
                   }}
                 >
                   <X size={14} style={{ color: "#8A9499" }} /> Limpiar
@@ -539,164 +579,198 @@ export function DataTable<T extends Record<string, unknown>>({
         </div>
       )}
 
-      {/* 3. El contenedor nativo de la Tabla */}
-      <div
-        style={{
-          border: "1px solid #D3D7DA",
-          borderRadius: 8,
-          overflow: "hidden",
-          background: "#FFFFFF",
-          boxShadow: "none",
-        }}
-      >
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "separate",
-              borderSpacing: 0,
-            }}
-          >
-            <thead>
-              <tr style={{ background: "#F7F8FA" }}>
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    style={{
-                      padding: "10px 14px",
-                      textAlign: (col.align ??
-                        "left") as React.CSSProperties["textAlign"],
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#4F5B62",
-                      whiteSpace: "nowrap",
-                      width: col.width,
-                      borderBottom: "1px solid #D3D7DA",
-                      height: 45,
-                    }}
-                  >
-                    {col.label}
-                  </th>
-                ))}
-                {rowActions && (
-                  <th
-                    style={{
-                      padding: "10px 14px",
-                      textAlign: "center",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#4F5B62",
-                      whiteSpace: "nowrap",
-                      width: 100,
-                      borderBottom: "1px solid #D3D7DA",
-                      height: 42,
-                    }}
-                  >
-                    Acciones
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {pagedData.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length + (rowActions ? 1 : 0)}
-                    style={{
-                      padding: "48px 16px",
-                      textAlign: "center",
-                      fontSize: 12,
-                      color: "#A0AEC0",
-                    }}
-                  >
-                    {emptyMessage}
-                  </td>
-                </tr>
-              ) : (
-                pagedData.map((row, idx) => {
-                  const key = getRowKey ? getRowKey(row, idx) : String(idx);
-                  const actions = rowActions?.(row) ?? [];
-                  return (
-                    <tr
-                      key={key}
+      {/* 3a. Vista de cards (solo mobile/tablet, cuando se provee renderMobileCard) */}
+      {showCards && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {pagedData.length === 0 ? (
+            <div
+              style={{
+                padding: "48px 16px",
+                textAlign: "center",
+                fontSize: 12,
+                color: "#A0AEC0",
+                border: "1px solid #D3D7DA",
+                borderRadius: 8,
+                background: "#FFFFFF",
+              }}
+            >
+              {emptyMessage}
+            </div>
+          ) : (
+            pagedData.map((row, idx) => {
+              const key = getRowKey ? getRowKey(row, idx) : String(idx);
+              return (
+                <React.Fragment key={key}>
+                  {renderMobileCard!(row, idx)}
+                </React.Fragment>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* 3b. El contenedor nativo de la Tabla (oculto si se muestran cards) */}
+      {!showCards && (
+        <div
+          style={{
+            border: "1px solid #D3D7DA",
+            borderRadius: 8,
+            overflow: "hidden",
+            background: "#FFFFFF",
+            boxShadow: "none",
+          }}
+        >
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "separate",
+                borderSpacing: 0,
+              }}
+            >
+              <thead>
+                <tr style={{ background: "#F7F8FA" }}>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
                       style={{
-                        background: "#fff",
-                        height: 46,
-                        transition: "background-color 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#F9FAFB";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#fff";
+                        padding: "10px 14px",
+                        textAlign: (col.align ??
+                          "left") as React.CSSProperties["textAlign"],
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#4F5B62",
+                        whiteSpace: "nowrap",
+                        width: col.width,
+                        borderBottom: "1px solid #D3D7DA",
+                        height: 45,
                       }}
                     >
-                      {columns.map((col) => (
-                        <td
-                          key={col.key}
-                          style={{
-                            padding: "11px 14px",
-                            fontSize: 12,
-                            color: "#475467",
-                            textAlign: (col.align ??
-                              "left") as React.CSSProperties["textAlign"],
-                            whiteSpace: "nowrap",
-                            borderBottom: "1px solid #D3D7DA",
-                          }}
-                        >
-                          {col.render
-                            ? col.render(row[col.key], row)
-                            : String(row[col.key] ?? "")}
-                        </td>
-                      ))}
-                      {rowActions && (
-                        <td
-                          style={{
-                            padding: "8px 14px",
-                            textAlign: "center",
-                            borderBottom: "1px solid #F0F2F5",
-                          }}
-                        >
-                          <div
+                      {col.label}
+                    </th>
+                  ))}
+                  {rowActions && (
+                    <th
+                      style={{
+                        padding: "10px 14px",
+                        textAlign: "center",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#4F5B62",
+                        whiteSpace: "nowrap",
+                        width: 100,
+                        borderBottom: "1px solid #D3D7DA",
+                        height: 42,
+                      }}
+                    >
+                      Acciones
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {pagedData.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={columns.length + (rowActions ? 1 : 0)}
+                      style={{
+                        padding: "48px 16px",
+                        textAlign: "center",
+                        fontSize: 12,
+                        color: "#A0AEC0",
+                      }}
+                    >
+                      {emptyMessage}
+                    </td>
+                  </tr>
+                ) : (
+                  pagedData.map((row, idx) => {
+                    const key = getRowKey ? getRowKey(row, idx) : String(idx);
+                    const actions = rowActions?.(row) ?? [];
+                    return (
+                      <tr
+                        key={key}
+                        style={{
+                          background: "#fff",
+                          height: 46,
+                          transition: "background-color 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "#F9FAFB";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "#fff";
+                        }}
+                      >
+                        {columns.map((col) => (
+                          <td
+                            key={col.key}
                             style={{
-                              display: "flex",
-                              gap: 8,
-                              justifyContent: "center",
-                              alignItems: "center",
+                              padding: "11px 14px",
+                              fontSize: 12,
+                              color: "#475467",
+                              textAlign: (col.align ??
+                                "left") as React.CSSProperties["textAlign"],
+                              whiteSpace: "nowrap",
+                              borderBottom: "1px solid #D3D7DA",
                             }}
                           >
-                            {actions.map((action, ai) => (
-                              <button
-                                key={ai}
-                                title={action.label}
-                                onClick={() => action.onClick(row)}
-                                style={{
-                                  background: "transparent",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: action.danger ? "#F04438" : "#667085",
-                                  padding: 2,
-                                  transition: "color 0.2s",
-                                }}
-                              >
-                                {action.icon}
-                              </button>
-                            ))}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-            {footer}
-          </table>
+                            {col.render
+                              ? col.render(row[col.key], row)
+                              : String(row[col.key] ?? "")}
+                          </td>
+                        ))}
+                        {rowActions && (
+                          <td
+                            style={{
+                              padding: "8px 14px",
+                              textAlign: "center",
+                              borderBottom: "1px solid #F0F2F5",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 8,
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                            >
+                              {actions.map((action, ai) => (
+                                <button
+                                  key={ai}
+                                  title={action.label}
+                                  onClick={() => action.onClick(row)}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: action.danger
+                                      ? "#F04438"
+                                      : "#667085",
+                                    padding: 2,
+                                    transition: "color 0.2s",
+                                  }}
+                                >
+                                  {action.icon}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+              {footer}
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 4. Paginación */}
       {!hidePagination && (
