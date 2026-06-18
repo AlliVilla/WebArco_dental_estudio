@@ -18,11 +18,15 @@ import api from "../../../services/api";
 import { calculateAge } from "../../../utils/formatters";
 import { MedicalAlertBadge } from "./MedicalAlertBadge";
 import { AppointmentsTab, FinancialTab } from "./PatientProfileTabs";
-import type { AppointmentHistoryItem, FinancialRow } from "./PatientProfileTabs";
+import type {
+  AppointmentHistoryItem,
+  FinancialRow,
+} from "./PatientProfileTabs";
 import {
   buildMedicalAlertBadges,
   buildMedicalWarningDetails,
 } from "../utils/patientMedicalAlerts";
+import { useResponsive } from "../../../hooks/useWindowWidth";
 
 type PersonaDetail = {
   id_persona: number;
@@ -77,10 +81,16 @@ type PagoPaciente = {
 export function PatientProfileScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isMobile } = useResponsive();
   const parsedPatientId = id ? Number(id) : null;
-  const patientId = parsedPatientId && Number.isFinite(parsedPatientId) ? parsedPatientId : null;
+  const patientId =
+    parsedPatientId && Number.isFinite(parsedPatientId)
+      ? parsedPatientId
+      : null;
   const [patient, setPatient] = useState<PersonaDetail | null>(null);
-  const [appointments, setAppointments] = useState<AppointmentHistoryItem[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentHistoryItem[]>(
+    []
+  );
   const [financialRows, setFinancialRows] = useState<FinancialRow[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
   const [isLoading, setIsLoading] = useState(Boolean(patientId));
@@ -93,9 +103,12 @@ export function PatientProfileScreen() {
 
     Promise.all([
       api.get<PersonaDetail>(`/persona/${patientId}`),
-      api.get<AppointmentHistoryResponse>(`/appointments/patient/${patientId}/history`, {
-        params: { page: 1, limit: 10 },
-      }),
+      api.get<AppointmentHistoryResponse>(
+        `/appointments/patient/${patientId}/history`,
+        {
+          params: { page: 1, limit: 10 },
+        }
+      ),
       api.get<ConsultaListResponse>("/consulta", {
         params: { page: 1, limit: 10, id_persona: patientId },
       }),
@@ -108,18 +121,28 @@ export function PatientProfileScreen() {
           (consulta.pagos ?? []).map((pago) => ({
             id: `${consulta.id_consulta}-${pago.id_pago}`,
             date: pago.fecha,
-            concept: pago.observacion || consulta.motivo || consulta.tratamiento || "Pago de consulta",
+            concept:
+              pago.observacion ||
+              consulta.motivo ||
+              consulta.tratamiento ||
+              "Pago de consulta",
             amount: Number(pago.abono),
             status: "Pagado",
-          })),
+          }))
         );
 
         setPatient(patientResponse.data);
         setAppointments(appointmentsResponse.data?.data ?? []);
         setFinancialRows(pagos);
       })
-      .catch((requestError: { message?: string }) => {
-        if (!ignore) setError(requestError.message ?? "No se pudo cargar el perfil del paciente.");
+      .catch((err: unknown) => {
+        if (import.meta.env.DEV) console.error("[PatientProfileScreen]", err);
+        if (!ignore)
+          setError(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar el perfil del paciente."
+          );
       })
       .finally(() => {
         if (!ignore) setIsLoading(false);
@@ -144,21 +167,27 @@ export function PatientProfileScreen() {
 
   const initials = useMemo(() => {
     if (!patient) return "P";
-    return `${patient.primer_nombre?.[0] ?? ""}${patient.primer_apellido?.[0] ?? ""}`.toUpperCase();
+    return `${patient.primer_nombre?.[0] ?? ""}${
+      patient.primer_apellido?.[0] ?? ""
+    }`.toUpperCase();
   }, [patient]);
 
   const medicalBadges = useMemo(
     () => (patient ? buildMedicalAlertBadges(patient) : []),
-    [patient],
+    [patient]
   );
   const medicalWarningDetails = useMemo(
     () => (patient ? buildMedicalWarningDetails(patient) : []),
-    [patient],
+    [patient]
   );
   const showMedicalAlerts = medicalBadges.length > 0;
 
-  const age = patient?.fecha_nacimiento ? calculateAge(patient.fecha_nacimiento) : null;
-  const code = patient ? `PAC-${String(patient.id_persona).padStart(6, "0")}` : "";
+  const age = patient?.fecha_nacimiento
+    ? calculateAge(patient.fecha_nacimiento)
+    : null;
+  const code = patient
+    ? `PAC-${String(patient.id_persona).padStart(6, "0")}`
+    : "";
   const patientQuery = patient
     ? new URLSearchParams({
         patientId: String(patient.id_persona),
@@ -167,7 +196,9 @@ export function PatientProfileScreen() {
       }).toString()
     : "";
   const location = patient?.municipio
-    ? `${patient.municipio.nombre}, ${patient.municipio.departamento?.nombre ?? ""}`.replace(/,\s*$/, "")
+    ? `${patient.municipio.nombre}, ${
+        patient.municipio.departamento?.nombre ?? ""
+      }`.replace(/,\s*$/, "")
     : "Sin ubicación";
   const lastVisit = appointments[0]?.fecha_inicio
     ? formatDisplayDate(appointments[0].fecha_inicio)
@@ -179,18 +210,35 @@ export function PatientProfileScreen() {
 
   if (isLoading) {
     return (
-      <div style={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: 240 }}>
+      <div
+        style={{
+          alignItems: "center",
+          display: "flex",
+          justifyContent: "center",
+          minHeight: 240,
+        }}
+      >
         <Spinner size={32} color="#0BC5DF" />
       </div>
     );
   }
 
   if (error || !patient) {
-    return <Alert variant="error" message={error || "Paciente no encontrado."} />;
+    return (
+      <Alert variant="error" message={error || "Paciente no encontrado."} />
+    );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1200, width: "100%" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: isMobile ? 16 : 20,
+        maxWidth: 1200,
+        width: "100%",
+      }}
+    >
       <button
         onClick={() => navigate("/patients/list", { replace: true })}
         type="button"
@@ -230,130 +278,147 @@ export function PatientProfileScreen() {
 
         <div
           style={{
-            alignItems: "flex-start",
+            alignItems: isMobile ? "stretch" : "flex-start",
             display: "flex",
-            gap: 20,
-            padding: 20,
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? 16 : 20,
+            padding: isMobile ? 16 : 20,
           }}
         >
           <div
             style={{
-              alignItems: "center",
-              background: "linear-gradient(135deg, #0BC5DF 0%, #0899B0 100%)",
-              border: "2px solid #E6F8FB",
-              borderRadius: 36,
-              color: "#FFFFFF",
               display: "flex",
-              flexShrink: 0,
-              fontSize: 26,
-              fontWeight: 700,
-              height: 72,
-              justifyContent: "center",
-              lineHeight: "39px",
-              width: 72,
+              alignItems: "flex-start",
+              gap: 16,
+              width: "100%",
             }}
           >
-            {initials}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
                 alignItems: "center",
+                background: "linear-gradient(135deg, #0BC5DF 0%, #0899B0 100%)",
+                border: "2px solid #E6F8FB",
+                borderRadius: 36,
+                color: "#FFFFFF",
                 display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                marginBottom: 4,
+                flexShrink: 0,
+                fontSize: isMobile ? 22 : 26,
+                fontWeight: 700,
+                height: isMobile ? 60 : 72,
+                justifyContent: "center",
+                lineHeight: "39px",
+                width: isMobile ? 60 : 72,
               }}
             >
-              <h2 style={{ color: "#203F49", fontSize: 22, fontWeight: 700, lineHeight: "33px", margin: 0 }}>
-                {fullName}
-              </h2>
-              <span
-                style={{
-                  alignItems: "center",
-                  background: "#E6F8FB",
-                  border: "1px solid #B3E8F0",
-                  borderRadius: 20,
-                  color: "#0BC5DF",
-                  display: "inline-flex",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  gap: 5,
-                  lineHeight: "18px",
-                  padding: "4px 12px",
-                }}
-              >
-                <Hash size={11} />
-                {code}
-              </span>
+              {initials}
             </div>
 
-            <div
-              style={{
-                color: "#5F656A",
-                display: "flex",
-                flexWrap: "wrap",
-                fontSize: 13,
-                gap: 20,
-                lineHeight: "19.5px",
-              }}
-            >
-              <span>
-                {age ?? "-"} años · {patient.sexo === "F" ? "Femenino" : "Masculino"}
-              </span>
-              <span>{patient.telefono}</span>
-              <span>{patient.correo_electronico || "Sin correo"}</span>
-              <span>{location}</span>
-            </div>
-
-            <p style={{ color: "#5F656A", fontSize: 13, lineHeight: "19.5px", margin: "8px 0 0" }}>
-              Última consulta: {lastVisit}
-            </p>
-
-            <div style={{ marginTop: 14 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
                   alignItems: "center",
-                  color: "#EF9F27",
                   display: "flex",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  gap: 6,
-                  letterSpacing: "0.77px",
-                  lineHeight: "16.5px",
-                  marginBottom: 8,
-                  textTransform: "uppercase",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 4,
                 }}
               >
+                <h2
+                  style={{
+                    color: "#203F49",
+                    fontSize: isMobile ? 18 : 22,
+                    fontWeight: 700,
+                    lineHeight: 1.3,
+                    margin: 0,
+                  }}
+                >
+                  {fullName}
+                </h2>
+                <span
+                  style={{
+                    alignItems: "center",
+                    background: "#E6F8FB",
+                    border: "1px solid #B3E8F0",
+                    borderRadius: 20,
+                    color: "#0BC5DF",
+                    display: "inline-flex",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    gap: 5,
+                    lineHeight: "18px",
+                    padding: "4px 12px",
+                  }}
+                >
+                  <Hash size={11} />
+                  {code}
+                </span>
               </div>
 
-              {showMedicalAlerts ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {medicalBadges.map((badge) => (
-                    <MedicalAlertBadge key={badge.id} badge={badge} />
-                  ))}
-                </div>
-              ) : (
-                <span style={{ color: "#888F94", fontSize: 12 }}>
-                  Sin alertas médicas registradas para este paciente.
+              <div
+                style={{
+                  color: "#5F656A",
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  flexWrap: "wrap",
+                  fontSize: 13,
+                  gap: isMobile ? 4 : 20,
+                  lineHeight: "19.5px",
+                }}
+              >
+                <span>
+                  {age ?? "-"} años ·{" "}
+                  {patient.sexo === "F" ? "Femenino" : "Masculino"}
                 </span>
-              )}
+                <span>{patient.telefono}</span>
+                <span>{patient.correo_electronico || "Sin correo"}</span>
+                <span>{location}</span>
+              </div>
+
+              <p
+                style={{
+                  color: "#5F656A",
+                  fontSize: 13,
+                  lineHeight: "19.5px",
+                  margin: "8px 0 0",
+                }}
+              >
+                Última consulta: {lastVisit}
+              </p>
+
+              <div style={{ marginTop: 14 }}>
+                {showMedicalAlerts ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {medicalBadges.map((badge) => (
+                      <MedicalAlertBadge key={badge.id} badge={badge} />
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ color: "#888F94", fontSize: 12 }}>
+                    Sin alertas médicas registradas para este paciente.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
+              flexDirection: isMobile ? "row" : "column",
+              flexWrap: isMobile ? "wrap" : "nowrap",
               flexShrink: 0,
               gap: 8,
+              width: isMobile ? "100%" : undefined,
             }}
           >
             <Button
               fullWidth
               onClick={() => navigate(`/patients/edit/${patient.id_persona}`)}
-              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              style={{
+                padding: "10px 19px",
+                whiteSpace: "nowrap",
+                flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+              }}
               variant="primary"
             >
               <Edit size={14} />
@@ -361,8 +426,16 @@ export function PatientProfileScreen() {
             </Button>
             <Button
               fullWidth
-              onClick={() => navigate(`/patients/records${patientQuery ? `?${patientQuery}` : ""}`)}
-              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              onClick={() =>
+                navigate(
+                  `/patients/records${patientQuery ? `?${patientQuery}` : ""}`
+                )
+              }
+              style={{
+                padding: "10px 19px",
+                whiteSpace: "nowrap",
+                flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+              }}
               variant="secondary"
             >
               <FileText size={14} />
@@ -370,8 +443,18 @@ export function PatientProfileScreen() {
             </Button>
             <Button
               fullWidth
-              onClick={() => navigate(`/patients/odontogram${patientQuery ? `?${patientQuery}` : ""}`)}
-              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              onClick={() =>
+                navigate(
+                  `/patients/odontogram${
+                    patientQuery ? `?${patientQuery}` : ""
+                  }`
+                )
+              }
+              style={{
+                padding: "10px 19px",
+                whiteSpace: "nowrap",
+                flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+              }}
               variant="secondary"
             >
               <Stethoscope size={14} />
@@ -379,8 +462,16 @@ export function PatientProfileScreen() {
             </Button>
             <Button
               fullWidth
-              onClick={() => navigate(`/patients/consent${patientQuery ? `?${patientQuery}` : ""}`)}
-              style={{ padding: "10px 19px", whiteSpace: "nowrap" }}
+              onClick={() =>
+                navigate(
+                  `/patients/consent${patientQuery ? `?${patientQuery}` : ""}`
+                )
+              }
+              style={{
+                padding: "10px 19px",
+                whiteSpace: "nowrap",
+                flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
+              }}
               variant="secondary"
             >
               <ShieldCheck size={14} />
@@ -397,16 +488,29 @@ export function PatientProfileScreen() {
               borderRadius: "0 0 12px 12px",
               display: "flex",
               gap: 10,
-              padding: "12px 16px",
+              padding: isMobile ? "12px" : "12px 16px",
             }}
           >
-            <Info color="#B45309" size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+            <Info
+              color="#B45309"
+              size={15}
+              style={{ flexShrink: 0, marginTop: 1 }}
+            />
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <p style={{ color: "#B45309", fontSize: 13, fontWeight: 700, lineHeight: "19.5px", margin: 0 }}>
+              <p
+                style={{
+                  color: "#B45309",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  lineHeight: "19.5px",
+                  margin: 0,
+                }}
+              >
                 Este paciente tiene alertas médicas activas.
                 <span style={{ color: "#B45309", fontWeight: 400 }}>
                   {" "}
-                  Revisa alergias y enfermedades antes de iniciar cualquier tratamiento.
+                  Revisa alergias y enfermedades antes de iniciar cualquier
+                  tratamiento.
                 </span>
               </p>
               {medicalWarningDetails.map((detail, index) => (
@@ -437,7 +541,7 @@ export function PatientProfileScreen() {
           background: "#FFFFFF",
           border: "1px solid #D3D7DA",
           borderRadius: 12,
-          padding: 21,
+          padding: isMobile ? "16px 12px" : 21,
         }}
       >
         <div
@@ -446,7 +550,7 @@ export function PatientProfileScreen() {
             display: "flex",
             height: 44,
             marginBottom: 0,
-            padding: "0 8px",
+            padding: isMobile ? "0 4px" : "0 8px",
           }}
         >
           <ProfileTab
@@ -463,7 +567,7 @@ export function PatientProfileScreen() {
           />
         </div>
 
-        <div style={{ padding: 24 }}>
+        <div style={{ padding: isMobile ? "16px 4px" : 24 }}>
           {activeTab === "appointments" ? (
             <AppointmentsTab appointments={appointments} />
           ) : (
