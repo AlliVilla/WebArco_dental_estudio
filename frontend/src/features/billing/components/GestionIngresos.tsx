@@ -118,9 +118,10 @@ export function GestionIngresos() {
   // Cuenta destino config management
   const user = useAuthStore((s) => s.user);
   const canGestionarIngresos = user?.privilegios?.includes(10) ?? false;
-  const [configItems, setConfigItems] = useState<{ id: number; tipo: string; nombre: string }[]>([]);
+  const [configItems, setConfigItems] = useState<{ id: number; tipo: string; nombre: string; comision: number | null }[]>([]);
   const [nuevaConfigTipo, setNuevaConfigTipo] = useState<"TARJETA" | "TRANSFERENCIA">("TARJETA");
   const [nuevoConfigNombre, setNuevoConfigNombre] = useState("");
+  const [nuevoConfigComision, setNuevoConfigComision] = useState("");
   const [configError, setConfigError] = useState<string | null>(null);
   const [configSuccess, setConfigSuccess] = useState<string | null>(null);
   const [configExpanded, setConfigExpanded] = useState(false);
@@ -161,14 +162,21 @@ export function GestionIngresos() {
       setConfigError("Ingrese un nombre");
       return;
     }
+    const comision = nuevoConfigComision.trim() !== "" ? parseFloat(nuevoConfigComision) : undefined;
+    if (nuevoConfigComision.trim() !== "" && (isNaN(comision!) || comision! < 0)) {
+      setConfigError("Comisión inválida");
+      return;
+    }
     try {
       const res = await billingService.createCuentaDestino({
         tipo: nuevaConfigTipo,
         nombre: nuevoConfigNombre.trim(),
+        comision,
       });
       if (res.success) {
         setConfigSuccess(`"${nuevoConfigNombre.trim()}" agregado`);
         setNuevoConfigNombre("");
+        setNuevoConfigComision("");
         setConfigError(null);
         await cargarConfig();
       }
@@ -706,6 +714,20 @@ export function GestionIngresos() {
                     onKeyDown={(e) => { if (e.key === "Enter") void agregarConfig(); }}
                   />
                 </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: "#5F656A" }}>Comisión %</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={nuevoConfigComision}
+                    onChange={(e) => setNuevoConfigComision(e.target.value)}
+                    placeholder="2.5"
+                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13, width: 80 }}
+                    onKeyDown={(e) => { if (e.key === "Enter") void agregarConfig(); }}
+                  />
+                </div>
                 <Button variant="primary" onClick={() => void agregarConfig()} style={{ height: 36 }}>
                   Agregar
                 </Button>
@@ -734,13 +756,17 @@ export function GestionIngresos() {
                               background: "#F8F9FA",
                               marginBottom: 4,
                               fontSize: 12,
+                              gap: 8,
                             }}
                           >
-                            <span style={{ color: "#203F49" }}>{item.nombre}</span>
+                            <span style={{ color: "#203F49", flex: 1 }}>{item.nombre}</span>
+                            {item.comision != null && (
+                              <span style={{ color: "#5F656A", fontSize: 11 }}>{item.comision}%</span>
+                            )}
                             <button
                               type="button"
                               onClick={() => void eliminarConfig(item.id)}
-                              style={{ background: "none", border: "none", color: "#EF4444", cursor: "pointer", fontSize: 13, padding: 0 }}
+                              style={{ background: "none", border: "none", color: "#EF4444", cursor: "pointer", fontSize: 13, padding: 0, flexShrink: 0 }}
                               title="Eliminar"
                             >
                               ✕

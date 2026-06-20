@@ -577,10 +577,11 @@ model ConfiguracionNotificaciones {
 }
 
 model CuentaDestinoConfig {
-  id     Int    @id @default(autoincrement())
-  tipo   String @db.VarChar(20)
-  nombre String @db.VarChar(100)
-  activo Boolean @default(true)
+  id       Int            @id @default(autoincrement())
+  tipo     String         @db.VarChar(20)
+  nombre   String         @db.VarChar(100)
+  comision Decimal?       @db.Decimal(5, 2)
+  activo   Boolean        @default(true)
 
   @@unique([tipo, nombre])
   @@map("cuenta_destino_config")

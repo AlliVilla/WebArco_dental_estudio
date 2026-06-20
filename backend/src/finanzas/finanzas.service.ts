@@ -264,16 +264,27 @@ export class FinanzasService {
         },
       },
       select: {
+        id_egreso: true,
         categoria: true,
         monto: true,
         concepto: true,
       },
     });
 
+    // IDs de egresos que ya tienen movimientos de inventario registrados
+    const egresoIdsConMovimientos = new Set<number>();
+    for (const m of movimientosInsumos) {
+      if (m.observaciones) {
+        const match = m.observaciones.match(/\(Egreso #(\d+)\)/);
+        if (match) egresoIdsConMovimientos.add(parseInt(match[1], 10));
+      }
+    }
+
     let nomina = 0;
     let servicios = 0;
     let equipos = 0;
     let otrosGastos = 0;
+    let insumosSinInventario = 0;
 
     for (const egreso of egresos) {
       const categoria = this.normalizarTexto(egreso.categoria);
@@ -281,6 +292,9 @@ export class FinanzasService {
       const monto = Number(egreso.monto || 0);
 
       if (categoria.includes('insumo')) {
+        if (!egresoIdsConMovimientos.has(egreso.id_egreso)) {
+          insumosSinInventario += monto;
+        }
         continue;
       }
 
@@ -301,8 +315,9 @@ export class FinanzasService {
     }
 
     const gastosAdministrativos = nomina + servicios + equipos + otrosGastos;
+    const costoInsumosTotal = costoInsumos + insumosSinInventario;
     const comisionesTarjeta = await this.calcularComisionesTarjeta(rango);
-    const utilidadBruta = ingresosNetos - costoInsumos;
+    const utilidadBruta = ingresosNetos - costoInsumosTotal;
     const utilidadAntesImpuestos = utilidadBruta - gastosAdministrativos - comisionesTarjeta;
     const impuestos = Math.max(0, utilidadAntesImpuestos) * 0.15;
     const utilidadOperativa = utilidadBruta - gastosAdministrativos;
@@ -313,7 +328,7 @@ export class FinanzasService {
       ingresosBrutos,
       descuentosAplicados,
       ingresosNetos,
-      costoInsumos,
+      costoInsumos: costoInsumosTotal,
       gastosAdministrativos,
       nomina,
       servicios,
@@ -329,36 +344,47 @@ export class FinanzasService {
   }
 
   private async calcularComisionesTarjeta(rango: RangoFechas): Promise<number> {
-    const pagosPacienteTarjeta = await this.prismaService.pagoPaciente.findMany({
-      where: {
-        metodo_pago: {
-          contains: 'Tarjeta',
-          mode: 'insensitive',
+    const [cuentasDestino, pagosPacienteTarjeta, pagosConsultaTarjeta] = await Promise.all([
+      this.prismaService.cuentaDestinoConfig.findMany({
+        where: { activo: true, comision: { gt: 0 } },
+        select: { nombre: true, comision: true },
+      }),
+      this.prismaService.pagoPaciente.findMany({
+        where: {
+          metodo_pago: { contains: 'Tarjeta', mode: 'insensitive' },
+          fecha: { gte: rango.inicio, lt: rango.finExclusivo },
         },
-        fecha: {
-          gte: rango.inicio,
-          lt: rango.finExclusivo,
+        select: { abono: true, cuenta_destino: true },
+      }),
+      this.prismaService.pagoConsulta.findMany({
+        where: {
+          metodoPago: 'TARJETA',
+          fecha: { gte: rango.inicio, lt: rango.finExclusivo },
         },
-      },
-      select: { abono: true },
-    });
+        select: { monto: true },
+      }),
+    ]);
 
-    const pagosConsultaTarjeta = await this.prismaService.pagoConsulta.findMany({
-      where: {
-        metodoPago: 'TARJETA',
-        fecha: {
-          gte: rango.inicio,
-          lt: rango.finExclusivo,
-        },
-      },
-      select: { monto: true },
-    });
+    // Mapa de nombre de cuenta destino -> comisión (decimal, ej. 2.5 = 2.5%)
+    const comisionMap = new Map<string, number>();
+    for (const c of cuentasDestino) {
+      if (c.comision) comisionMap.set(c.nombre, Number(c.comision));
+    }
+    const comisionDefault = 2.0; // fallback si no hay config
 
-    const totalTarjeta =
-      pagosPacienteTarjeta.reduce((sum, pago) => sum + Number(pago.abono || 0), 0) +
-      pagosConsultaTarjeta.reduce((sum, pago) => sum + Number(pago.monto || 0), 0);
+    let totalComisiones = 0;
 
-    return totalTarjeta * 0.02;
+    for (const pago of pagosPacienteTarjeta) {
+      const monto = Number(pago.abono || 0);
+      const pct = pago.cuenta_destino ? comisionMap.get(pago.cuenta_destino) : undefined;
+      totalComisiones += monto * ((pct ?? comisionDefault) / 100);
+    }
+
+    const montoConsulta = pagosConsultaTarjeta.reduce((sum, p) => sum + Number(p.monto || 0), 0);
+    // pagos de consulta no tienen cuenta_destino, usar default
+    totalComisiones += montoConsulta * (comisionDefault / 100);
+
+    return totalComisiones;
   }
 
   private async obtenerSerieMensual(finExclusivo: Date): Promise<Array<{ mes: string; ingresos: number; gastos: number; utilidad: number }>> {

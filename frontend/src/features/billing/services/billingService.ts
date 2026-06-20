@@ -139,11 +139,11 @@ export const billingService = {
     return api.get("/cierre/preview", { params: { fecha } });
   },
 
-  getCuentasDestino: async (): Promise<ApiResponse<{ data: { id: number; tipo: string; nombre: string; activo: boolean }[] }>> => {
+  getCuentasDestino: async (): Promise<ApiResponse<{ data: { id: number; tipo: string; nombre: string; comision: number | null; activo: boolean }[] }>> => {
     return api.get("/cuenta-destino-config");
   },
 
-  createCuentaDestino: async (data: { tipo: string; nombre: string }): Promise<ApiResponse<any>> => {
+  createCuentaDestino: async (data: { tipo: string; nombre: string; comision?: number }): Promise<ApiResponse<any>> => {
     return api.post("/cuenta-destino-config", data);
   },
 
