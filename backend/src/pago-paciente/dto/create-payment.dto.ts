@@ -33,6 +33,11 @@ export class CreatePaymentDto {
   @IsIn(['Efectivo', 'Tarjeta', 'Transferencia'], { message: 'metodoPago debe ser Efectivo, Tarjeta o Transferencia' })
   metodoPago?: string;
 
+  @ApiPropertyOptional({ description: 'Cuenta destino del pago (BAC, Ficohsa, Banpaís)', example: 'BAC' })
+  @IsOptional()
+  @IsString({ message: 'cuenta_destino debe ser texto' })
+  cuentaDestino?: string;
+
   @ApiPropertyOptional({ description: 'Observación o nota del pago', example: 'Pago en efectivo' })
   @IsOptional()
   @IsString({ message: 'observacion debe ser texto' })

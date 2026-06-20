@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Card, Alert, Avatar } from "../../../context";
+import { Card, Alert, Avatar, Button } from "../../../context";
 import {
   DollarSign,
   TrendingUp,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DataTable, ConfirmModal, Modal } from "../../../components";
 import { useResponsive } from "../../../hooks/useWindowWidth";
+import { useAuthStore } from "../../auth/hooks/useAuthStore";
 import api from "../../../services/api";
 import billingService from "../services/billingService";
 import { consultaService } from "../../patients/services/consultaService";
@@ -28,6 +29,7 @@ interface IncomeRecord extends Record<string, unknown> {
   tratamiento: string;
   monto: number;
   metodoPago: string;
+  cuentaDestino?: string;
   doctor: string;
   estado: string;
   observacion?: string;
@@ -45,6 +47,7 @@ const mapPaymentToIncomeRecord = (payment: PatientPayment): IncomeRecord => ({
     `Pago de consulta #${payment.id_consulta}`,
   monto: Number(payment.abono),
   metodoPago: payment.metodoPago,
+  cuentaDestino: payment.cuentaDestino,
   doctor: payment.consulta.doctor?.nombre || "—",
   estado: payment.estado,
   observacion: payment.observacion,
@@ -108,8 +111,20 @@ export function GestionIngresos() {
   // Other form fields
   const [monto, setMonto] = useState("");
   const [metodoPago, setMetodoPago] = useState("Efectivo");
+  const [cuentaDestino, setCuentaDestino] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Cuenta destino config management
+  const user = useAuthStore((s) => s.user);
+  const canGestionarIngresos = user?.privilegios?.includes(10) ?? false;
+  const [configItems, setConfigItems] = useState<{ id: number; tipo: string; nombre: string; comision: number | null }[]>([]);
+  const [nuevaConfigTipo, setNuevaConfigTipo] = useState<"TARJETA" | "TRANSFERENCIA">("TARJETA");
+  const [nuevoConfigNombre, setNuevoConfigNombre] = useState("");
+  const [nuevoConfigComision, setNuevoConfigComision] = useState("");
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [configSuccess, setConfigSuccess] = useState<string | null>(null);
+  const [configExpanded, setConfigExpanded] = useState(false);
 
   const loadPayments = async (p = page) => {
     setIsLoading(true);
@@ -131,9 +146,67 @@ export function GestionIngresos() {
     }
   };
 
+  const cargarConfig = async () => {
+    try {
+      const res = await billingService.getCuentasDestino();
+      if (res.success && res.data) {
+        setConfigItems((res.data as any).data || []);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const agregarConfig = async () => {
+    if (!nuevoConfigNombre.trim()) {
+      setConfigError("Ingrese un nombre");
+      return;
+    }
+    const comision = nuevoConfigComision.trim() !== "" ? parseFloat(nuevoConfigComision) : undefined;
+    if (nuevoConfigComision.trim() !== "" && (isNaN(comision!) || comision! < 0)) {
+      setConfigError("Comisión inválida");
+      return;
+    }
+    try {
+      const res = await billingService.createCuentaDestino({
+        tipo: nuevaConfigTipo,
+        nombre: nuevoConfigNombre.trim(),
+        comision,
+      });
+      if (res.success) {
+        setConfigSuccess(`"${nuevoConfigNombre.trim()}" agregado`);
+        setNuevoConfigNombre("");
+        setNuevoConfigComision("");
+        setConfigError(null);
+        await cargarConfig();
+      }
+    } catch (err: any) {
+      setConfigError(err?.response?.data?.message || err?.message || "Error al agregar");
+    }
+  };
+
+  const eliminarConfig = async (id: number) => {
+    try {
+      const res = await billingService.deleteCuentaDestino(id);
+      if (res.success) {
+        setConfigSuccess("Cuenta destino eliminada");
+        setConfigError(null);
+        await cargarConfig();
+      }
+    } catch (err: any) {
+      setConfigError(err?.response?.data?.message || err?.message || "Error al eliminar");
+    }
+  };
+
   useEffect(() => {
     void loadPayments(1);
   }, []);
+
+  useEffect(() => {
+    if (canGestionarIngresos) {
+      void cargarConfig();
+    }
+  }, [canGestionarIngresos]);
 
   const totals = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -313,6 +386,7 @@ export function GestionIngresos() {
       fecha,
       abono: Number(monto),
       metodoPago,
+      cuentaDestino: cuentaDestino || undefined,
       observacion: editingRecord ? observaciones : observaciones || undefined,
     };
     try {
@@ -355,6 +429,7 @@ export function GestionIngresos() {
     setSelectedConsultaId("");
     setMonto("");
     setMetodoPago("Efectivo");
+    setCuentaDestino("");
     setObservaciones("");
     setFormError(null);
   };
@@ -377,6 +452,7 @@ export function GestionIngresos() {
     setSelectedConsultaId(String(record.idConsulta));
     setMonto(String(record.monto));
     setMetodoPago(record.metodoPago || "Efectivo");
+    setCuentaDestino(record.cuentaDestino || "");
     setObservaciones(record.observacion || "");
     setFormError(null);
     setShowResults(false);
@@ -417,6 +493,7 @@ export function GestionIngresos() {
       { header: "No. Consulta", key: "noConsulta", width: 15 },
       { header: "Monto", key: "monto", width: 16 },
       { header: "Método de pago", key: "metodoPago", width: 18 },
+      { header: "Cuenta destino", key: "cuentaDestino", width: 22 },
       { header: "Doctor", key: "doctor", width: 22 },
       { header: "Estado", key: "estado", width: 14 },
       { header: "Observaciones", key: "observaciones", width: 30 },
@@ -429,6 +506,7 @@ export function GestionIngresos() {
       noConsulta: `#${r.idConsulta}`,
       monto: r.monto,
       metodoPago: r.metodoPago,
+      cuentaDestino: r.cuentaDestino || "",
       doctor: r.doctor,
       estado: r.estado,
       observaciones: r.observacion || "",
@@ -591,6 +669,119 @@ export function GestionIngresos() {
       {errorMessage && <Alert variant="error" message={errorMessage} />}
       {isLoading && <Alert variant="info" message="Cargando ingresos..." />}
 
+      {canGestionarIngresos && (
+        <Card>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
+            onClick={() => setConfigExpanded(!configExpanded)}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
+              Configurar cuentas destino
+            </span>
+            <span style={{ fontSize: 12, color: "#888F94" }}>
+              {configExpanded ? "▲ Ocultar" : "▼ Administrar"}
+            </span>
+          </div>
+          {configExpanded && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+              {configError && <Alert variant="error" message={configError} />}
+              {configSuccess && <Alert variant="success" message={configSuccess} />}
+
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                  <label style={{ fontSize: 11, color: "#5F656A" }}>Tipo</label>
+                  <select
+                    value={nuevaConfigTipo}
+                    onChange={(e) => setNuevaConfigTipo(e.target.value as "TARJETA" | "TRANSFERENCIA")}
+                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13 }}
+                  >
+                    <option value="TARJETA">POS (Tarjeta)</option>
+                    <option value="TRANSFERENCIA">Cuenta (Transferencia)</option>
+                  </select>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 2 }}>
+                  <label style={{ fontSize: 11, color: "#5F656A" }}>Nombre</label>
+                  <input
+                    value={nuevoConfigNombre}
+                    onChange={(e) => setNuevoConfigNombre(e.target.value)}
+                    placeholder="Ej: BAC, Ficohsa..."
+                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13 }}
+                    onKeyDown={(e) => { if (e.key === "Enter") void agregarConfig(); }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: "#5F656A" }}>Comisión %</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={nuevoConfigComision}
+                    onChange={(e) => setNuevoConfigComision(e.target.value)}
+                    placeholder="2.5"
+                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13, width: 80 }}
+                    onKeyDown={(e) => { if (e.key === "Enter") void agregarConfig(); }}
+                  />
+                </div>
+                <Button variant="primary" onClick={() => void agregarConfig()} style={{ height: 36 }}>
+                  Agregar
+                </Button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {(["TARJETA", "TRANSFERENCIA"] as const).map((tipo) => (
+                  <div key={tipo} style={{ border: "1px solid #EAECEE", borderRadius: 8, padding: 10 }}>
+                    <p style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 600, color: "#203F49" }}>
+                      {tipo === "TARJETA" ? "POS (Tarjeta)" : "Cuentas (Transferencia)"}
+                    </p>
+                    {configItems.filter((i) => i.tipo === tipo).length === 0 ? (
+                      <span style={{ fontSize: 11, color: "#888F94", fontStyle: "italic" }}>Sin elementos</span>
+                    ) : (
+                      configItems
+                        .filter((i) => i.tipo === tipo)
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "5px 8px",
+                              borderRadius: 4,
+                              background: "#F8F9FA",
+                              marginBottom: 4,
+                              fontSize: 12,
+                              gap: 8,
+                            }}
+                          >
+                            <span style={{ color: "#203F49", flex: 1 }}>{item.nombre}</span>
+                            {item.comision != null && (
+                              <span style={{ color: "#5F656A", fontSize: 11 }}>{item.comision}%</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => void eliminarConfig(item.id)}
+                              style={{ background: "none", border: "none", color: "#EF4444", cursor: "pointer", fontSize: 13, padding: 0, flexShrink: 0 }}
+                              title="Eliminar"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
       <div
         style={{
           display: "grid",
@@ -742,6 +933,7 @@ export function GestionIngresos() {
                 value: detailRecord ? formatCurrency(detailRecord.monto) : "",
               },
               { label: "Método de pago", value: detailRecord?.metodoPago },
+              { label: "Cuenta destino", value: detailRecord?.cuentaDestino || "—" },
               { label: "Doctor", value: detailRecord?.doctor },
               { label: "Estado", value: detailRecord?.estado },
             ].map((f) => (
@@ -1102,7 +1294,10 @@ export function GestionIngresos() {
               </label>
               <select
                 value={metodoPago}
-                onChange={(e) => setMetodoPago(e.target.value)}
+                onChange={(e) => {
+                  setMetodoPago(e.target.value);
+                  setCuentaDestino("");
+                }}
                 style={inputStyle}
               >
                 <option value="Efectivo">Efectivo</option>
@@ -1110,6 +1305,40 @@ export function GestionIngresos() {
                 <option value="Transferencia">Transferencia</option>
               </select>
             </div>
+            {metodoPago === "Tarjeta" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}>
+                  Cuenta destino (POS)
+                </label>
+                <select
+                  value={cuentaDestino}
+                  onChange={(e) => setCuentaDestino(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">-- Seleccione --</option>
+                  {configItems.filter((i) => i.tipo === "TARJETA").map((item) => (
+                    <option key={item.id} value={item.nombre}>{item.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {metodoPago === "Transferencia" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "#203F49" }}>
+                  Cuenta destino
+                </label>
+                <select
+                  value={cuentaDestino}
+                  onChange={(e) => setCuentaDestino(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">-- Seleccione --</option>
+                  {configItems.filter((i) => i.tipo === "TRANSFERENCIA").map((item) => (
+                    <option key={item.id} value={item.nombre}>{item.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1307,6 +1536,20 @@ function IncomeCard({
           <span style={{ fontSize: 12, color: "#888F94" }}>Método</span>
           {getMetodoPagoBadge(record.metodoPago)}
         </div>
+        {record.cuentaDestino && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "7px 0",
+              borderBottom: "1px solid #F8F9FA",
+            }}
+          >
+            <span style={{ fontSize: 12, color: "#888F94" }}>Cuenta</span>
+            <span style={{ fontSize: 13, color: "#203F49" }}>{record.cuentaDestino}</span>
+          </div>
+        )}
         <div
           style={{
             display: "flex",

@@ -16,6 +16,7 @@ import { Card, Button } from "../../../context";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Consultation } from "../../consultations/types";
 import { billingService } from "../services/billingService";
+import { formatNumber } from "../../../utils/formatters";
 
 interface FacturaCobroDetalleProps {
   consulta: Consultation;
@@ -270,7 +271,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
     }
 
     // Evitar errores de validación de decimales en backend
-    montoTotal = Number(montoTotal.toFixed(2));
+    montoTotal = Math.round(montoTotal * 100) / 100;
 
     if (montoTotal <= 0) return;
     if (montoTotal > saldoPendiente + 0.01) {
@@ -284,7 +285,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
       addToast(
         "error",
         "El monto a pagar debe cubrir al menos el abono al plan que agregaste (" +
-          planAbonoAgregado.toFixed(2) +
+          formatNumber(planAbonoAgregado) +
           ")."
       );
       return;
@@ -341,6 +342,12 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   : method === "TARJETA"
                   ? "Tarjeta"
                   : "Transferencia",
+              cuentaDestino:
+                method === "TARJETA"
+                  ? posSystem
+                  : method === "TRANSFERENCIA"
+                  ? bankAccount
+                  : undefined,
               observacion:
                 observacion +
                 (plan && amountForPlan > 0 ? " (Cobro Consulta)" : ""),
@@ -349,25 +356,19 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
         };
 
         if (remainingEfectivo > 0 && debtRemaining > 0) {
-          const payAmt = Number(
-            Math.min(debtRemaining, remainingEfectivo).toFixed(2)
-          );
+          const payAmt = Math.round(Math.min(debtRemaining, remainingEfectivo) * 100) / 100;
           await payWith("EFECTIVO", payAmt);
           debtRemaining -= payAmt;
           remainingEfectivo -= payAmt;
         }
         if (remainingTarjeta > 0 && debtRemaining > 0) {
-          const payAmt = Number(
-            Math.min(debtRemaining, remainingTarjeta).toFixed(2)
-          );
+          const payAmt = Math.round(Math.min(debtRemaining, remainingTarjeta) * 100) / 100;
           await payWith("TARJETA", payAmt);
           debtRemaining -= payAmt;
           remainingTarjeta -= payAmt;
         }
         if (remainingTransf > 0 && debtRemaining > 0) {
-          const payAmt = Number(
-            Math.min(debtRemaining, remainingTransf).toFixed(2)
-          );
+          const payAmt = Math.round(Math.min(debtRemaining, remainingTransf) * 100) / 100;
           await payWith("TRANSFERENCIA", payAmt);
           debtRemaining -= payAmt;
           remainingTransf -= payAmt;
@@ -582,7 +583,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                                 marginTop: 4,
                               }}
                             >
-                              <span>Precio base: L {p.toFixed(2)}</span>
+                              <span>Precio base: L {formatNumber(p)}</span>
                               <span>•</span>
                               <span
                                 style={{
@@ -625,7 +626,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                             </div>
                           </div>
                           <div style={{ fontWeight: 600 }}>
-                            L {st.toFixed(2)}
+                            L {formatNumber(st)}
                           </div>
                         </div>
                       );
@@ -738,7 +739,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                             </div>
                           </div>
                           <div style={{ fontWeight: 700, color: "#7c3aed" }}>
-                            L {planCostoTotal.toFixed(2)}
+                            L {formatNumber(planCostoTotal)}
                           </div>
                         </div>
                         {planAbonoAgregado > 0 && (
@@ -770,7 +771,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                               </div>
                             </div>
                             <div style={{ fontWeight: 700 }}>
-                              + L {planAbonoAgregado.toFixed(2)}
+                              + L {formatNumber(planAbonoAgregado)}
                             </div>
                           </div>
                         )}
@@ -796,7 +797,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                         }}
                       >
                         <span>Subtotal de Tratamientos</span>
-                        <span>L {subtotalBruto.toFixed(2)}</span>
+                        <span>L {formatNumber(subtotalBruto)}</span>
                       </div>
                       {totalDescuento > 0 && (
                         <div
@@ -808,7 +809,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           }}
                         >
                           <span>Descuento Total</span>
-                          <span>- L {totalDescuento.toFixed(2)}</span>
+                          <span>- L {formatNumber(totalDescuento)}</span>
                         </div>
                       )}
                       <div
@@ -823,7 +824,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                       >
                         <span>Total de este Desglose</span>
                         <span>
-                          L {(totalNeto + planAbonoAgregado).toFixed(2)}
+                          L {formatNumber(totalNeto + planAbonoAgregado)}
                         </span>
                       </div>
                     </div>
@@ -900,7 +901,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           color: "#334155",
                         }}
                       >
-                        L {planCostoTotal.toFixed(2)}
+                        L {formatNumber(planCostoTotal)}
                       </div>
                     </div>
                     <div>
@@ -920,7 +921,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           color: "#10b981",
                         }}
                       >
-                        L {planTotalPagado.toFixed(2)}
+                        L {formatNumber(planTotalPagado)}
                       </div>
                     </div>
                     <div>
@@ -940,7 +941,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           color: "#f59e0b",
                         }}
                       >
-                        L {planSaldoPendiente.toFixed(2)}
+                        L {formatNumber(planSaldoPendiente)}
                       </div>
                     </div>
                   </div>
@@ -1083,7 +1084,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           color: "#10b981",
                         }}
                       >
-                        + L {p.monto.toFixed(2)}
+                        + L {formatNumber(p.monto)}
                       </div>
                     </div>
                   ))}
@@ -1139,7 +1140,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                 >
                   <span>Total</span>
                   <span style={{ fontWeight: 600, color: "#1e293b" }}>
-                    L {totalAPagar.toFixed(2)}
+                    L {formatNumber(totalAPagar)}
                   </span>
                 </div>
                 <div
@@ -1152,7 +1153,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   }}
                 >
                   <span>Abonado a Tratamientos</span>
-                  <span>L {montoPagadoTratamientos.toFixed(2)}</span>
+                  <span>L {formatNumber(montoPagadoTratamientos)}</span>
                 </div>
                 <div
                   style={{
@@ -1164,7 +1165,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   }}
                 >
                   <span>Abonado a Plan</span>
-                  <span>L {montoPagadoPlan.toFixed(2)}</span>
+                  <span>L {formatNumber(montoPagadoPlan)}</span>
                 </div>
                 <div
                   style={{
@@ -1183,7 +1184,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                       color: saldoPendiente > 0 ? "#ef4444" : "#10b981",
                     }}
                   >
-                    L {saldoPendiente.toFixed(2)}
+                    L {formatNumber(saldoPendiente)}
                   </span>
                 </div>
               </div>
@@ -1371,7 +1372,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                               type="number"
                               value={montoParcial || ""}
                               onChange={(e) => setMontoParcial(e.target.value)}
-                              placeholder={saldoPendiente.toFixed(2)}
+                              placeholder={formatNumber(saldoPendiente)}
                               style={{
                                 width: "100%",
                                 padding: "10px 12px 10px 28px",
@@ -1452,7 +1453,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                               type="number"
                               value={montoParcial || ""}
                               onChange={(e) => setMontoParcial(e.target.value)}
-                              placeholder={saldoPendiente.toFixed(2)}
+                              placeholder={formatNumber(saldoPendiente)}
                               style={{
                                 width: "100%",
                                 padding: "10px 12px 10px 28px",
@@ -1499,7 +1500,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           onChange={(e) =>
                             setCashReceived(Number(e.target.value))
                           }
-                          placeholder={saldoPendiente.toFixed(2)}
+                          placeholder={formatNumber(saldoPendiente)}
                           style={{
                             width: "100%",
                             padding: "10px 12px 10px 28px",
@@ -1532,7 +1533,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                               color: "#10b981",
                             }}
                           >
-                            L {(cashReceived - saldoPendiente).toFixed(2)}
+                            L {formatNumber(cashReceived - saldoPendiente)}
                           </span>
                         </div>
                       )}
@@ -1557,14 +1558,14 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                     <Receipt size={16} />
                     {loading
                       ? "Procesando..."
-                      : `Pagar L ${(paymentMethod === "Efectivo" &&
+                      : `Pagar L ${formatNumber(paymentMethod === "Efectivo" &&
                         cashReceived > 0 &&
                         cashReceived < saldoPendiente
                           ? cashReceived
                           : montoParcial !== ""
                           ? Number(montoParcial)
                           : saldoPendiente
-                        ).toFixed(2)}`}
+                        )}`}
                   </Button>
                 </>
               ) : (

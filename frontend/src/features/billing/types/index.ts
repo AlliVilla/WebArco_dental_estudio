@@ -4,6 +4,7 @@ export interface PatientPayment {
   fecha: string;
   abono: number;
   metodoPago: string;
+  cuentaDestino?: string;
   estado: string;
   observacion?: string;
   firma_paciente?: string;
@@ -27,6 +28,7 @@ export interface CreatePaymentInput {
   fecha: string;
   abono: number;
   metodoPago?: string;
+  cuentaDestino?: string;
   observacion?: string;
   firma_paciente?: string;
 }

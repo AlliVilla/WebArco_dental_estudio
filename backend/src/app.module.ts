@@ -30,6 +30,7 @@ import { UploadModule } from './upload/upload.module';
 import { FinanzasModule } from './finanzas/finanzas.module';
 import { EgresoModule } from './egreso/egreso.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { CuentaDestinoConfigModule } from './cuenta-destino-config/cuenta-destino-config.module';
 
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';  
@@ -80,6 +81,7 @@ import { ConfigModule } from '@nestjs/config';
       serveRoot: '/static',
     }),
     CierreModule,
+    CuentaDestinoConfigModule,
     NotificacionModule,
   ],
   controllers: [AppController],

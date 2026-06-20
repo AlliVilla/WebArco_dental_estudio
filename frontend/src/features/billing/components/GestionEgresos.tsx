@@ -10,6 +10,8 @@ import { exportToExcel } from "../../../utils/exportToExcel";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { StatsDrawerContent, StatsItem } from "./StatsDrawerContent";
 import billingService from "../services/billingService";
+import { inventoryService } from "../../inventory/services/inventoryService";
+import type { InventoryItem } from "../../inventory/types";
 import type {
   CreateExpenseInput,
   ExpenseMetricResponse,
@@ -175,6 +177,101 @@ export function GestionEgresos() {
   const [observaciones, setObservaciones] = useState("");
   const [idSeleccionado, setIdSeleccionado] = useState<number | null>(null);
   const [responsable, setResponsable] = useState(nombreAutenticado);
+
+  const [tempInsumoId, setTempInsumoId] = useState("");
+  const [tempCantidad, setTempCantidad] = useState("");
+  const [insumosDisponibles, setInsumosDisponibles] = useState<InventoryItem[]>([]);
+  const [insumosSeleccionados, setInsumosSeleccionados] = useState<{
+    id_insumo: number;
+    nombre: string;
+    cantidad: number;
+    precio_costo: number;
+    stock_actual: number;
+  }[]>([]);
+
+  useEffect(() => {
+    if (estaModalAbierto && categoria === "Insumos" && insumosDisponibles.length === 0) {
+      const cargarInsumos = async () => {
+        try {
+          const res = await inventoryService.getAll({ estadoRegistro: "activo" });
+          if (res.success && res.data) {
+            setInsumosDisponibles(res.data.data || []);
+          }
+        } catch (err: any) {
+          console.error("Error al cargar insumos", err);
+        }
+      };
+      void cargarInsumos();
+    }
+  }, [estaModalAbierto, categoria, insumosDisponibles.length]);
+
+  const agregarInsumoALista = () => {
+    if (!tempInsumoId) {
+      setError("Por favor seleccione un insumo.");
+      return;
+    }
+    const cant = parseInt(tempCantidad, 10);
+    if (isNaN(cant) || cant <= 0) {
+      setError("Por favor ingrese una cantidad válida mayor a 0.");
+      return;
+    }
+
+    const insumoObj = insumosDisponibles.find(
+      (ins) => ins.id_insumo === Number(tempInsumoId)
+    );
+    if (!insumoObj) {
+      setError("Insumo no encontrado.");
+      return;
+    }
+
+    if (cant > insumoObj.stock_actual) {
+      setError(`No hay stock suficiente. Stock disponible de "${insumoObj.nombre}": ${insumoObj.stock_actual}`);
+      return;
+    }
+
+    const yaExiste = insumosSeleccionados.find(
+      (item) => item.id_insumo === insumoObj.id_insumo
+    );
+    if (yaExiste) {
+      setError("Este insumo ya ha sido agregado. Elimínelo primero si desea cambiar la cantidad.");
+      return;
+    }
+
+    const nuevaLista = [
+      ...insumosSeleccionados,
+      {
+        id_insumo: insumoObj.id_insumo,
+        nombre: insumoObj.nombre,
+        cantidad: cant,
+        precio_costo: insumoObj.precio_costo,
+        stock_actual: insumoObj.stock_actual,
+      },
+    ];
+
+    setInsumosSeleccionados(nuevaLista);
+
+    const total = nuevaLista.reduce(
+      (acc, item) => acc + item.cantidad * item.precio_costo,
+      0
+    );
+    setMonto(total.toFixed(2));
+
+    setTempInsumoId("");
+    setTempCantidad("");
+    setError(null);
+  };
+
+  const removerInsumoDeLista = (index: number) => {
+    const nuevaLista = [...insumosSeleccionados];
+    nuevaLista.splice(index, 1);
+    setInsumosSeleccionados(nuevaLista);
+
+    const total = nuevaLista.reduce(
+      (acc, item) => acc + item.cantidad * item.precio_costo,
+      0
+    );
+    setMonto(nuevaLista.length > 0 ? total.toFixed(2) : "");
+  };
 
   const cargarEgresos = async () => {
     setEstaCargando(true);
@@ -358,6 +455,14 @@ export function GestionEgresos() {
       categoria,
       monto: parsedMonto,
       observaciones: observaciones.trim() || undefined,
+      ...(categoria === "Insumos" && insumosSeleccionados.length > 0
+        ? {
+            insumos: insumosSeleccionados.map((item) => ({
+              id_insumo: item.id_insumo,
+              cantidad: item.cantidad,
+            })),
+          }
+        : {}),
     };
 
     setEstaCargando(true);
@@ -413,14 +518,19 @@ export function GestionEgresos() {
     setResponsable(nombreAutenticado);
     setError(null);
     setIdSeleccionado(null);
+    setTempInsumoId("");
+    setTempCantidad("");
+    setInsumosSeleccionados([]);
   };
 
-  const abrirModal = (
+  const abrirModal = async (
     modo: "crear" | "editar" | "ver",
     registro?: RegistroEgreso
   ) => {
     setError(null);
     setModoModal(modo);
+    setTempInsumoId("");
+    setTempCantidad("");
     if (registro) {
       setIdSeleccionado(registro.id);
       setFecha(registro.fecha);
@@ -429,6 +539,20 @@ export function GestionEgresos() {
       setMonto(Number(registro.monto).toFixed(2));
       setObservaciones(registro.observaciones);
       setResponsable(registro.responsable);
+
+      if (registro.categoria === "Insumos") {
+        try {
+          const res = await billingService.getExpenseById(registro.id);
+          if (res.success && res.data) {
+            const insumos = (res.data as any).insumos || [];
+            setInsumosSeleccionados(insumos);
+          }
+        } catch (err: any) {
+          console.error("Error al cargar detalles del egreso", err);
+        }
+      } else {
+        setInsumosSeleccionados([]);
+      }
     } else {
       limpiarFormulario();
     }
@@ -862,9 +986,13 @@ export function GestionEgresos() {
                     <select
                       required
                       value={categoria}
-                      onChange={(e) =>
-                        setCategoria(e.target.value as CategoriaEgreso)
-                      }
+                      onChange={(e) => {
+                        const newCat = e.target.value as CategoriaEgreso;
+                        setCategoria(newCat);
+                        if (newCat !== "Insumos") {
+                          setInsumosSeleccionados([]);
+                        }
+                      }}
                       style={{
                         ...inputStyle(!!categoria),
                         cursor: "pointer",
@@ -986,6 +1114,170 @@ export function GestionEgresos() {
                   }}
                 />
               </div>
+
+              {categoria === "Insumos" && (
+                <div
+                  style={{
+                    border: "1px solid #EAECEE",
+                    borderRadius: 8,
+                    padding: 12,
+                    backgroundColor: "#F8F9FA",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <h4
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#203F49",
+                    }}
+                  >
+                    Insumos restados de inventario
+                  </h4>
+
+                  {modoModal !== "ver" && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 100px auto",
+                        gap: 8,
+                        alignItems: "flex-end",
+                      }}
+                    >
+                      <div style={fieldGroupStyle}>
+                        <label style={{ ...labelStyle, fontSize: 11 }}>
+                          Seleccionar Insumo
+                        </label>
+                        <select
+                          value={tempInsumoId}
+                          onChange={(e) => setTempInsumoId(e.target.value)}
+                          style={{
+                            ...inputStyle(!!tempInsumoId),
+                            padding: "8px 10px",
+                            fontSize: 13,
+                          }}
+                        >
+                          <option value="">-- Seleccione --</option>
+                          {insumosDisponibles.map((ins) => (
+                            <option key={ins.id_insumo} value={ins.id_insumo}>
+                              {ins.nombre} (Stock: {ins.stock_actual})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={fieldGroupStyle}>
+                        <label style={{ ...labelStyle, fontSize: 11 }}>
+                          Cantidad
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Cant"
+                          value={tempCantidad}
+                          onChange={(e) => setTempCantidad(e.target.value)}
+                          style={{
+                            ...inputStyle(!!tempCantidad),
+                            padding: "8px 10px",
+                            fontSize: 13,
+                          }}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={agregarInsumoALista}
+                        variant="secondary"
+                        style={{
+                          height: 38,
+                          padding: "0 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        Agregar
+                      </Button>
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      marginTop: 4,
+                    }}
+                  >
+                    {insumosSeleccionados.length === 0 ? (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "#888F94",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        No hay insumos seleccionados.
+                      </span>
+                    ) : (
+                      insumosSeleccionados.map((item, index) => (
+                        <div
+                          key={item.id_insumo}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            background: "#fff",
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #E2E8F0",
+                            fontSize: 13,
+                          }}
+                        >
+                          <div>
+                            <span
+                              style={{ fontWeight: 500, color: "#203F49" }}
+                            >
+                              {item.nombre}
+                            </span>
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                color: "#888F94",
+                                fontSize: 11,
+                              }}
+                            >
+                              (Cant:{" "}
+                              <strong style={{ color: "#203F49" }}>
+                                {item.cantidad}
+                              </strong>
+                              )
+                            </span>
+                          </div>
+                          {modoModal !== "ver" && (
+                            <button
+                              type="button"
+                              onClick={() => removerInsumoDeLista(index)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#EF4444",
+                                cursor: "pointer",
+                                fontSize: 12,
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div
                 style={{

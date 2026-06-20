@@ -36,6 +36,7 @@ import { CierresView } from "./features/cierres";
 import { InventoryHistoryScreen, InventoryScreen } from "./features/inventory";
 import { TreatmentsScreen } from "./features/treatments/components/TreatmentsScreen";
 import { TreatmentForm } from "./features/treatments/components/TreatmentForm";
+import { EstadoResultadosScreen } from "./features/reports";
 
 function App() {
   return (
@@ -281,25 +282,7 @@ function App() {
           path="/stats"
           element={
             <PrivilegeGuard privileges={[2]}>
-              <div style={{ padding: 20 }}>
-                <Card>
-                  <h3
-                    style={{
-                      margin: 0,
-                      color: "#203F49",
-                      fontSize: 16,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Estadísticas
-                  </h3>
-                  <p
-                    style={{ margin: "8px 0 0", fontSize: 13, color: "#888F94" }}
-                  >
-                    Módulo de estadísticas en desarrollo.
-                  </p>
-                </Card>
-              </div>
+              <EstadoResultadosScreen />
             </PrivilegeGuard>
           }
         />

@@ -11,6 +11,17 @@ export const formatCurrency = (value: number): string => {
 };
 
 /**
+ * Formats a number with thousands separator and 2 decimal places (no currency prefix).
+ * Example: 15000 -> "15,000.00"
+ */
+export const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat("es-HN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+/**
  * Formats an ISO date string into a legible Spanish format
  */
 export const formatDate = (dateString: string): string => {

@@ -5,6 +5,7 @@ import { Button } from "../../../context";
 import { consultationService } from "../../consultations/services/consultationService";
 import { Consultation } from "../../consultations/types";
 import { FacturaCobroDetalle } from "./FacturaCobroDetalle";
+import { formatNumber } from "../../../utils/formatters";
 
 interface PaymentRow {
   id: string;
@@ -267,14 +268,14 @@ export function FacturasDeConsultas() {
     {
       key: "total",
       label: "Total",
-      render: (val: unknown) => `L ${Number(val).toFixed(2)}`,
+      render: (val: unknown) => `L ${formatNumber(Number(val) || 0)}`,
     },
     {
       key: "pagado",
       label: "Pagado",
       render: (val: unknown) => (
         <span style={{ color: "#10b981", fontWeight: 500 }}>
-          L {Number(val).toFixed(2)}
+          L {formatNumber(Number(val) || 0)}
         </span>
       ),
     },
@@ -290,7 +291,7 @@ export function FacturasDeConsultas() {
               fontWeight: 500,
             }}
           >
-            L {pending.toFixed(2)}
+            L {formatNumber(pending)}
           </span>
         );
       },
@@ -704,7 +705,7 @@ function PaymentCard({
         >
           <span style={{ fontSize: 12, color: "#888F94" }}>Total</span>
           <span style={{ fontSize: 13, color: "#203F49" }}>
-            L {row.total.toFixed(2)}
+            L {formatNumber(row.total)}
           </span>
         </div>
         <div
@@ -718,7 +719,7 @@ function PaymentCard({
         >
           <span style={{ fontSize: 12, color: "#888F94" }}>Pagado</span>
           <span style={{ fontSize: 13, color: "#10b981", fontWeight: 500 }}>
-            L {row.pagado.toFixed(2)}
+            L {formatNumber(row.pagado)}
           </span>
         </div>
         <div
@@ -738,7 +739,7 @@ function PaymentCard({
               fontWeight: 500,
             }}
           >
-            L {row.pendiente.toFixed(2)}
+            L {formatNumber(row.pendiente)}
           </span>
         </div>
         <div
