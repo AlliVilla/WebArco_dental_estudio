@@ -313,6 +313,7 @@ model PagoPaciente {
   observacion    String?  @db.Text
   firma_paciente String?  @db.Text
   metodo_pago    String   @default("Efectivo") @db.VarChar(50)
+  cuenta_destino String?  @db.VarChar(100)
   estado         String   @default("Pagado") @db.VarChar(20)
 
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
@@ -573,4 +574,14 @@ model ConfiguracionNotificaciones {
   usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
 
   @@map("configuracion_notificaciones")
+}
+
+model CuentaDestinoConfig {
+  id     Int    @id @default(autoincrement())
+  tipo   String @db.VarChar(20)
+  nombre String @db.VarChar(100)
+  activo Boolean @default(true)
+
+  @@unique([tipo, nombre])
+  @@map("cuenta_destino_config")
 }

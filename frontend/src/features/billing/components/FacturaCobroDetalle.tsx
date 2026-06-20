@@ -341,6 +341,12 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   : method === "TARJETA"
                   ? "Tarjeta"
                   : "Transferencia",
+              cuentaDestino:
+                method === "TARJETA"
+                  ? posSystem
+                  : method === "TRANSFERENCIA"
+                  ? bankAccount
+                  : undefined,
               observacion:
                 observacion +
                 (plan && amountForPlan > 0 ? " (Cobro Consulta)" : ""),
