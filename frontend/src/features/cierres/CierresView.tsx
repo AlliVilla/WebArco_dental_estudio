@@ -172,12 +172,12 @@ export function CierresView() {
             transferencia: respuesta.data.ingresos.transferencia,
           });
         } else {
-          setError(res.message ?? "Error al obtener la vista previa.");
+          setError(respuesta.message ?? "Error al obtener la vista previa.");
         }
       }
     } catch (err: any) {
       setError(
-        err.response?.data?.message ??
+        err.message ??
           "Error al obtener la vista previa del cierre."
       );
     } finally {
@@ -192,6 +192,10 @@ export function CierresView() {
   }, [activeTab, fechaCierre, cargarPreview]);
 
   const handleCerrarDia = async () => {
+    if (cierreDiarioHoy) {
+      setError("Ya se realizó el cierre de hoy. Solo se puede realizar un cierre por día.");
+      return;
+    }
     setCreandoCierre(true);
     setError(null);
     setSuccessMsg(null);
@@ -205,11 +209,11 @@ export function CierresView() {
         setError(res.message ?? "Error al crear el cierre");
       }
     } catch (e: any) {
-      if (e.response?.status === 400 || e.response?.data?.statusCode === 400) {
-        setError("Ya existe un cierre Diario para el período actual.");
+      if (e.statusCode === 400) {
+        setError(e.message ?? "Ya se realizó el cierre de hoy. Solo se puede realizar un cierre por día.");
       } else {
         setError(
-          e.response?.data?.message ?? "Error al conectar con el servidor."
+          e.message ?? "Error al conectar con el servidor."
         );
       }
     } finally {

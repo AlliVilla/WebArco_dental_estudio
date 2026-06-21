@@ -11,6 +11,9 @@ type TotalesEstadoResultado = {
   ingresosBrutos: number;
   descuentosAplicados: number;
   ingresosNetos: number;
+  ingresosBrutosTratamientos: number;
+  conceptosLibresTotal: number;
+  ingresosPlanes: number;
   costoInsumos: number;
   gastosAdministrativos: number;
   nomina: number;
@@ -64,7 +67,9 @@ export class FinanzasService {
         margenNeto: actual.margenNeto,
       },
       ingresos: {
-        consultasTratamientos: actual.ingresosBrutos,
+        consultasTratamientos: actual.ingresosBrutosTratamientos,
+        conceptosLibres: actual.conceptosLibresTotal,
+        planesActivos: actual.ingresosPlanes,
         descuentosAplicados: actual.descuentosAplicados,
         ingresosNetos: actual.ingresosNetos,
       },
@@ -211,32 +216,56 @@ export class FinanzasService {
   }
 
   private async calcularTotalesEstado(rango: RangoFechas): Promise<TotalesEstadoResultado> {
-    const tratamientos = await this.prismaService.consulta_Tratamiento.findMany({
-      where: {
-        consulta: {
-          fecha_inicio: {
-            gte: rango.inicio,
-            lt: rango.finExclusivo,
+    const [tratamientos, consultasConTexto, pagosConsulta] = await Promise.all([
+      this.prismaService.consulta_Tratamiento.findMany({
+        where: {
+          consulta: {
+            fecha_inicio: { gte: rango.inicio, lt: rango.finExclusivo },
           },
         },
-      },
-      select: {
-        precio: true,
-        descuento: true,
-      },
-    });
+        select: { precio: true, descuento: true },
+      }),
+      this.prismaService.consulta.findMany({
+        where: {
+          fecha_inicio: { gte: rango.inicio, lt: rango.finExclusivo },
+          tratamiento: { contains: 'Conceptos libres:' },
+        },
+        select: { tratamiento: true },
+      }),
+      this.prismaService.pagoConsulta.findMany({
+        where: {
+          fecha: { gte: rango.inicio, lt: rango.finExclusivo },
+        },
+        select: { monto: true },
+      }),
+    ]);
 
-    const ingresosBrutos = tratamientos.reduce(
-      (total, tratamiento) => total + Number(tratamiento.precio || 0),
-      0,
+    const ingresosBrutosTratamientos = tratamientos.reduce(
+      (total, t) => total + Number(t.precio || 0), 0,
     );
 
-    const descuentosAplicados = tratamientos.reduce((total, tratamiento) => {
-      const precio = Number(tratamiento.precio || 0);
-      const descuento = Number(tratamiento.descuento || 0);
-      return total + (precio * descuento) / 100;
+    const descuentosAplicados = tratamientos.reduce((total, t) => {
+      const precio = Number(t.precio || 0);
+      return total + (precio * Number(t.descuento || 0)) / 100;
     }, 0);
 
+    // Parse conceptos libres from consulta text
+    let conceptosLibresTotal = 0;
+    for (const c of consultasConTexto) {
+      const match = c.tratamiento?.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
+      if (match) {
+        for (const line of match[1].split('\n')) {
+          const m = line.match(/^.+?\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)/);
+          if (m) conceptosLibresTotal += parseFloat(m[1].replace(/,/g, ''));
+        }
+      }
+    }
+
+    const ingresosPlanes = pagosConsulta.reduce(
+      (total, p) => total + Number(p.monto || 0), 0,
+    );
+
+    const ingresosBrutos = ingresosBrutosTratamientos + conceptosLibresTotal + ingresosPlanes;
     const ingresosNetos = ingresosBrutos - descuentosAplicados;
 
     const movimientosInsumos = await this.prismaService.movimientoInventario.findMany({
@@ -328,6 +357,9 @@ export class FinanzasService {
       ingresosBrutos,
       descuentosAplicados,
       ingresosNetos,
+      ingresosBrutosTratamientos,
+      conceptosLibresTotal,
+      ingresosPlanes,
       costoInsumos: costoInsumosTotal,
       gastosAdministrativos,
       nomina,

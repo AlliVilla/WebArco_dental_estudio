@@ -29,26 +29,29 @@ interface PaymentRow {
 function buildPaymentRows(consultations: Consultation[]): PaymentRow[] {
   const rows: PaymentRow[] = [];
 
-  function parseConceptosLibresTotal(texto: string | null): { total: number; nombres: string[] } {
-    if (!texto) return { total: 0, nombres: [] };
+  function parseConceptosLibresTotal(texto: string | null): { total: number; nombres: string[]; descuento: number } {
+    if (!texto) return { total: 0, nombres: [], descuento: 0 };
     const match = texto.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
-    if (!match) return { total: 0, nombres: [] };
+    if (!match) return { total: 0, nombres: [], descuento: 0 };
     let total = 0;
+    let descuento = 0;
     const nombres: string[] = [];
     for (const line of match[1].split('\n')) {
-      const m = line.match(/^(.+?)\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)$/);
+      const m = line.match(/^(.+?)\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)(?:\s*\[desc:(\d+)%\])?$/);
       if (m) {
         nombres.push(m[1].trim());
-        total += parseFloat(m[2].replace(/,/g, ''));
+        const precio = parseFloat(m[2].replace(/,/g, ''));
+        total += precio;
+        if (m[3]) descuento += precio * (parseInt(m[3], 10) / 100);
       }
     }
-    return { total, nombres };
+    return { total, nombres, descuento };
   }
 
   for (const c of consultations) {
     // ── Row: consulta (catalog treatments + conceptos libres) ──
     const tratamientosLista = c.tratamientos || [];
-    const { total: totalConceptosLibres, nombres: nombresConceptos } = parseConceptosLibresTotal(c.tratamiento ?? null);
+    const { total: totalConceptosLibres, nombres: nombresConceptos, descuento: descuentoConceptosLibres } = parseConceptosLibresTotal(c.tratamiento ?? null);
 
     const nombres = [
       ...tratamientosLista.map((t) => t.tratamiento?.nombre).filter(Boolean) as string[],
@@ -65,7 +68,7 @@ function buildPaymentRows(consultations: Consultation[]): PaymentRow[] {
       const totalDescuento = tratamientosLista.reduce((acc, t) => {
         const p = Number(t.precio) || Number(t.tratamiento?.precio) || 0;
         return acc + p * (Number(t.descuento) / 100);
-      }, 0);
+      }, 0) + descuentoConceptosLibres;
       const consultaTotal = subtotalBruto - totalDescuento;
 
       const pagosConsulta = c.pagos || [];
@@ -213,7 +216,7 @@ export function FacturasDeConsultas() {
 
   const columns = [
     {
-      key: "tipo",
+      key: "id",
       label: "ID",
       width: 60,
       render: (_: any, row: PaymentRow) => row.id_consulta,

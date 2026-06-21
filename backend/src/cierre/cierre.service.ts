@@ -43,7 +43,7 @@ export class CierreService {
     const fechaWhere = { gte: start, lte: end };
 
     // Totales de egresos + desglose de pagos por método
-    const [egresos, pagosPorMetodo] = await Promise.all([
+    const [egresos, pagosPaciente, pagosConsulta] = await Promise.all([
       this.prisma.egreso.aggregate({
         where: { fecha: fechaWhere },
         _sum: { monto: true },
@@ -53,17 +53,27 @@ export class CierreService {
         where: { fecha: fechaWhere },
         _sum: { abono: true },
       }),
+      this.prisma.pagoConsulta.groupBy({
+        by: ['metodoPago'],
+        where: { fecha: fechaWhere },
+        _sum: { monto: true },
+      }),
     ]);
 
     // Extraer totales por método de pago del resultado agrupado
     const sumaMetodo = (metodo: string): number =>
       Number(
-        pagosPorMetodo.find((r) => r.metodo_pago === metodo)?._sum.abono ?? 0,
+        pagosPaciente.find((r) => r.metodo_pago === metodo)?._sum.abono ?? 0,
       );
 
-    const efectivo = sumaMetodo('Efectivo');
-    const tarjeta = sumaMetodo('Tarjeta');
-    const transferencia = sumaMetodo('Transferencia');
+    const sumaMetodoConsulta = (metodo: string): number =>
+      Number(
+        pagosConsulta.find((r) => r.metodoPago === metodo)?._sum.monto ?? 0,
+      );
+
+    const efectivo = sumaMetodo('Efectivo') + sumaMetodoConsulta('EFECTIVO');
+    const tarjeta = sumaMetodo('Tarjeta') + sumaMetodoConsulta('TARJETA');
+    const transferencia = sumaMetodo('Transferencia') + sumaMetodoConsulta('TRANSFERENCIA');
 
     const totalIngresos = efectivo + tarjeta + transferencia;
     const totalEgresos = Math.round(Number(egresos._sum.monto || 0) * 100) / 100;
@@ -100,8 +110,8 @@ export class CierreService {
     const end   = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
     const fechaWhere = { gte: start, lte: end };
 
-    // Totales de egresos + desglose de pagos por método (2 queries en paralelo)
-    const [egresos, pagosPorMetodo] = await Promise.all([
+    // Totales de egresos + desglose de pagos por método (3 queries en paralelo)
+    const [egresos, pagosPaciente, pagosConsulta] = await Promise.all([
       this.prisma.egreso.aggregate({
         where: { fecha: fechaWhere },
         _sum: { monto: true },
@@ -111,17 +121,27 @@ export class CierreService {
         where: { fecha: fechaWhere },
         _sum: { abono: true },
       }),
+      this.prisma.pagoConsulta.groupBy({
+        by: ['metodoPago'],
+        where: { fecha: fechaWhere },
+        _sum: { monto: true },
+      }),
     ]);
 
     // Extraer totales por método de pago del resultado agrupado
     const sumaMetodo = (metodo: string): number =>
       Number(
-        pagosPorMetodo.find((r) => r.metodo_pago === metodo)?._sum.abono ?? 0,
+        pagosPaciente.find((r) => r.metodo_pago === metodo)?._sum.abono ?? 0,
       );
 
-    const efectivo      = sumaMetodo('Efectivo');
-    const tarjeta       = sumaMetodo('Tarjeta');
-    const transferencia = sumaMetodo('Transferencia');
+    const sumaMetodoConsulta = (metodo: string): number =>
+      Number(
+        pagosConsulta.find((r) => r.metodoPago === metodo)?._sum.monto ?? 0,
+      );
+
+    const efectivo      = sumaMetodo('Efectivo') + sumaMetodoConsulta('EFECTIVO');
+    const tarjeta       = sumaMetodo('Tarjeta') + sumaMetodoConsulta('TARJETA');
+    const transferencia = sumaMetodo('Transferencia') + sumaMetodoConsulta('TRANSFERENCIA');
 
     const totalIngresos = efectivo + tarjeta + transferencia;
     const totalEgresos  = Math.round(Number(egresos._sum.monto || 0) * 100) / 100;

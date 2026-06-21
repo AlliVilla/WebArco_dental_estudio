@@ -290,6 +290,8 @@ export function EstadoResultadosScreen() {
     await exportToExcel(
       [
         { concepto: 'Consultas y tratamientos', monto: reporte.ingresos.consultasTratamientos },
+        ...(reporte.ingresos.conceptosLibres > 0 ? [{ concepto: 'Conceptos libres' as const, monto: reporte.ingresos.conceptosLibres }] : []),
+        ...(reporte.ingresos.planesActivos > 0 ? [{ concepto: 'Planes activos (abonos)' as const, monto: reporte.ingresos.planesActivos }] : []),
         { concepto: 'Descuentos aplicados', monto: -reporte.ingresos.descuentosAplicados },
         { concepto: 'Ingresos netos', monto: reporte.ingresos.ingresosNetos },
         { concepto: 'Insumos utilizados', monto: -reporte.costoInsumos.insumosUtilizados },
@@ -339,6 +341,8 @@ export function EstadoResultadosScreen() {
             <tr><th>Concepto</th><th>Monto</th></tr>
             <tr class="section"><td colspan="2">Ingresos</td></tr>
             <tr><td>Consultas y tratamientos</td><td>${money(reporte.ingresos.consultasTratamientos)}</td></tr>
+            ${reporte.ingresos.conceptosLibres > 0 ? `<tr><td>Conceptos libres</td><td>${money(reporte.ingresos.conceptosLibres)}</td></tr>` : ''}
+            ${reporte.ingresos.planesActivos > 0 ? `<tr><td>Planes activos (abonos)</td><td>${money(reporte.ingresos.planesActivos)}</td></tr>` : ''}
             <tr><td>(−) Descuentos aplicados</td><td>${negative(reporte.ingresos.descuentosAplicados)}</td></tr>
             <tr><td>Ingresos netos</td><td>${money(reporte.ingresos.ingresosNetos)}</td></tr>
             <tr class="section"><td colspan="2">Costo de insumos</td></tr>
@@ -434,6 +438,8 @@ export function EstadoResultadosScreen() {
             <tbody>
               <SectionTitle>Ingresos</SectionTitle>
               <TableRow label="Consultas y tratamientos" value={reporte?.ingresos.consultasTratamientos || 0} />
+              {(reporte?.ingresos.conceptosLibres || 0) > 0 && <TableRow label="Conceptos libres" value={reporte?.ingresos.conceptosLibres || 0} />}
+              {(reporte?.ingresos.planesActivos || 0) > 0 && <TableRow label="Planes activos (abonos)" value={reporte?.ingresos.planesActivos || 0} />}
               <TableRow label="(−) Descuentos aplicados" value={reporte?.ingresos.descuentosAplicados || 0} negativeValue />
               <TableRow label="Ingresos netos" value={reporte?.ingresos.ingresosNetos || 0} kind="cyan" />
 

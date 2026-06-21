@@ -147,12 +147,12 @@ export class PagoPacienteService {
     const tratamientos = await this.prisma.consulta_Tratamiento.findMany({
       where: { id_consulta: consultaId },
     });
-    const { bruto: totalConceptosLibres } = this.conceptoLibreTotalFromText(consulta.tratamiento);
+    const { bruto: totalConceptosLibres, descuento: descuentoConceptosLibres } = this.conceptoLibreTotalFromText(consulta.tratamiento);
     const totalCatálogo = tratamientos.reduce(
       (sum, t) => sum + Number(t.precio) - (t.descuento || 0),
       0,
     );
-    const total = totalCatálogo + totalConceptosLibres;
+    const total = totalCatálogo + totalConceptosLibres - descuentoConceptosLibres;
     const totalPagado = pagos.reduce((sum, p) => sum + Number(p.abono), 0);
     const saldoPendiente = Math.max(0, total - totalPagado);
 
