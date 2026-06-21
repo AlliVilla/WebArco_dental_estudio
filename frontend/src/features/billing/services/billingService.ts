@@ -154,8 +154,9 @@ export const billingService = {
   updateConsultaDescuentos: async (
     consultaId: number,
     descuentos: { id_consulta_tratamiento: number; descuento: number }[],
+    conceptoDescuentos?: { idx: number; descuento: number }[],
   ): Promise<ApiResponse<any>> => {
-    return api.patch(`/consulta/${consultaId}/descuentos`, { descuentos });
+    return api.patch(`/consulta/${consultaId}/descuentos`, { descuentos, conceptoDescuentos });
   },
 };
 

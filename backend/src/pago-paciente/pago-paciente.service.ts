@@ -41,6 +41,23 @@ type PaymentWithRelations = Prisma.PagoPacienteGetPayload<{
 export class PagoPacienteService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private conceptoLibreTotalFromText(texto: string | null): { bruto: number; descuento: number } {
+    if (!texto) return { bruto: 0, descuento: 0 };
+    const match = texto.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
+    if (!match) return { bruto: 0, descuento: 0 };
+    let bruto = 0;
+    let descuento = 0;
+    for (const line of match[1].split('\n')) {
+      const m = line.match(/^.+?\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)(?:\s*\[desc:(\d+)%\])?$/);
+      if (m) {
+        const precio = parseFloat(m[1].replace(/,/g, ''));
+        bruto += precio;
+        if (m[2]) descuento += precio * (parseInt(m[2], 10) / 100);
+      }
+    }
+    return { bruto, descuento };
+  }
+
   async create(createPaymentDto: CreatePaymentDto) {
     await this.assertConsultaExists(createPaymentDto.id_consulta);
 
@@ -48,18 +65,23 @@ export class PagoPacienteService {
       throw new BadRequestException('El monto del pago debe ser mayor a 0');
     }
 
-    const pagosPrevios = await this.prisma.pagoPaciente.findMany({
-      where: { id_consulta: createPaymentDto.id_consulta },
-    });
+    const [consulta, pagosPrevios, tratamientos] = await Promise.all([
+      this.prisma.consulta.findUnique({
+        where: { id_consulta: createPaymentDto.id_consulta },
+        select: { tratamiento: true },
+      }),
+      this.prisma.pagoPaciente.findMany({
+        where: { id_consulta: createPaymentDto.id_consulta },
+      }),
+      this.prisma.consulta_Tratamiento.findMany({
+        where: { id_consulta: createPaymentDto.id_consulta },
+      }),
+    ]);
 
-    const tratamientos = await this.prisma.consulta_Tratamiento.findMany({
-      where: { id_consulta: createPaymentDto.id_consulta },
-    });
-
-    const subtotalBruto = tratamientos.reduce((sum, t) => sum + Number(t.precio), 0);
-    const totalDescuento = tratamientos.reduce((sum, t) => sum + (Number(t.precio) * ((t.descuento || 0) / 100)), 0);
-    const subtotalNeto = subtotalBruto - totalDescuento;
-    const totalConsulta = subtotalNeto;
+    const { bruto: totalConceptosLibres, descuento: descuentoConceptosLibres } = this.conceptoLibreTotalFromText(consulta?.tratamiento ?? null);
+    const subtotalBruto = tratamientos.reduce((sum, t) => sum + Number(t.precio), 0) + totalConceptosLibres;
+    const totalDescuento = tratamientos.reduce((sum, t) => sum + (Number(t.precio) * ((t.descuento || 0) / 100)), 0) + descuentoConceptosLibres;
+    const totalConsulta = subtotalBruto - totalDescuento;
 
     const totalPagado = pagosPrevios.reduce((sum, p) => sum + Number(p.abono), 0);
     const saldoPendiente = Math.max(0, totalConsulta - totalPagado);
@@ -125,10 +147,12 @@ export class PagoPacienteService {
     const tratamientos = await this.prisma.consulta_Tratamiento.findMany({
       where: { id_consulta: consultaId },
     });
-    const total = tratamientos.reduce(
+    const { bruto: totalConceptosLibres } = this.conceptoLibreTotalFromText(consulta.tratamiento);
+    const totalCatálogo = tratamientos.reduce(
       (sum, t) => sum + Number(t.precio) - (t.descuento || 0),
       0,
     );
+    const total = totalCatálogo + totalConceptosLibres;
     const totalPagado = pagos.reduce((sum, p) => sum + Number(p.abono), 0);
     const saldoPendiente = Math.max(0, total - totalPagado);
 

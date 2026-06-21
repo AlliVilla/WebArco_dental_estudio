@@ -90,6 +90,16 @@ La pregunta se insertará con el orden_num especificado y aparecerá en el lista
   }
 
   @Privileges(42)
+  @Get('consulta-pregunta/paciente/:patientId/ultimas-respuestas')
+  @ApiOperation({
+    summary: 'Obtener últimas respuestas de antecedentes médicos del paciente',
+    description: 'Retorna las respuestas de la consulta más reciente del paciente, para prellenar el formulario de una nueva consulta.',
+  })
+  findUltimasRespuestas(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.service.findUltimasRespuestasByPaciente(patientId);
+  }
+
+  @Privileges(42)
   @Get('consulta/:id/respuestas')
   @ApiOperation({
     summary: 'Obtener respuestas de consulta',

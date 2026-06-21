@@ -359,9 +359,28 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         loadTratamientos();
         loadOdontograma();
         loadTratamientosPaciente();
-        expedientService.getPreguntas().then((res) => {
-            const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-            setPreguntas(data);
+        Promise.all([
+            expedientService.getPreguntas(),
+            expedientService.getUltimasRespuestas(patient.id_persona),
+        ]).then(([pregRes, respRes]) => {
+            const preguntasData = Array.isArray(pregRes.data) ? pregRes.data : (pregRes.data as any)?.data || [];
+            setPreguntas(preguntasData);
+            const medicasIds = new Set(
+                preguntasData.filter((p: any) => p.categoria === 'Antecedentes Médicos').map((p: any) => p.id_pregunta)
+            );
+            const respuestasArr = Array.isArray(respRes.data) ? respRes.data : (respRes.data as any)?.data || [];
+            if (respuestasArr.length > 0) {
+                const prefill: Record<number, { respuestaBoolean?: boolean; explanation?: string }> = {};
+                for (const r of respuestasArr) {
+                    if (medicasIds.has(r.id_pregunta)) {
+                        prefill[r.id_pregunta] = {
+                            respuestaBoolean: r.respuesta_boolean ?? undefined,
+                            explanation: r.explanation ?? undefined,
+                        };
+                    }
+                }
+                setRespuestas(prefill);
+            }
         }).catch(() => {});
     },[loadOdontograma, loadTratamientosPaciente]);
 
@@ -535,11 +554,11 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         const planItems = tratamientosFinal.filter(t => t.tratamientoPacienteId);
         const freeConceptsText = tratamientosFinal
             .filter(t => !t.id_tratamiento && !t.tratamientoPacienteId)
-            .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`)
+            .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}`)
             .join('\n');
 
         const planText = planItems
-            .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN')}`)
+            .map(t => `${t.nombre} — L. ${t.precio.toLocaleString('es-HN', { minimumFractionDigits: 2 })}`)
             .join('\n');
 
         const finalTratamientoText = [

@@ -29,29 +29,44 @@ interface PaymentRow {
 function buildPaymentRows(consultations: Consultation[]): PaymentRow[] {
   const rows: PaymentRow[] = [];
 
-  for (const c of consultations) {
-    // ── Row: consulta (catalog treatments) ──
-    const tratamientosLista = c.tratamientos || [];
-    const nombres = tratamientosLista
-      .map((t) => t.tratamiento?.nombre)
-      .filter(Boolean) as string[];
-    const itemNombre =
-      nombres.length > 0
-        ? nombres.join(", ")
-        : c.tratamiento || "Consulta General";
+  function parseConceptosLibresTotal(texto: string | null): { total: number; nombres: string[] } {
+    if (!texto) return { total: 0, nombres: [] };
+    const match = texto.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
+    if (!match) return { total: 0, nombres: [] };
+    let total = 0;
+    const nombres: string[] = [];
+    for (const line of match[1].split('\n')) {
+      const m = line.match(/^(.+?)\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)$/);
+      if (m) {
+        nombres.push(m[1].trim());
+        total += parseFloat(m[2].replace(/,/g, ''));
+      }
+    }
+    return { total, nombres };
+  }
 
-    const subtotalBruto = tratamientosLista.reduce(
-      (acc, t) =>
-        acc + (Number(t.precio) || Number(t.tratamiento?.precio) || 0),
+  for (const c of consultations) {
+    // ── Row: consulta (catalog treatments + conceptos libres) ──
+    const tratamientosLista = c.tratamientos || [];
+    const { total: totalConceptosLibres, nombres: nombresConceptos } = parseConceptosLibresTotal(c.tratamiento ?? null);
+
+    const nombres = [
+      ...tratamientosLista.map((t) => t.tratamiento?.nombre).filter(Boolean) as string[],
+      ...nombresConceptos,
+    ];
+    const itemNombre = nombres.length > 0 ? nombres.join(", ") : c.tratamiento || "Consulta General";
+
+    const subtotalBrutoCatalogo = tratamientosLista.reduce(
+      (acc, t) => acc + (Number(t.precio) || Number(t.tratamiento?.precio) || 0),
       0
     );
+    const subtotalBruto = subtotalBrutoCatalogo + totalConceptosLibres;
     if (subtotalBruto > 0) {
       const totalDescuento = tratamientosLista.reduce((acc, t) => {
         const p = Number(t.precio) || Number(t.tratamiento?.precio) || 0;
         return acc + p * (Number(t.descuento) / 100);
       }, 0);
-      const subtotalNeto = subtotalBruto - totalDescuento;
-      const consultaTotal = subtotalNeto;
+      const consultaTotal = subtotalBruto - totalDescuento;
 
       const pagosConsulta = c.pagos || [];
       const montoPagadoConsulta = pagosConsulta.reduce(

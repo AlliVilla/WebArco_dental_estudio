@@ -41,6 +41,9 @@ export const expedientService = {
     getAll: async (params?: Record<string, unknown>): Promise<ApiResponse> => {
         return api.get('/persona', { params });
     },
+    getUltimasRespuestas: async (patientId: number): Promise<ApiResponse<{ id_pregunta: number; respuesta_boolean: boolean | null; explanation: string | null }[]>> => {
+        return api.get(`/consulta-pregunta/paciente/${patientId}/ultimas-respuestas`);
+    },
     registrarConsulta: async (patientId: number, payload: RegistrarConsultaPayload): Promise<ApiResponse> => {
         return api.post(`/expediente-clinico/${patientId}/visits`, payload);
     },

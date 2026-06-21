@@ -476,12 +476,6 @@ export function EstadoResultadosScreen() {
         <SimpleBarChart meses={reporte?.meses || []} />
         <DonutChart gastos={reporte?.gastosPorCategoria || {}} />
       </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="secondary" size="sm" onClick={() => window.location.assign('/design')} style={{ borderRadius: 999, background: colors.navy, color: '#fff', borderColor: colors.navy }}>
-          <AlertTriangle size={14} /> Ver Sistema de Diseño
-        </Button>
-      </div>
     </div>
   );
 }

@@ -254,10 +254,13 @@ export class ConsultaService {
     };
   }
 
-  async updateDescuentos(id: number, descuentos: { id_consulta_tratamiento: number, descuento: number }[]) {
+  async updateDescuentos(
+    id: number,
+    descuentos: { id_consulta_tratamiento: number, descuento: number }[],
+    conceptoDescuentos?: { idx: number; descuento: number }[],
+  ) {
     await this.findOne(id); // verifica existencia
     
-    // Validar y ejecutar en transacción
     await this.prisma.$transaction(async (tx) => {
       for (const d of descuentos) {
         if (d.descuento < 0 || d.descuento > 100) {
@@ -267,6 +270,37 @@ export class ConsultaService {
           where: { id_consulta_tratamiento: d.id_consulta_tratamiento },
           data: { descuento: d.descuento },
         });
+      }
+
+      if (conceptoDescuentos && conceptoDescuentos.length > 0) {
+        const consulta = await tx.consulta.findUnique({
+          where: { id_consulta: id },
+          select: { tratamiento: true },
+        });
+        let texto = consulta?.tratamiento ?? '';
+        const match = texto.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
+        if (match) {
+          const lines = match[1].split('\n');
+          const descMap = new Map(conceptoDescuentos.filter(d => d.descuento >= 0 && d.descuento <= 100).map(d => [d.idx, d.descuento]));
+          let clIdx = 0;
+          const newLines = lines.map((line) => {
+            const m = line.match(/^(.+?)\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)/);
+            if (m) {
+              const currentIdx = clIdx++;
+              const d = descMap.get(currentIdx);
+              if (d !== undefined) {
+                const clean = line.replace(/\s*\[desc:\d+%\]/, '');
+                return d > 0 ? `${clean} [desc:${d}%]` : clean;
+              }
+            }
+            return line;
+          });
+          texto = texto.replace(match[0], `Conceptos libres:\n${newLines.join('\n')}`);
+          await tx.consulta.update({
+            where: { id_consulta: id },
+            data: { tratamiento: texto },
+          });
+        }
       }
     });
 

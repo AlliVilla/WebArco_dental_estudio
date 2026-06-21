@@ -151,6 +151,24 @@ export class ConsultaPreguntaService {
     }
   }
 
+  async findUltimasRespuestasByPaciente(patientId: number) {
+    const ultimaConsulta = await this.prisma.consulta.findFirst({
+      where: { id_persona: patientId },
+      orderBy: { fecha_inicio: 'desc' },
+      select: {
+        id_consulta: true,
+        respuestas: {
+          select: {
+            id_pregunta: true,
+            respuesta_boolean: true,
+            explanation: true,
+          },
+        },
+      },
+    });
+    return ultimaConsulta?.respuestas ?? [];
+  }
+
   async remove(id_pregunta: number) {
     await this.assertPreguntaNotUsed(id_pregunta);
     try {

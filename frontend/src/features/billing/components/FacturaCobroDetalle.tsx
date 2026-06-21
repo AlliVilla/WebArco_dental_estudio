@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   ArrowLeft,
   CreditCard,
@@ -158,20 +158,66 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
   // Cálculos de Tratamientos de Catálogo
   const tratamientosLista = consulta?.tratamientos || [];
 
-  const subtotalBruto = tratamientosLista.reduce(
+  // Parse conceptos libres desde consulta.tratamiento
+  const conceptosLibres = React.useMemo(() => {
+    const text = consulta?.tratamiento || "";
+    const result: { nombre: string; precio: number; descuento: number }[] = [];
+    const libreMatch = text.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
+    if (libreMatch) {
+      const lines = libreMatch[1].split("\n");
+      for (const line of lines) {
+        const m = line.match(/^(.+?)\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)(?:\s*\[desc:(\d+)%\])?$/);
+        if (m) {
+          result.push({
+            nombre: m[1].trim(),
+            precio: parseFloat(m[2].replace(/,/g, "")),
+            descuento: m[3] ? parseInt(m[3], 10) : 0,
+          });
+        }
+      }
+    }
+    return result;
+  }, [consulta?.tratamiento]);
+
+  // Descuentos individuales para conceptos libres
+  const [conceptoDiscounts, setConceptoDiscounts] = useState<Record<number, number>>({});
+
+  // Inicializar conceptoDiscounts desde los descuentos persistidos
+  useEffect(() => {
+    const initial: Record<number, number> = {};
+    for (let i = 0; i < conceptosLibres.length; i++) {
+      if (conceptosLibres[i].descuento > 0) initial[i] = conceptosLibres[i].descuento;
+    }
+    setConceptoDiscounts((prev) => {
+      if (Object.keys(prev).length > 0) return prev;
+      return initial;
+    });
+  }, [conceptosLibres]);
+
+  const catalogCount = tratamientosLista.length;
+  const subtotalBrutoCatalogo = tratamientosLista.reduce(
     (acc, t) => acc + (Number(t.precio) || Number(t.tratamiento?.precio) || 0),
     0
   );
 
-  const totalDescuento = tratamientosLista.reduce((acc, t, idx) => {
+  const totalDescuentoCatalogo = tratamientosLista.reduce((acc, t, idx) => {
     const p = Number(t.precio) || Number(t.tratamiento?.precio) || 0;
-    const discountPercentage =
+    const d =
       customDiscounts[idx] !== undefined
         ? customDiscounts[idx]
         : Number(t.descuento) || 0;
-    return acc + p * (discountPercentage / 100);
+    return acc + p * (d / 100);
   }, 0);
 
+  const totalConceptosBruto = conceptosLibres.reduce((acc, c) => acc + c.precio, 0);
+
+  const totalDescuentoConceptos = conceptosLibres.reduce((acc, c, idx) => {
+    const d = conceptoDiscounts[idx] ?? 0;
+    return acc + c.precio * (d / 100);
+  }, 0);
+
+  const subtotalBruto = subtotalBrutoCatalogo + totalConceptosBruto;
+  const totalDescuento = totalDescuentoCatalogo + totalDescuentoConceptos;
   const totalNeto = subtotalBruto - totalDescuento;
 
   // Historial de Pagos
@@ -528,7 +574,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                   Tratamientos de Consulta
                 </div>
 
-                {tratamientosLista.length === 0 && planAbonoAgregado === 0 ? (
+                {tratamientosLista.length === 0 && conceptosLibres.length === 0 && planAbonoAgregado === 0 ? (
                   <div
                     style={{
                       fontSize: 13,
@@ -632,81 +678,165 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                       );
                     })}
 
-                    {montoPagadoTratamientos === 0 &&
-                      tratamientosLista.length > 0 && (
+                    {conceptosLibres.length > 0 && (
+                      <>
                         <div
                           style={{
-                            marginTop: 8,
-                            display: "flex",
-                            justifyContent: "flex-end",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "#92400e",
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                            marginTop: 12,
+                            marginBottom: 6,
                           }}
                         >
-                          {!descuentosCerrados ? (
-                            <Button
-                              variant="outline"
-                              onClick={async () => {
-                                setSavingDiscounts(true);
-                                try {
-                                  const payload = tratamientosLista.map(
-                                    (t: any, idx: number) => ({
-                                      id_consulta_tratamiento:
-                                        t.id_consulta_tratamiento,
-                                      descuento:
-                                        customDiscounts[idx] !== undefined
-                                          ? customDiscounts[idx]
-                                          : Number(t.descuento) || 0,
-                                    })
-                                  );
-                                  await billingService.updateConsultaDescuentos(
-                                    consulta.id_consulta,
-                                    payload
-                                  );
-                                  setDescuentosCerrados(true);
-                                  addToast(
-                                    "success",
-                                    "Descuentos guardados exitosamente."
-                                  );
-                                } catch (err: any) {
-                                  console.error(err);
-                                  addToast(
-                                    "error",
-                                    err.message ||
-                                      "Error al guardar descuentos."
-                                  );
-                                } finally {
-                                  setSavingDiscounts(false);
-                                }
-                              }}
-                              disabled={savingDiscounts}
-                              style={{
-                                fontSize: 12,
-                                padding: "6px 12px",
-                                background: "#f1f5f9",
-                                borderColor: "#cbd5e1",
-                                color: "#475569",
-                              }}
-                            >
-                              {savingDiscounts
-                                ? "Guardando..."
-                                : "Cerrar y Guardar Descuentos"}
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              onClick={() => setDescuentosCerrados(false)}
-                              style={{
-                                fontSize: 12,
-                                padding: "6px 12px",
-                                background: "#fff",
-                                borderColor: "#cbd5e1",
-                                color: "#475569",
-                              }}
-                            >
-                              Editar Descuentos
-                            </Button>
-                          )}
+                          Conceptos Libres
                         </div>
-                      )}
+                        {conceptosLibres.map((c, idx) => {
+                          const d = conceptoDiscounts[idx] ?? 0;
+                          const descAmount = c.precio * (d / 100);
+                          const st = c.precio - descAmount;
+                          return (
+                            <div
+                              key={`cl-${idx}`}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                fontSize: 13,
+                                color: "#475569",
+                                borderBottom: "1px solid #f8fafc",
+                                paddingBottom: 8,
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 500, color: "#92400e" }}>
+                                  {c.nombre}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                                  <span>Precio base: L {formatNumber(c.precio)}</span>
+                                  <span>•</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                    Desc:
+                                    {descuentosCerrados || montoPagadoTratamientos > 0 ? (
+                                      <span style={{ fontWeight: 600 }}>{d}%</span>
+                                    ) : (
+                                      <>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          value={d}
+                                          onChange={(e) =>
+                                            setConceptoDiscounts((prev) => ({
+                                              ...prev,
+                                              [idx]: Number(e.target.value),
+                                            }))
+                                          }
+                                          style={{
+                                            width: 45,
+                                            padding: "2px 4px",
+                                            fontSize: 11,
+                                            border: "1px solid #cbd5e1",
+                                            borderRadius: 4,
+                                            outline: "none",
+                                            textAlign: "right",
+                                          }}
+                                        />%
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div style={{ fontWeight: 600 }}>
+                                L {formatNumber(st)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {(tratamientosLista.length > 0 || conceptosLibres.length > 0) && montoPagadoTratamientos === 0 && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          display: "flex",
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        {!descuentosCerrados ? (
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              setSavingDiscounts(true);
+                              try {
+                                const catPayload = tratamientosLista.map(
+                                  (t: any, idx: number) => ({
+                                    id_consulta_tratamiento:
+                                      t.id_consulta_tratamiento,
+                                    descuento:
+                                      customDiscounts[idx] !== undefined
+                                        ? customDiscounts[idx]
+                                        : Number(t.descuento) || 0,
+                                  })
+                                );
+                                const concPayload = conceptosLibres.map((_, idx) => ({
+                                  idx,
+                                  descuento: conceptoDiscounts[idx] ?? 0,
+                                }));
+                                await billingService.updateConsultaDescuentos(
+                                  consulta.id_consulta,
+                                  catPayload,
+                                  concPayload
+                                );
+                                setDescuentosCerrados(true);
+                                addToast(
+                                  "success",
+                                  "Descuentos guardados exitosamente."
+                                );
+                              } catch (err: any) {
+                                console.error(err);
+                                addToast(
+                                  "error",
+                                  err.message ||
+                                    "Error al guardar descuentos."
+                                );
+                              } finally {
+                                setSavingDiscounts(false);
+                              }
+                            }}
+                            disabled={savingDiscounts}
+                            style={{
+                              fontSize: 12,
+                              padding: "6px 12px",
+                              background: "#f1f5f9",
+                              borderColor: "#cbd5e1",
+                              color: "#475569",
+                            }}
+                          >
+                            {savingDiscounts
+                              ? "Guardando..."
+                              : "Cerrar y Guardar Descuentos"}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => setDescuentosCerrados(false)}
+                            style={{
+                              fontSize: 12,
+                              padding: "6px 12px",
+                              background: "#fff",
+                              borderColor: "#cbd5e1",
+                              color: "#475569",
+                            }}
+                          >
+                            Editar Descuentos
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                     {plan && (
                       <>

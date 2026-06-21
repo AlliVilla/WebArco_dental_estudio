@@ -114,9 +114,9 @@ export class ConsultaController {
   @ApiOkResponse({ description: 'Descuentos actualizados exitosamente' })
   async updateDescuentos(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { descuentos: { id_consulta_tratamiento: number, descuento: number }[] },
+    @Body() body: { descuentos: { id_consulta_tratamiento: number, descuento: number }[], conceptoDescuentos?: { idx: number; descuento: number }[] },
   ) {
-    return this.consultaService.updateDescuentos(id, body.descuentos);
+    return this.consultaService.updateDescuentos(id, body.descuentos, body.conceptoDescuentos);
   }
 
   @Privileges(43)
