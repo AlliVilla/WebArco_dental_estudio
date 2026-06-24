@@ -10,6 +10,7 @@ RUN npm ci && npm cache clean --force
 
 COPY tsconfig*.json nest-cli.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npx prisma generate
 
 COPY . .
@@ -29,6 +30,7 @@ COPY package*.json ./
 RUN npm ci && npm cache clean --force
 
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npx prisma generate
 
 COPY tsconfig*.json nest-cli.json ./
@@ -48,6 +50,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/prisma.config.ts ./
 
 COPY entrypoint.prod.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
