@@ -37,8 +37,9 @@ RUN npx vite build
 FROM nginx:stable-alpine AS production
 
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-EXPOSE 80
+ENV PORT=80
+EXPOSE ${PORT}
 
 CMD ["nginx", "-g", "daemon off;"]
