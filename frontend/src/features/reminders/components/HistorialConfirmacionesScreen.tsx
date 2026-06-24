@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { History, Download, RefreshCw } from "lucide-react";
+import { History, Download, RefreshCw, Check, X } from "lucide-react";
 import { DataTable, StatsDrawer } from "../../../components";
 import { ReminderService } from "../services/ReminderService";
+import { useAuthStore } from "../../auth/hooks/useAuthStore";
+
 import {
   formatDate,
   formatInitials,
@@ -80,7 +82,19 @@ function CanalBadge({ canal }: { canal: CanalRecordatorio | null }) {
 }
 
 // ─── Card para móvil ──────────────────────────────────────────────────────────
-function HistorialCard({ row }: { row: HistorialConfirmacionRow }) {
+function HistorialCard({
+  row,
+  onConfirm,
+  onCancel,
+  canManage,
+  isLoading,
+}: {
+  row: HistorialConfirmacionRow;
+  onConfirm: () => void;
+  onCancel: () => void;
+  canManage: boolean;
+  isLoading: boolean;
+}) {
   const initials = formatInitials(row.paciente);
   return (
     <div
@@ -169,6 +183,7 @@ function HistorialCard({ row }: { row: HistorialConfirmacionRow }) {
             justifyContent: "space-between",
             alignItems: "flex-start",
             padding: "7px 0",
+            borderBottom: row.respuesta === "Sin respuesta" && canManage ? "1px solid #F8F9FA" : "none",
             gap: 8,
           }}
         >
@@ -185,6 +200,66 @@ function HistorialCard({ row }: { row: HistorialConfirmacionRow }) {
             {formatFechaHora(row.fecha_respuesta)}
           </span>
         </div>
+        {row.respuesta === "Sin respuesta" && canManage && (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onConfirm();
+              }}
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                padding: "8px 0",
+                borderRadius: 8,
+                border: "none",
+                background: "#1D9E75",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
+              }}
+            >
+              Confirmar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel();
+              }}
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                padding: "8px 0",
+                borderRadius: 8,
+                border: "1px solid #E24B4A",
+                background: "#fff",
+                color: "#E24B4A",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -208,6 +283,31 @@ export function HistorialConfirmacionesScreen(
   const [mobileSearch, setMobileSearch] = useState("");
   const [mobileFilterRespuesta, setMobileFilterRespuesta] = useState("");
   const [mobileFilterCanal, setMobileFilterCanal] = useState("");
+
+  const user = useAuthStore((s) => s.user);
+  const canManageResponses = user?.privilegios?.includes(32) ?? false;
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+
+  const handleRegisterResponse = async (id: number, respuesta: 'Confirmo' | 'Cancelo') => {
+    if (!user) return;
+    setActionLoadingId(id);
+    try {
+      await ReminderService.registerResponse(id, {
+        respuesta,
+        cambiado_por: user.id_usuario,
+      });
+      await fetchHistorial();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Error al registrar la respuesta"
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
 
   useEffect(() => {
     mountedRef.current = true;
@@ -647,7 +747,16 @@ export function HistorialConfirmacionesScreen(
               No hay registros que coincidan.
             </p>
           ) : (
-            filteredRows.map((row) => <HistorialCard key={row.id} row={row} />)
+            filteredRows.map((row) => (
+              <HistorialCard
+                key={row.id}
+                row={row}
+                canManage={canManageResponses}
+                isLoading={actionLoadingId === row.id}
+                onConfirm={() => handleRegisterResponse(row.id, "Confirmo")}
+                onCancel={() => handleRegisterResponse(row.id, "Cancelo")}
+              />
+            ))
           )}
         </div>
       ) : (
@@ -697,6 +806,39 @@ export function HistorialConfirmacionesScreen(
               ? "Cargando historial..."
               : error ?? "No hay registros en el historial."
           }
+          rowActions={(row) => {
+            const isLoading = actionLoadingId === row.id;
+            const hasResponse = row.respuesta !== "Sin respuesta";
+            if (hasResponse || !canManageResponses) return [];
+            
+            return [
+              {
+                icon: isLoading ? (
+                  <RefreshCw
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
+                ) : (
+                  <Check size={16} style={{ color: "#1D9E75" }} />
+                ),
+                label: "Confirmar Asistencia",
+                onClick: (r: any) => handleRegisterResponse(r.id, "Confirmo"),
+              },
+              {
+                icon: isLoading ? (
+                  <RefreshCw
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
+                ) : (
+                  <X size={16} style={{ color: "#E24B4A" }} />
+                ),
+                label: "Cancelar Asistencia",
+                onClick: (r: any) => handleRegisterResponse(r.id, "Cancelo"),
+                danger: true,
+              },
+            ];
+          }}
         />
       )}
 

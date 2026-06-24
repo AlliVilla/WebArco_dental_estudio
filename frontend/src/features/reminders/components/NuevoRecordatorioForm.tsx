@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ReminderService } from "../services/ReminderService";
 import { CanalRecordatorio } from "../types/types";
-import { Bell, X, MessageSquare, Phone, Mail } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { FormSection, FullWidthField } from "../../../components";
 import { Button, Select } from "../../../context";
 import { useResponsive } from "../../../hooks/useWindowWidth";
@@ -81,10 +81,23 @@ export function NuevoRecordatorioForm({
     setLoading(true);
     setSubmitError("");
     try {
-      await ReminderService.send({
+      const res = await ReminderService.send({
         id_cita: Number(form.id_cita),
         canal: form.canal as CanalRecordatorio,
       });
+
+      if (form.canal === "WhatsApp" && res.data) {
+        const resData = res.data as any;
+        const rawPhone = resData.cita?.persona?.telefono;
+        const whatsappMessage = resData.whatsappMessage;
+        if (rawPhone && whatsappMessage) {
+          const cleanPhone = rawPhone.replace(/\D/g, "");
+          const phoneWithCountry = cleanPhone.startsWith("504") ? cleanPhone : `504${cleanPhone}`;
+          const url = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(whatsappMessage)}`;
+          window.open(url, "_blank");
+        }
+      }
+
       if (!mountedRef.current) return;
       setForm(FORM_INITIAL);
       setErrors({});
