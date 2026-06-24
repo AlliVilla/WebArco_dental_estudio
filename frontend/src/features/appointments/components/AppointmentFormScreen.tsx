@@ -285,7 +285,7 @@ export function AppointmentFormScreen() {
                 }}
                 onInvalid={(e: React.InvalidEvent<HTMLInputElement>) => {
                   const format12H = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
-                  e.target.setCustomValidity(`El horario disponible es de ${format12H(CALENDAR_START_HOUR)} a ${format12H(CALENDAR_END_HOUR)}`);
+                  (e.target as HTMLInputElement).setCustomValidity(`El horario disponible es de ${format12H(CALENDAR_START_HOUR)} a ${format12H(CALENDAR_END_HOUR)}`);
                 }}
                 onInput={(e: React.FormEvent<HTMLInputElement>) => {
                   (e.target as HTMLInputElement).setCustomValidity('');

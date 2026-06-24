@@ -24,6 +24,8 @@ export interface EstadoResultadoResponse {
   };
   ingresos: {
     consultasTratamientos: number;
+    conceptosLibres: number;
+    planesActivos: number;
     descuentosAplicados: number;
     ingresosNetos: number;
   };

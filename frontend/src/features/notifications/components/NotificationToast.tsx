@@ -29,7 +29,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
   notification,
   onClose,
 }) => {
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     timerRef.current = setTimeout(() => {

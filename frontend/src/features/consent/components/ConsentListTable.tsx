@@ -343,7 +343,7 @@ export function ConsentListTable({
       loading={loading}
       searchable
       searchPlaceholder="Buscar paciente o procedimiento..."
-      onSearchChange={(value) =>
+      onSearchChange={(value: any) =>
         onFilterChange?.({ paciente: value || undefined })
       }
       filters={[
@@ -351,7 +351,7 @@ export function ConsentListTable({
           key: "estado",
           placeholder: "Todos los estados",
           options: statusOptions,
-          onChange: (value) =>
+          onChange: (value: any) =>
             onFilterChange?.({
               estado: (value as QueryConsentimientoParams["estado"]) || undefined,
             }),

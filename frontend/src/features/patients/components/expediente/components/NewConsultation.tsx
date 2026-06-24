@@ -12,7 +12,7 @@ import { loadOdontogramaDraft, clearOdontogramaDraft } from '../../odontograma/s
 import { Button, Input } from '../../../../../context';
 import api from '../../../../../services/api';
 import { calcularEdad , formatDate} from '../services/miscelaneousService';
-import { expedientService, type PreguntaConsulta, type RespuestaConsulta } from '../services/expedientService';
+import { expedientService, type PreguntaConsulta, type RespuestaConsulta, type RegistrarConsultaPayload } from '../services/expedientService';
 import { UsuarioDoctor } from '../types/getAllDoctores';
 import { privilegeService } from '../services/privilegeService';
 import { ConsultationQuestions } from './ConsultationQuestions';
@@ -337,7 +337,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
     const loadOdontograma = useCallback(async () => {
         try {
             const res = await odontogramaService.getByPatientId(patient.id_persona);
-            const data = res.data?.data || res.data;
+            const data = res.data;
             if (data && data.dientes) {
                 const teethMap: Record<number, ToothData> = {};
                 data.dientes.forEach((tooth: any) => {
@@ -520,7 +520,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                         costoTotal: plan.costoTotal,
                         fechaInicio: plan.fechaInicio,
                     });
-                    const planData = res.data?.data ?? res.data;
+                    const planData = res.data;
                     if (res.success && planData?.id) {
                         tratamientosFinal = tratamientosFinal.map(t =>
                             t.id === plan.treatmentId ? { ...t, tratamientoPacienteId: planData.id } : t,
@@ -593,7 +593,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
         }
 
         try {
-            const res = await expedientService.registrarConsulta(patient.id_persona, payload);
+            const res = await expedientService.registrarConsulta(patient.id_persona, payload as RegistrarConsultaPayload);
             if (res.success) {
                 const consultaId = res.data?.consulta?.id_consulta;
 

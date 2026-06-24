@@ -144,7 +144,6 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
                   animation: isLoading ? 'spin 1s linear infinite' : 'none'
                 }} 
                 onClick={() => fetchNotifications(1, order)}
-                title="Actualizar manualmente"
               />
               <button
                 onClick={onClose}

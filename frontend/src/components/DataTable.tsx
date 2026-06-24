@@ -24,6 +24,7 @@ export interface FilterDef {
   key: string;
   placeholder: string;
   options: { value: string; label: string }[];
+  onChange?: (value: string) => void;
 }
 
 export interface RowAction<T> {
@@ -40,11 +41,12 @@ export interface DataTableActionContext<T> {
   filters: Record<string, string>;
 }
 
-export interface DataTableProps<T extends Record<string, unknown>> {
+export interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   title?: string;
   description?: string;
+  loading?: boolean;
   searchable?: boolean;
   searchPlaceholder?: string;
   searchKeys?: (keyof T)[];
@@ -67,6 +69,10 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   emptyMessage?: string;
   footer?: React.ReactNode;
   hidePagination?: boolean;
+  onSearchChange?: (value: string) => void;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
   isServerSide?: boolean;
   totalRecords?: number;
   onServerParamsChange?: (params: {
@@ -324,7 +330,7 @@ function Pagination({
 
 // ── DataTable ─────────────────────────────────────────────────────────────────
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T>({
   columns,
   data,
   title,
@@ -346,19 +352,26 @@ export function DataTable<T extends Record<string, unknown>>({
   isServerSide = false,
   totalRecords = 0,
   onServerParamsChange,
+  onSearchChange,
+  page,
+  totalPages,
+  onPageChange,
   renderMobileCard,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [page, setPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
   const { isMobile, isTablet } = useResponsive();
+
+  const activePage = page ?? internalPage;
+  const setActivePage = onPageChange ?? setInternalPage;
   const showCards = Boolean(renderMobileCard) && (isMobile || isTablet);
 
   useEffect(() => {
     if (isServerSide && onServerParamsChange) {
-      onServerParamsChange({ page, search, filters: filterValues });
+      onServerParamsChange({ page: activePage, search, filters: filterValues });
     }
-  }, [page, search, filterValues, isServerSide, onServerParamsChange]);
+  }, [activePage, search, filterValues, isServerSide, onServerParamsChange]);
 
   const filteredData = useMemo(() => {
     if (isServerSide) return data;
@@ -366,23 +379,25 @@ export function DataTable<T extends Record<string, unknown>>({
 
     if (search) {
       rows = rows.filter((row) => {
-        const keys = searchKeys ?? (Object.keys(row) as (keyof T)[]);
-        const searchableText = keys.map((k) => String(row[k] ?? "")).join(" ");
+        const r = row as Record<string, any>;
+        const keys = searchKeys ?? (Object.keys(r) as (keyof T)[]);
+        const searchableText = keys.map((k) => String(r[k as string] ?? "")).join(" ");
         return matchesNormalizedSearch(searchableText, search);
       });
     }
 
     filters.forEach(({ key }) => {
       const val = filterValues[key];
-      if (val) rows = rows.filter((row) => String(row[key] ?? "") === val);
+      if (val) rows = rows.filter((row) => String((row as Record<string, any>)[key] ?? "") === val);
     });
 
     return rows;
   }, [data, search, filterValues, filters, searchKeys, isServerSide]);
 
   const totalCount = isServerSide ? totalRecords : filteredData.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const safePage = Math.min(page, totalPages);
+  const computedTotalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const displayTotalPages = totalPages ?? computedTotalPages;
+  const safePage = Math.min(activePage, computedTotalPages);
 
   const pagedData = useMemo(() => {
     if (isServerSide) return data;
@@ -391,12 +406,13 @@ export function DataTable<T extends Record<string, unknown>>({
 
   const handleSearch = (q: string) => {
     setSearch(q);
-    setPage(1);
+    setActivePage(1);
+    onSearchChange?.(q);
   };
 
   const handleFilter = (key: string, val: string) => {
     setFilterValues((prev) => ({ ...prev, [key]: val }));
-    setPage(1);
+    setActivePage(1);
   };
 
   return (
@@ -552,7 +568,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 <button
                   onClick={() => {
                     setFilterValues({});
-                    setPage(1);
+                    setActivePage(1);
                   }}
                   style={{
                     display: "flex",
@@ -716,8 +732,8 @@ export function DataTable<T extends Record<string, unknown>>({
                             }}
                           >
                             {col.render
-                              ? col.render(row[col.key], row)
-                              : String(row[col.key] ?? "")}
+                              ? col.render((row as Record<string, any>)[col.key], row)
+                              : String((row as Record<string, any>)[col.key] ?? "")}
                           </td>
                         ))}
                         {rowActions && (
@@ -776,10 +792,10 @@ export function DataTable<T extends Record<string, unknown>>({
       {!hidePagination && (
         <Pagination
           page={safePage}
-          totalPages={totalPages}
+          totalPages={displayTotalPages}
           total={totalCount}
           pageSize={pageSize}
-          onPage={setPage}
+          onPage={setActivePage}
         />
       )}
     </div>

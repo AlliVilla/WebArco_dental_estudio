@@ -180,7 +180,7 @@ export function ConsentFormFlow({
     });
 
     // Carga de tratamientos para los checkboxes
-    treatmentService.getAll({ activo: "true" }).then((res) => {
+    treatmentService.getAll({ activo: "true" }).then((res: any) => {
       if (res.success) {
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data;
         setTreatments(list || []);

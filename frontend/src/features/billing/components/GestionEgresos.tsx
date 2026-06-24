@@ -154,11 +154,11 @@ export function GestionEgresos() {
   const nombreAutenticado = useMemo(() => {
     try {
       if (userStored && typeof userStored === "object") {
-        if (userStored.nombre) return userStored.nombre;
+        if (userStored.nombre) return userStored.nombre as string;
 
-        const p = userStored.persona;
-        const primerNombre = p?.primer_nombre || userStored.primer_nombre;
-        const primerApellido = p?.primer_apellido || userStored.primer_apellido;
+        const p = userStored.persona as Record<string, unknown> | undefined;
+        const primerNombre = (p?.primer_nombre as string | undefined) || (userStored.primer_nombre as string | undefined);
+        const primerApellido = (p?.primer_apellido as string | undefined) || (userStored.primer_apellido as string | undefined);
 
         if (primerNombre) {
           return `${primerNombre} ${primerApellido || ""}`.trim();
