@@ -1,4 +1,7 @@
-FROM node:current-alpine AS base
+# ─────────────────────────────────────────
+# Development stage
+# ─────────────────────────────────────────
+FROM node:current-alpine AS development
 
 WORKDIR /app
 
@@ -6,9 +9,6 @@ COPY package*.json ./
 RUN npm ci && npm cache clean --force
 
 COPY tsconfig*.json nest-cli.json ./
-
-FROM base AS development
-
 COPY prisma ./prisma
 RUN npx prisma generate
 
@@ -18,6 +18,9 @@ EXPOSE 3030
 
 CMD ["npm", "run", "start:dev"]
 
+# ─────────────────────────────────────────
+# Build stage
+# ─────────────────────────────────────────
 FROM node:current-alpine AS build
 
 WORKDIR /app
@@ -32,6 +35,9 @@ COPY tsconfig*.json nest-cli.json ./
 COPY . .
 RUN npm run build
 
+# ─────────────────────────────────────────
+# Production stage
+# ─────────────────────────────────────────
 FROM node:current-alpine AS production
 
 WORKDIR /app
