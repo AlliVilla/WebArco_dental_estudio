@@ -185,6 +185,26 @@ export class InventarioService {
     const fecha = dto.fecha ? new Date(dto.fecha) : new Date();
 
     const movimiento = await this.prisma.$transaction(async (tx) => {
+      let observacionesMovimiento = dto.observaciones?.trim() || null;
+
+      if (dto.tipo === TipoMovimiento.Salida) {
+        const conceptoEgreso = `Salida de inventario: ${insumo.nombre}`;
+        const costo = Number(insumo.precio_costo) * dto.cantidad;
+        
+        const egreso = await tx.egreso.create({
+          data: {
+            concepto: conceptoEgreso,
+            monto: new Prisma.Decimal(costo),
+            categoria: 'Insumos',
+            fecha,
+            observaciones: dto.observaciones?.trim() || 'Generado automáticamente desde el módulo de inventario',
+            id_usuario_creacion: userId,
+          },
+        });
+
+        observacionesMovimiento = `Restado por egreso: ${conceptoEgreso} (Egreso #${egreso.id_egreso})`;
+      }
+
       const created = await tx.movimientoInventario.create({
         data: {
           id_insumo: dto.id_insumo,
@@ -192,7 +212,7 @@ export class InventarioService {
           cantidad: dto.cantidad,
           fecha,
           id_usuario: userId,
-          observaciones: dto.observaciones?.trim() || null,
+          observaciones: observacionesMovimiento,
         },
         include: {
           insumo: true,
