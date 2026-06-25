@@ -14,6 +14,7 @@ export class CuentaDestinoConfigService {
         data: {
           tipo: createDto.tipo,
           nombre: createDto.nombre,
+          comision: createDto.comision,
         },
       });
       return { message: 'Cuenta destino creada exitosamente', data: item };

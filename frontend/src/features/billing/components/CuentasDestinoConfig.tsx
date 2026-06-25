@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, Alert, Button, Input, Select } from "../../../context";
+import { ConfirmModal } from "../../../components";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import billingService from "../services/billingService";
 
@@ -26,6 +27,7 @@ export function CuentasDestinoConfig({
   const [nuevoComision, setNuevoComision] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const cargar = async () => {
     try {
@@ -88,6 +90,8 @@ export function CuentasDestinoConfig({
       setError(
         err?.response?.data?.message || err?.message || "Error al eliminar"
       );
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -236,14 +240,12 @@ export function CuentasDestinoConfig({
                         <span style={{ color: "#203F49", flex: 1 }}>
                           {item.nombre}
                         </span>
-                        {item.comision != null && (
-                          <span style={{ color: "#5F656A", fontSize: 11 }}>
-                            {item.comision}%
-                          </span>
-                        )}
+                        <span style={{ color: "#5F656A", fontSize: 11 }}>
+                          {item.comision != null ? item.comision : 0}%
+                        </span>
                         <button
                           type="button"
-                          onClick={() => void eliminar(item.id)}
+                          onClick={() => setDeleteConfirmId(item.id)}
                           style={{
                             background: "none",
                             border: "none",
@@ -265,6 +267,19 @@ export function CuentasDestinoConfig({
           </div>
         </div>
       )}
+      <ConfirmModal
+        open={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId !== null) {
+            void eliminar(deleteConfirmId);
+          }
+        }}
+        variant="danger"
+        title="Eliminar Cuenta Destino"
+        description="¿Estás seguro de eliminar esta cuenta destino? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+      />
     </Card>
   );
 }

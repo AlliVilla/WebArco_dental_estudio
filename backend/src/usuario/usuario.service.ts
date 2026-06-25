@@ -781,10 +781,11 @@ export class UsuarioService {
   private handlePrismaUniqueError(error: unknown): void {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
+      (error as any).code === 'P2002'
     ) {
-      const target = Array.isArray(error.meta?.target)
-        ? error.meta.target.join(', ')
+      const e = error as any;
+      const target = Array.isArray(e.meta?.target)
+        ? e.meta.target.join(', ')
         : 'campo único';
 
       throw new ConflictException(
