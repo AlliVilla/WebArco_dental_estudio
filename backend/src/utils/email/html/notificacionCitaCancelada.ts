@@ -9,10 +9,12 @@ export function buildNotificacionCitaCanceladaEmail(
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'America/Tegucigalpa',
   });
   const horaStr = fechaCita.toLocaleTimeString('es-HN', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'America/Tegucigalpa',
   });
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const citaUrl = `${frontendUrl}/agenda/${citaId}`;

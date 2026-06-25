@@ -191,6 +191,7 @@ export class NotificacionService {
       const cita = await this.prisma.cita.findUnique({
         where: { id_cita },
         select: {
+          id_usuario: true,
           fecha_inicio: true,
           persona: {
             select: { primer_nombre: true, primer_apellido: true },
@@ -199,6 +200,7 @@ export class NotificacionService {
       });
 
       if (!cita) return;
+      if (cita.id_usuario !== id_usuario) return;
 
       const pacienteNombre = [
         cita.persona?.primer_nombre,
@@ -208,11 +210,12 @@ export class NotificacionService {
         .join(' ');
 
       if (tipo === 'cita_proxima') {
-        const config = await this.getConfig(id_usuario);
+        const diffMs = cita.fecha_inicio.getTime() - new Date().getTime();
+        const minutosFaltantes = Math.max(0, Math.round(diffMs / 60000));
         htmlBody = buildNotificacionCitaProximaEmail(
           doctorNombre,
           pacienteNombre,
-          config.minutos_anticipacion,
+          minutosFaltantes,
           cita.fecha_inicio,
           id_cita,
         );
@@ -329,10 +332,13 @@ export class NotificacionService {
 
           const doctorNombre = cita.doctor?.persona ? `${cita.doctor.persona.primer_nombre} ${cita.doctor.persona.primer_apellido}` : 'el doctor';
 
-          const titulo = `Cita próxima en ${minutos} minutos`;
+          const diffMs = cita.fecha_inicio.getTime() - now.getTime();
+          const minutosFaltantes = Math.max(0, Math.round(diffMs / 60000));
+
+          const titulo = minutosFaltantes > 0 ? `Cita próxima en ${minutosFaltantes} minutos` : 'Cita próxima ahora';
           const mensaje = isGlobal && cita.doctor?.persona 
-            ? `Cita de ${pacienteNombre} con Dr(a). ${doctorNombre} programada para dentro de ${minutos} minutos.`
-            : `Tu cita con ${pacienteNombre} está programada para dentro de ${minutos} minutos.`;
+            ? `Cita de ${pacienteNombre} con Dr(a). ${doctorNombre} programada para dentro de ${minutosFaltantes} minutos.`
+            : `Tu cita con ${pacienteNombre} está programada para dentro de ${minutosFaltantes} minutos.`;
 
           await this.crearNotificacion(
             user.id_usuario,
