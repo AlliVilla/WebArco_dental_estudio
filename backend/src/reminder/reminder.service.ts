@@ -114,8 +114,8 @@ export class ReminderService {
       ? cita.persona?.correo_electronico
       : cita.persona?.telefono;
 
-    // Enviar el mensaje real antes de guardar en BD
-    await this.enviarPorCanal(
+    // Enviar el mensaje real antes de guardar en BD (retorna texto del mensaje)
+    const mensajeText = await this.enviarPorCanal(
       contacto ?? null, 
       sendReminderDto.canal as CanalRecordatorio, 
       pacienteNombre, 
@@ -141,7 +141,8 @@ export class ReminderService {
 
     return {
       ...recordatorio,
-      message: `Recordatorio enviado exitosamente por ${sendReminderDto.canal}`,
+      whatsappMessage: sendReminderDto.canal === 'WhatsApp' ? mensajeText : undefined,
+      message: `Recordatorio registrado exitosamente para ${sendReminderDto.canal}`,
     };
   }
 
@@ -457,8 +458,8 @@ export class ReminderService {
       ? recordatorio.cita?.persona?.correo_electronico
       : recordatorio.cita?.persona?.telefono;
 
-    // Reenviar el mensaje real
-    await this.enviarPorCanal(
+    // Reenviar el mensaje real (retorna texto del mensaje)
+    const mensajeText = await this.enviarPorCanal(
       contacto ?? null,
       recordatorio.canal as CanalRecordatorio,
       pacienteNombre,
@@ -482,6 +483,7 @@ export class ReminderService {
 
     return {
       ...updated,
+      whatsappMessage: recordatorio.canal === 'WhatsApp' ? mensajeText : undefined,
       message: `Reintento de recordatorio #${id} registrado exitosamente`,
     };
   }
@@ -511,33 +513,33 @@ export class ReminderService {
     citaId: number,
     motivo: string | null = null,
     tipoCita: string | null = null
-  ) {
+  ): Promise<string> {
     if (!contacto) throw new BadRequestException(`El paciente no tiene un contacto válido para el canal ${canal}`);
+
+    const fCita = new Date(fechaCita);
+    const fechaStr = fCita.toLocaleDateString('es-HN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const horaStr = fCita.toLocaleTimeString('es-HN', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
 
     let detalles = '';
     if (tipoCita || motivo) {
-      detalles = `\n🩺 *Detalles de la cita:* ${tipoCita || 'Consulta'}${motivo ? ` - ${motivo}` : ''}`;
+      detalles = `\n\n🩺 *Detalles de la cita:* ${tipoCita || 'Consulta'}${motivo ? ` - ${motivo}` : ''}`;
     }
 
-    const mensaje = `Hola ${pacienteNombre}, somos *WebArco Dental Studio* 🦷.\n\nTe escribimos para recordarte tu cita programada para el *${fechaCita.toLocaleString('es-HN')}*.${detalles}`;
+    const mensaje = `Hola ${pacienteNombre}, somos *WebArco Dental Studio* 🦷.\n\nTe escribimos para recordarte tu cita programada para el *${fechaStr}* a las *${horaStr}*.${detalles}`;
 
     if (canal === 'WhatsApp') {
-      const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-      const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-      const from = this.configService.get<string>('TWILIO_WHATSAPP_FROM');
-      if (!accountSid || !authToken || !from) throw new BadRequestException('Credenciales de Twilio no configuradas en el entorno');
-
-      const client = new Twilio(accountSid, authToken);
-      const destino = contacto.startsWith('+') ? contacto : `+504${contacto}`;
-      const numeroRemitente = from.startsWith('whatsapp:') ? from : `whatsapp:${from}`;
-
       const mensajeFinal = `${mensaje}\n\nPor favor, responde *SI* para confirmar tu asistencia o *NO* para cancelar.`;
-
-      await client.messages.create({
-        body: mensajeFinal,
-        from: numeroRemitente,
-        to: `whatsapp:${destino}`
-      });
+      // Omitir llamada a Twilio para redirección directa en frontend
+      return mensajeFinal;
     } else if (canal === 'Correo') {
       const htmlBody = buildReminderEmail(pacienteNombre, fechaCita, citaId);
       await this.brevoService.sendMail({
@@ -546,7 +548,9 @@ export class ReminderService {
         html: htmlBody,
         text: mensaje,
       });
+      return mensaje;
     }
+    return '';
   }
 
   async handleTwilioWebhook(from: string, messageBody: string) {

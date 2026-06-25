@@ -167,6 +167,14 @@ export const ReminderService = {
     return api.patch(`/reminders/${id}/discard`);
   },
 
+  registerResponse: async (
+    id: number,
+    payload: { respuesta: 'Confirmo' | 'Cancelo'; cambiado_por: number }
+  ): Promise<ApiResponse<any>> => {
+    return api.patch(`/reminders/${id}/response`, payload);
+  },
+
+
   exportCsv: (): void => {
     const base = API_URL;
     window.open(`${base}/reminders/export`, '_blank');
@@ -185,8 +193,8 @@ export const ReminderService = {
     return {
       ...res,
       data: (res.data?.data ?? [])
-        .filter((cita) => cita.estado === 'programada')
-        .map((cita) => ({
+        .filter((cita: CitaBackend) => cita.estado === 'programada')
+        .map((cita: CitaBackend) => ({
           id: cita.id_cita,
           paciente: buildNombre(cita.persona),
           fecha_hora: cita.fecha_inicio,

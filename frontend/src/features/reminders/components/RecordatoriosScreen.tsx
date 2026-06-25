@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Send, RotateCcw, Clock, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { DataTable, StatsDrawer, ConfirmModal } from "../../../components";
 import { Avatar } from "../../../context";
@@ -9,9 +9,8 @@ import {
   matchesNormalizedSearch,
 } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
-import { Z } from "../../../utils/zIndex";
-import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio, RespuestaPaciente } from "../types";
-import { CANAL_CONFIG, ESTADO_CONFIG, RESPUESTA_CONFIG } from "../utils/badgeConfigs";
+import type { RecordatorioRow, CanalRecordatorio, EstadoEnvio } from "../types";
+import { CANAL_CONFIG, ESTADO_CONFIG } from "../utils/badgeConfigs";
 import { NuevoRecordatorioForm } from "./NuevoRecordatorioForm";
 
 const AUTO_REFRESH_INTERVAL = 24 * 60 * 60 * 1000;
@@ -97,37 +96,6 @@ function UrgenteBadge() {
     </span>
   );
 }
-
-function RespuestaBadge({ respuesta }: { respuesta: RespuestaPaciente }) {
-  const cfg = RESPUESTA_CONFIG[respuesta];
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        background: cfg.bg,
-        color: cfg.color,
-        padding: "3px 10px",
-        borderRadius: 8,
-        fontSize: 11,
-        fontWeight: 600,
-      }}
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: cfg.dot,
-          flexShrink: 0,
-        }}
-      />
-      {cfg.label}
-    </span>
-  );
-}
-
 // ─── Card para móvil ──────────────────────────────────────────────────────────
 type Row = RecordatorioRow & Record<string, unknown>;
 
@@ -138,7 +106,7 @@ function ReminderCard({
   onDiscard,
   isLoading,
 }: {
-  row: Row;
+  row: RecordatorioRow;
   onSend: () => void;
   onRetry: () => void;
   onDiscard: () => void;
@@ -408,7 +376,15 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   async function handleSend(row: RecordatorioRow) {
     setActionLoadingId(row.id);
     try {
-      await ReminderService.send({ id_cita: row.id_cita, canal: row.canal });
+      const res = await ReminderService.send({ id_cita: row.id_cita, canal: row.canal });
+      
+      if (row.canal === "WhatsApp" && res.data && (res.data as any).whatsappMessage) {
+        const cleanPhone = row.contacto.replace(/\D/g, "");
+        const phoneWithCountry = cleanPhone.startsWith("504") ? cleanPhone : `504${cleanPhone}`;
+        const url = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent((res.data as any).whatsappMessage)}`;
+        window.open(url, "_blank");
+      }
+
       setRows((prev) =>
         prev.map((r) =>
           r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
@@ -429,7 +405,15 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
     setActionLoadingId(row.id);
     try {
       const realId = parseInt(row.id.replace('rec-', ''), 10);
-      await ReminderService.retry(realId);
+      const res = await ReminderService.retry(realId);
+
+      if (row.canal === "WhatsApp" && res.data && (res.data as any).whatsappMessage) {
+        const cleanPhone = row.contacto.replace(/\D/g, "");
+        const phoneWithCountry = cleanPhone.startsWith("504") ? cleanPhone : `504${cleanPhone}`;
+        const url = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent((res.data as any).whatsappMessage)}`;
+        window.open(url, "_blank");
+      }
+
       setRows((prev) =>
         prev.map((r) =>
           r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
