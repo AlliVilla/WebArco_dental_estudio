@@ -18,7 +18,7 @@ import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Consultation } from "../../consultations/types";
 import { billingService } from "../services/billingService";
 import { formatNumber } from "../../../utils/formatters";
-import { printInvoice, printPaymentReceipt } from "../utils/printBilling";
+import { printInvoice } from "../utils/printBilling";
 import { Modal } from "../../../components";
 
 
@@ -166,9 +166,6 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
   // Estado para abono de plan
   const [planAbonoAgregado, setPlanAbonoAgregado] = useState<number>(0);
   const [planAbonoInput, setPlanAbonoInput] = useState<string>("");
-  
-  // Estado para mostrar modal de éxito de pago y permitir imprimir/descargar
-  const [successModalData, setSuccessModalData] = useState<{ amount: number; metodo: string; obs: string } | null>(null);
 
 
   // Cálculos de Tratamientos de Catálogo
@@ -440,11 +437,6 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
         }
       }
 
-      setSuccessModalData({
-        amount: montoTotal,
-        metodo: paymentMethod,
-        obs: observacion,
-      });
       setPlanAbonoAgregado(0);
       onPaymentSuccess();
 
@@ -469,133 +461,6 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
         toasts={toasts}
         remove={(id) => setToasts((p) => p.filter((t) => t.id !== id))}
       />
-
-      {successModalData && (
-        <Modal
-          open={!!successModalData}
-          onClose={() => setSuccessModalData(null)}
-          title="Pago Procesado con Éxito"
-          icon={<CheckCircle size={18} style={{ color: "#1D9E75" }} />}
-          maxWidth={460}
-        >
-          <div
-            style={{
-              padding: "12px 16px 24px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-              gap: 16,
-            }}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "#ECFDF5",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#1D9E75",
-                marginBottom: 8,
-              }}
-            >
-              <CheckCircle size={32} />
-            </div>
-
-            <div>
-              <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600, color: "#203F49" }}>
-                ¡Transacción Completada!
-              </h3>
-              <p style={{ margin: 0, fontSize: 14, color: "#5F656A" }}>
-                Se ha registrado exitosamente el abono de{" "}
-                <strong style={{ color: "#1D9E75" }}>
-                  L {formatNumber(successModalData.amount)}
-                </strong>{" "}
-                mediante <strong>{successModalData.metodo}</strong>.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                width: "100%",
-                gap: 10,
-                marginTop: 12,
-              }}
-            >
-              <Button
-                variant="primary"
-                onClick={() => {
-                  const paymentMock = {
-                    id: "NUEVO",
-                    abono: successModalData.amount,
-                    metodo_pago: successModalData.metodo,
-                    observacion: successModalData.obs,
-                    fecha: new Date().toISOString(),
-                  };
-                  printPaymentReceipt(consulta, paymentMock);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  background: "#0BC5DF",
-                  borderColor: "#0BC5DF",
-                  color: "#fff",
-                  padding: "12px 0",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                <Printer size={16} /> Imprimir Recibo de Pago
-              </Button>
-
-              <Button
-                variant={"outline" as any}
-                onClick={() => {
-                  printInvoice(consulta, tipo || "consulta", customDiscounts, conceptoDiscounts, planAbonoAgregado);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  borderColor: "#cbd5e1",
-                  color: "#475569",
-                  padding: "12px 0",
-                  fontWeight: 600,
-                  background: "#fff",
-                  cursor: "pointer",
-                }}
-              >
-                <FileText size={16} /> Imprimir Factura Completa
-              </Button>
-
-              <button
-                type="button"
-                onClick={() => setSuccessModalData(null)}
-                style={{
-                  marginTop: 8,
-                  background: "none",
-                  border: "none",
-                  color: "#888F94",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  padding: "4px 8px",
-                }}
-              >
-                Cerrar y Continuar
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
       <div
         style={{
           display: "flex",
@@ -630,25 +495,27 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
               padding: 0,
             }}
           >
-            <ArrowLeft size={18} /> Volver a facturas
+            <ArrowLeft size={18} /> Volver a comprobantes
           </button>
           
-          <Button
-            variant={"outline" as any}
-            size="sm"
-            onClick={() => printInvoice(consulta, tipo || "consulta", customDiscounts, conceptoDiscounts, planAbonoAgregado)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              borderColor: "#0BC5DF",
-              color: "#0BC5DF",
-              background: "#fff",
-              fontWeight: 600,
-            }}
-          >
-            <Printer size={14} /> Imprimir Factura
-          </Button>
+          {saldoPendiente > 0 && (
+            <Button
+              variant={"outline" as any}
+              size="sm"
+              onClick={() => printInvoice(consulta, tipo || "consulta", customDiscounts, conceptoDiscounts, planAbonoAgregado)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                borderColor: "#0BC5DF",
+                color: "#0BC5DF",
+                background: "#fff",
+                fontWeight: 600,
+              }}
+            >
+              <Printer size={14} /> Imprimir Comprobante
+            </Button>
+          )}
         </div>
 
 
@@ -1404,31 +1271,6 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                         >
                           + L {formatNumber(p.monto)}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => printPaymentReceipt(consulta, p.raw)}
-                          title="Imprimir comprobante"
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "#0BC5DF",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: 6,
-                            borderRadius: 6,
-                            transition: "background 0.2s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#e6f8fb";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "none";
-                          }}
-                        >
-                          <Printer size={15} />
-                        </button>
                       </div>
                     </div>
 
@@ -1923,7 +1765,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                       cursor: "pointer",
                     }}
                   >
-                    <Printer size={16} /> Imprimir / Descargar Factura
+                    <Printer size={16} /> Imprimir / Descargar Comprobante
                   </Button>
 
                 </div>
