@@ -40,6 +40,7 @@ export function NuevoRecordatorioForm({
   const [appointments, setAppointments] = useState<
     { value: string; label: string }[]
   >([]);
+  const [rawAppointments, setRawAppointments] = useState<any[]>([]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -54,6 +55,7 @@ export function NuevoRecordatorioForm({
       try {
         const res = await ReminderService.getAppointments();
         if (!mountedRef.current) return;
+        setRawAppointments(res.data);
         setAppointments(
           res.data.map((cita) => ({
             value: String(cita.id),
@@ -260,7 +262,14 @@ export function NuevoRecordatorioForm({
                 badge="required"
                 placeholder="Selecciona una cita"
                 value={form.id_cita}
-                onChange={(v) => setForm((p) => ({ ...p, id_cita: v }))}
+                onChange={(v) => {
+                  setForm((p) => {
+                    const apt = rawAppointments.find((a) => String(a.id) === v);
+                    const hasEmail = !!apt?.correo?.trim();
+                    const newCanal = p.canal === "Correo" && !hasEmail ? "" : p.canal;
+                    return { ...p, id_cita: v, canal: newCanal };
+                  });
+                }}
                 error={errors.id_cita}
                 options={appointments}
               />
@@ -277,7 +286,9 @@ export function NuevoRecordatorioForm({
                 error={errors.canal}
                 options={[
                   { value: "WhatsApp", label: "WhatsApp" },
-                  { value: "Correo", label: "Correo electrónico" },
+                  ...(rawAppointments.find((a) => String(a.id) === form.id_cita)?.correo?.trim()
+                    ? [{ value: "Correo", label: "Correo electrónico" }]
+                    : []),
                 ]}
               />
             </FullWidthField>

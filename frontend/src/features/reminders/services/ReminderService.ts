@@ -94,7 +94,7 @@ function mapQueueToRows(data: QueueBackendResponse): RecordatorioRow[] {
       });
     }
 
-    if (!sentCanals.includes('Correo')) {
+    if (!sentCanals.includes('Correo') && cita.persona?.correo_electronico?.trim()) {
       dePendientes.push({
         id: `cita-${cita.id_cita}-Correo`,
         id_cita: cita.id_cita,
@@ -218,6 +218,7 @@ export const ReminderService = {
           id: cita.id_cita,
           paciente: buildNombre(cita.persona),
           fecha_hora: cita.fecha_inicio,
+          correo: cita.persona?.correo_electronico || null,
         })),
     };
   },

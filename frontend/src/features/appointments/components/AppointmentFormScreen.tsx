@@ -75,9 +75,6 @@ export function AppointmentFormScreen() {
         const res = await appointmentService.getById(Number(id));
         if (!cancelled && res.success && res.data) {
           const apt = res.data;
-          setFormData({
-            id_persona: apt.id_persona,
-            id_usuario: apt.id_usuario,
           const cleanDate = apt.fecha_inicio.split('T')[0];
           setFormData({
             id_persona: apt.id_persona,

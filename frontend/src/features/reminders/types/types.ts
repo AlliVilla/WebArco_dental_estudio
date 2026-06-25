@@ -8,6 +8,7 @@ export interface ReminderAppointmentOption {
   id: number;
   paciente: string;
   fecha_hora: string;
+  correo?: string | null;
 }
 
 export interface RecordatorioRow {
