@@ -13,14 +13,13 @@ import {
   AlertCircle,
   Printer,
 } from "lucide-react";
-import { Card, Button } from "../../../context";
+import { Card, Button, Combobox } from "../../../context";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Consultation } from "../../consultations/types";
 import { billingService } from "../services/billingService";
 import { formatNumber } from "../../../utils/formatters";
 import { printInvoice, printPaymentReceipt } from "../utils/printBilling";
 import { Modal } from "../../../components";
-
 
 
 interface FacturaCobroDetalleProps {
@@ -131,16 +130,24 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<
     "Tarjeta" | "Efectivo" | "Transferencia"
   >("Efectivo");
-  const [posSystem, setPosSystem] = useState<"BAC" | "Ficohsa" | "Banpaís">(
-    "BAC"
-  );
-  const [bankAccount, setBankAccount] = useState("BAC - Cuenta Principal");
+  const [posSystem, setPosSystem] = useState<string>("");
+  const [bankAccount, setBankAccount] = useState<string>("");
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [montoParcial, setMontoParcial] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [savingDiscounts, setSavingDiscounts] = useState(false);
   const [descuentosCerrados, setDescuentosCerrados] = useState(false);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const [cuentasDestino, setCuentasDestino] = useState<{id: number; tipo: string; nombre: string; comision: number | null; activo: boolean}[]>([]);
+
+  useEffect(() => {
+    billingService.getCuentasDestino().then(res => {
+      if (res.success && res.data) {
+        const data = (res.data as any).data || res.data;
+        setCuentasDestino(Array.isArray(data) ? data : []);
+      }
+    });
+  }, []);
 
   const addToast = useCallback((type: ToastMsg["type"], message: string) => {
     const id = uid();
@@ -1665,22 +1672,12 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                         >
                           Seleccione POS
                         </label>
-                        <select
+                        <Combobox
                           value={posSystem}
-                          onChange={(e) => setPosSystem(e.target.value as any)}
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            border: "1px solid #cbd5e1",
-                            borderRadius: 8,
-                            fontSize: 13,
-                            outline: "none",
-                          }}
-                        >
-                          <option value="BAC">POS BAC Credomatic</option>
-                          <option value="Ficohsa">POS Ficohsa</option>
-                          <option value="Banpaís">POS Banpaís</option>
-                        </select>
+                          onChange={setPosSystem}
+                          options={cuentasDestino.filter(c => c.tipo === "TARJETA").map(c => ({ value: c.nombre, label: c.nombre }))}
+                          placeholder="Seleccionar o crear nuevo POS..."
+                        />
                       </div>
                       {paymentMethod === "Tarjeta" && (
                         <div>
@@ -1740,28 +1737,12 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                         >
                           Cuenta Bancaria Destino
                         </label>
-                        <select
+                        <Combobox
                           value={bankAccount}
-                          onChange={(e) => setBankAccount(e.target.value)}
-                          style={{
-                            width: "100%",
-                            padding: "10px 12px",
-                            border: "1px solid #cbd5e1",
-                            borderRadius: 8,
-                            fontSize: 13,
-                            outline: "none",
-                          }}
-                        >
-                          <option value="BAC - Cuenta Principal">
-                            BAC - Cuenta Principal
-                          </option>
-                          <option value="Ficohsa - Cuenta Clínica">
-                            Ficohsa - Cuenta Clínica
-                          </option>
-                          <option value="Banpaís - Cuenta Secundaria">
-                            Banpaís - Cuenta Secundaria
-                          </option>
-                        </select>
+                          onChange={setBankAccount}
+                          options={cuentasDestino.filter(c => c.tipo === "TRANSFERENCIA").map(c => ({ value: c.nombre, label: c.nombre }))}
+                          placeholder="Seleccionar o crear nueva cuenta..."
+                        />
                       </div>
                       {paymentMethod === "Transferencia" && (
                         <div>
