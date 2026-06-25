@@ -559,30 +559,40 @@ export function GestionEgresos() {
     setEstaModalAbierto(true);
   };
 
-  const exportarAExcel = async () => {
-    if (registros.length === 0) return;
+  const exportarAExcel = async (rows: RegistroEgreso[]) => {
+    if (!rows.length) {
+      alert("No hay egresos para exportar.");
+      return;
+    }
     try {
       const columnas = [
         { header: "Fecha", key: "fecha", width: 12 },
         { header: "Concepto", key: "concepto", width: 30 },
         { header: "Categoría", key: "categoria", width: 20 },
-        { header: "Monto (L.)", key: "monto", width: 15 },
+        { header: "Monto", key: "monto", width: 15 },
         { header: "Responsable", key: "responsable", width: 25 },
         { header: "Observaciones", key: "observaciones", width: 30 },
       ];
-      await exportToExcel(registros, columnas, "Egresos", "Egresos_WebArco");
+      await exportToExcel(rows, columnas, "Egresos", "egresos", {
+        currencyKeys: ["monto"],
+      });
     } catch {
       setError("Error al exportar a Excel");
     }
   };
 
-  const imprimirReporte = () => {
+  const imprimirReporte = (rows: RegistroEgreso[]) => {
+    if (!rows.length) {
+      alert("No hay egresos para imprimir.");
+      return;
+    }
+
     const vent = window.open("", "_blank");
     if (!vent) return;
 
-    const totalEgresos = registros.reduce((sum, r) => sum + r.monto, 0);
+    const totalEgresos = rows.reduce((sum, r) => sum + r.monto, 0);
 
-    const filasHtml = registros
+    const filasHtml = rows
       .map(
         (r) => `
       <tr>
@@ -636,7 +646,7 @@ export function GestionEgresos() {
                 "es-HN"
               )}</p>
               <p style="margin: 5px 0 0 0;">Total Registros: ${
-                registros.length
+                rows.length
               }</p>
             </div>
           </div>
@@ -820,14 +830,14 @@ export function GestionEgresos() {
         }}
         secondaryActions={[
           {
-            label: "Exportar",
+            label: "Exportar Excel",
             icon: <FileSpreadsheet size={13} />,
-            onClick: exportarAExcel,
+            onClick: ({ filteredData }) => void exportarAExcel(filteredData),
           },
           {
             label: "Imprimir",
             icon: <Printer size={13} />,
-            onClick: imprimirReporte,
+            onClick: ({ filteredData }) => imprimirReporte(filteredData),
           },
         ]}
         rowActions={obtenerAccionesFila}
