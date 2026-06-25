@@ -28,6 +28,11 @@ export class CreatePagoConsultaDto {
   @IsEnum(MetodoPago)
   metodoPago: MetodoPago;
 
+  @ApiPropertyOptional({ description: 'Cuenta destino (BAC, Ficohsa, etc.)', example: 'BAC' })
+  @IsOptional()
+  @IsString()
+  cuentaDestino?: string;
+
   @ApiPropertyOptional({ description: 'Observación', example: 'Abono a brackets' })
   @IsOptional()
   @IsString()

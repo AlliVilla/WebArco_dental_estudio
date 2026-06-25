@@ -45,12 +45,24 @@ export class PagoConsultaService {
       }
     }
 
+    let comision: number | null = null;
+    if (dto.metodoPago === 'TARJETA' || dto.metodoPago === 'TRANSFERENCIA') {
+      const config = dto.cuentaDestino
+        ? await this.prisma.cuentaDestinoConfig.findFirst({
+            where: { nombre: dto.cuentaDestino, activo: true },
+            select: { comision: true },
+          })
+        : null;
+      comision = config?.comision != null ? Number(config.comision) : 2.0;
+    }
+
     const pago = await this.prisma.$transaction(async (tx) => {
       const pagoC = await tx.pagoConsulta.create({
         data: {
           consultaId: dto.consultaId,
           monto: dto.monto,
           metodoPago: dto.metodoPago,
+          comision,
           observacion: dto.observacion,
           abonos: {
             create: dto.abonos.map((a) => ({

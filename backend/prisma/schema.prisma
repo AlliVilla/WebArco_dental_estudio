@@ -314,6 +314,7 @@ model PagoPaciente {
   firma_paciente String?  @db.Text
   metodo_pago    String   @default("Efectivo") @db.VarChar(50)
   cuenta_destino String?  @db.VarChar(100)
+  comision       Decimal? @db.Decimal(5, 2)
   estado         String   @default("Pagado") @db.VarChar(20)
 
   consulta Consulta @relation(fields: [id_consulta], references: [id_consulta])
@@ -522,6 +523,7 @@ model PagoConsulta {
   metodoPago  MetodoPago @default(EFECTIVO)
   fecha       DateTime   @default(now())
   observacion String?    @db.Text
+  comision    Decimal?   @db.Decimal(5, 2)
 
   consulta Consulta           @relation(fields: [consultaId], references: [id_consulta])
   abonos   TratamientoAbono[]
