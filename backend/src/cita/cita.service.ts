@@ -281,6 +281,10 @@ export class CitaService {
       );
     }
 
+    await this.prisma.recordatorio.deleteMany({
+      where: { id_cita: id },
+    });
+
     await this.prisma.estadoHistorial.deleteMany({
       where: { id_cita: id },
     });
