@@ -25,6 +25,7 @@ interface CitaBackend {
   fecha_inicio: string;
   estado: string;
   persona?: PersonaBackend;
+  recordatorios?: { canal: 'WhatsApp' | 'Correo' }[];
 }
 
 interface RecordatorioBackend {
@@ -75,18 +76,37 @@ function isProximas24h(fecha_iso: string): boolean {
 
 function mapQueueToRows(data: QueueBackendResponse): RecordatorioRow[] {
   // Citas sin recordatorio → Pendiente de envío
-  const dePendientes: RecordatorioRow[] = (data.pendientes_envio ?? []).map(
-    (cita) => ({
-      id: `cita-${cita.id_cita}`,   // id temporal – la cita aún no tiene recordatorio
-      id_cita: cita.id_cita,
-      paciente: buildNombre(cita.persona),
-      contacto: buildContacto(cita.persona, 'WhatsApp'),
-      canal: 'WhatsApp' as const,  // canal por defecto; el form de envío lo define
-      hora_cita: cita.fecha_inicio,
-      estado_envio: 'Pendiente' as const,
-      es_proximas_24h: isProximas24h(cita.fecha_inicio),
-    }),
-  );
+  const dePendientes: RecordatorioRow[] = [];
+
+  (data.pendientes_envio ?? []).forEach((cita) => {
+    const sentCanals = cita.recordatorios?.map((r) => r.canal) || [];
+
+    if (!sentCanals.includes('WhatsApp')) {
+      dePendientes.push({
+        id: `cita-${cita.id_cita}-WhatsApp`,
+        id_cita: cita.id_cita,
+        paciente: buildNombre(cita.persona),
+        contacto: buildContacto(cita.persona, 'WhatsApp'),
+        canal: 'WhatsApp' as const,
+        hora_cita: cita.fecha_inicio,
+        estado_envio: 'Pendiente' as const,
+        es_proximas_24h: isProximas24h(cita.fecha_inicio),
+      });
+    }
+
+    if (!sentCanals.includes('Correo')) {
+      dePendientes.push({
+        id: `cita-${cita.id_cita}-Correo`,
+        id_cita: cita.id_cita,
+        paciente: buildNombre(cita.persona),
+        contacto: buildContacto(cita.persona, 'Correo'),
+        canal: 'Correo' as const,
+        hora_cita: cita.fecha_inicio,
+        estado_envio: 'Pendiente' as const,
+        es_proximas_24h: isProximas24h(cita.fecha_inicio),
+      });
+    }
+  });
 
   // Recordatorios enviados esperando respuesta del paciente → Enviado
   const deEnviados: RecordatorioRow[] = (data.esperando_respuesta ?? []).map(

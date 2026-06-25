@@ -71,7 +71,14 @@ export class ReminderService {
           recordatorio_enviado: false,
           fecha_inicio: { gte: startOfToday, lte: tomorrow },
         },
-        include: citaInclude,
+        include: {
+          ...citaInclude,
+          recordatorios: {
+            select: {
+              canal: true,
+            },
+          },
+        },
         orderBy: { fecha_inicio: 'asc' },
       }),
       this.prisma.recordatorio.findMany({
@@ -125,19 +132,13 @@ export class ReminderService {
       cita.tipo_cita
     );
 
-    const [recordatorio] = await this.prisma.$transaction([
-      this.prisma.recordatorio.create({
-        data: {
-          id_cita: cita.id_cita,
-          canal: sendReminderDto.canal,
-        },
-        include: recordatorioInclude,
-      }),
-      this.prisma.cita.update({
-        where: { id_cita: cita.id_cita },
-        data: { recordatorio_enviado: true },
-      }),
-    ]);
+    const recordatorio = await this.prisma.recordatorio.create({
+      data: {
+        id_cita: cita.id_cita,
+        canal: sendReminderDto.canal,
+      },
+      include: recordatorioInclude,
+    });
 
     return {
       ...recordatorio,

@@ -98,8 +98,8 @@ export class CitaService {
     id_usuario?: number,
   ) {
     await this.updatePastCitasToAtendida();
-    const startDate = new Date(`${start}T00:00:00`);
-    const endDate = new Date(`${end}T23:59:59.999`);
+    const startDate = new Date(`${start}T00:00:00.000-06:00`);
+    const endDate = new Date(`${end}T23:59:59.999-06:00`);
 
     const where: Prisma.CitaWhereInput = {
       fecha_inicio: { gte: startDate, lte: endDate },
@@ -414,12 +414,10 @@ export class CitaService {
     if (filters?.start || filters?.end) {
       where.fecha_inicio = {};
       if (filters.start) {
-        (where.fecha_inicio as Prisma.DateTimeFilter).gte = new Date(filters.start);
+        (where.fecha_inicio as Prisma.DateTimeFilter).gte = new Date(`${filters.start}T00:00:00.000-06:00`);
       }
       if (filters.end) {
-        const endDate = new Date(filters.end);
-        endDate.setHours(23, 59, 59, 999);
-        (where.fecha_inicio as Prisma.DateTimeFilter).lte = endDate;
+        (where.fecha_inicio as Prisma.DateTimeFilter).lte = new Date(`${filters.end}T23:59:59.999-06:00`);
       }
     }
 
@@ -457,10 +455,9 @@ export class CitaService {
     fecha_fin: Date,
     excludeId?: number,
   ) {
-    const startOfDay = new Date(fecha_inicio);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(fecha_inicio);
-    endOfDay.setHours(23, 59, 59, 999);
+    const dateStr = fecha_inicio.toLocaleDateString('sv-SE', { timeZone: 'America/Tegucigalpa' });
+    const startOfDay = new Date(`${dateStr}T00:00:00.000-06:00`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999-06:00`);
 
     const existing = await this.prisma.cita.findMany({
       where: {
@@ -507,9 +504,8 @@ export class CitaService {
 
   async getPendingCount(id_usuario?: number) {
     await this.updatePastCitasToAtendida();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStart = today.toISOString();
+    const dateStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Tegucigalpa' });
+    const todayStart = new Date(`${dateStr}T00:00:00.000-06:00`).toISOString();
 
     const where: Prisma.CitaWhereInput = {
       fecha_inicio: { gte: todayStart },
@@ -540,12 +536,20 @@ export class CitaService {
   }
 
   private validateBusinessHours(fecha_inicio: Date) {
-    const day = fecha_inicio.getDay(); // 0 is Sunday, 6 is Saturday
-    if (day === 0 || day === 6) {
+    const weekday = fecha_inicio.toLocaleDateString('en-US', {
+      timeZone: 'America/Tegucigalpa',
+      weekday: 'long',
+    });
+    if (weekday === 'Saturday' || weekday === 'Sunday') {
       throw new BadRequestException('Las citas solo se pueden agendar de lunes a viernes.');
     }
 
-    const hours = fecha_inicio.getHours();
+    const hourStr = fecha_inicio.toLocaleTimeString('en-US', {
+      timeZone: 'America/Tegucigalpa',
+      hour12: false,
+      hour: '2-digit',
+    });
+    const hours = parseInt(hourStr, 10);
     const isValidStart = hours >= 8 && hours < 17;
 
     if (!isValidStart) {
