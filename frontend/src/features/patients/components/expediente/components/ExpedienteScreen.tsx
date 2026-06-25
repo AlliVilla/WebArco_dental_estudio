@@ -24,7 +24,7 @@ import {OdontogramScreen} from '../../odontograma/components/OdontogramaScreen';
 import { GaleriaFotos } from './GaleriaFotos';
 import {calcularEdad} from '../services/miscelaneousService';
 import {tratamientoPacienteService} from '../services/tratamientoPacienteService';
-import {ExpedientePaciente} from '../types/getAllPacientes';
+import {ExpedientePaciente, TratamientoPacienteExp} from '../types/getAllPacientes';
 import type {ConsultaHistorica} from '../types/getAllPacientes';
 import api from '../../../../../services/api';
 import { useResponsive } from '../../../../../hooks/useWindowWidth';
@@ -839,7 +839,7 @@ export function ExpedienteScreen() {
       {selectedImage && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 9999,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 10000,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '16px'
         }} onClick={() => setSelectedImage(null)}>
@@ -956,7 +956,7 @@ export function ExpedienteScreen() {
                   No hay respuestas registradas para esta consulta.
                 </div>
               ) : (
-                selectedConsultationForRespuestas.respuestas?.map((respuesta, idx) => (
+                selectedConsultationForRespuestas.respuestas?.map((respuesta: any, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -1151,7 +1151,7 @@ export function ExpedienteScreen() {
                     <DollarSign size={14} /> Tratamientos realizados
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {selectedConsultaForDetails.tratamientos?.map((t, idx) => {
+                    {selectedConsultaForDetails.tratamientos?.map((t: any, idx) => {
                       const discount = Number(t.descuento || 0);
                       const finalPrice = Number(t.precio) - discount;
                       return (
@@ -1201,7 +1201,7 @@ export function ExpedienteScreen() {
                     Archivos y Radiografías Adjuntas
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {selectedConsultaForDetails.archivos.map((archivo, idx) => (
+                    {selectedConsultaForDetails.archivos.map((archivo: any, idx) => (
                       <div
                         key={idx}
                         style={{
@@ -1310,7 +1310,7 @@ export function ExpedienteScreen() {
                   No hay consultas asociadas a este plan de tratamiento.
                 </div>
               ) : (
-                selectedTratamientoForConsultas.consultas.map((c) => (
+                selectedTratamientoForConsultas.consultas.map((c: any) => (
                   <div key={c.id_consulta} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0',
                     borderBottom: `1px solid ${C.gray100}`, fontSize: 13, color: C.gray700,

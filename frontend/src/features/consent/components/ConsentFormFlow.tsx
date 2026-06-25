@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   ArrowLeft, Check, Save, PenLine, ShieldCheck, FileText, UserRound, Clock,
 } from "lucide-react";
@@ -180,7 +180,7 @@ export function ConsentFormFlow({
     });
 
     // Carga de tratamientos para los checkboxes
-    treatmentService.getAll({ activo: "true" }).then((res) => {
+    treatmentService.getAll({ activo: "true" }).then((res: any) => {
       if (res.success) {
         const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data;
         setTreatments(list || []);
@@ -240,10 +240,33 @@ export function ConsentFormFlow({
   const canSaveSignature = signatureTarget === "patient" ? Boolean(patientSignature) : Boolean(doctorSignature);
   const displayConsentCode = isEditing && selectedConsent ? selectedConsent.id : "Se generará al guardar";
 
+  const doctorFirma = useMemo(() => {
+    const doctor = doctores.find(d => d.id_usuario === selectedDoctorId);
+    return doctor?.firma ?? null;
+  }, [doctores, selectedDoctorId]);
+
+  // Auto-poblar firma del doctor si ya tiene una guardada en su perfil
+  useEffect(() => {
+    if (currentStep !== 3 || !doctorFirma || doctorSignature) return;
+    if (doctorFirma.startsWith('data:image')) {
+      onDoctorSignatureChange(doctorFirma);
+    } else {
+      fetch(doctorFirma)
+        .then(res => res.blob())
+        .then(blob => new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        }))
+        .then(dataUrl => onDoctorSignatureChange(dataUrl))
+        .catch(() => {});
+    }
+  }, [currentStep, doctorFirma, doctorSignature, onDoctorSignatureChange]);
+
   // Verificamos si la firma ya existía en el registro original para bloquear edición
   const isAlreadySigned = signatureTarget === "patient" 
     ? !!selectedConsent?.patientSignature 
-    : !!selectedConsent?.doctorSignature;
+    : !!(selectedConsent?.doctorSignature || doctorFirma);
 
   const validateForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};

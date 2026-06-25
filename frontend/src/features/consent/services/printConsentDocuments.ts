@@ -41,6 +41,7 @@ function buildConsentPrintDocument(consent: ConsentRecord) {
   const statusMeta = getStatusMeta(consent.estado);
   const statusColors: Record<ConsentStatus, { background: string; color: string }> = {
     firmado: { background: "#059669", color: "#ffffff" },
+    pendiente: { background: "#fef3c7", color: "#b45309" },
     pendiente_doctor: { background: "#f59e0b", color: "#ffffff" },
     pendiente_paciente: { background: "#fef3c7", color: "#b45309" },
   };

@@ -1,4 +1,4 @@
-interface ConsultaHistorica {
+export interface ConsultaHistorica {
   id_consulta: number;
   id_persona: number;
   id_usuario: number;

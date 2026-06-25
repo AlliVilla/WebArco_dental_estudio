@@ -23,7 +23,7 @@ const screenConfig: Record<string, { title: string; breadcrumbs: string[] }> = {
   },
   recordatorios: {
     title: "Recordatorios",
-    breadcrumbs: ["Agenda", "Recordatorios", "Cola de envío"],
+    breadcrumbs: ["Agenda", "Recordatorios", "Lista de recordatorio"],
   },
   "reminders-historial": {
     title: "Historial de confirmaciones",

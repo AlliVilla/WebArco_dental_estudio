@@ -511,7 +511,7 @@ export class ExpedienteClinicoService {
       throw new NotFoundException('Consulta no encontrada');
     }
 
-    const url = `/uploads/${file.filename}`;
+    const url = file.filename;
 
     const archivo = await this.prisma.archivo.create({
       data: {

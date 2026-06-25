@@ -3,39 +3,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
 import { UpdateSignaturesDto } from './dto/update-signatures.dto';
-import { UploadService } from '../upload/upload.service';
-import * as fs from 'fs';
-import * as path from 'path';
-
 @Injectable()
 export class ConsentimientoService {
-  constructor(private prisma: PrismaService, private uploadService: UploadService) { }
+  constructor(private prisma: PrismaService) { }
 
   // --- Helpers 
 
   /**
-   * Si el string es un Data URL (base64), lo guarda en disco y retorna la URL.
-   * De lo contrario, retorna el string tal cual (que puede ser ya una URL o null).
+   * Si el string es un Data URL (base64), lo retorna tal cual para almacenarlo
+   * directamente en la BD (como hace expediente-clínico). Si no, retorna el string
+   * original (URL de archivo o null).
    */
-  private async procesarBase64SiEsNecesario(base64: string | null | undefined, prefix: string): Promise<string | null> {
-    if (!base64 || typeof base64 !== 'string' || !base64.startsWith('data:image')) {
-      return base64 || null;
-    }
-
-    const [header, base64Data] = base64.split(',');
-    if (!base64Data) return base64; // No es un base64 válido
-
-    const extension = header.split(';')[0].split('/')[1] || 'png';
-    const buffer = Buffer.from(base64Data, 'base64');
-    
-    const fileName = `${prefix}-${Date.now()}-${Math.round(Math.random() * 1e9)}.${extension}`;
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    
-    // Asegurar que la carpeta existe
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    
-    fs.writeFileSync(path.join(uploadDir, fileName), buffer);
-    return `/uploads/${fileName}`;
+  private procesarBase64SiEsNecesario(base64: string | null | undefined, _prefix: string): string | null {
+    return base64 || null;
   }
 
   /** Calcula el estado de firmas en memoria a partir de los valores almacenados. */
@@ -118,8 +98,8 @@ export class ConsentimientoService {
     }
 
     // Procesar firmas si vienen en base64 en el JSON inicial
-    const firmaPacPath = await this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
-    const firmaDocPath = await this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
+    const firmaPacPath = this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
+    const firmaDocPath = this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
 
     const consulta = await this.prisma.consulta.create({
       data: {
@@ -328,8 +308,8 @@ export class ConsentimientoService {
     }
 
     // Procesar posibles base64 en el DTO (si no vinieron por multer)
-    const firmaPacPath = await this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
-    const firmaDocPath = await this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
+    const firmaPacPath = this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
+    const firmaDocPath = this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
 
     // Las URLs vienen resueltas desde el controller (ej: "/uploads/firma-123.png")
     await this.prisma.consulta.update({

@@ -242,13 +242,19 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   }
 
   async function handleSkipToFinish() {
-    // Caso especial: Si el paciente firmó pero el doctor omite su firma, 
-    // debemos persistir la firma del paciente antes de terminar.
-    if (selectedId && patientSignature && patientSignature.startsWith("data:image")) {
+    if (!selectedId) return;
+    const updates: Record<string, string> = {};
+    if (patientSignature?.startsWith("data:image")) {
+      updates.firma_paciente = patientSignature;
+    }
+    if (doctorSignature?.startsWith("data:image")) {
+      updates.firma_doctor = doctorSignature;
+    }
+    if (Object.keys(updates).length > 0) {
       try {
-        await consentimientoService.updateSignatures(Number(selectedId), { firma_paciente: patientSignature });
+        await consentimientoService.updateSignatures(Number(selectedId), updates);
       } catch (err) {
-        console.error("Error al guardar firma del paciente al omitir paso del doctor:", err);
+        console.error("Error al guardar firmas al continuar:", err);
       }
     }
     setCurrentStep(4);

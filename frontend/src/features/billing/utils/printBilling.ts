@@ -219,7 +219,7 @@ export function printInvoice(
 ) {
   const patient = consulta.persona;
   const patientName = patient
-    ? `${patient.primer_nombre || patient.nombre || ""} ${patient.primer_apellido || patient.apellido || ""}`.trim()
+    ? `${(patient as any).primer_nombre || patient.nombre || ""} ${(patient as any).primer_apellido || patient.apellido || ""}`.trim()
     : "Desconocido";
   const patientId = (patient as any)?.numero_identidad || "N/A";
   const patientPhone = (patient as any)?.telefono || "N/A";
@@ -228,7 +228,7 @@ export function printInvoice(
   const doctorName = doctor
     ? (doctor as any).persona
       ? `Dr. ${(doctor as any).persona.primer_nombre || ""} ${(doctor as any).persona.primer_apellido || ""}`.trim()
-      : doctor.nombre || (doctor as any).username || "N/A"
+      : (doctor as any).nombre || (doctor as any).username || "N/A"
     : "N/A";
 
   const fechaConsulta = new Date(consulta.fecha_inicio).toLocaleDateString("es-HN", {
@@ -500,7 +500,7 @@ export function printInvoice(
 export function printPaymentReceipt(consulta: Consultation, payment: any) {
   const patient = consulta.persona;
   const patientName = patient
-    ? `${patient.primer_nombre || patient.nombre || ""} ${patient.primer_apellido || patient.apellido || ""}`.trim()
+    ? `${(patient as any).primer_nombre || patient.nombre || ""} ${(patient as any).primer_apellido || patient.apellido || ""}`.trim()
     : "Desconocido";
   const patientId = (patient as any)?.numero_identidad || "N/A";
 
@@ -508,7 +508,7 @@ export function printPaymentReceipt(consulta: Consultation, payment: any) {
   const doctorName = doctor
     ? (doctor as any).persona
       ? `Dr. ${(doctor as any).persona.primer_nombre || ""} ${(doctor as any).persona.primer_apellido || ""}`.trim()
-      : doctor.nombre || (doctor as any).username || "N/A"
+      : (doctor as any).nombre || (doctor as any).username || "N/A"
     : "N/A";
 
   const pId = payment.id || payment.id_pago || "N/A";

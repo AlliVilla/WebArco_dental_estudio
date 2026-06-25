@@ -541,14 +541,8 @@ export class CitaService {
     }
 
     const hours = fecha_inicio.getHours();
-    
-    // De 8:00 AM a 5:00 PM (17:00). 
-    // Como mencionaste "mejor permitelo" para que pueda durar hasta después de las 5, 
-    // solo validamos la hora de inicio: debe estar entre >= 8 y < 17 (hasta las 16:59).
-    // Si inicia exactamente a las 17:00, el hour es 17, se puede permitir si minutos es 0.
-    const minutes = fecha_inicio.getMinutes();
-    const isValidStart = (hours >= 8 && hours < 17) || (hours === 17 && minutes === 0);
-    
+    const isValidStart = hours >= 8 && hours < 17;
+
     if (!isValidStart) {
       throw new BadRequestException('Las citas solo se pueden agendar para iniciar entre las 8:00 AM y las 5:00 PM.');
     }

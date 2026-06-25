@@ -39,7 +39,7 @@ model RolPrivilegio {
 
 model Departamento {
   id_departamento Int    @id @default(autoincrement())
-  nombre          String @db.VarChar(255)
+  nombre          String @unique @db.VarChar(255)
 
   municipios Municipio[]
 

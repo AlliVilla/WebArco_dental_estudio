@@ -7,6 +7,7 @@ import {
   getDurationMinutes,
   formatDateISO,
   formatDayLabel,
+  formatTimeFromISO,
 } from "../utils";
 import {
   CALENDAR_START_HOUR,
@@ -206,9 +207,9 @@ function MobileAppointmentList({
                   const doctorName = apt.doctor?.persona
                     ? `Dr. ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
                     : null;
-                  const startTime = apt.fecha_inicio.substring(11, 16);
+                  const startTime = formatTimeFromISO(apt.fecha_inicio);
                   const endTime = apt.fecha_fin
-                    ? apt.fecha_fin.substring(11, 16)
+                    ? formatTimeFromISO(apt.fecha_fin)
                     : null;
 
                   return (

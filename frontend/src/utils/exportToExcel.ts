@@ -1,5 +1,3 @@
-import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
 import { obtenerHoyLocal } from "./formatters";
 
 type Column = { header: string; key: string; width: number };
@@ -17,6 +15,10 @@ export async function exportToExcel<T extends Record<string, unknown>>(
 ): Promise<void> {
   if (data.length === 0) return;
 
+  const [{ default: ExcelJS }, { saveAs }] = await Promise.all([
+    import("exceljs"),
+    import("file-saver"),
+  ]);
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(sheetName);
 

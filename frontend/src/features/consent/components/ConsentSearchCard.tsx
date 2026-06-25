@@ -16,6 +16,7 @@ interface ConsentSearchCardProps {
   consents: ConsentRecord[];
   loading?: boolean;
   error?: string | null;
+  onFilterChange?: (filters: Partial<import("../types/consentimiento").QueryConsentimientoParams>) => void;
 }
 
 function StatusBadge({ estado }: { estado: string }) {

@@ -100,10 +100,9 @@ export function ForgotPasswordForm({
       await authService.forgotPassword(email);
       setSentEmail(email);
     } catch (err: unknown) {
+      const errorObj = err as { message?: string };
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo enviar el enlace. Intenta de nuevo."
+        errorObj?.message || "No se pudo enviar el enlace. Intenta de nuevo."
       );
     } finally {
       setLoading(false);
@@ -127,10 +126,9 @@ export function ForgotPasswordForm({
       setError("");
       setTimeout(handleBack, 2000);
     } catch (err: unknown) {
+      const errorObj = err as { message?: string };
       setError(
-        err instanceof Error
-          ? err.message
-          : "Token inválido o expirado. Solicita un nuevo enlace."
+        errorObj?.message || "Token inválido o expirado. Solicita un nuevo enlace."
       );
     } finally {
       setLoading(false);

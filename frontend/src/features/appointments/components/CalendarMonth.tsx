@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { COLORS, STATUS_COLORS } from "../constants";
 import type { Appointment } from "../types";
-import { formatDateISO } from "../utils";
+import { formatDateISO, formatTimeFromISO } from "../utils";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
 interface CalendarMonthProps {
@@ -253,7 +253,7 @@ export function CalendarMonth({
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {apt.fecha_inicio.substring(11, 16)}{" "}
+                        {formatTimeFromISO(apt.fecha_inicio)}{" "}
                         {apt.doctor?.persona?.primer_nombre}
                       </div>
                     ))}
