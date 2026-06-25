@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Card, Alert, Avatar, Button } from "../../../context";
+import { Card, Alert, Avatar } from "../../../context";
 import {
   DollarSign,
   TrendingUp,
@@ -18,6 +18,7 @@ import { useAuthStore } from "../../auth/hooks/useAuthStore";
 import api from "../../../services/api";
 import billingService from "../services/billingService";
 import { consultaService } from "../../patients/services/consultaService";
+import { CuentasDestinoConfig } from "./CuentasDestinoConfig";
 import type { CreatePaymentInput, PatientPayment } from "../types";
 import { exportToExcel } from "../../../utils/exportToExcel";
 
@@ -119,12 +120,6 @@ export function GestionIngresos() {
   const user = useAuthStore((s) => s.user);
   const canGestionarIngresos = user?.privilegios?.includes(10) ?? false;
   const [configItems, setConfigItems] = useState<{ id: number; tipo: string; nombre: string; comision: number | null }[]>([]);
-  const [nuevaConfigTipo, setNuevaConfigTipo] = useState<"TARJETA" | "TRANSFERENCIA">("TARJETA");
-  const [nuevoConfigNombre, setNuevoConfigNombre] = useState("");
-  const [nuevoConfigComision, setNuevoConfigComision] = useState("");
-  const [configError, setConfigError] = useState<string | null>(null);
-  const [configSuccess, setConfigSuccess] = useState<string | null>(null);
-  const [configExpanded, setConfigExpanded] = useState(false);
 
   const loadPayments = async (p = page) => {
     setIsLoading(true);
@@ -146,67 +141,11 @@ export function GestionIngresos() {
     }
   };
 
-  const cargarConfig = async () => {
-    try {
-      const res = await billingService.getCuentasDestino();
-      if (res.success && res.data) {
-        setConfigItems((res.data as any).data || []);
-      }
-    } catch {
-      // silent
-    }
-  };
 
-  const agregarConfig = async () => {
-    if (!nuevoConfigNombre.trim()) {
-      setConfigError("Ingrese un nombre");
-      return;
-    }
-    const comision = nuevoConfigComision.trim() !== "" ? parseFloat(nuevoConfigComision) : undefined;
-    if (nuevoConfigComision.trim() !== "" && (isNaN(comision!) || comision! < 0)) {
-      setConfigError("Comisión inválida");
-      return;
-    }
-    try {
-      const res = await billingService.createCuentaDestino({
-        tipo: nuevaConfigTipo,
-        nombre: nuevoConfigNombre.trim(),
-        comision,
-      });
-      if (res.success) {
-        setConfigSuccess(`"${nuevoConfigNombre.trim()}" agregado`);
-        setNuevoConfigNombre("");
-        setNuevoConfigComision("");
-        setConfigError(null);
-        await cargarConfig();
-      }
-    } catch (err: any) {
-      setConfigError(err?.response?.data?.message || err?.message || "Error al agregar");
-    }
-  };
-
-  const eliminarConfig = async (id: number) => {
-    try {
-      const res = await billingService.deleteCuentaDestino(id);
-      if (res.success) {
-        setConfigSuccess("Cuenta destino eliminada");
-        setConfigError(null);
-        await cargarConfig();
-      }
-    } catch (err: any) {
-      setConfigError(err?.response?.data?.message || err?.message || "Error al eliminar");
-    }
-  };
 
   useEffect(() => {
     void loadPayments(1);
   }, []);
-
-  useEffect(() => {
-    if (canGestionarIngresos) {
-      void cargarConfig();
-    }
-  }, [canGestionarIngresos]);
 
   const totals = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -670,116 +609,10 @@ export function GestionIngresos() {
       {isLoading && <Alert variant="info" message="Cargando ingresos..." />}
 
       {canGestionarIngresos && (
-        <Card>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              cursor: "pointer",
-            }}
-            onClick={() => setConfigExpanded(!configExpanded)}
-          >
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#203F49" }}>
-              Configurar cuentas destino
-            </span>
-            <span style={{ fontSize: 12, color: "#888F94" }}>
-              {configExpanded ? "▲ Ocultar" : "▼ Administrar"}
-            </span>
-          </div>
-          {configExpanded && (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-              {configError && <Alert variant="error" message={configError} />}
-              {configSuccess && <Alert variant="success" message={configSuccess} />}
-
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-                  <label style={{ fontSize: 11, color: "#5F656A" }}>Tipo</label>
-                  <select
-                    value={nuevaConfigTipo}
-                    onChange={(e) => setNuevaConfigTipo(e.target.value as "TARJETA" | "TRANSFERENCIA")}
-                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13 }}
-                  >
-                    <option value="TARJETA">POS (Tarjeta)</option>
-                    <option value="TRANSFERENCIA">Cuenta (Transferencia)</option>
-                  </select>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 2 }}>
-                  <label style={{ fontSize: 11, color: "#5F656A" }}>Nombre</label>
-                  <input
-                    value={nuevoConfigNombre}
-                    onChange={(e) => setNuevoConfigNombre(e.target.value)}
-                    placeholder="Ej: BAC, Ficohsa..."
-                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13 }}
-                    onKeyDown={(e) => { if (e.key === "Enter") void agregarConfig(); }}
-                  />
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, color: "#5F656A" }}>Comisión %</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={nuevoConfigComision}
-                    onChange={(e) => setNuevoConfigComision(e.target.value)}
-                    placeholder="2.5"
-                    style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #D3D7DA", fontSize: 13, width: 80 }}
-                    onKeyDown={(e) => { if (e.key === "Enter") void agregarConfig(); }}
-                  />
-                </div>
-                <Button variant="primary" onClick={() => void agregarConfig()} style={{ height: 36 }}>
-                  Agregar
-                </Button>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                {(["TARJETA", "TRANSFERENCIA"] as const).map((tipo) => (
-                  <div key={tipo} style={{ border: "1px solid #EAECEE", borderRadius: 8, padding: 10 }}>
-                    <p style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 600, color: "#203F49" }}>
-                      {tipo === "TARJETA" ? "POS (Tarjeta)" : "Cuentas (Transferencia)"}
-                    </p>
-                    {configItems.filter((i) => i.tipo === tipo).length === 0 ? (
-                      <span style={{ fontSize: 11, color: "#888F94", fontStyle: "italic" }}>Sin elementos</span>
-                    ) : (
-                      configItems
-                        .filter((i) => i.tipo === tipo)
-                        .map((item) => (
-                          <div
-                            key={item.id}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "5px 8px",
-                              borderRadius: 4,
-                              background: "#F8F9FA",
-                              marginBottom: 4,
-                              fontSize: 12,
-                              gap: 8,
-                            }}
-                          >
-                            <span style={{ color: "#203F49", flex: 1 }}>{item.nombre}</span>
-                            {item.comision != null && (
-                              <span style={{ color: "#5F656A", fontSize: 11 }}>{item.comision}%</span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => void eliminarConfig(item.id)}
-                              style={{ background: "none", border: "none", color: "#EF4444", cursor: "pointer", fontSize: 13, padding: 0, flexShrink: 0 }}
-                              title="Eliminar"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
+        <CuentasDestinoConfig
+          configItems={configItems}
+          onConfigChange={setConfigItems}
+        />
       )}
 
       <div

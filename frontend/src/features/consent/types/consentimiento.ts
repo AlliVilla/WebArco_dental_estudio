@@ -147,4 +147,5 @@ export interface UsuarioDoctor {
   primer_apellido: string;
   segundo_apellido?: string | null;
   sexo: 'M' | 'F';
+  firma: string | null;
 }

@@ -214,10 +214,10 @@ export function MiPerfil() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [mode, setMode] = useState<Mode>("view");
   const [username, setUsername] = useState(user?.username ?? "");
-  const [email, setEmail] = useState(user?.persona?.correo ?? "");
+  const [email, setEmail] = useState(user?.persona?.correo_electronico ?? "");
   const [fullName, setFullName] = useState(
     user
-      ? `${user.persona?.nombre ?? ""} ${user.persona?.apellido ?? ""}`.trim()
+      ? `${user.persona?.primer_nombre ?? ""} ${user.persona?.primer_apellido ?? ""}`.trim()
       : ""
   );
   const [roleName, setRoleName] = useState(user?.rol?.nombre ?? "Sin rol");

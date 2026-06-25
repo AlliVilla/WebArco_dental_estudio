@@ -7,7 +7,7 @@ import { Consultation } from "../../consultations/types";
 import { FacturaCobroDetalle } from "./FacturaCobroDetalle";
 import { formatNumber } from "../../../utils/formatters";
 
-interface PaymentRow {
+interface PaymentRow extends Record<string, unknown> {
   id: string;
   tipo: "consulta" | "plan";
   consulta: Consultation;
@@ -21,7 +21,7 @@ interface PaymentRow {
   total: number;
   pagado: number;
   pendiente: number;
-  estado: "Pagada" | "Pendiente";
+  estado: "Pagada" | "Pendiente" | "DESACTIVADO" | "CANCELADO" | "COMPLETADO";
   planEstado?: string;
   inactivo?: boolean;
 }
@@ -483,7 +483,7 @@ export function FacturasDeConsultas() {
       }}
     >
       <div style={{ flex: 1, minWidth: 0, transition: "all 0.3s" }}>
-        <DataTable
+        <DataTable<PaymentRow>
           title="Gestión de Pago"
           description="Gestión de cobros para los tratamientos aplicados en las consultas y planes vinculados."
           columns={columns}

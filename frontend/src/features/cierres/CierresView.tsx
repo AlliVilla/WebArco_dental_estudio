@@ -26,6 +26,7 @@ type FilaCierre = CierreHistorialItem & {
   periodo: string;
   fecha: string;
   desglose: { efectivo: number; tarjeta: number; transfer: number };
+  [key: string]: unknown;
 };
 
 const COLORS = {

@@ -790,7 +790,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
             filteredRows.map((row) => (
               <ReminderCard
                 key={row.id}
-                row={row}
+                row={row as Row}
                 isLoading={actionLoadingId === row.id}
                 onSend={() => handleSend(row)}
                 onRetry={() => handleRetry(row)}

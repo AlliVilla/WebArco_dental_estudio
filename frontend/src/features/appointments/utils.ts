@@ -64,6 +64,13 @@ export function formatMonthYear(date: Date): string {
   return `${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+export function formatTimeFromISO(isoStr: string): string {
+  const d = new Date(isoStr);
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 export function getWeekDays(baseDate: Date): Date[] {
   const startOfWeek = new Date(baseDate);
   const day = startOfWeek.getDay();

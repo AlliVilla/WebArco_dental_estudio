@@ -56,7 +56,7 @@ export const VIEW_OPTIONS = [
 // CALENDAR_START_HOUR: first hour shown (inclusive), e.g. 7 → 07:00
 // CALENDAR_END_HOUR:   last hour boundary (exclusive), e.g. 21 → up to 21:00
 export const CALENDAR_START_HOUR = 8;
-export const CALENDAR_END_HOUR = 18;
+export const CALENDAR_END_HOUR = 17;
 
 // Pixels allocated per hour in the scrollable time body.
 // Increasing this makes the grid taller and citas easier to read.

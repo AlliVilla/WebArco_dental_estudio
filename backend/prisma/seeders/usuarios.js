@@ -35,7 +35,7 @@ async function insertUsuarios() {
       id_persona: 5,
       username: "luis.recepcion",
       password: await hashPassword("recepcion123"),
-      id_rol: 2,
+      id_rol: 5,
       must_change_password: false,
     },
   ];

@@ -548,7 +548,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
               </Button>
 
               <Button
-                variant="outline"
+                variant={"outline" as any}
                 onClick={() => {
                   printInvoice(consulta, tipo || "consulta", customDiscounts, conceptoDiscounts, planAbonoAgregado);
                 }}
@@ -627,7 +627,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
           </button>
           
           <Button
-            variant="outline"
+            variant={"outline" as any}
             size="sm"
             onClick={() => printInvoice(consulta, tipo || "consulta", customDiscounts, conceptoDiscounts, planAbonoAgregado)}
             style={{
@@ -941,7 +941,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                       >
                         {!descuentosCerrados ? (
                           <Button
-                            variant="outline"
+                            variant={"outline" as any}
                             onClick={async () => {
                               setSavingDiscounts(true);
                               try {
@@ -995,7 +995,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                           </Button>
                         ) : (
                           <Button
-                            variant="outline"
+                            variant={"outline" as any}
                             onClick={() => setDescuentosCerrados(false)}
                             style={{
                               fontSize: 12,
@@ -1926,7 +1926,7 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
                     No hay saldo pendiente por cobrar en esta consulta.
                   </div>
                   <Button
-                    variant="outline"
+                    variant={"outline" as any}
                     onClick={() => printInvoice(consulta, tipo || "consulta", customDiscounts, conceptoDiscounts, planAbonoAgregado)}
                     style={{
                       marginTop: 12,

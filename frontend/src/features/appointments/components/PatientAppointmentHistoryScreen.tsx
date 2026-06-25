@@ -21,7 +21,7 @@ import { DatePickerCalendar } from "../../../components/DatePickerCalendar";
 import { useNavigate, useParams } from "react-router-dom";
 import { appointmentService } from "../services/appointmentService";
 import type { Appointment } from "../types";
-import { formatShortDate, formatLongDate } from "../utils";
+import { formatShortDate, formatLongDate, formatTimeFromISO } from "../utils";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
 export function PatientAppointmentHistoryScreen() {
@@ -328,7 +328,7 @@ export function PatientAppointmentHistoryScreen() {
                         size={13}
                         style={{ color: "#888F94", flexShrink: 0 }}
                       />
-                      {apt.fecha_inicio.substring(11, 16)}
+                      {formatTimeFromISO(apt.fecha_inicio)}
                     </div>
                     <div style={{ fontSize: 13, color: "#5F656A" }}>
                       {apt.doctor
@@ -534,7 +534,7 @@ export function PatientAppointmentHistoryScreen() {
                           }}
                         >
                           <Clock size={14} style={{ color: "#888F94" }} />
-                          {apt.fecha_inicio.substring(11, 16)}
+                          {formatTimeFromISO(apt.fecha_inicio)}
                         </div>
                       </td>
                       <td style={{ padding: "16px", color: "#203F49" }}>

@@ -526,7 +526,7 @@ const navGroups: NavGroup[] = [
         label: "Recordatorios",
         icon: <IconBell />,
         subItems: [
-          { id: "recordatorios", label: "Cola de envío" },
+          { id: "recordatorios", label: "Lista de recordatorio" },
           { id: "reminders-historial", label: "Historial de confirmaciones" },
         ],
       },

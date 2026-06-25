@@ -6,7 +6,8 @@ import { AppointmentQuickView } from "./AppointmentQuickView";
 import { CalendarGrid } from "./CalendarGrid";
 import { CalendarMonth } from "./CalendarMonth";
 import { appointmentService } from "../services/appointmentService";
-import type { Appointment, UsuarioRecord } from "../types";
+import { privilegeService } from "../../patients/components/expediente/services/privilegeService";
+import type { Appointment } from "../types";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../auth/hooks/useAuthStore";
 import { formatMonthYear, formatDateISO, getWeekDays } from "../utils";
@@ -118,12 +119,15 @@ export function AppointmentsScreen() {
   useEffect(() => {
     const loadDoctors = async () => {
       try {
-        const res = await appointmentService.getUsuarios();
+        const res = await privilegeService.getAllDoctores();
         if (res.success && res.data) {
-          const mapped = res.data.map((u: UsuarioRecord) => ({
-            value: String(u.id_usuario),
+          const list = Array.isArray(res.data)
+            ? res.data
+            : (res.data as any)?.data || [];
+          const mapped = list.map((d: any) => ({
+            value: String(d.id_usuario),
             label:
-              `Dr(a). ${u.persona.primer_nombre} ${u.persona.primer_apellido}`.trim(),
+              `${d.sexo === "M" ? "Dr." : "Dra."} ${d.primer_nombre} ${d.primer_apellido}`.trim(),
           }));
           setDoctors([
             { value: "all", label: "Todos los doctores" },
