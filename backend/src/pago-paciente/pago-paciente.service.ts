@@ -65,7 +65,9 @@ export class PagoPacienteService {
       throw new BadRequestException('El monto del pago debe ser mayor a 0');
     }
 
-    const [consulta, pagosPrevios, tratamientos] = await Promise.all([
+    const esTarjetaTransferencia = createPaymentDto.metodoPago === 'Tarjeta' || createPaymentDto.metodoPago === 'Transferencia';
+
+    const [consulta, pagosPrevios, tratamientos, configCuenta] = await Promise.all([
       this.prisma.consulta.findUnique({
         where: { id_consulta: createPaymentDto.id_consulta },
         select: { tratamiento: true },
@@ -76,6 +78,12 @@ export class PagoPacienteService {
       this.prisma.consulta_Tratamiento.findMany({
         where: { id_consulta: createPaymentDto.id_consulta },
       }),
+      esTarjetaTransferencia && createPaymentDto.cuentaDestino
+        ? this.prisma.cuentaDestinoConfig.findFirst({
+            where: { nombre: createPaymentDto.cuentaDestino, activo: true },
+            select: { comision: true },
+          })
+        : Promise.resolve(null),
     ]);
 
     const { bruto: totalConceptosLibres, descuento: descuentoConceptosLibres } = this.conceptoLibreTotalFromText(consulta?.tratamiento ?? null);
@@ -92,6 +100,10 @@ export class PagoPacienteService {
       );
     }
 
+    const comision = esTarjetaTransferencia
+      ? (configCuenta?.comision ?? (createPaymentDto.metodoPago === 'Tarjeta' ? 2.0 : null))
+      : null;
+
     const pago = await this.prisma.pagoPaciente.create({
       data: {
         id_consulta: createPaymentDto.id_consulta,
@@ -99,6 +111,7 @@ export class PagoPacienteService {
         abono: createPaymentDto.abono,
         metodo_pago: createPaymentDto.metodoPago ?? 'Efectivo',
         cuenta_destino: createPaymentDto.cuentaDestino,
+        comision,
         observacion: createPaymentDto.observacion,
         firma_paciente: createPaymentDto.firma_paciente,
       },
@@ -238,6 +251,7 @@ export class PagoPacienteService {
       abono: Number(pago.abono),
       metodoPago: pago.metodo_pago,
       cuentaDestino: pago.cuenta_destino,
+      comision: pago.comision ? Number(pago.comision) : null,
       estado: pago.estado,
       observacion: pago.observacion,
       firma_paciente: pago.firma_paciente,

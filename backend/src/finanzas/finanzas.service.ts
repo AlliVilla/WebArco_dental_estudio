@@ -386,18 +386,19 @@ export class FinanzasService {
           metodo_pago: { contains: 'Tarjeta', mode: 'insensitive' },
           fecha: { gte: rango.inicio, lt: rango.finExclusivo },
         },
-        select: { abono: true, cuenta_destino: true },
+        select: { abono: true, cuenta_destino: true, comision: true },
       }),
       this.prismaService.pagoConsulta.findMany({
         where: {
           metodoPago: 'TARJETA',
           fecha: { gte: rango.inicio, lt: rango.finExclusivo },
         },
-        select: { monto: true },
+        select: { monto: true, comision: true },
       }),
     ]);
 
     // Mapa de nombre de cuenta destino -> comisión (decimal, ej. 2.5 = 2.5%)
+    // Solo usado como fallback para pagos viejos sin comision almacenada
     const comisionMap = new Map<string, number>();
     for (const c of cuentasDestino) {
       if (c.comision) comisionMap.set(c.nombre, Number(c.comision));
@@ -408,13 +409,20 @@ export class FinanzasService {
 
     for (const pago of pagosPacienteTarjeta) {
       const monto = Number(pago.abono || 0);
-      const pct = pago.cuenta_destino ? comisionMap.get(pago.cuenta_destino) : undefined;
+      // Usar comision almacenada; si es null (pago viejo), buscar en config actual
+      const pct = pago.comision != null
+        ? Number(pago.comision)
+        : pago.cuenta_destino
+          ? comisionMap.get(pago.cuenta_destino)
+          : undefined;
       totalComisiones += monto * ((pct ?? comisionDefault) / 100);
     }
 
-    const montoConsulta = pagosConsultaTarjeta.reduce((sum, p) => sum + Number(p.monto || 0), 0);
-    // pagos de consulta no tienen cuenta_destino, usar default
-    totalComisiones += montoConsulta * (comisionDefault / 100);
+    for (const pago of pagosConsultaTarjeta) {
+      const monto = Number(pago.monto || 0);
+      const pct = pago.comision != null ? Number(pago.comision) : comisionDefault;
+      totalComisiones += monto * (pct / 100);
+    }
 
     return totalComisiones;
   }
