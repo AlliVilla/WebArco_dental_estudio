@@ -103,12 +103,10 @@ export function NuevoRecordatorioForm({
       setErrors({});
       onCreated();
       onClose();
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (mountedRef.current) {
         setSubmitError(
-          err instanceof Error
-            ? err.message
-            : "Error al crear el recordatorio. Intenta de nuevo."
+          err?.message || "Error al crear el recordatorio. Intenta de nuevo."
         );
       }
     } finally {

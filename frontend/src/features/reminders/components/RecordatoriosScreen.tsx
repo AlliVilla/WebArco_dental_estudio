@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Send, RotateCcw, Clock, RefreshCw, Plus, Trash2 } from "lucide-react";
 import { DataTable, StatsDrawer, ConfirmModal } from "../../../components";
-import { Avatar } from "../../../context";
+import { Avatar, Alert } from "../../../context";
 import { ReminderService } from "../services/ReminderService";
 import {
   formatDate,
@@ -312,6 +312,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   const [rows, setRows] = useState<RecordatorioRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -375,6 +376,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
   // Acciones de fila
   async function handleSend(row: RecordatorioRow) {
     setActionLoadingId(row.id);
+    setActionError(null);
     try {
       const res = await ReminderService.send({ id_cita: row.id_cita, canal: row.canal });
       
@@ -390,7 +392,8 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
           r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
         )
       );
-    } catch {
+    } catch (err: any) {
+      setActionError(err?.message || "Ocurrió un error al enviar el recordatorio.");
       setRows((prev) =>
         prev.map((r) =>
           r.id === row.id ? { ...r, estado_envio: "Error" } : r
@@ -403,6 +406,7 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
 
   async function handleRetry(row: RecordatorioRow) {
     setActionLoadingId(row.id);
+    setActionError(null);
     try {
       const realId = parseInt(row.id.replace('rec-', ''), 10);
       const res = await ReminderService.retry(realId);
@@ -419,7 +423,8 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
           r.id === row.id ? { ...r, estado_envio: "Enviado" } : r
         )
       );
-    } catch {
+    } catch (err: any) {
+      setActionError(err?.message || "Ocurrió un error al reintentar el envío.");
       /* estado permanece en Error */
     } finally {
       setActionLoadingId(null);
@@ -591,6 +596,14 @@ export function RecordatoriosScreen(_props: RecordatoriosScreenProps) {
         gap: isMobile ? 16 : 20,
       }}
     >
+      {actionError && (
+        <Alert
+          variant="error"
+          message={actionError}
+          onClose={() => setActionError(null)}
+        />
+      )}
+
       {/* KPIs */}
       <div
         style={{
