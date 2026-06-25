@@ -462,65 +462,112 @@ export function GestionIngresos() {
       return;
     }
 
-    const tableRows = getTableRows(rows);
-    const headers = Object.keys(tableRows[0]);
-    const tableHtml = `
-      <table>
-        <thead><tr>${headers
-          .map((header) => `<th>${escapeHtml(header)}</th>`)
-          .join("")}</tr></thead>
-        <tbody>
-          ${tableRows
-            .map(
-              (row) =>
-                `<tr>${headers
-                  .map(
-                    (header) =>
-                      `<td>${escapeHtml(row[header as keyof typeof row])}</td>`
-                  )
-                  .join("")}</tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    `;
+    const vent = window.open("", "_blank");
+    if (!vent) return;
 
-    const printWindow = window.open("", "_blank", "width=1100,height=700");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!doctype html>
+    const totalIngresos = rows.reduce((sum, r) => sum + r.monto, 0);
+
+    const filasHtml = rows
+      .map(
+        (r) => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.fecha
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.paciente
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.tratamiento
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">#${escapeHtml(
+          r.idConsulta
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-weight: bold; text-align: right; color: #1D9E75;">${formatCurrency(
+          r.monto
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.metodoPago
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.doctor
+        )}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">${escapeHtml(
+          r.estado
+        )}</td>
+      </tr>
+    `
+      )
+      .join("");
+
+    vent.document.write(`
       <html>
         <head>
-          <title>Registros de Ingresos</title>
+          <title>Reporte de Ingresos - WebArco Dental Studio</title>
           <style>
-            body { font-family: Arial, sans-serif; color: #203F49; padding: 24px; }
-            h1 { font-size: 22px; margin: 0 0 4px 0; }
-            p { margin: 0 0 18px 0; color: #5F656A; font-size: 13px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { border: 1px solid #D3D7DA; padding: 8px; text-align: left; }
-            th { background: #F1F3F4; color: #203F49; }
-            .total { margin-top: 14px; font-weight: 700; text-align: right; }
-            @media print { body { padding: 0; } }
+            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #203F49; padding: 40px; margin: 0; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0BC5DF; padding-bottom: 20px; margin-bottom: 30px; }
+            .title { font-size: 24px; font-weight: 700; margin: 0; }
+            .subtitle { font-size: 14px; color: #5F656A; margin: 5px 0 0 0; }
+            .meta { font-size: 12px; color: #888F94; text-align: right; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th { background-color: #F8F9FA; padding: 10px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid #E2E8F0; }
+            .total-row { font-size: 16px; font-weight: bold; background-color: #F8F9FA; }
+            .total-cell { padding: 12px 10px; border-top: 2px solid #E2E8F0; }
+            @media print {
+              body { padding: 20px; }
+            }
           </style>
         </head>
         <body>
-          <h1>Registros de Ingresos</h1>
-          <p>Fecha de impresión: ${escapeHtml(
-            new Date().toLocaleString("es-HN")
-          )}</p>
-          ${tableHtml}
-          <div class="total">Total: ${escapeHtml(
-            formatCurrency(rows.reduce((sum, row) => sum + row.monto, 0))
-          )}</div>
+          <div class="header">
+            <div>
+              <h1 class="title">WebArco Dental Studio</h1>
+              <p class="subtitle">Reporte de Control de Ingresos</p>
+            </div>
+            <div class="meta">
+              <p style="margin: 0;">Fecha de impresión: ${new Date().toLocaleDateString(
+                "es-HN"
+              )}</p>
+              <p style="margin: 5px 0 0 0;">Total Registros: ${
+                rows.length
+              }</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 10%;">Fecha</th>
+                <th style="width: 15%;">Paciente</th>
+                <th style="width: 20%;">Tratamiento</th>
+                <th style="width: 10%;">No. Consulta</th>
+                <th style="width: 15%; text-align: right;">Monto</th>
+                <th style="width: 10%;">Método</th>
+                <th style="width: 10%;">Doctor</th>
+                <th style="width: 10%;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filasHtml}
+              <tr class="total-row">
+                <td colspan="4" class="total-cell" style="text-align: right;">Total General:</td>
+                <td class="total-cell" style="text-align: right; color: #1D9E75;">${formatCurrency(
+                  totalIngresos
+                )}</td>
+                <td colspan="3" class="total-cell"></td>
+              </tr>
+            </tbody>
+          </table>
+          <script>
+            window.onafterprint = function() {
+              window.close();
+            };
+            window.print();
+          </script>
         </body>
       </html>
     `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    vent.document.close();
   };
 
   const handleDelete = async () => {
