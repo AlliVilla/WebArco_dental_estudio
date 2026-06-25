@@ -98,7 +98,7 @@ export class ReminderService {
     };
   }
 
-  async send(sendReminderDto: SendReminderDto) {
+  async send(sendReminderDto: SendReminderDto, dynamicBaseUrl?: string) {
     const cita = await this.prisma.cita.findUnique({
       where: { id_cita: sendReminderDto.id_cita },
       include: { persona: { select: personaSelect } },
@@ -129,7 +129,8 @@ export class ReminderService {
       cita.fecha_inicio,
       cita.id_cita,
       cita.motivo,
-      cita.tipo_cita
+      cita.tipo_cita,
+      dynamicBaseUrl
     );
 
     const recordatorio = await this.prisma.recordatorio.create({
@@ -385,7 +386,7 @@ export class ReminderService {
     };
   }
 
-  async retry(id: number) {
+  async retry(id: number, dynamicBaseUrl?: string) {
     const recordatorio = await this.prisma.recordatorio.findUnique({
       where: { id },
       include: {
@@ -420,7 +421,8 @@ export class ReminderService {
       recordatorio.cita?.fecha_inicio ?? new Date(),
       recordatorio.cita?.id_cita ?? 0,
       recordatorio.cita?.motivo,
-      recordatorio.cita?.tipo_cita
+      recordatorio.cita?.tipo_cita,
+      dynamicBaseUrl
     );
 
     const updated = await this.prisma.recordatorio.update({
@@ -459,7 +461,8 @@ export class ReminderService {
     fechaCita: Date,
     citaId: number,
     motivo: string | null = null,
-    tipoCita: string | null = null
+    tipoCita: string | null = null,
+    dynamicBaseUrl?: string
   ): Promise<string> {
     if (!contacto) throw new BadRequestException(`El paciente no tiene un contacto válido para el canal ${canal}`);
 
@@ -488,7 +491,7 @@ export class ReminderService {
       // Omitir llamada a Twilio para redirección directa en frontend
       return mensajeFinal;
     } else if (canal === 'Correo') {
-      const htmlBody = buildReminderEmail(pacienteNombre, fechaCita, citaId);
+      const htmlBody = buildReminderEmail(pacienteNombre, fechaCita, citaId, dynamicBaseUrl);
       await this.brevoService.sendMail({
         to: contacto,
         subject: 'Recordatorio de Cita - WebArco Dental Studio',

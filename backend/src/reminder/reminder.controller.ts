@@ -10,7 +10,9 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -120,8 +122,11 @@ export class ReminderController {
   @ApiCreatedResponse({ description: 'Recordatorio enviado exitosamente' })
   @ApiBadRequestResponse({ description: 'Cita no apta para recordatorio' })
   @ApiNotFoundResponse({ description: 'Cita no encontrada' })
-  async send(@Body() dto: SendReminderDto) {
-    return this.reminderService.send(dto);
+  async send(@Body() dto: SendReminderDto, @Req() req: Request) {
+    const host = req.get('host');
+    const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
+    const dynamicBaseUrl = `${protocol}://${host}`;
+    return this.reminderService.send(dto, dynamicBaseUrl);
   }
 
   @Privileges(32)
@@ -163,8 +168,11 @@ export class ReminderController {
   @ApiOkResponse({ description: 'Reintento registrado exitosamente' })
   @ApiNotFoundResponse({ description: 'Recordatorio no encontrado' })
   @ApiBadRequestResponse({ description: 'El recordatorio no está en estado pendiente' })
-  async retryReminder(@Param('id', ParseIntPipe) id: number) {
-    return this.reminderService.retry(id);
+  async retryReminder(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+    const host = req.get('host');
+    const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
+    const dynamicBaseUrl = `${protocol}://${host}`;
+    return this.reminderService.retry(id, dynamicBaseUrl);
   }
 
   @Privileges(30)

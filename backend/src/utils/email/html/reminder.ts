@@ -1,4 +1,4 @@
-export function buildReminderEmail(pacienteNombre: string, fechaCita: Date, citaId: number): string {
+export function buildReminderEmail(pacienteNombre: string, fechaCita: Date, citaId: number, dynamicBaseUrl?: string): string {
   const fechaStr = fechaCita.toLocaleDateString('es-HN', {
     weekday: 'long',
     year: 'numeric',
@@ -11,7 +11,7 @@ export function buildReminderEmail(pacienteNombre: string, fechaCita: Date, cita
     minute: '2-digit',
   });
 
-  const baseUrl = process.env.BACKEND_URL || 'http://localhost:3030';
+  const baseUrl = dynamicBaseUrl || process.env.BACKEND_URL || 'http://localhost:3030';
   const confirmUrl = `${baseUrl}/webhooks/email-response/${citaId}?action=Confirmo`;
   const cancelUrl = `${baseUrl}/webhooks/email-response/${citaId}?action=Cancelo`;
 
