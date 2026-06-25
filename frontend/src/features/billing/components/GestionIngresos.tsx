@@ -701,15 +701,6 @@ export function GestionIngresos() {
             ],
           },
         ]}
-        primaryAction={{
-          label: "Registrar Ingreso",
-          icon: <Plus size={16} />,
-          onClick: () => {
-            setErrorMessage(null);
-            resetForm();
-            setIsDialogOpen(true);
-          },
-        }}
         secondaryActions={[
           {
             label: "Exportar Excel",
