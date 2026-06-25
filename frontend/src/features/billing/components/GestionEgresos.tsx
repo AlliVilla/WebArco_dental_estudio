@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Card, Alert, Button } from "../../../context";
+import { Card, Alert, Button, Select, Input } from "../../../context";
 import {
   formatCurrency,
   obtenerHoyLocal,
@@ -30,7 +30,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { DataTable, ConfirmModal } from "../../../components";
+import { DataTable, ConfirmModal, Modal } from "../../../components";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
 type CategoriaEgreso = "Insumos" | "Equipos" | "Nómina" | "Servicios";
@@ -866,342 +866,215 @@ export function GestionEgresos() {
         onConfirm={manejarConfirmarEliminacion}
       />
 
-      {estaModalAbierto && (
-        <div
+      <Modal
+        open={estaModalAbierto}
+        onClose={cerrarModal}
+        title={
+          modoModal === "ver"
+            ? "Detalles del Egreso"
+            : modoModal === "editar"
+            ? "Editar Egreso"
+            : "Registrar Nuevo Egreso"
+        }
+        maxWidth={500}
+      >
+        {error && (
+          <div style={{ padding: "16px 20px 0 20px" }}>
+            <Alert variant="error" message={error} />
+          </div>
+        )}
+
+        <form
+          onSubmit={manejarGuardarEgreso}
           style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(32, 63, 73, 0.4)",
-            backdropFilter: "blur(4px)",
+            padding: 20,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 16,
+            flexDirection: "column",
+            gap: 14,
           }}
         >
           <div
             style={{
-              background: "#fff",
-              borderRadius: 12,
-              width: "100%",
-              maxWidth: 500,
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-              display: "flex",
-              flexDirection: "column",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 12,
             }}
           >
+            <Input
+              label="Fecha"
+              type={modoModal === "ver" ? "text" : "date"}
+              disabled={modoModal === "ver"}
+              required
+              badge={modoModal !== "ver" ? "required" : undefined}
+              value={
+                modoModal === "ver" && fecha.includes("-")
+                  ? fecha.split("-").reverse().join("/")
+                  : fecha
+              }
+              onChange={(e) => setFecha(e.target.value)}
+            />
+            <Select
+              label="Categoría"
+              badge={modoModal !== "ver" ? "required" : undefined}
+              disabled={modoModal === "ver"}
+              value={categoria}
+              onChange={(v) => {
+                const newCat = v as CategoriaEgreso;
+                setCategoria(newCat);
+                if (newCat !== "Insumos") {
+                  setInsumosSeleccionados([]);
+                }
+              }}
+              options={CATEGORIAS.map((cat) => ({ value: cat, label: cat }))}
+            />
+          </div>
+
+          <Input
+            label="Concepto"
+            badge={modoModal !== "ver" ? "required" : undefined}
+            placeholder="Descripción del egreso..."
+            required
+            disabled={modoModal === "ver"}
+            value={concepto}
+            onChange={(e) => setConcepto(e.target.value)}
+          />
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 12,
+            }}
+          >
+            <Input
+              label="Monto (L.)"
+              badge={modoModal !== "ver" ? "required" : undefined}
+              type={modoModal === "ver" ? "text" : "number"}
+              step="0.01"
+              placeholder="0.00"
+              disabled={modoModal === "ver"}
+              required
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+            />
+            <Input
+              label="Responsable"
+              badge={modoModal !== "ver" ? "required" : undefined}
+              disabled
+              value={responsable}
+              required
+              placeholder="Nombre del responsable"
+            />
+          </div>
+
+          <div style={fieldGroupStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={labelStyle}>Observaciones</label>
+              {modoModal !== "ver" && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "#5A6370",
+                    background: "#E6E8EC",
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                  }}
+                >
+                  Opcional
+                </span>
+              )}
+            </div>
+            <textarea
+              value={observaciones}
+              disabled={modoModal === "ver"}
+              placeholder="Notas o comentarios adicionales..."
+              onChange={(e) => setObservaciones(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: 60,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid #D3D7DA",
+                outline: "none",
+                fontSize: 13,
+                fontFamily: "inherit",
+                resize: "none",
+                backgroundColor: observaciones ? "#fff" : "#F3F3F5",
+              }}
+            />
+          </div>
+
+          {categoria === "Insumos" && (
             <div
               style={{
-                padding: "16px 20px",
-                borderBottom: "1px solid #EAECEE",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "#F8F9FA",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#203F49",
-                    fontSize: 15,
-                    fontWeight: 600,
-                  }}
-                >
-                  {modoModal === "ver"
-                    ? "Detalles del Egreso"
-                    : modoModal === "editar"
-                    ? "Editar Egreso"
-                    : "Registrar Nuevo Egreso"}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={cerrarModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#888F94",
-                  fontSize: 18,
-                }}
-              >
-                <XCircle size={18} />
-              </button>
-            </div>
-
-            {error && (
-              <div style={{ padding: "16px 20px 0 20px" }}>
-                <Alert variant="error" message={error} />
-              </div>
-            )}
-
-            <form
-              onSubmit={manejarGuardarEgreso}
-              style={{
-                padding: 20,
+                border: "1px solid #EAECEE",
+                borderRadius: 8,
+                padding: 12,
+                backgroundColor: "#F8F9FA",
                 display: "flex",
                 flexDirection: "column",
-                gap: 14,
+                gap: 10,
               }}
             >
-              <div
+              <h4
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                  gap: 12,
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#203F49",
                 }}
               >
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>
-                    Fecha
-                    {modoModal !== "ver" && (
-                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
-                    )}
-                  </label>
-                  <input
-                    type={modoModal === "ver" ? "text" : "date"}
-                    disabled={modoModal === "ver"}
-                    required
-                    value={
-                      modoModal === "ver" && fecha.includes("-")
-                        ? fecha.split("-").reverse().join("/")
-                        : fecha
-                    }
-                    onChange={(e) => setFecha(e.target.value)}
-                    style={inputStyle(!!fecha, modoModal === "ver")}
-                  />
-                </div>
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>
-                    Categoría
-                    {modoModal !== "ver" && (
-                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
-                    )}
-                  </label>
-                  {modoModal === "ver" ? (
-                    <input
-                      disabled
-                      value={categoria}
-                      style={inputStyle(true, true)}
-                    />
-                  ) : (
-                    <select
-                      required
-                      value={categoria}
-                      onChange={(e) => {
-                        const newCat = e.target.value as CategoriaEgreso;
-                        setCategoria(newCat);
-                        if (newCat !== "Insumos") {
-                          setInsumosSeleccionados([]);
-                        }
-                      }}
-                      style={{
-                        ...inputStyle(!!categoria),
-                        cursor: "pointer",
-                      }}
-                    >
-                      {CATEGORIAS.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
+                Insumos restados de inventario
+              </h4>
 
-              <div style={fieldGroupStyle}>
-                <label style={labelStyle}>
-                  Concepto
-                  {modoModal !== "ver" && (
-                    <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
-                  )}
-                </label>
-                <input
-                  placeholder="Descripción del egreso..."
-                  required
-                  disabled={modoModal === "ver"}
-                  value={concepto}
-                  onChange={(e) => setConcepto(e.target.value)}
-                  style={inputStyle(!!concepto, modoModal === "ver")}
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                <div style={fieldGroupStyle}>
-                  <label style={labelStyle}>
-                    Monto (L.)
-                    {modoModal !== "ver" && (
-                      <span style={{ color: "#EF9F27", marginLeft: 4 }}>*</span>
-                    )}
-                  </label>
-                  <input
-                    type={modoModal === "ver" ? "text" : "number"}
-                    step="0.01"
-                    placeholder="0.00"
-                    disabled={modoModal === "ver"}
-                    required
-                    value={monto}
-                    onChange={(e) => setMonto(e.target.value)}
-                    style={inputStyle(!!monto, modoModal === "ver")}
-                  />
-                </div>
-                <div style={fieldGroupStyle}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <label style={labelStyle}>
-                      Responsable
-                      {modoModal !== "ver" && (
-                        <span style={{ color: "#EF9F27", marginLeft: 4 }}>
-                          *
-                        </span>
-                      )}
-                    </label>
-                  </div>
-                  <input
-                    disabled
-                    value={responsable}
-                    onChange={(e) => setResponsable(e.target.value)}
-                    required
-                    placeholder="Nombre del responsable"
-                    style={inputStyle(!!responsable, modoModal === "ver")}
-                  />
-                </div>
-              </div>
-
-              <div style={fieldGroupStyle}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <label style={labelStyle}>Observaciones</label>
-                  {modoModal !== "ver" && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "#5A6370",
-                        background: "#E6E8EC",
-                        padding: "2px 8px",
-                        borderRadius: 12,
-                      }}
-                    >
-                      Opcional
-                    </span>
-                  )}
-                </div>
-                <textarea
-                  value={observaciones}
-                  disabled={modoModal === "ver"}
-                  placeholder="Notas o comentarios adicionales..."
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  style={{
-                    width: "100%",
-                    minHeight: 60,
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #D3D7DA",
-                    outline: "none",
-                    fontSize: 13,
-                    fontFamily: "inherit",
-                    resize: "none",
-                    backgroundColor: observaciones ? "#fff" : "#F3F3F5",
-                  }}
-                />
-              </div>
-
-              {categoria === "Insumos" && (
+              {modoModal !== "ver" && (
                 <div
                   style={{
-                    border: "1px solid #EAECEE",
-                    borderRadius: 8,
-                    padding: 12,
-                    backgroundColor: "#F8F9FA",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: 8,
+                    alignItems: isMobile ? "stretch" : "flex-end",
                   }}
                 >
-                  <h4
-                    style={{
-                      margin: 0,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#203F49",
-                    }}
-                  >
-                    Insumos restados de inventario
-                  </h4>
-
-                  {modoModal !== "ver" && (
+                  <div style={{ flex: isMobile ? "none" : 1 }}>
+                    <Select
+                      label="Seleccionar Insumo"
+                      value={tempInsumoId}
+                      onChange={(v) => setTempInsumoId(v)}
+                      placeholder="Seleccionar..."
+                      options={[
+                        { value: "", label: "-- Seleccione --" },
+                        ...insumosDisponibles.map((ins) => ({
+                          value: String(ins.id_insumo),
+                          label: `${ins.nombre} (Stock: ${ins.stock_actual})`,
+                        })),
+                      ]}
+                    />
+                  </div>
+                  {isMobile ? (
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 100px auto",
+                        gridTemplateColumns: "1fr auto",
                         gap: 8,
                         alignItems: "flex-end",
                       }}
                     >
-                      <div style={fieldGroupStyle}>
-                        <label style={{ ...labelStyle, fontSize: 11 }}>
-                          Seleccionar Insumo
-                        </label>
-                        <select
-                          value={tempInsumoId}
-                          onChange={(e) => setTempInsumoId(e.target.value)}
-                          style={{
-                            ...inputStyle(!!tempInsumoId),
-                            padding: "8px 10px",
-                            fontSize: 13,
-                          }}
-                        >
-                          <option value="">-- Seleccione --</option>
-                          {insumosDisponibles.map((ins) => (
-                            <option key={ins.id_insumo} value={ins.id_insumo}>
-                              {ins.nombre} (Stock: {ins.stock_actual})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={fieldGroupStyle}>
-                        <label style={{ ...labelStyle, fontSize: 11 }}>
-                          Cantidad
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          placeholder="Cant"
-                          value={tempCantidad}
-                          onChange={(e) => setTempCantidad(e.target.value)}
-                          style={{
-                            ...inputStyle(!!tempCantidad),
-                            padding: "8px 10px",
-                            fontSize: 13,
-                          }}
-                        />
-                      </div>
+                      <Input
+                        label="Cantidad"
+                        type="number"
+                        min="1"
+                        placeholder="Cant"
+                        value={tempCantidad}
+                        onChange={(e) => setTempCantidad(e.target.value)}
+                      />
                       <Button
                         type="button"
                         onClick={agregarInsumoALista}
                         variant="secondary"
                         style={{
-                          height: 38,
-                          padding: "0 12px",
+                          height: 41,
+                          padding: "0 24px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1210,113 +1083,140 @@ export function GestionEgresos() {
                         Agregar
                       </Button>
                     </div>
-                  )}
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 6,
-                      marginTop: 4,
-                    }}
-                  >
-                    {insumosSeleccionados.length === 0 ? (
-                      <span
+                  ) : (
+                    <>
+                      <div style={{ width: 100 }}>
+                        <Input
+                          label="Cantidad"
+                          type="number"
+                          min="1"
+                          placeholder="Cant"
+                          value={tempCantidad}
+                          onChange={(e) => setTempCantidad(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={agregarInsumoALista}
+                        variant="secondary"
                         style={{
-                          fontSize: 12,
-                          color: "#888F94",
-                          fontStyle: "italic",
+                          height: 41,
+                          padding: "0 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        No hay insumos seleccionados.
-                      </span>
-                    ) : (
-                      insumosSeleccionados.map((item, index) => (
-                        <div
-                          key={item.id_insumo}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            background: "#fff",
-                            padding: "6px 10px",
-                            borderRadius: 6,
-                            border: "1px solid #E2E8F0",
-                            fontSize: 13,
-                          }}
-                        >
-                          <div>
-                            <span
-                              style={{ fontWeight: 500, color: "#203F49" }}
-                            >
-                              {item.nombre}
-                            </span>
-                            <span
-                              style={{
-                                marginLeft: 8,
-                                color: "#888F94",
-                                fontSize: 11,
-                              }}
-                            >
-                              (Cant:{" "}
-                              <strong style={{ color: "#203F49" }}>
-                                {item.cantidad}
-                              </strong>
-                              )
-                            </span>
-                          </div>
-                          {modoModal !== "ver" && (
-                            <button
-                              type="button"
-                              onClick={() => removerInsumoDeLista(index)}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#EF4444",
-                                cursor: "pointer",
-                                fontSize: 12,
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
+                        Agregar
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
 
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  marginTop: 8,
+                  flexDirection: "column",
+                  gap: 6,
+                  marginTop: 4,
                 }}
               >
-                <Button variant="secondary" onClick={cerrarModal} type="button">
-                  Cancelar
-                </Button>
-
-                {modoModal !== "ver" && (
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={estaCargando}
+                {insumosSeleccionados.length === 0 ? (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "#888F94",
+                      fontStyle: "italic",
+                    }}
                   >
-                    {modoModal === "editar"
-                      ? "Guardar Cambios"
-                      : "Registrar Egreso"}
-                  </Button>
+                    No hay insumos seleccionados.
+                  </span>
+                ) : (
+                  insumosSeleccionados.map((item, index) => (
+                    <div
+                      key={item.id_insumo}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        background: "#fff",
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid #E2E8F0",
+                        fontSize: 13,
+                      }}
+                    >
+                      <div>
+                        <span
+                          style={{ fontWeight: 500, color: "#203F49" }}
+                        >
+                          {item.nombre}
+                        </span>
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            color: "#888F94",
+                            fontSize: 11,
+                          }}
+                        >
+                          (Cant:{" "}
+                          <strong style={{ color: "#203F49" }}>
+                            {item.cantidad}
+                          </strong>
+                          )
+                        </span>
+                      </div>
+                      {modoModal !== "ver" && (
+                        <button
+                          type="button"
+                          onClick={() => removerInsumoDeLista(index)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#EF4444",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  ))
                 )}
               </div>
-            </form>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              marginTop: 8,
+            }}
+          >
+            <Button variant="secondary" onClick={cerrarModal} type="button">
+              Cancelar
+            </Button>
+
+            {modoModal !== "ver" && (
+              <Button
+                type="submit"
+                variant="primary"
+                loading={estaCargando}
+              >
+                {modoModal === "editar"
+                  ? "Guardar Cambios"
+                  : "Registrar Egreso"}
+              </Button>
+            )}
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       <StatsDrawerContent
         open={estaDrawerAbierto}

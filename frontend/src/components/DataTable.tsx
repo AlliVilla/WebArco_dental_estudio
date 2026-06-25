@@ -433,8 +433,10 @@ export function DataTable<T>({
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "flex-start" : "center",
             justifyContent: "space-between",
+            gap: isMobile ? 12 : 16,
             padding: "0 0 18px 0",
           }}
         >
@@ -451,7 +453,12 @@ export function DataTable<T>({
             </div>
           )}
           {primaryAction && (
-            <Button variant="primary" size="sm" onClick={primaryAction.onClick}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={primaryAction.onClick}
+              fullWidth={isMobile}
+            >
               {primaryAction.icon}
               {primaryAction.label}
             </Button>
