@@ -10,6 +10,7 @@ import { UpdateCitaDto } from './dto/update-cita.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { Prisma } from '@prisma/client';
 import { NotificacionService } from '../notificacion/notificacion.service';
+import { Cron } from '@nestjs/schedule';
 
 const citaInclude = {
   persona: {
@@ -96,6 +97,7 @@ export class CitaService {
     end: string,
     id_usuario?: number,
   ) {
+    await this.updatePastCitasToAtendida();
     const startDate = new Date(`${start}T00:00:00`);
     const endDate = new Date(`${end}T23:59:59.999`);
 
@@ -117,6 +119,7 @@ export class CitaService {
   }
 
   async findOne(id: number) {
+    await this.updatePastCitasToAtendida();
     const cita = await this.prisma.cita.findUnique({
       where: { id_cita: id },
       include: {
@@ -387,6 +390,7 @@ export class CitaService {
       end?: string;
     },
   ) {
+    await this.updatePastCitasToAtendida();
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: patientId },
       select: { id_persona: true },
@@ -462,7 +466,7 @@ export class CitaService {
       where: {
         id_usuario,
         fecha_inicio: { gte: startOfDay, lte: endOfDay },
-        estado: { notIn: ['cancelada', 'ausente'] },
+        estado: { in: ['programada', 'confirmada'] },
         ...(excludeId ? { id_cita: { not: excludeId } } : {}),
       },
       select: {
@@ -502,6 +506,7 @@ export class CitaService {
   }
 
   async getPendingCount(id_usuario?: number) {
+    await this.updatePastCitasToAtendida();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStart = today.toISOString();
@@ -545,6 +550,60 @@ export class CitaService {
 
     if (!isValidStart) {
       throw new BadRequestException('Las citas solo se pueden agendar para iniciar entre las 8:00 AM y las 5:00 PM.');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Auto-completar citas pasadas
+  // ─────────────────────────────────────────────────────────────────
+
+  @Cron('*/5 * * * *')
+  async handleAutoUpdatePastCitas() {
+    await this.updatePastCitasToAtendida();
+  }
+
+  async updatePastCitasToAtendida() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const pastCitas = await this.prisma.cita.findMany({
+      where: {
+        estado: { in: ['programada', 'confirmada'] },
+        fecha_inicio: { gte: thirtyDaysAgo },
+        OR: [
+          { fecha_fin: { lt: now } },
+          { AND: [{ fecha_fin: null }, { fecha_inicio: { lt: now } }] }
+        ]
+      },
+      select: {
+        id_cita: true,
+        estado: true,
+        id_usuario: true,
+      }
+    });
+
+    if (pastCitas.length > 0) {
+      for (const cita of pastCitas) {
+        try {
+          await this.prisma.$transaction([
+            this.prisma.cita.update({
+              where: { id_cita: cita.id_cita },
+              data: { estado: 'atendida' }
+            }),
+            this.prisma.estadoHistorial.create({
+              data: {
+                id_cita: cita.id_cita,
+                estado_anterior: cita.estado,
+                estado_nuevo: 'atendida',
+                cambiado_por: cita.id_usuario,
+              }
+            })
+          ]);
+        } catch (error) {
+          console.error(`Error al auto-completar cita ${cita.id_cita}:`, error);
+        }
+      }
     }
   }
 }
