@@ -1200,7 +1200,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
                   gap: 16,
                 }}
               >
