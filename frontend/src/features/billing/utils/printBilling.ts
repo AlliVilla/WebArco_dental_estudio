@@ -381,7 +381,7 @@ export function printInvoice(
     <html lang="es">
       <head>
         <meta charset="utf-8" />
-        <title>Factura_Consulta_${consulta.id_consulta}</title>
+        <title>Comprobante_Consulta_${consulta.id_consulta}</title>
         <style>
           ${commonStyles}
         </style>
@@ -396,8 +396,8 @@ export function printInvoice(
               <p>RTN: 0801-9012-345678</p>
             </div>
             <div class="doc-title">
-              <h2>Factura / Estado</h2>
-              <p>Factura No: FAC-CONS-${consulta.id_consulta}</p>
+              <h2>Comprobante / Estado</h2>
+              <p>Comprobante No: COMP-CONS-${consulta.id_consulta}</p>
               <p>Fecha Emisión: ${new Date().toLocaleDateString("es-HN")}</p>
               <p>Estado: <strong>${saldoPendiente <= 0 ? "PAGADO" : "PENDIENTE"}</strong></p>
             </div>
@@ -458,7 +458,7 @@ export function printInvoice(
                 </div>
               ` : ""}
               <div class="summary-row total">
-                <span>Total Facturado:</span>
+                <span>Total Comprobante:</span>
                 <span>L ${formatNumber(totalAPagar)}</span>
               </div>
               <div class="summary-row paid">
@@ -475,7 +475,7 @@ export function printInvoice(
 
 
           <div class="footer-note">
-            <p>Esta es una factura de servicio médico dental emitida por ARCO Dental Studio.</p>
+            <p>Este es un comprobante de servicio médico dental emitido por ARCO Dental Studio.</p>
             <p>¡Gracias por su preferencia y confiar en su salud dental con nosotros!</p>
           </div>
         </div>
