@@ -22,6 +22,7 @@ const citaInclude = {
       segundo_apellido: true,
       numero_identidad: true,
       telefono: true,
+      correo_electronico: true,
     },
   },
   doctor: {

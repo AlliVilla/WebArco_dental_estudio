@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ReminderService } from "../services/ReminderService";
 import { CanalRecordatorio } from "../types/types";
 import { Bell, X } from "lucide-react";
-import { FormSection, FullWidthField } from "../../../components";
+
 import { Button, Select } from "../../../context";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Z } from "../../../utils/zIndex";
@@ -42,6 +42,9 @@ export function NuevoRecordatorioForm({
   >([]);
   const [rawAppointments, setRawAppointments] = useState<any[]>([]);
 
+  const selectedApt = rawAppointments.find((a) => String(a.id) === form.id_cita);
+  const hasEmail = !!selectedApt?.correo?.trim();
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -74,6 +77,14 @@ export function NuevoRecordatorioForm({
     const next: FormErrors = {};
     if (!form.id_cita.trim()) next.id_cita = "Requerido";
     if (!form.canal) next.canal = "Requerido";
+
+    if (form.canal === "Correo" && form.id_cita) {
+      const selectedAptVal = rawAppointments.find((a) => String(a.id) === form.id_cita);
+      if (!selectedAptVal?.correo?.trim()) {
+        next.canal = "El paciente no tiene un correo electrónico registrado para poder enviar por este canal.";
+      }
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -235,11 +246,18 @@ export function NuevoRecordatorioForm({
         </div>
 
         {/* Body */}
-        <div style={{ padding: isMobile ? "16px 20px" : "20px 24px" }}>
+        <div
+          style={{
+            padding: isMobile ? "16px 20px" : "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
           {submitError && (
             <div
               style={{
-                marginBottom: 16,
+                marginBottom: 4,
                 padding: "10px 14px",
                 borderRadius: 8,
                 background: "#FEF2F2",
@@ -251,48 +269,36 @@ export function NuevoRecordatorioForm({
               {submitError}
             </div>
           )}
-          <FormSection
-            title="Datos del recordatorio"
-            icon={<Bell size={18} />}
-            columns={1}
-          >
-            <FullWidthField>
-              <Select
-                label="Cita"
-                badge="required"
-                placeholder="Selecciona una cita"
-                value={form.id_cita}
-                onChange={(v) => {
-                  setForm((p) => {
-                    const apt = rawAppointments.find((a) => String(a.id) === v);
-                    const hasEmail = !!apt?.correo?.trim();
-                    const newCanal = p.canal === "Correo" && !hasEmail ? "" : p.canal;
-                    return { ...p, id_cita: v, canal: newCanal };
-                  });
-                }}
-                error={errors.id_cita}
-                options={appointments}
-              />
-            </FullWidthField>
-            <FullWidthField>
-              <Select
-                label="Canal de envío"
-                badge="required"
-                placeholder="Selecciona un canal"
-                value={form.canal}
-                onChange={(v) =>
-                  setForm((p) => ({ ...p, canal: v as CanalRecordatorio }))
-                }
-                error={errors.canal}
-                options={[
-                  { value: "WhatsApp", label: "WhatsApp" },
-                  ...(rawAppointments.find((a) => String(a.id) === form.id_cita)?.correo?.trim()
-                    ? [{ value: "Correo", label: "Correo electrónico" }]
-                    : []),
-                ]}
-              />
-            </FullWidthField>
-          </FormSection>
+          <Select
+            label="Cita"
+            badge="required"
+            placeholder="Selecciona una cita"
+            value={form.id_cita}
+            onChange={(v) => {
+              setForm((p) => ({ ...p, id_cita: v }));
+            }}
+            error={errors.id_cita}
+            options={appointments}
+          />
+          {form.id_cita && !hasEmail && (
+            <span style={{ fontSize: 12, color: "#EF9F27", marginTop: -6, display: "block" }}>
+              * El paciente de esta cita no tiene un correo electrónico registrado. Si elige "Correo electrónico", no se podrá enviar.
+            </span>
+          )}
+          <Select
+            label="Canal de envío"
+            badge="required"
+            placeholder="Selecciona un canal"
+            value={form.canal}
+            onChange={(v) =>
+              setForm((p) => ({ ...p, canal: v as CanalRecordatorio }))
+            }
+            error={errors.canal}
+            options={[
+              { value: "WhatsApp", label: "WhatsApp" },
+              { value: "Correo", label: "Correo electrónico" },
+            ]}
+          />
         </div>
 
         {/* Footer */}
