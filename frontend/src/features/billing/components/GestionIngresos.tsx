@@ -12,7 +12,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { DataTable, ConfirmModal, Modal } from "../../../components";
+import { DataTable, ConfirmModal, Modal, RowAction } from "../../../components";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { useAuthStore } from "../../auth/hooks/useAuthStore";
 import api from "../../../services/api";
@@ -617,34 +617,31 @@ export function GestionIngresos() {
       render: (val: unknown) => getMetodoPagoBadge(String(val)),
     },
     { key: "doctor", label: "Doctor" },
-    {
-      key: "estado",
-      label: "Estado",
-      render: (val: unknown) => getEstadoBadge(String(val)),
-    },
   ];
 
-  const getRowActions = (record: IncomeRecord) => [
-    {
-      icon: <Eye size={14} />,
-      label: "Ver Detalles",
-      onClick: () => setDetailRecord(record),
-    },
-    {
-      icon: <Pencil size={14} />,
-      label: "Editar",
-      onClick: () => openEditModal(record),
-    },
-    {
-      icon: <Trash2 size={14} />,
-      label: "Eliminar",
-      danger: true,
-      onClick: () => {
-        setRecordToDelete(record.id);
-        setIsConfirmOpen(true);
+  const getRowActions = (record: IncomeRecord): RowAction<IncomeRecord>[] => {
+    const actions: RowAction<IncomeRecord>[] = [
+      {
+        icon: <Eye size={14} />,
+        label: "Ver Detalles",
+        onClick: () => setDetailRecord(record),
       },
-    },
-  ];
+    ];
+
+    if (canGestionarIngresos) {
+      actions.push({
+        icon: <Trash2 size={14} />,
+        label: "Eliminar",
+        danger: true,
+        onClick: () => {
+          setRecordToDelete(record.id);
+          setIsConfirmOpen(true);
+        },
+      });
+    }
+
+    return actions;
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -738,15 +735,6 @@ export function GestionIngresos() {
               { value: "Transferencia", label: "Transferencia" },
             ],
           },
-          {
-            key: "estado",
-            placeholder: "Todos los estados",
-            options: [
-              { value: "Pagado", label: "Pagado" },
-              { value: "Pendiente", label: "Pendiente" },
-              { value: "Parcial", label: "Parcial" },
-            ],
-          },
         ]}
         secondaryActions={[
           {
@@ -765,7 +753,6 @@ export function GestionIngresos() {
         renderMobileCard={(record) => (
           <IncomeCard
             record={record}
-            getEstadoBadge={getEstadoBadge}
             getMetodoPagoBadge={getMetodoPagoBadge}
             actions={getRowActions(record)}
           />
@@ -1294,12 +1281,10 @@ export function GestionIngresos() {
 
 function IncomeCard({
   record,
-  getEstadoBadge,
   getMetodoPagoBadge,
   actions,
 }: {
   record: IncomeRecord;
-  getEstadoBadge: (estado: string) => React.ReactNode;
   getMetodoPagoBadge: (m: string) => React.ReactNode;
   actions: {
     icon: React.ReactNode;
@@ -1361,7 +1346,6 @@ function IncomeCard({
             </p>
           </div>
         </div>
-        {getEstadoBadge(record.estado)}
       </div>
 
       <div style={{ borderTop: "1px solid #F8F9FA", paddingTop: 4 }}>

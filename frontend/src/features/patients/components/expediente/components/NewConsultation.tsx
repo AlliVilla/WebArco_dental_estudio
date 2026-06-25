@@ -2424,12 +2424,7 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                 <FieldLabel>Costo total (L.)</FieldLabel>
                                 <input
                                   value={planForm.costoTotal}
-                                  onChange={(e) =>
-                                    setPlanForm((prev) => ({
-                                      ...prev,
-                                      costoTotal: e.target.value,
-                                    }))
-                                  }
+                                  readOnly
                                   type="number"
                                   min="0"
                                   step="0.01"
@@ -2440,10 +2435,11 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                                     border: `1px solid ${C.gray300}`,
                                     borderRadius: 8,
                                     fontSize: 13,
-                                    color: C.navy,
+                                    color: C.gray500,
                                     outline: "none",
-                                    background: C.white,
+                                    background: C.gray100,
                                     boxSizing: "border-box",
+                                    cursor: "not-allowed",
                                   }}
                                 />
                               </div>

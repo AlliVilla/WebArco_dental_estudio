@@ -440,7 +440,18 @@ export const FacturaCobroDetalle: React.FC<FacturaCobroDetalleProps> = ({
       setPlanAbonoAgregado(0);
       onPaymentSuccess();
 
-      // Optional: show success toast
+      if (amountForPlan > 0) {
+        addToast(
+          "success",
+          `Se abonó con éxito L. ${formatNumber(amountForPlan)} al plan "${plan?.nombre}".`
+        );
+      }
+      if (amountForConsultation > 0) {
+        addToast(
+          "success",
+          `Se abonó con éxito L. ${formatNumber(amountForConsultation)} a los tratamientos de la consulta.`
+        );
+      }
     } catch (error: any) {
       console.error("Error processing payment:", error);
       addToast(
