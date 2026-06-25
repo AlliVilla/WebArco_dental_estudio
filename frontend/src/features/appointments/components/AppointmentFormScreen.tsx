@@ -36,6 +36,7 @@ export function AppointmentFormScreen() {
   });
 
   const [timeStr, setTimeStr] = useState('');
+  const [originalDate, setOriginalDate] = useState('');
   const [motivosSeleccionados, setMotivosSeleccionados] = useState<string[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [initialPatient, setInitialPatient] = useState<{ nombre: string; identidad: string } | null>(null);
@@ -77,12 +78,17 @@ export function AppointmentFormScreen() {
           setFormData({
             id_persona: apt.id_persona,
             id_usuario: apt.id_usuario,
-            fecha_inicio: apt.fecha_inicio.split('T')[0],
+          const cleanDate = apt.fecha_inicio.split('T')[0];
+          setFormData({
+            id_persona: apt.id_persona,
+            id_usuario: apt.id_usuario,
+            fecha_inicio: cleanDate,
             tipo_cita: apt.tipo_cita || '',
             motivo: apt.motivo || '',
             notas: apt.notas || '',
             estado: apt.estado,
           });
+          setOriginalDate(cleanDate);
           setMotivosSeleccionados(apt.motivo ? apt.motivo.split(',').map((m: string) => m.trim()).filter(Boolean) : []);
           setTimeStr(formatTimeFromISO(apt.fecha_inicio));
           if (apt.persona) {
@@ -114,6 +120,12 @@ export function AppointmentFormScreen() {
       const dayOfWeek = date.getDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         errors.fecha_inicio = 'Solo se pueden agendar citas de lunes a viernes';
+      } else {
+        const todayStr = new Date().toLocaleDateString('sv-SE');
+        const isDateChanged = !isEditing || formData.fecha_inicio !== originalDate;
+        if (isDateChanged && formData.fecha_inicio < todayStr) {
+          errors.fecha_inicio = 'No se pueden programar citas para días anteriores al actual';
+        }
       }
     }
     if (!timeStr) errors.timeStr = 'Ingrese la hora de la cita';
@@ -264,6 +276,7 @@ export function AppointmentFormScreen() {
                 label="Fecha de la cita"
                 badge="required"
                 value={formData.fecha_inicio}
+                minDate={new Date().toLocaleDateString('sv-SE')}
                 onChange={(date) => {
                   setFormData({ ...formData, fecha_inicio: date });
                   if (formErrors.fecha_inicio) setFormErrors({ ...formErrors, fecha_inicio: '' });

@@ -8,6 +8,7 @@ interface DatePickerCalendarProps {
   label?: string;
   badge?: 'required' | 'optional' | 'conditional';
   error?: string;
+  minDate?: string;
 }
 
 const MONTHS = [
@@ -43,7 +44,7 @@ function getFirstDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 1).getDay();
 }
 
-export function DatePickerCalendar({ value, onChange, label, badge, error }: DatePickerCalendarProps) {
+export function DatePickerCalendar({ value, onChange, label, badge, error, minDate }: DatePickerCalendarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
     if (value) {
@@ -248,11 +249,13 @@ export function DatePickerCalendar({ value, onChange, label, badge, error }: Dat
                 const dateStr = formatDate(new Date(viewDate.year, viewDate.month, day));
                 const isSelected = cleanValue === dateStr;
                 const isToday = todayStr === dateStr;
+                const isDisabled = minDate ? dateStr < minDate : false;
 
                 return (
                   <button
                     key={day}
                     type="button"
+                    disabled={isDisabled}
                     onClick={() => handleDateSelect(day)}
                     style={{
                       width: '100%',
@@ -260,22 +263,22 @@ export function DatePickerCalendar({ value, onChange, label, badge, error }: Dat
                       border: isToday ? '2px solid #0BC5DF' : 'none',
                       borderRadius: 8,
                       background: isSelected ? '#0BC5DF' : 'transparent',
-                      color: isSelected ? '#fff' : isToday ? '#0BC5DF' : '#203F49',
+                      color: isDisabled ? '#C8CCD0' : isSelected ? '#fff' : isToday ? '#0BC5DF' : '#203F49',
                       fontSize: 13,
                       fontWeight: isSelected || isToday ? 600 : 400,
-                      cursor: 'pointer',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       transition: 'all 0.15s',
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isDisabled) {
                         e.currentTarget.style.background = '#E6F8FB';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isDisabled) {
                         e.currentTarget.style.background = 'transparent';
                       }
                     }}

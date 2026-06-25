@@ -57,6 +57,7 @@ export class CitaService {
       : new Date(fechaInicio.getTime() + DEFAULT_DURATION_MINUTES * 60 * 1000);
 
     this.validateBusinessHours(fechaInicio);
+    this.validateNotPastDate(fechaInicio);
 
     await this.checkTimeConflict(
       createCitaDto.id_usuario,
@@ -220,6 +221,9 @@ export class CitaService {
         updateCitaDto.id_usuario !== existing.id_usuario)
     ) {
       this.validateBusinessHours(checkStart);
+      if (updateCitaDto.fecha_inicio !== undefined) {
+        this.validateNotPastDate(newFechaInicio);
+      }
       await this.checkTimeConflict(doctorId, checkStart, checkEnd, id);
     }
 
@@ -532,6 +536,15 @@ export class CitaService {
       throw new BadRequestException(
         `No existe un usuario con el id ${id}`,
       );
+    }
+  }
+
+  private validateNotPastDate(fecha_inicio: Date) {
+    const dateStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Tegucigalpa' });
+    const todayStart = new Date(`${dateStr}T00:00:00.000-06:00`);
+
+    if (fecha_inicio < todayStart) {
+      throw new BadRequestException('No se pueden programar citas para días anteriores al actual.');
     }
   }
 
