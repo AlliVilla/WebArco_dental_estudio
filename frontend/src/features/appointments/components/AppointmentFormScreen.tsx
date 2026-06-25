@@ -11,6 +11,7 @@ import { privilegeService } from '../../patients/components/expediente/services/
 import type { Treatment, Especialidad } from '../../treatments/types';
 import type { CreateAppointmentInput } from '../types';
 import { TIPO_CITA_OPTIONS, CALENDAR_START_HOUR, CALENDAR_END_HOUR } from '../constants';
+import { formatTimeFromISO } from '../utils';
 
 export function AppointmentFormScreen() {
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ export function AppointmentFormScreen() {
             estado: apt.estado,
           });
           setMotivosSeleccionados(apt.motivo ? apt.motivo.split(',').map((m: string) => m.trim()).filter(Boolean) : []);
-          setTimeStr(apt.fecha_inicio.substring(11, 16));
+          setTimeStr(formatTimeFromISO(apt.fecha_inicio));
           if (apt.persona) {
             setInitialPatient({
               nombre: `${apt.persona.primer_nombre} ${apt.persona.primer_apellido}`,
@@ -170,14 +171,12 @@ export function AppointmentFormScreen() {
       const startDate = new Date(fechaInicio);
       const durationHours = formData.tipo_cita === 'Especialidad' ? 2 : 1;
       const endDate = new Date(startDate.getTime() + durationHours * 60 * 60 * 1000);
-      const pad2 = (n: number) => n.toString().padStart(2, '0');
-      const fechaFin = `${endDate.getFullYear()}-${pad2(endDate.getMonth() + 1)}-${pad2(endDate.getDate())}T${pad2(endDate.getHours())}:${pad2(endDate.getMinutes())}:00`;
 
       const payload: CreateAppointmentInput = {
         id_persona: formData.id_persona!,
         id_usuario: formData.id_usuario!,
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
+        fecha_inicio: startDate.toISOString(),
+        fecha_fin: endDate.toISOString(),
         tipo_cita: formData.tipo_cita,
         motivo: finalMotivoString,
         notas: formData.notas || undefined,

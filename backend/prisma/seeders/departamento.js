@@ -22,12 +22,15 @@ async function insertDepartamentos() {
     { nombre: "Yoro" },
   ];
 
-  await prisma.departamento.createMany({
-    data: departamentos,
-    skipDuplicates: true,
-  });
+  for (const dept of departamentos) {
+    await prisma.departamento.upsert({
+      where: { nombre: dept.nombre },
+      update: {},
+      create: { nombre: dept.nombre },
+    });
+  }
 
-  console.log("Departamentos insertados correctamente");
+  console.log("Departamentos insertados/actualizados correctamente");
 }
 
 module.exports = { insertDepartamentos };
