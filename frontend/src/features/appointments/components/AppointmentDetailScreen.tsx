@@ -8,6 +8,7 @@ import {
   Edit,
   Trash2,
   Check,
+  Loader2,
   ArrowLeft,
   List,
 } from "lucide-react";
@@ -45,6 +46,8 @@ export function AppointmentDetailScreen() {
   const [showCancelWarning, setShowCancelWarning] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -126,13 +129,14 @@ export function AppointmentDetailScreen() {
   };
 
   const handleSaveStatusChange = async () => {
-    if (!hasStatusChanged) return;
+    if (!hasStatusChanged || savingStatus) return;
 
     if (newStatus === "cancelada" && !showCancelWarning) {
       setShowCancelWarning(true);
       return;
     }
 
+    setSavingStatus(true);
     try {
       const res = await appointmentService.changeStatus(
         Number(id!),
@@ -159,10 +163,13 @@ export function AppointmentDetailScreen() {
       setError(
         err instanceof Error ? err.message : "Error al actualizar el estado"
       );
+    } finally {
+      setSavingStatus(false);
     }
   };
 
   const handleDelete = async () => {
+    setDeleting(true);
     try {
       await appointmentService.delete(Number(id!));
       navigate("/agenda");
@@ -170,6 +177,7 @@ export function AppointmentDetailScreen() {
       setError(
         err instanceof Error ? err.message : "Error al eliminar la cita"
       );
+      setDeleting(false);
     }
   };
 
@@ -192,6 +200,7 @@ export function AppointmentDetailScreen() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div>
         <Button variant="ghost" size="sm" onClick={() => navigate("/agenda")}>
           <ArrowLeft size={16} />
@@ -591,11 +600,15 @@ export function AppointmentDetailScreen() {
               <Button
                 variant="primary"
                 onClick={handleSaveStatusChange}
-                disabled={!hasStatusChanged}
+                disabled={!hasStatusChanged || savingStatus}
                 style={{ width: isMobile ? "100%" : undefined }}
               >
-                <Check size={16} />
-                Guardar cambio de estado
+                {savingStatus ? (
+                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  <Check size={16} />
+                )}
+                {savingStatus ? "Guardando…" : "Guardar cambio de estado"}
               </Button>
               {showCancelWarning && (
                 <Button
@@ -800,9 +813,18 @@ export function AppointmentDetailScreen() {
                 gap: 12,
               }}
             >
-              <Button variant="danger" fullWidth onClick={handleDelete}>
-                <Trash2 size={16} />
-                Eliminar cita
+              <Button
+                variant="danger"
+                fullWidth
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                {deleting ? "Eliminando…" : "Eliminar cita"}
               </Button>
               <Button
                 variant="secondary"
