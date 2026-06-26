@@ -1,7 +1,5 @@
-import { ClipboardList } from "lucide-react";
 import { DataTable } from "../../../components";
 import type { Column } from "../../../components";
-import { Button } from "../../../context";
 import { formatCurrency, formatDate } from "../../../utils/formatters";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 
@@ -267,78 +265,38 @@ export function FinancialTab({ rows }: { rows: FinancialRow[] }) {
   const { isMobile, isTablet } = useResponsive();
   const showCards = isMobile || isTablet;
 
-  const totals = rows.reduce(
-    (s, r) => ({
-      paid: s.paid + (r.status === "Pagado" ? r.amount : 0),
-      pending: s.pending,
-    }),
-    { paid: 0, pending: 0 }
+  const totalPaid = rows.reduce(
+    (s, r) => s + (r.status === "Pagado" ? r.amount : 0),
+    0
   );
-  const totalPaid = totals.paid;
-  const totalPending = totals.pending;
-  const totalBilled = totalPaid + totalPending;
 
   return (
     <div>
-      <div
-        style={{
-          alignItems: isMobile ? "flex-start" : "center",
-          display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          gap: 12,
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <h3
-            style={{
-              color: "var(--arco-navy)",
-              fontSize: 16,
-              fontWeight: 700,
-              margin: 0,
-            }}
-          >
-            Resumen financiero
-          </h3>
-          <p
-            style={{
-              color: "var(--arco-gray-500)",
-              fontSize: 12,
-              margin: "4px 0 0",
-            }}
-          >
-            Historial de facturación y estado de cuenta
-          </p>
-        </div>
-        <Button
-          variant="secondary"
-          style={{ width: isMobile ? "100%" : undefined }}
+      <div style={{ marginBottom: 16 }}>
+        <h3
+          style={{
+            color: "var(--arco-navy)",
+            fontSize: 16,
+            fontWeight: 700,
+            margin: 0,
+          }}
         >
-          <ClipboardList size={15} /> Generar estado de cuenta
-        </Button>
+          Resumen financiero
+        </h3>
+        <p
+          style={{
+            color: "var(--arco-gray-500)",
+            fontSize: 12,
+            margin: "4px 0 0",
+          }}
+        >
+          Historial de pagos registrados
+        </p>
       </div>
 
-      {/* KPIs: 3 cols en desktop, 1 col en móvil */}
-      <div
-        style={{
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-          marginBottom: 18,
-        }}
-      >
-        <FinanceSummary
-          label="Total facturado"
-          tone="neutral"
-          value={totalBilled}
-        />
+      {/* KPI: total pagado */}
+      <div style={{ marginBottom: 18 }}>
         <FinanceSummary label="Total pagado" tone="success" value={totalPaid} />
-        <FinanceSummary
-          label="Saldo pendiente"
-          tone="danger"
-          value={totalPending}
-        />
       </div>
 
       {showCards ? (

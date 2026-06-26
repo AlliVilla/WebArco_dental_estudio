@@ -8,6 +8,7 @@ export class DepartamentoService {
   async findAll() {
     const items = await this.prisma.departamento.findMany({
       orderBy: { nombre: 'asc' },
+      distinct: ['nombre'],
     });
     return { message: 'Departamentos obtenidos exitosamente', items };
   }

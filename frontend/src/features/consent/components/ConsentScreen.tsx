@@ -75,8 +75,11 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   const mode = (searchParams.get("mode") as ConsentMode | null) ?? "list";
   const selectedId = searchParams.get("id");
   const patientNameFromQuery = searchParams.get("patientName") ?? undefined;
+  const patientIdFromQuery = searchParams.get("patientId")
+    ? Number(searchParams.get("patientId"))
+    : undefined;
 
-  // ─── Estado API ──────────────────────────────────────────────────────────
+  // ─── Estado API ────────────────────────────────────────────────────────────
   const [consents, setConsents] = useState<ConsentRecord[]>([]);
   const [stats, setStats] = useState<ConsentimientoStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -87,7 +90,13 @@ export function ConsentScreen({ patientName }: ConsentScreenProps) {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<QueryConsentimientoParams>({
     limit: 10,
-    paciente: patientNameFromQuery,
+    // Si venimos del perfil del paciente, filtramos por su ID (exacto).
+    // Si no hay ID, dejamos la búsqueda por nombre como fallback.
+    ...(patientIdFromQuery
+      ? { id_persona: patientIdFromQuery }
+      : patientNameFromQuery
+      ? { paciente: patientNameFromQuery }
+      : {}),
   });
 
   // ─── Estado UI ───────────────────────────────────────────────────────────

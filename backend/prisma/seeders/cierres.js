@@ -219,12 +219,16 @@ async function insertCierres() {
     },
   ];
 
-  await prisma.cierre.createMany({
-    data: cierres,
-    skipDuplicates: true,
-  });
+  for (const c of cierres) {
+    const exists = await prisma.cierre.findFirst({
+      where: { fecha: c.fecha, tipo_cierre: c.tipo_cierre, id_usuario: c.id_usuario },
+    });
+    if (!exists) {
+      await prisma.cierre.create({ data: c });
+    }
+  }
 
-  console.log("Cierres insertados correctamente");
+  console.log("Cierres verificados/insertados correctamente");
 }
 
 module.exports = { insertCierres };

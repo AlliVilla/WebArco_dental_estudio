@@ -143,12 +143,15 @@ export class ConsentimientoService {
   }
 
   async findAll(query: QueryConsentimientoDto) {
-    const { page = 1, limit = 10, paciente, tratamiento, estado, doctor, mes, anio } = query;
+    const { page = 1, limit = 10, id_persona, paciente, tratamiento, estado, doctor, mes, anio } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = { ...this.getEstadoWhere(estado) };
+    const where: any = { consentimiento: true, ...this.getEstadoWhere(estado) };
 
-    if (paciente) {
+    if (id_persona) {
+      // Filtro exacto por ID de paciente (tiene prioridad sobre búsqueda por nombre)
+      where.id_persona = id_persona;
+    } else if (paciente) {
       where.persona = {
         OR: [
           { numero_identidad: { contains: paciente, mode: 'insensitive' } },

@@ -3,6 +3,12 @@ import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class QueryConsentimientoDto {
+  @ApiPropertyOptional({ description: 'ID del paciente para filtrar directamente por persona', example: 5 })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  id_persona?: number;
+
   @ApiPropertyOptional({ description: 'ID o nombre del paciente para filtrar', example: 'Juan' })
   @IsOptional()
   @IsString()

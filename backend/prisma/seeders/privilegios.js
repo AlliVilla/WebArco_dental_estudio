@@ -62,7 +62,7 @@ async function insertPrivilegios() {
 
   await prisma.privilegio.createMany({
     data: privilegios,
-    skipDuplicates: false,
+    skipDuplicates: true,
   });
 
   console.log("Privilegios insertados correctamente");

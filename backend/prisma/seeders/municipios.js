@@ -336,12 +336,18 @@ async function insertMunicipios() {
     { nombre: "Yorito", id_departamento: 18 },
   ];
 
-  await prisma.municipio.createMany({
-    data: municipios,
-    skipDuplicates: true,
-  });
+  for (const mun of municipios) {
+    const exists = await prisma.municipio.findFirst({
+      where: { nombre: mun.nombre, id_departamento: mun.id_departamento },
+    });
+    if (!exists) {
+      await prisma.municipio.create({
+        data: mun,
+      });
+    }
+  }
 
-  console.log("Municipios insertados correctamente NIGGERS");
+  console.log("Municipios verificados e insertados correctamente");
 }
 
 module.exports = { insertMunicipios };

@@ -120,6 +120,7 @@ export interface PaginatedConsentimientos {
 export interface QueryConsentimientoParams {
   page?: number;
   limit?: number;
+  id_persona?: number;           // filtro exacto por ID del paciente
   paciente?: string;             // busca en nombre e identidad
   tratamiento?: string;
   estado?: 'completo' | 'pendiente' | 'incompleto';

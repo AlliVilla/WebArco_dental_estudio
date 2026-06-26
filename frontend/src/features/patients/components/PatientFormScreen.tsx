@@ -25,20 +25,20 @@ import { CheckboxGroup, RadioGroup, Textarea } from "./formControls";
 type PatientPayload = {
   numero_identidad: string;
   primer_nombre: string;
-  segundo_nombre?: string;
+  segundo_nombre?: string | null;
   primer_apellido: string;
-  segundo_apellido?: string;
+  segundo_apellido?: string | null;
   fecha_nacimiento: string;
   telefono: string;
-  correo_electronico?: string;
+  correo_electronico?: string | null;
   id_municipio: number;
   direccion_linea?: string | null;
   sexo: "M" | "F";
-  enfermedades?: string;
-  otras_enfermedades?: string;
-  medicamentos?: string;
-  alergias?: string;
-  reaccion_anestesia?: string;
+  enfermedades?: string | null;
+  otras_enfermedades?: string | null;
+  medicamentos?: string | null;
+  alergias?: string | null;
+  reaccion_anestesia?: string | null;
 };
 
 type PersonaDetail = {
@@ -304,20 +304,20 @@ export function PatientFormScreen() {
     const payload: PatientPayload = {
       numero_identidad: identityDigits,
       primer_nombre: firstName.trim(),
-      segundo_nombre: secondName.trim() || undefined,
+      segundo_nombre: secondName.trim() || null,
       primer_apellido: firstLastName.trim(),
-      segundo_apellido: secondLastName.trim() || undefined,
+      segundo_apellido: secondLastName.trim() || null,
       fecha_nacimiento: birthDate,
       telefono: phone.trim(),
-      correo_electronico: email.trim() || undefined,
+      correo_electronico: email.trim() || null,
       id_municipio: Number(municipio),
       direccion_linea: addressLine.trim() || null,
       sexo: sex as "M" | "F",
       enfermedades: JSON.stringify(enfermedades),
-      otras_enfermedades: otrasDescription.trim() || undefined,
-      medicamentos: medicamentos.trim() || undefined,
-      alergias: alergias.trim() || undefined,
-      reaccion_anestesia: anestesiaReaction || undefined,
+      otras_enfermedades: otrasDescription.trim() || null,
+      medicamentos: medicamentos.trim() || null,
+      alergias: alergias.trim() || null,
+      reaccion_anestesia: anestesiaReaction || null,
     };
 
     try {
@@ -420,6 +420,7 @@ export function PatientFormScreen() {
         <Input
           badge="required"
           label="Primer nombre"
+          maxLength={50}
           onChange={(e) => {
             setFirstName(e.target.value);
             setFieldErrors((p) => ({ ...p, firstName: "" }));
@@ -430,6 +431,7 @@ export function PatientFormScreen() {
         />
         <Input
           label="Segundo nombre"
+          maxLength={50}
           onChange={(e) => setSecondName(e.target.value)}
           placeholder="Ej: Fernanda"
           value={secondName}
@@ -437,6 +439,7 @@ export function PatientFormScreen() {
         <Input
           badge="required"
           label="Primer apellido"
+          maxLength={50}
           onChange={(e) => {
             setFirstLastName(e.target.value);
             setFieldErrors((p) => ({ ...p, firstLastName: "" }));
@@ -447,6 +450,7 @@ export function PatientFormScreen() {
         />
         <Input
           label="Segundo apellido"
+          maxLength={50}
           onChange={(e) => setSecondLastName(e.target.value)}
           placeholder="Ej: García"
           value={secondLastName}
@@ -455,6 +459,7 @@ export function PatientFormScreen() {
           badge="required"
           icon={<IdCard size={15} />}
           label="Número de identidad"
+          maxLength={15} // Allow hyphens
           onChange={(e) => {
             setIdentityNumber(e.target.value);
             setFieldErrors((p) => ({ ...p, identityNumber: "" }));
@@ -529,6 +534,7 @@ export function PatientFormScreen() {
           badge="required"
           icon={<Phone size={15} />}
           label="Teléfono"
+          maxLength={20}
           onChange={(e) => {
             setPhone(e.target.value);
             setFieldErrors((p) => ({ ...p, phone: "" }));
@@ -540,6 +546,7 @@ export function PatientFormScreen() {
         <Input
           icon={<Mail size={15} />}
           label="Correo electrónico"
+          maxLength={255}
           onChange={(e) => {
             setEmail(e.target.value);
             setFieldErrors((p) => ({ ...p, email: "" }));
@@ -596,6 +603,7 @@ export function PatientFormScreen() {
               badge="conditional"
               hint='Este campo es obligatorio porque seleccionaste "Otras".'
               label='Descripción de "Otras" enfermedades'
+              maxLength={255}
               onChange={setOtrasDescription}
               placeholder="Describe las enfermedades sistémicas no listadas..."
               rows={3}
@@ -606,6 +614,7 @@ export function PatientFormScreen() {
         <FullWidthField>
           <Textarea
             label="Medicamentos actuales"
+            maxLength={255}
             onChange={setMedicamentos}
             placeholder="Lista los medicamentos que el paciente consume actualmente..."
             rows={3}
@@ -615,6 +624,7 @@ export function PatientFormScreen() {
         <FullWidthField>
           <Textarea
             label="Alergias a medicamentos"
+            maxLength={255}
             onChange={setAlergias}
             placeholder="Describe alergias conocidas a medicamentos..."
             rows={3}

@@ -35,10 +35,15 @@ async function insertTratamientosPaciente() {
   ];
 
   for (const t of tratamientos) {
-    await prisma.tratamientoPaciente.create({ data: t });
+    const exists = await prisma.tratamientoPaciente.findFirst({
+      where: { pacienteId: t.pacienteId, nombre: t.nombre },
+    });
+    if (!exists) {
+      await prisma.tratamientoPaciente.create({ data: t });
+    }
   }
 
-  console.log(`[seed] ${tratamientos.length} TratamientosPaciente insertados`);
+  console.log(`[seed] ${tratamientos.length} TratamientosPaciente verificados/insertados`);
 }
 
 module.exports = { insertTratamientosPaciente };

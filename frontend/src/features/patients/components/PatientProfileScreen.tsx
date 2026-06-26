@@ -235,7 +235,6 @@ export function PatientProfileScreen() {
         display: "flex",
         flexDirection: "column",
         gap: isMobile ? 16 : 20,
-        maxWidth: 1200,
         width: "100%",
       }}
     >
@@ -526,7 +525,6 @@ export function PatientProfileScreen() {
                     paddingLeft: 15,
                   }}
                 >
-                  <span style={{ flexShrink: 0, lineHeight: "18px" }}>⚠️</span>
                   {detail}
                 </p>
               ))}

@@ -22,6 +22,7 @@ export class MunicipioService {
     const items = await this.prisma.municipio.findMany({
       where: { id_departamento: idDepartamento },
       orderBy: { nombre: 'asc' },
+      distinct: ['nombre'],
     });
     return { message: 'Municipios obtenidos exitosamente', items };
   }

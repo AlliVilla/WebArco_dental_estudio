@@ -61,12 +61,16 @@ async function insertTratamientos() {
     { id_especialidad: 12, nombre: "Cirugía de cordales", descripcion: "Extracción quirúrgica de terceros molares incluidos", precio: 1800.00 },
   ];
 
-  await prisma.tratamiento.createMany({
-    data: tratamientos,
-    skipDuplicates: true,
-  });
+  for (const t of tratamientos) {
+    const exists = await prisma.tratamiento.findFirst({
+      where: { nombre: t.nombre, id_especialidad: t.id_especialidad },
+    });
+    if (!exists) {
+      await prisma.tratamiento.create({ data: t });
+    }
+  }
 
-  console.log(`${tratamientos.length} tratamientos insertados correctamente`);
+  console.log(`${tratamientos.length} tratamientos verificados/insertados correctamente`);
 }
 
 module.exports = { insertTratamientos };

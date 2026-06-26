@@ -58,7 +58,7 @@ export class PersonaController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Listar personas', description: 'Obtiene un listado paginado de personas. Permite buscar por número de identidad, nombre o apellido.' })
   @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 10)', example: '10' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 10, máximo 100)', example: '10' })
   @ApiQuery({ name: 'search', required: false, description: 'Búsqueda por número de identidad, nombre o apellido', example: 'Juan' })
   @ApiQuery({ name: 'nombre', required: false, description: 'Filtrar por nombre o apellido', example: 'Juan' })
   @ApiQuery({ name: 'identidad', required: false, description: 'Filtrar por número de identidad', example: '0801199012345' })
@@ -77,7 +77,7 @@ export class PersonaController {
     @Query('includeConsulta', new ParseBoolPipe({ optional: true })) includeConsulta?: boolean
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const limitNum = limit ? Math.min(parseInt(limit, 10), 100) : 10;
 
     if (pageNum < 1 || limitNum < 1) {
       throw new BadRequestException('page y limit deben ser mayores a 0');

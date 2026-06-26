@@ -1211,15 +1211,26 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     value={fecha}
                     onChange={(e) => setFecha(e.target.value)}
                     style={{
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                      boxSizing: "border-box",
                       width: "100%",
+                      minHeight: 42,
                       padding: "10px 12px",
                       border: `1px solid ${C.gray300}`,
                       borderRadius: 8,
-                      fontSize: 13,
+                      fontSize: 14,
                       color: C.navy,
                       background: C.white,
                       outline: "none",
+                      fontFamily: "Inter, system-ui, sans-serif",
                     }}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.border = `1px solid ${C.primary}`)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.border = `1px solid ${C.gray300}`)
+                    }
                   />
                 </div>
                 <div>
@@ -1229,46 +1240,81 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
                     value={hora}
                     onChange={(e) => setHora(e.target.value)}
                     style={{
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                      boxSizing: "border-box",
                       width: "100%",
+                      minHeight: 42,
                       padding: "10px 12px",
                       border: `1px solid ${C.gray300}`,
                       borderRadius: 8,
-                      fontSize: 13,
+                      fontSize: 14,
                       color: C.navy,
                       background: C.white,
                       outline: "none",
+                      fontFamily: "Inter, system-ui, sans-serif",
                     }}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.border = `1px solid ${C.primary}`)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.border = `1px solid ${C.gray300}`)
+                    }
                   />
                 </div>
                 <div>
                   <FieldLabel required>Doctor responsable</FieldLabel>
-                  <select
-                    value={doctor?.id_usuario}
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      const selected =
-                        doctores.find((d) => d.id_usuario === id) || null;
-                      setDoctor(selected);
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      border: `1px solid ${C.gray300}`,
-                      borderRadius: 8,
-                      fontSize: 13,
-                      color: C.navy,
-                      background: C.white,
-                      outline: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {doctores.map((d) => (
-                      <option key={d.id_usuario} value={d.id_usuario}>
-                        {`${d.sexo === "M" ? "Dr. " : "Dra. "}`}
-                        {d.primer_nombre} {d.primer_apellido}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ position: "relative" }}>
+                    <select
+                      value={doctor?.id_usuario}
+                      onChange={(e) => {
+                        const id = Number(e.target.value);
+                        const selected =
+                          doctores.find((d) => d.id_usuario === id) || null;
+                        setDoctor(selected);
+                      }}
+                      style={{
+                        WebkitAppearance: "none",
+                        appearance: "none",
+                        boxSizing: "border-box",
+                        width: "100%",
+                        minHeight: 42,
+                        padding: "10px 36px 10px 12px",
+                        border: `1px solid ${C.gray300}`,
+                        borderRadius: 8,
+                        fontSize: 14,
+                        color: C.navy,
+                        background: C.white,
+                        outline: "none",
+                        cursor: "pointer",
+                        fontFamily: "Inter, system-ui, sans-serif",
+                      }}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.border = `1px solid ${C.primary}`)
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.border = `1px solid ${C.gray300}`)
+                      }
+                    >
+                      {doctores.map((d) => (
+                        <option key={d.id_usuario} value={d.id_usuario}>
+                          {`${d.sexo === "M" ? "Dr. " : "Dra. "}`}
+                          {d.primer_nombre} {d.primer_apellido}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      color={C.gray500}
+                      style={{
+                        position: "absolute",
+                        right: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </SectionCard>
