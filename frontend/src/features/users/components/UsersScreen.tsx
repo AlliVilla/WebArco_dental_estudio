@@ -697,9 +697,8 @@ export function UsersScreen() {
           scrollToFirstError({ form: res.message });
         }
       }
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Ocurrió un error en el servidor.";
+    } catch (err: any) {
+      const msg = err?.message ?? "Ocurrió un error en el servidor.";
       setFormErrors({ form: msg });
       scrollToFirstError({ form: msg });
     } finally {
@@ -1441,7 +1440,10 @@ export function UsersScreen() {
                     badge="required"
                     placeholder="Sin guiones, ej: 0801199012345"
                     value={numeroIdentidad}
-                    onChange={(e) => setNumeroIdentidad(e.target.value)}
+                    onChange={(e) => {
+                      const soloNumeros = e.target.value.replace(/\D/g, "");
+                      setNumeroIdentidad(soloNumeros);
+                    }}
                     error={formErrors.numeroIdentidad}
                     maxLength={13}
                   />
@@ -1482,7 +1484,10 @@ export function UsersScreen() {
                     badge="required"
                     placeholder="Ej: 99999999"
                     value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
+                    onChange={(e) => {
+                      const soloNumeros = e.target.value.replace(/\D/g, "");
+                      setTelefono(soloNumeros);
+                    }}
                     error={formErrors.telefono}
                   />
                 </div>
