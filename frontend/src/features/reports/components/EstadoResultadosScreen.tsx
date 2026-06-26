@@ -42,12 +42,25 @@ const colors = {
   muted: "#888F94",
   border: "#D3D7DA",
   surface: "#FFFFFF",
-  success: "#1D9E75",
+  // Familia pastel armoniosa — misma luminosidad/saturación entre los 4
+  // tonos para que se vean "de la misma familia" en vez de colores sueltos.
+  // Todos llevan texto navy encima (no blanco), incluyendo tableCyan que
+  // reemplaza a colors.primary SOLO en la fila "Ingresos netos" de la tabla
+  // (colors.primary se deja intacto para el resto del archivo: header,
+  // botón Generar, barra de KPI final, etc.)
+  tableCyan: "#BAEAF0",
+  success: "#BFE8D4",
   successSoft: "#ECFDF5",
-  warning: "#EF9F27",
+  warning: "#FBDFC0",
   warningSoft: "#FFFBEB",
-  danger: "#E24B4A",
+  danger: "#F6C9C3",
   dangerSoft: "#FEF2F2",
+  // Mismos tonos pastel usados como texto/acento sobre fondo blanco (montos,
+  // leyenda, iconos de KPI) — funcionan igual ahí porque van sobre blanco,
+  // no necesitan ser más oscuros.
+  successText: "#389B72",
+  dangerText: "#D6685B",
+  warningText: "#BC7128",
   gray: "#F8F9FA",
 };
 
@@ -121,30 +134,48 @@ function negative(value?: number) {
 function SectionTitle({
   children,
   isMobile,
+  isFirst,
 }: {
   children: ReactNode;
   isMobile: boolean;
+  isFirst?: boolean;
 }) {
   return (
     <tr>
       <td
         colSpan={2}
-        style={{ padding: isMobile ? "14px 0 6px" : "16px 0 8px" }}
+        style={{
+          padding: isFirst
+            ? isMobile
+              ? "4px 0 10px"
+              : "6px 0 12px"
+            : isMobile
+            ? "28px 0 10px"
+            : "34px 0 12px",
+        }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: isMobile ? 8 : 12,
+            gap: isMobile ? 8 : 10,
           }}
         >
-          <div style={{ height: 1, background: colors.border, flex: 1 }} />
           <span
             style={{
-              color: colors.muted,
-              fontSize: isMobile ? 9 : 10,
+              width: 5,
+              height: 5,
+              borderRadius: "50%",
+              background: colors.primary,
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              color: colors.navy,
+              fontSize: isMobile ? 11 : 12,
               fontWeight: 800,
-              letterSpacing: isMobile ? 1.2 : 1.8,
+              letterSpacing: isMobile ? 1 : 1.4,
               textTransform: "uppercase",
               whiteSpace: "nowrap",
             }}
@@ -176,26 +207,51 @@ function TableRow({
     normal: "#FFFFFF",
     subtotal: colors.gray,
     green: colors.success,
-    cyan: colors.primary,
+    cyan: colors.tableCyan,
     orange: colors.warning,
     final: colors.success,
   };
-  const color = isFilled ? "#FFFFFF" : colors.navy;
+  // Familia pastel armoniosa (misma luminosidad entre cyan/green/orange) →
+  // texto navy en las 4, consistente, en vez de mezclar blanco y oscuro.
+  const textOnFilledMap: Record<TableRowKind, string> = {
+    normal: colors.navy,
+    subtotal: colors.navy,
+    green: colors.navy,
+    cyan: colors.navy,
+    orange: colors.navy,
+    final: colors.navy,
+  };
+  const color = isFilled ? textOnFilledMap[kind] : colors.navy;
   const valueColor = isFilled
-    ? "#FFFFFF"
+    ? textOnFilledMap[kind]
     : negativeValue
-    ? colors.danger
-    : colors.success;
+    ? colors.dangerText
+    : colors.successText;
+
+  // Jerarquía visual: las filas de detalle (kind='normal') se ven sutiles
+  // —texto más chico, gris suave— para no competir con los subtotales
+  // (isFilled), que llevan más tamaño, padding y peso para destacar como
+  // las "anclas" que el ojo debe encontrar al escanear la tabla.
+  const labelFontSize = isFilled ? (isMobile ? 13.5 : 15) : isMobile ? 12 : 13;
+  const valueFontSize = isFilled ? (isMobile ? 14 : 16) : isMobile ? 12 : 13;
+  const labelColor = isFilled ? color : colors.muted;
+  const cellPaddingV = isFilled ? (isMobile ? 16 : 18) : isMobile ? 10 : 11;
+  const cellPaddingH = isMobile ? 12 : 16;
 
   return (
     <tr style={{ background: backgroundMap[kind] }}>
       <td
         style={{
-          padding: isMobile ? "11px 12px" : "13px 16px",
-          color,
-          fontSize: isMobile ? 12 : 13,
-          fontWeight: isFilled ? 800 : 500,
+          padding: `${cellPaddingV}px ${cellPaddingH}px`,
+          color: labelColor,
+          fontSize: labelFontSize,
+          fontWeight: isFilled ? 800 : 400,
           borderTop: kind === "normal" ? `1px solid ${colors.border}` : "none",
+          borderRadius: isFilled
+            ? isMobile
+              ? "10px 0 0 10px"
+              : "12px 0 0 12px"
+            : undefined,
           wordBreak: isMobile ? "break-word" : "normal",
           width: isMobile ? "62%" : undefined,
         }}
@@ -204,12 +260,17 @@ function TableRow({
       </td>
       <td
         style={{
-          padding: isMobile ? "11px 12px" : "13px 16px",
+          padding: `${cellPaddingV}px ${cellPaddingH}px`,
           color: valueColor,
-          fontSize: isMobile ? 12 : 13,
+          fontSize: valueFontSize,
           fontWeight: 800,
           textAlign: "right",
           borderTop: kind === "normal" ? `1px solid ${colors.border}` : "none",
+          borderRadius: isFilled
+            ? isMobile
+              ? "0 10px 10px 0"
+              : "0 12px 12px 0"
+            : undefined,
           whiteSpace: "nowrap",
           width: isMobile ? "38%" : undefined,
         }}
@@ -384,10 +445,10 @@ function SimpleBarChart({
         }}
       >
         <span>
-          <b style={{ color: colors.success }}>●</b> Ingresos
+          <b style={{ color: colors.successText }}>●</b> Ingresos
         </span>
         <span>
-          <b style={{ color: colors.danger }}>●</b> Gastos
+          <b style={{ color: colors.dangerText }}>●</b> Gastos
         </span>
       </div>
     </Card>
@@ -631,10 +692,6 @@ export function EstadoResultadosScreen() {
           monto: -reporte.resultadoFinal.comisionesPorTarjeta,
         },
         {
-          concepto: "Impuestos estimados",
-          monto: -reporte.resultadoFinal.impuestos,
-        },
-        {
           concepto: "Utilidad neta",
           monto: reporte.resultadoFinal.utilidadNeta,
         },
@@ -724,9 +781,6 @@ export function EstadoResultadosScreen() {
             <tr><td>(−) Comisiones por tarjeta</td><td>${negative(
               reporte.resultadoFinal.comisionesPorTarjeta
             )}</td></tr>
-            <tr><td>(−) Impuestos estimados</td><td>${negative(
-              reporte.resultadoFinal.impuestos
-            )}</td></tr>
             <tr class="total"><td>Utilidad neta</td><td>${money(
               reporte.resultadoFinal.utilidadNeta
             )}</td></tr>
@@ -773,7 +827,7 @@ export function EstadoResultadosScreen() {
           title="Ingresos totales"
           subtitle="Ingresos brutos del período"
           value={money(reporte?.tarjetas.ingresosTotales)}
-          accent={colors.success}
+          accent={colors.successText}
           icon={DollarSign}
           isMobile={isMobile}
         />
@@ -781,7 +835,7 @@ export function EstadoResultadosScreen() {
           title="Costo de insumos"
           subtitle="Inventario utilizado"
           value={money(reporte?.tarjetas.costoInsumos)}
-          accent={colors.danger}
+          accent={colors.dangerText}
           icon={TrendingUp}
           isMobile={isMobile}
         />
@@ -789,7 +843,7 @@ export function EstadoResultadosScreen() {
           title="Gastos administrativos"
           subtitle="Nómina + servicios"
           value={money(reporte?.tarjetas.gastosAdministrativos)}
-          accent={colors.warning}
+          accent={colors.warningText}
           icon={ClipboardList}
           isMobile={isMobile}
         />
@@ -835,7 +889,7 @@ export function EstadoResultadosScreen() {
             }}
           >
             <span>
-              Período <span style={{ color: colors.danger }}>*</span>
+              Período <span style={{ color: colors.dangerText }}>*</span>
             </span>
             <select
               value={preset}
@@ -861,7 +915,7 @@ export function EstadoResultadosScreen() {
             }}
           >
             <span>
-              Desde <span style={{ color: colors.danger }}>*</span>
+              Desde <span style={{ color: colors.dangerText }}>*</span>
             </span>
             <input
               type="date"
@@ -885,7 +939,7 @@ export function EstadoResultadosScreen() {
             }}
           >
             <span>
-              Hasta <span style={{ color: colors.danger }}>*</span>
+              Hasta <span style={{ color: colors.dangerText }}>*</span>
             </span>
             <input
               type="date"
@@ -1000,7 +1054,9 @@ export function EstadoResultadosScreen() {
               </tr>
             </thead>
             <tbody>
-              <SectionTitle isMobile={isMobile}>Ingresos</SectionTitle>
+              <SectionTitle isMobile={isMobile} isFirst>
+                Ingresos
+              </SectionTitle>
               <TableRow
                 label="Consultas y tratamientos"
                 value={reporte?.ingresos.consultasTratamientos || 0}
@@ -1092,12 +1148,6 @@ export function EstadoResultadosScreen() {
               <TableRow
                 label="(−) Comisiones por tarjeta"
                 value={reporte?.resultadoFinal.comisionesPorTarjeta || 0}
-                negativeValue
-                isMobile={isMobile}
-              />
-              <TableRow
-                label="(−) Impuestos estimados"
-                value={reporte?.resultadoFinal.impuestos || 0}
                 negativeValue
                 isMobile={isMobile}
               />
