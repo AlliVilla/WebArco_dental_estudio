@@ -99,7 +99,7 @@ export class CitaService {
     end: string,
     id_usuario?: number,
   ) {
-    await this.updatePastCitasToAtendida();
+    await this.updatePastCitasStatus();
     const startDate = new Date(`${start}T00:00:00.000-06:00`);
     const endDate = new Date(`${end}T23:59:59.999-06:00`);
 
@@ -121,7 +121,7 @@ export class CitaService {
   }
 
   async findOne(id: number) {
-    await this.updatePastCitasToAtendida();
+    await this.updatePastCitasStatus();
     const cita = await this.prisma.cita.findUnique({
       where: { id_cita: id },
       include: {
@@ -398,7 +398,7 @@ export class CitaService {
       end?: string;
     },
   ) {
-    await this.updatePastCitasToAtendida();
+    await this.updatePastCitasStatus();
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: patientId },
       select: { id_persona: true },
@@ -523,7 +523,7 @@ export class CitaService {
   }
 
   async getPendingCount(id_usuario?: number) {
-    await this.updatePastCitasToAtendida();
+    await this.updatePastCitasStatus();
     const dateStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Tegucigalpa' });
     const todayStart = new Date(`${dateStr}T00:00:00.000-06:00`).toISOString();
 
@@ -592,10 +592,10 @@ export class CitaService {
 
   @Cron('*/5 * * * *')
   async handleAutoUpdatePastCitas() {
-    await this.updatePastCitasToAtendida();
+    await this.updatePastCitasStatus();
   }
 
-  async updatePastCitasToAtendida() {
+  async updatePastCitasStatus() {
     const now = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -618,17 +618,18 @@ export class CitaService {
 
     if (pastCitas.length > 0) {
       for (const cita of pastCitas) {
+        const nuevoEstado = cita.estado === 'confirmada' ? 'atendida' : 'ausente';
         try {
           await this.prisma.$transaction([
             this.prisma.cita.update({
               where: { id_cita: cita.id_cita },
-              data: { estado: 'atendida' }
+              data: { estado: nuevoEstado }
             }),
             this.prisma.estadoHistorial.create({
               data: {
                 id_cita: cita.id_cita,
                 estado_anterior: cita.estado,
-                estado_nuevo: 'atendida',
+                estado_nuevo: nuevoEstado,
                 cambiado_por: cita.id_usuario,
               }
             })

@@ -173,6 +173,36 @@ export function AppointmentDetailScreen() {
     }
   };
 
+  const canMarkAttended = ["programada", "confirmada"].includes(
+    appointment.estado
+  );
+
+  const handleMarkAttended = async () => {
+    try {
+      const res = await appointmentService.changeStatus(
+        Number(id!),
+        "atendida",
+        currentUser?.id_usuario || appointment.id_usuario
+      );
+      if (res.success && res.data) {
+        setAppointment(res.data);
+        setNewStatus("atendida");
+        setSuccessMessage("Cita marcada como atendida.");
+
+        const histRes = await appointmentService.getStatusHistory(Number(id!));
+        if (histRes.success) setStatusHistory(histRes.data);
+
+        timerRef.current = setTimeout(clearMessages, 5000);
+      } else {
+        setError(res.message || "Error al marcar como atendida");
+      }
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Error al marcar como atendida"
+      );
+    }
+  };
+
   const patientName =
     `${appointment.persona?.primer_nombre || ""} ${
       appointment.persona?.primer_apellido || ""
@@ -252,6 +282,17 @@ export function AppointmentDetailScreen() {
               <List size={14} />
               Ver historial del paciente
             </Button>
+            {canMarkAttended && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleMarkAttended}
+                style={{ width: isMobile ? "100%" : undefined }}
+              >
+                <Check size={14} />
+                Marcar como atendida
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"
