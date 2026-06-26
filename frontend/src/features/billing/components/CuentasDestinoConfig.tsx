@@ -144,19 +144,18 @@ export function CuentasDestinoConfig({
                 ]}
               />
             </div>
-            <div style={{ flex: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+            <div style={{ flex: 2 }}>
               <Input
                 label="Nombre"
                 value={nuevoNombre}
                 onChange={(e) => setNuevoNombre(e.target.value)}
                 placeholder="Ej: BAC, Ficohsa..."
-                style={{ lineHeight: "20px" }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void agregar();
                 }}
               />
             </div>
-            <div style={{ width: isMobile ? "100%" : 120, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+            <div style={{ width: isMobile ? "100%" : 120 }}>
               <Input
                 label="Comisión %"
                 type="number"
@@ -166,7 +165,6 @@ export function CuentasDestinoConfig({
                 value={nuevoComision}
                 onChange={(e) => setNuevoComision(e.target.value)}
                 placeholder="2.5"
-                style={{ lineHeight: "20px" }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void agregar();
                 }}
@@ -175,7 +173,6 @@ export function CuentasDestinoConfig({
             <Button
               variant="primary"
               onClick={() => void agregar()}
-              style={{ height: 36 }}
             >
               Agregar
             </Button>

@@ -273,6 +273,47 @@ export function ConsentListTable({
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <MobileFilters onFilterChange={onFilterChange} />
 
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onExport}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              height: 40,
+              borderRadius: 8,
+              border: "1px solid #D3D7DA",
+              background: "#fff",
+              fontSize: 13,
+              color: "#203F49",
+              cursor: "pointer",
+            }}
+          >
+            <Download size={14} /> Exportar
+          </button>
+          <button
+            onClick={() => printConsentDocuments(consents)}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              height: 40,
+              borderRadius: 8,
+              border: "1px solid #D3D7DA",
+              background: "#fff",
+              fontSize: 13,
+              color: "#203F49",
+              cursor: "pointer",
+            }}
+          >
+            <Printer size={14} /> Imprimir todo
+          </button>
+        </div>
+
         {loading ? (
           <p style={{ textAlign: "center", color: "#888F94", fontSize: 14, padding: 24 }}>
             Cargando...
