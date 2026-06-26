@@ -9,7 +9,6 @@ import {
   FileText,
   Hash,
   Info,
-  ShieldCheck,
   Stethoscope,
 } from "lucide-react";
 import { Spinner } from "../../../components";
@@ -461,23 +460,7 @@ export function PatientProfileScreen() {
               <Stethoscope size={14} />
               Odontograma
             </Button>
-            <Button
-              fullWidth
-              onClick={() =>
-                navigate(
-                  `/patients/consent${patientQuery ? `?${patientQuery}` : ""}`
-                )
-              }
-              style={{
-                padding: "10px 19px",
-                whiteSpace: "nowrap",
-                flex: isMobile ? "1 1 calc(50% - 4px)" : undefined,
-              }}
-              variant="secondary"
-            >
-              <ShieldCheck size={14} />
-              Consentimientos
-            </Button>
+
           </div>
         </div>
 
