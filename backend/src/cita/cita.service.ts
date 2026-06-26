@@ -33,6 +33,7 @@ const citaInclude = {
         select: {
           primer_nombre: true,
           primer_apellido: true,
+          sexo:  true,
         },
       },
     },

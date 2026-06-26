@@ -34,7 +34,8 @@ export function CalendarCard({ appointment, onClick, style }: CalendarCardProps)
     : '—';
 
   const doctorName = appointment.doctor?.persona
-    ? `Dr. ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
+  ? `${appointment.doctor.persona.sexo === "F"
+    ? "Dra." : "Dr." } ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
     : null;
 
   const dStart = new Date(appointment.fecha_inicio);

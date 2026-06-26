@@ -178,7 +178,8 @@ export function AppointmentQuickView({
             </span>
             <span style={{ fontSize: 15, color: "#203F49" }}>
               {appointment.doctor?.persona?.primer_nombre
-                ? `Dra. ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
+                ? `${appointment.doctor.persona.sexo === "F"
+                  ? "Dra." : "Dr." } ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
                 : "Doctor no asignado"}
             </span>
           </div>

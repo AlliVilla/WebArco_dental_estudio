@@ -186,7 +186,8 @@ export function AppointmentDetailScreen() {
       appointment.persona?.primer_apellido || ""
     }`.trim() || "Sin nombre";
   const doctorName = appointment.doctor
-    ? `${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
+  ? `${appointment.doctor.persona.sexo === "F"
+    ? "Dra." : "Dr." } ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
     : "Doctor no asignado";
 
   const startDateObj = new Date(appointment.fecha_inicio);
