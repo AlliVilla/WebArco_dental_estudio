@@ -551,6 +551,19 @@ export function PatientFormScreen() {
             setEmail(e.target.value);
             setFieldErrors((p) => ({ ...p, email: "" }));
           }}
+          onInvalid={(e) => {
+            const input = e.currentTarget;
+            if (input.validity.typeMismatch) {
+              input.setCustomValidity(
+                "Ingresa un correo electrónico válido, por ejemplo nombre@gmail.com."
+              );
+            } else {
+              input.setCustomValidity("");
+            }
+          }}
+          onInput={(e) => {
+            e.currentTarget.setCustomValidity("");
+          }}
           placeholder="Ej: maria@correo.com"
           type="email"
           value={email}

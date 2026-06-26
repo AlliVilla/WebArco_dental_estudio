@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RotateCcw, Save, Shield } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ConfirmModal, Spinner } from '../../../components';
 import { Alert, Button, useTheme } from '../../../context';
-import { Spinner } from '../../../components/Spinner';
-import { privilegeService } from '../services/privilegeService';
-import { roleService } from '../services/roleService';
-import type { Privilegio, RoleWithPrivileges } from '../types';
-import { PermissionPrivilegeCard } from './PermissionPrivilegeCard';
 import {
   ORDEN_ROLES_PERMISOS,
   construirListaPrivilegios,
   formatearNombrePrivilegio,
 } from '../constants/modulos-permisos';
+import { privilegeService } from '../services/privilegeService';
+import { roleService } from '../services/roleService';
+import type { Privilegio, RoleWithPrivileges } from '../types';
+import { PermissionPrivilegeCard } from './PermissionPrivilegeCard';
 
 function ordenarRoles(roles: RoleWithPrivileges[]): RoleWithPrivileges[] {
   return [...roles].sort((a, b) => {
@@ -50,6 +50,8 @@ export function PermissionsManagementScreen() {
   const [guardando, setGuardando] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
+  const [pendingRoleChange, setPendingRoleChange] = useState<RoleWithPrivileges | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
   const ITEMS_POR_PAGINA = 24;
@@ -67,7 +69,7 @@ export function PermissionsManagementScreen() {
   const privilegiosFiltrados = useMemo(() => {
     if (!busqueda.trim()) return privilegiosDisponibles;
     const termino = busqueda.toLowerCase();
-    return privilegiosDisponibles.filter(p =>
+    return privilegiosDisponibles.filter((p) =>
       formatearNombrePrivilegio(p.nombre).toLowerCase().includes(termino) ||
       p.nombre.toLowerCase().includes(termino),
     );
@@ -126,16 +128,7 @@ export function PermissionsManagementScreen() {
     void cargarRoles();
   }, [cargarRoles]);
 
-  function seleccionarRol(rol: RoleWithPrivileges) {
-    if (hayCambios) {
-      const confirmar = window.confirm(
-        'Tienes cambios sin guardar. ¿Deseas descartarlos y cambiar de rol?',
-      );
-      if (!confirmar) {
-        return;
-      }
-    }
-
+  function aplicarSeleccionDeRol(rol: RoleWithPrivileges) {
     const ids = new Set(rol.privilegios.map((p) => p.id_privilegio));
     setRolActivoId(rol.id_rol);
     setPrivilegiosGuardados(ids);
@@ -145,6 +138,30 @@ export function PermissionsManagementScreen() {
     setBusqueda('');
     setPaginaActual(1);
     navigate(`/users/roles/permisos?rol=${rol.id_rol}`, { replace: true });
+  }
+
+  function seleccionarRol(rol: RoleWithPrivileges) {
+    if (hayCambios) {
+      setPendingRoleChange(rol);
+      setShowDiscardChangesModal(true);
+      return;
+    }
+
+    aplicarSeleccionDeRol(rol);
+  }
+
+  function confirmarCambioDeRol() {
+    if (pendingRoleChange) {
+      aplicarSeleccionDeRol(pendingRoleChange);
+    }
+
+    setPendingRoleChange(null);
+    setShowDiscardChangesModal(false);
+  }
+
+  function cancelarCambioDeRol() {
+    setPendingRoleChange(null);
+    setShowDiscardChangesModal(false);
   }
 
   function togglePrivilegio(id: number, habilitado: boolean) {
@@ -407,7 +424,7 @@ export function PermissionsManagementScreen() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <button
             type="button"
-            onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+            onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
             disabled={paginaSegura <= 1}
             style={{
               border: '0.8px solid #D3D7DA',
@@ -445,7 +462,7 @@ export function PermissionsManagementScreen() {
           ))}
           <button
             type="button"
-            onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+            onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
             disabled={paginaSegura >= totalPaginas}
             style={{
               border: '0.8px solid #D3D7DA',
@@ -463,6 +480,16 @@ export function PermissionsManagementScreen() {
         </div>
       )}
 
+      <ConfirmModal
+        open={showDiscardChangesModal}
+        onClose={cancelarCambioDeRol}
+        onConfirm={confirmarCambioDeRol}
+        variant="info"
+        title="Descartar cambios"
+        description="Tienes cambios sin guardar. Si cambias de rol ahora, se descartarán los ajustes que hiciste en los permisos."
+        confirmLabel="Descartar y cambiar"
+        cancelLabel="Seguir editando"
+      />
     </div>
   );
 }

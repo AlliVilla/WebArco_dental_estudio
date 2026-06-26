@@ -110,7 +110,11 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, '
 
 export function Input({ label, badge, error, hint, icon, rightElement, disabled, style, ...props }: InputProps) {
   const [focused, setFocused] = React.useState(false);
-  const borderColor = error ? '#E24B4A' : focused ? '#0BC5DF' : '#D3D7DA';
+  const [localError, setLocalError] = React.useState('');
+  const inputType = props.type === 'email' ? 'text' : props.type;
+  const inputMode = props.inputMode ?? (props.type === 'email' ? 'email' : undefined);
+  const resolvedError = error || localError;
+  const borderColor = resolvedError ? '#E24B4A' : focused ? '#0BC5DF' : '#D3D7DA';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {(label || badge) && (
@@ -130,21 +134,38 @@ export function Input({ label, badge, error, hint, icon, rightElement, disabled,
         <input
           disabled={disabled}
           onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
-          onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+          onBlur={(e) => {
+            setFocused(false);
+            if (props.type === 'email') {
+              const trimmedValue = e.currentTarget.value.trim();
+              setLocalError(
+                !trimmedValue || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)
+                  ? ''
+                  : 'Ingresa un correo electrÃ³nico vÃ¡lido, por ejemplo nombre@gmail.com.'
+              );
+            }
+            props.onBlur?.(e);
+          }}
           style={{
             flex: 1, border: 'none', background: 'transparent', outline: 'none',
             fontSize: 14, color: '#203F49', padding: '10px 0',
             cursor: disabled ? 'not-allowed' : 'text',
             ...style,
           }}
+          onChange={(e) => {
+            if (localError) setLocalError('');
+            props.onChange?.(e);
+          }}
           {...props}
+          inputMode={inputMode}
+          type={inputType}
         />
         {rightElement}
       </div>
-      {error && <span style={{ fontSize: 11, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 4 }}>
-        <AlertCircle size={11} />{error}
+      {resolvedError && <span style={{ fontSize: 11, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <AlertCircle size={11} />{resolvedError}
       </span>}
-      {hint && !error && <span style={{ fontSize: 11, color: '#888F94' }}>{hint}</span>}
+      {hint && !resolvedError && <span style={{ fontSize: 11, color: '#888F94' }}>{hint}</span>}
     </div>
   );
 }

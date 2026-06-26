@@ -55,9 +55,10 @@ export class PrivilegioService {
       where: {
         activo: true,
         rol: {
-          privilegios: {
-            some: {
-              id_privilegio: 62,
+          is: {
+            nombre: {
+              equals: 'Doctor',
+              mode: 'insensitive',
             },
           },
         },
