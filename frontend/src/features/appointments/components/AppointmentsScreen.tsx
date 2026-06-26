@@ -605,6 +605,12 @@ export function AppointmentsScreen() {
         <AppointmentQuickView
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
+          onStatusChange={(updated) => {
+            setAppointments((prev) =>
+              prev.map((a) => (a.id_cita === updated.id_cita ? updated : a))
+            );
+            setSelectedAppointment(updated);
+          }}
         />
       )}
     </div>
