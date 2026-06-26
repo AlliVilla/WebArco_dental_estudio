@@ -146,7 +146,7 @@ export class ConsentimientoService {
     const { page = 1, limit = 10, id_persona, paciente, tratamiento, estado, doctor, mes, anio } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = { consentimiento: true, ...this.getEstadoWhere(estado) };
+    const where: any = { ...this.getEstadoWhere(estado) };
 
     if (id_persona) {
       // Filtro exacto por ID de paciente (tiene prioridad sobre búsqueda por nombre)
@@ -276,7 +276,7 @@ export class ConsentimientoService {
 
   async getStats() {
     const [total, completos, pendientes, incompletos] = await Promise.all([
-      this.prisma.consulta.count({ where: { consentimiento: true } }),
+      this.prisma.consulta.count(),
       this.prisma.consulta.count({ where: this.getEstadoWhere('completos') }),
       this.prisma.consulta.count({ where: this.getEstadoWhere('pendientes') }),
       this.prisma.consulta.count({ where: this.getEstadoWhere('incompletos') }),
