@@ -153,14 +153,14 @@ export function ManageStatesModal({ open, onClose, onDeleteError }: ManageStates
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {estados.map(e => (
-              <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '8px 12px', borderRadius: 8, background: '#F8F9FA', border: '1px solid #EAECEE' }}>
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, width:"100%",  padding: '12px 6px', borderRadius: 8, background: '#F8F9FA', border: '1px solid #EAECEE', boxSizing: 'border-box' }}>
                 {editingId === e.id ? (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: '1 1 auto', minWidth: '200px' }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                       <input
                         value={editNombre}
                         onChange={e2 => setEditNombre(e2.target.value)}
-                        style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #D3D7DA', fontSize: 13 }}
+                        style={{ flex: 1, minWidth: 60, padding: '6px 10px', borderRadius: 6, border: '1px solid #D3D7DA', fontSize: 13 }}
                         placeholder="Nombre"
                       />
                       <input
@@ -170,19 +170,19 @@ export function ManageStatesModal({ open, onClose, onDeleteError }: ManageStates
                         style={{ width: 36, height: 32, padding: 0, border: '1px solid #D3D7DA', borderRadius: 6, cursor: 'pointer' }}
                       />
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 'auto' }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0}}>
                       <button onClick={handleUpdate} style={{ padding: '6px 14px', borderRadius: 6, background: '#0BC5DF', color: '#fff', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Guardar</button>
                       <button onClick={() => { setEditingId(null); setError(null); }} style={{ padding: '6px 10px', borderRadius: 6, background: 'transparent', color: '#888F94', border: '1px solid #D3D7DA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
                     </div>
                   </>
                 ) : (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: '1 1 auto' }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flex: '1', minWidth: 0 }}>
                       <span style={{ width: 28, height: 28, borderRadius: 6, background: e.color, border: '1px solid #D3D7DA', flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontSize: 14, color: '#203F49', fontWeight: 500 }}>{e.nombre}</span>
-                      <span style={{ fontSize: 11, color: '#888F94' }}>{e.color}</span>
+                      <span style={{fontSize: 14, color: '#203F49', fontWeight: 500}}>{e.nombre}</span>
+                      <span style={{ fontSize: 11, color: '#888F94',  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '65px'}}>{e.color}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 'auto' }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                       <button onClick={() => startEdit(e)} style={{ padding: '4px 10px', borderRadius: 6, background: 'transparent', color: '#5F656A', border: '1px solid #D3D7DA', fontSize: 12, cursor: 'pointer' }}>Editar</button>
                       <button onClick={() => { setConfirmDeleteId(e.id); setConfirmDeleteNombre(e.nombre); setError(null); }} style={{ padding: '4px 10px', borderRadius: 6, background: 'transparent', color: '#E24B4A', border: '1px solid #E24B4A', fontSize: 12, cursor: 'pointer' }}>Eliminar</button>
                     </div>
