@@ -10,7 +10,7 @@ import { treatmentService, especialidadService } from '../../treatments/services
 import { privilegeService } from '../../patients/components/expediente/services/privilegeService';
 import type { Treatment, Especialidad } from '../../treatments/types';
 import type { CreateAppointmentInput } from '../types';
-import { TIPO_CITA_OPTIONS, CALENDAR_START_HOUR, CALENDAR_END_HOUR } from '../constants';
+import { TIPO_CITA_OPTIONS, CALENDAR_START_HOUR, CALENDAR_END_HOUR, SATURDAY_END_HOUR } from '../constants';
 import { formatTimeFromISO } from '../utils';
 
 export function AppointmentFormScreen() {
@@ -115,8 +115,10 @@ export function AppointmentFormScreen() {
     else {
       const date = new Date(formData.fecha_inicio + 'T00:00:00');
       const dayOfWeek = date.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        errors.fecha_inicio = 'Solo se pueden agendar citas de lunes a viernes';
+      if (dayOfWeek === 0) {
+        errors.fecha_inicio = 'No se agendan citas los domingos';
+      } else if (dayOfWeek === 6) {
+        // Saturday — fecha válida, la hora se valida aparte
       } else {
         const todayStr = new Date().toLocaleDateString('sv-SE');
         const isDateChanged = !isEditing || formData.fecha_inicio !== originalDate;
@@ -128,8 +130,16 @@ export function AppointmentFormScreen() {
     if (!timeStr) errors.timeStr = 'Ingrese la hora de la cita';
     else {
       const [hours] = timeStr.split(':').map(Number);
-      if (hours < CALENDAR_START_HOUR || hours >= CALENDAR_END_HOUR) {
-        errors.timeStr = `La hora debe estar entre ${CALENDAR_START_HOUR}:00 y ${CALENDAR_END_HOUR}:00`;
+      const date = formData.fecha_inicio ? new Date(formData.fecha_inicio + 'T00:00:00') : null;
+      const dayOfWeek = date?.getDay();
+      if (dayOfWeek === 6) {
+        if (hours < CALENDAR_START_HOUR || hours >= SATURDAY_END_HOUR) {
+          errors.timeStr = `Los sábados el horario es de ${CALENDAR_START_HOUR}:00 a ${SATURDAY_END_HOUR}:00`;
+        }
+      } else {
+        if (hours < CALENDAR_START_HOUR || hours >= CALENDAR_END_HOUR) {
+          errors.timeStr = `La hora debe estar entre ${CALENDAR_START_HOUR}:00 y ${CALENDAR_END_HOUR}:00`;
+        }
       }
     }
     if (!formData.tipo_cita) errors.tipo_cita = 'Seleccione el tipo de cita';
@@ -294,7 +304,12 @@ export function AppointmentFormScreen() {
                 }}
                 onInvalid={(e: React.InvalidEvent<HTMLInputElement>) => {
                   const format12H = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
-                  (e.target as HTMLInputElement).setCustomValidity(`El horario disponible es de ${format12H(CALENDAR_START_HOUR)} a ${format12H(CALENDAR_END_HOUR)}`);
+                  const date = formData.fecha_inicio ? new Date(formData.fecha_inicio + 'T00:00:00') : null;
+                  if (date?.getDay() === 6) {
+                    (e.target as HTMLInputElement).setCustomValidity(`Los sábados el horario es de ${format12H(CALENDAR_START_HOUR)} a ${format12H(SATURDAY_END_HOUR)}`);
+                  } else {
+                    (e.target as HTMLInputElement).setCustomValidity(`El horario disponible es de ${format12H(CALENDAR_START_HOUR)} a ${format12H(CALENDAR_END_HOUR)}`);
+                  }
                 }}
                 onInput={(e: React.FormEvent<HTMLInputElement>) => {
                   (e.target as HTMLInputElement).setCustomValidity('');

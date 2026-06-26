@@ -606,8 +606,9 @@ export class CitaService {
       timeZone: 'America/Tegucigalpa',
       weekday: 'long',
     });
-    if (weekday === 'Saturday' || weekday === 'Sunday') {
-      throw new BadRequestException('Las citas solo se pueden agendar de lunes a viernes.');
+
+    if (weekday === 'Sunday') {
+      throw new BadRequestException('No se agendan citas los domingos.');
     }
 
     const hourStr = fecha_inicio.toLocaleTimeString('en-US', {
@@ -616,9 +617,15 @@ export class CitaService {
       hour: '2-digit',
     });
     const hours = parseInt(hourStr, 10);
-    const isValidStart = hours >= 8 && hours < 17;
 
-    if (!isValidStart) {
+    if (weekday === 'Saturday') {
+      if (hours < 8 || hours >= 12) {
+        throw new BadRequestException('Los sábados las citas son de 8:00 AM a 12:00 PM.');
+      }
+      return;
+    }
+
+    if (hours < 8 || hours >= 17) {
       throw new BadRequestException('Las citas solo se pueden agendar para iniciar entre las 8:00 AM y las 5:00 PM.');
     }
   }
