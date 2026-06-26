@@ -1,4 +1,5 @@
 export function buildNotificacionCitaProximaEmail(
+  tratamientoDoctor: string,
   doctorNombre: string,
   pacienteNombre: string,
   minutosAnticipacion: number,
@@ -32,7 +33,7 @@ export function buildNotificacionCitaProximaEmail(
 
       <!-- Body -->
       <div style="padding:30px; color:#333;">
-        <h3 style="margin-top:0;color:#203F49;font-size:18px;">¡Hola, Dr. ${doctorNombre}!</h3>
+        <h3 style="margin-top:0;color:#203F49;font-size:18px;">¡Hola, ${tratamientoDoctor} ${doctorNombre}!</h3>
 
         <p style="font-size:15px;line-height:1.6;color:#5F656A;">
           Tienes una cita programada con <b>${pacienteNombre}</b> en aproximadamente <b>${minutosAnticipacion} minutos</b>.

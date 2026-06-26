@@ -1,4 +1,5 @@
 export function buildNotificacionCitaConfirmadaEmail(
+  tratamientoDoctor: string,
   doctorNombre: string,
   pacienteNombre: string,
   fechaCita: Date,
@@ -31,7 +32,7 @@ export function buildNotificacionCitaConfirmadaEmail(
 
       <!-- Body -->
       <div style="padding:30px; color:#333;">
-        <h3 style="margin-top:0;color:#203F49;font-size:18px;">¡Buenas noticias, Dr. ${doctorNombre}!</h3>
+        <h3 style="margin-top:0;color:#203F49;font-size:18px;">¡Buenas noticias, ${tratamientoDoctor} ${doctorNombre}!</h3>
 
         <p style="font-size:15px;line-height:1.6;color:#5F656A;">
           El paciente <b>${pacienteNombre}</b> ha <b style="color:#1D9E75;">confirmado</b> su asistencia a la cita del ${fechaStr}.

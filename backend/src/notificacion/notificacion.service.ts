@@ -18,6 +18,10 @@ export class NotificacionService {
     private readonly brevoService: BrevoService,
   ) {}
 
+  private getTratamientoDoctor(sexo?: 'M' | 'F' | null): 'Doctor' | 'Doctora' {
+    return sexo === 'F' ? 'Doctora' : 'Doctor';
+  }
+
   // ─────────────────────────────────────────────────────────────────
   // CRUD de notificaciones
   // ─────────────────────────────────────────────────────────────────
@@ -166,6 +170,7 @@ export class NotificacionService {
             primer_nombre: true,
             primer_apellido: true,
             correo_electronico: true,
+            sexo: true,
           },
         },
       },
@@ -183,6 +188,7 @@ export class NotificacionService {
     ]
       .filter(Boolean)
       .join(' ');
+    const tratamientoDoctor = this.getTratamientoDoctor(usuario?.persona?.sexo);
 
     let htmlBody = '';
     let subject = titulo;
@@ -213,6 +219,7 @@ export class NotificacionService {
         const diffMs = cita.fecha_inicio.getTime() - new Date().getTime();
         const minutosFaltantes = Math.max(0, Math.round(diffMs / 60000));
         htmlBody = buildNotificacionCitaProximaEmail(
+          tratamientoDoctor,
           doctorNombre,
           pacienteNombre,
           minutosFaltantes,
@@ -222,6 +229,7 @@ export class NotificacionService {
         subject = `⏰ Cita próxima con ${pacienteNombre} — WebArco Dental Studio`;
       } else if (tipo === 'cita_confirmada') {
         htmlBody = buildNotificacionCitaConfirmadaEmail(
+          tratamientoDoctor,
           doctorNombre,
           pacienteNombre,
           cita.fecha_inicio,
@@ -230,6 +238,7 @@ export class NotificacionService {
         subject = `✅ ${pacienteNombre} confirmó su cita — WebArco Dental Studio`;
       } else if (tipo === 'cita_cancelada') {
         htmlBody = buildNotificacionCitaCanceladaEmail(
+          tratamientoDoctor,
           doctorNombre,
           pacienteNombre,
           cita.fecha_inicio,
@@ -303,7 +312,7 @@ export class NotificacionService {
               select: { primer_nombre: true, primer_apellido: true },
             },
             doctor: {
-              select: { persona: { select: { primer_nombre: true, primer_apellido: true } } }
+              select: { persona: { select: { primer_nombre: true, primer_apellido: true, sexo: true } } }
             }
           },
         });
@@ -331,13 +340,14 @@ export class NotificacionService {
             .join(' ');
 
           const doctorNombre = cita.doctor?.persona ? `${cita.doctor.persona.primer_nombre} ${cita.doctor.persona.primer_apellido}` : 'el doctor';
+          const tratamientoDoctor = this.getTratamientoDoctor(cita.doctor?.persona?.sexo);
 
           const diffMs = cita.fecha_inicio.getTime() - now.getTime();
           const minutosFaltantes = Math.max(0, Math.round(diffMs / 60000));
 
           const titulo = minutosFaltantes > 0 ? `Cita próxima en ${minutosFaltantes} minutos` : 'Cita próxima ahora';
           const mensaje = isGlobal && cita.doctor?.persona 
-            ? `Cita de ${pacienteNombre} con Dr(a). ${doctorNombre} programada para dentro de ${minutosFaltantes} minutos.`
+            ? `Cita de ${pacienteNombre} con ${tratamientoDoctor} ${doctorNombre} programada para dentro de ${minutosFaltantes} minutos.`
             : `Tu cita con ${pacienteNombre} está programada para dentro de ${minutosFaltantes} minutos.`;
 
           await this.crearNotificacion(
