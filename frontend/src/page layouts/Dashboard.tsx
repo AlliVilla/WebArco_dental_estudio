@@ -41,7 +41,10 @@ function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
     padB = 54,
     padR = 12,
     padT = 8;
-  const maxVal = Math.max(1, ...data.map((d) => d.citas));
+  const maxVal = Math.max(
+    1,
+    ...data.map((d) => Math.max(d.citas, d.atendidas))
+  );
   const chartW = W - padL - padR;
   const chartH = H - padB - padT;
   const groupW = chartW / Math.max(1, data.length);
@@ -49,10 +52,12 @@ function BarChartSVG({ data }: { data: DashboardWeekData[] }) {
   const gap = 3;
   const labelsY = padT + chartH + 18;
   const legendY = H - 16;
+  const tickCount = Math.min(maxVal, 4);
+  const yTicks = Array.from({ length: tickCount + 1 }, (_, i) => i / tickCount);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 190 }}>
-      {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+      {yTicks.map((t) => {
         const y = padT + chartH * (1 - t);
         return (
           <g key={`grid-${t}`}>
