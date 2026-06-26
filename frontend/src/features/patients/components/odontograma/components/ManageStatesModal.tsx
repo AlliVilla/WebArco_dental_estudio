@@ -38,7 +38,8 @@ export function ManageStatesModal({ open, onClose, onDeleteError }: ManageStates
     setError(null);
     try {
       const res = await estadoOdontogramaService.getAll();
-      const data = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      const raw = (res as any).data ?? res;  // cubre envelope o respuesta directa
+      const data: EstadoOdontograma[] = Array.isArray(raw) ? raw : [];
       setEstados(data);
     } catch (err: any) {
       setError(err?.message || 'Error al cargar estados');
