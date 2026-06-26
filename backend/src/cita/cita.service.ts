@@ -61,6 +61,7 @@ export class CitaService {
 
     await this.checkTimeConflict(
       createCitaDto.id_usuario,
+      createCitaDto.id_persona,
       fechaInicio,
       fechaFin,
     );
@@ -209,6 +210,7 @@ export class CitaService {
     }
 
     const doctorId = (updateCitaDto.id_usuario ?? existing.id_usuario) as number;
+    const patientId = (updateCitaDto.id_persona ?? existing.id_persona) as number;
     const checkStart = newFechaInicio;
     const checkEnd =
       newFechaFin ??
@@ -218,13 +220,15 @@ export class CitaService {
       updateCitaDto.fecha_inicio !== undefined ||
       updateCitaDto.fecha_fin !== undefined ||
       (updateCitaDto.id_usuario !== undefined &&
-        updateCitaDto.id_usuario !== existing.id_usuario)
+        updateCitaDto.id_usuario !== existing.id_usuario) ||
+      (updateCitaDto.id_persona !== undefined &&
+        updateCitaDto.id_persona !== existing.id_persona)
     ) {
       this.validateBusinessHours(checkStart);
       if (updateCitaDto.fecha_inicio !== undefined) {
         this.validateNotPastDate(newFechaInicio);
       }
-      await this.checkTimeConflict(doctorId, checkStart, checkEnd, id);
+      await this.checkTimeConflict(doctorId, patientId, checkStart, checkEnd, id);
     }
 
     const updated = await this.prisma.cita.update({
@@ -455,6 +459,7 @@ export class CitaService {
 
   private async checkTimeConflict(
     id_usuario: number,
+    id_persona: number,
     fecha_inicio: Date,
     fecha_fin: Date,
     excludeId?: number,
@@ -465,7 +470,10 @@ export class CitaService {
 
     const existing = await this.prisma.cita.findMany({
       where: {
-        id_usuario,
+        OR: [
+          { id_usuario: id_usuario },
+          { id_persona: id_persona }
+        ],
         fecha_inicio: { gte: startOfDay, lte: endOfDay },
         estado: { in: ['programada', 'confirmada'] },
         ...(excludeId ? { id_cita: { not: excludeId } } : {}),
@@ -474,6 +482,8 @@ export class CitaService {
         id_cita: true,
         fecha_inicio: true,
         fecha_fin: true,
+        id_usuario: true,
+        id_persona: true,
       },
     });
 
@@ -487,9 +497,15 @@ export class CitaService {
         : apptStart + DEFAULT_DURATION_MINUTES * 60 * 1000;
 
       if (newStart < apptEnd && newEnd > apptStart) {
-        throw new ConflictException(
-          'Conflicto de horario: el doctor ya tiene una cita en ese horario',
-        );
+        if (appt.id_usuario === id_usuario) {
+          throw new ConflictException(
+            'Conflicto de horario: el doctor ya tiene una cita en ese horario',
+          );
+        } else if (appt.id_persona === id_persona) {
+          throw new ConflictException(
+            'Conflicto de horario: el paciente ya tiene una cita en ese horario',
+          );
+        }
       }
     }
   }
