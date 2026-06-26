@@ -69,11 +69,34 @@ function assignTracks(appointments: Appointment[]): TrackResult {
     }
   }
 
-  const maxTrack = tracks.length > 0 ? tracks.length : 1;
-  const hiddenCount = hidden.length;
+  // Calcular totalTracks por cita según la cantidad de tracks activos
+  // en su franja horaria, no el máximo del día entero.
+  for (const p of placed) {
+    const pStart = new Date(p.fecha_inicio).getTime();
+    const pEnd = p.fecha_fin
+      ? new Date(p.fecha_fin).getTime()
+      : pStart + 3_600_000;
+
+    const activeTracks = new Set<number>();
+    activeTracks.add(p.track);
+
+    for (const q of placed) {
+      if (p.id_cita === q.id_cita) continue;
+      const qStart = new Date(q.fecha_inicio).getTime();
+      const qEnd = q.fecha_fin
+        ? new Date(q.fecha_fin).getTime()
+        : qStart + 3_600_000;
+
+      if (pStart < qEnd && qStart < pEnd) {
+        activeTracks.add(q.track);
+      }
+    }
+    p.totalTracks = activeTracks.size;
+  }
+
   return {
-    placed: placed.map((p) => ({ ...p, totalTracks: maxTrack })),
-    hiddenCount,
+    placed,
+    hiddenCount: hidden.length,
     hiddenAppointments: hidden,
   };
 }
