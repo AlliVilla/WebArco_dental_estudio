@@ -6,6 +6,7 @@ import { odontogramaService } from '../services/odontogramaService';
 import { loadOdontogramaDraft, saveOdontogramaDraft, applyDraftToToothMap, buildDraftPayload } from '../services/odontogramaDraftStorage';
 import { estadoOdontogramaService, type EstadoOdontograma } from '../services/estadoOdontogramaService';
 import { ManageStatesModal } from './ManageStatesModal';
+import { PatientCombobox } from './PatientCombobox';
 import type { ToothData, HistoryEntry, OdontogramaHistorialItem } from '../types';
 import type { Patient } from '../../../types';
 
@@ -1146,46 +1147,14 @@ export function OdontogramScreen({
               <label style={{ fontSize: 11, fontWeight: 700, color: '#888F94', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {mode === 'view' ? 'Seleccionar Paciente para ver odontograma' : 'Pacientes con consulta activa'}
               </label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={selectedPatientId ?? ''}
-                  onChange={(e) => setSelectedPatientId(Number(e.target.value))}
-                  disabled={loadingPatients}
-                  style={{
-                    width: '100%',
-                    padding: '8px 36px 8px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #D3D7DA',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#203F49',
-                    background: '#ffffff',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    appearance: 'none',
-                    transition: 'all 0.2s',
-                  }}
-                  onFocus={e => e.target.style.borderColor = '#0BC5DF'}
-                  onBlur={e => e.target.style.borderColor = '#D3D7DA'}
-                >
-                  {loadingPatients ? (
-                    <option value="">Cargando pacientes...</option>
-                  ) : patients.length === 0 ? (
-                    <option value="">No hay pacientes disponibles</option>
-                  ) : (
-                    patients.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre} {p.apellido} ({getAge(p.fecha_nacimiento)} años)
-                      </option>
-                    ))
-                  )}
-                </select>
-                <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#888F94' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </div>
-              </div>
+              <PatientCombobox
+                patients={patients}
+                value={selectedPatientId}
+                onChange={(id) => setSelectedPatientId(id)}
+                disabled={loadingPatients}
+                loading={loadingPatients}
+                placeholder={mode === 'view' ? 'Seleccionar paciente...' : 'Pacientes con consulta activa'}
+              />
             </div>
           </div>
 
