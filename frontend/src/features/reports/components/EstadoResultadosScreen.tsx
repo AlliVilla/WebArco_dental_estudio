@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
   BarChart3,
   ClipboardList,
   Download,
@@ -247,11 +246,7 @@ function TableRow({
           fontSize: labelFontSize,
           fontWeight: isFilled ? 800 : 400,
           borderTop: kind === "normal" ? `1px solid ${colors.border}` : "none",
-          borderRadius: isFilled
-            ? isMobile
-              ? "10px 0 0 10px"
-              : "12px 0 0 12px"
-            : undefined,
+          borderRadius: undefined,
           wordBreak: isMobile ? "break-word" : "normal",
           width: isMobile ? "62%" : undefined,
         }}
@@ -266,11 +261,7 @@ function TableRow({
           fontWeight: 800,
           textAlign: "right",
           borderTop: kind === "normal" ? `1px solid ${colors.border}` : "none",
-          borderRadius: isFilled
-            ? isMobile
-              ? "0 10px 10px 0"
-              : "0 12px 12px 0"
-            : undefined,
+          borderRadius: undefined,
           whiteSpace: "nowrap",
           width: isMobile ? "38%" : undefined,
         }}
