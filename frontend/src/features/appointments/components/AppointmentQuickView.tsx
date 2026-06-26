@@ -1,22 +1,52 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X } from "lucide-react";
+import { X, Check, Loader2 } from "lucide-react";
 import { Button } from "../../../context";
 import type { Appointment } from "../types";
 import { STATUS_STYLES } from "../constants";
 import { useResponsive } from "../../../hooks/useWindowWidth";
 import { Z } from "../../../utils/zIndex";
+import { appointmentService } from "../services/appointmentService";
+import { useAuthStore } from "../../auth/hooks/useAuthStore";
 
 export interface AppointmentQuickViewProps {
   appointment: Appointment;
   onClose: () => void;
+  onStatusChange?: (updated: Appointment) => void;
 }
 
 export function AppointmentQuickView({
   appointment,
   onClose,
+  onStatusChange,
 }: AppointmentQuickViewProps) {
   const navigate = useNavigate();
   const { isMobile } = useResponsive();
+  const currentUser = useAuthStore((s) => s.user);
+  const [loadingAttend, setLoadingAttend] = useState(false);
+
+  const canMarkAttended = ["programada", "confirmada"].includes(
+    appointment.estado
+  );
+
+  const handleMarkAttended = async () => {
+    setLoadingAttend(true);
+    try {
+      const res = await appointmentService.changeStatus(
+        appointment.id_cita,
+        "atendida",
+        currentUser?.id_usuario || appointment.id_usuario
+      );
+      if (res.success && res.data) {
+        onStatusChange?.(res.data);
+        onClose();
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingAttend(false);
+    }
+  };
 
   const handleDetail = () => {
     navigate(`/agenda/${appointment.id_cita}`);
@@ -59,6 +89,7 @@ export function AppointmentQuickView({
           gap: 16,
         }}
       >
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         {isMobile && (
           <div
             style={{
@@ -269,8 +300,24 @@ export function AppointmentQuickView({
             marginTop: 12,
           }}
         >
+          {canMarkAttended && (
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={handleMarkAttended}
+              disabled={loadingAttend}
+              style={{ padding: "12px 0", fontSize: 15, fontWeight: 500 }}
+            >
+              {loadingAttend ? (
+                <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <Check size={18} />
+              )}
+              {loadingAttend ? "Actualizando…" : "Marcar como atendida"}
+            </Button>
+          )}
           <Button
-            variant="primary"
+            variant={canMarkAttended ? "secondary" : "primary"}
             fullWidth
             onClick={handleDetail}
             style={{ padding: "12px 0", fontSize: 15, fontWeight: 500 }}
