@@ -474,7 +474,13 @@ export function UsersScreen() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await userService.getAll();
+      const rolFilter = serverParams.filters.rol;
+      const res = await userService.getAll({
+        page: serverParams.page,
+        limit: 10,
+        nombre: serverParams.search || undefined,
+        rol: (!rolFilter || rolFilter === "all") ? undefined : rolFilter,
+      });
       if (!mountedRef.current) return;
       if (res.success) {
         setUsers(res.data.usuarios);
@@ -485,11 +491,13 @@ export function UsersScreen() {
       }
     } catch (err: unknown) {
       if (mountedRef.current)
-        setErrorMessage(
-          err instanceof Error ? err.message : "Error al cargar los usuarios.",
-        );
+        setErrorMessage(err instanceof Error ? err.message : "Error al cargar los usuarios.");
     }
-  }, []);
+  }, [serverParams]);
+
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]); 
 
   useEffect(() => {
     void fetchStats();
@@ -1121,7 +1129,6 @@ export function UsersScreen() {
           title="Gestión de Usuarios"
           description="Administra los usuarios del sistema, sus roles de seguridad y accesos a módulos."
           columns={columns}
-          data={paginatedUsersDesktop}
           searchable
           searchPlaceholder="Buscar por nombre o apellido..."
           filters={[
@@ -1132,7 +1139,6 @@ export function UsersScreen() {
             },
           ]}
           pageSize={10}
-          totalRecords={filteredUsersDesktop.length}
           isServerSide
           onServerParamsChange={handleServerParamsChange}
           primaryAction={{
@@ -1140,6 +1146,8 @@ export function UsersScreen() {
             icon: <UserPlus size={16} />,
             onClick: () => handleOpenForm(),
           }}
+          data={users}
+          totalRecords={totalRecords}
           rowActions={getRowActions}
           getRowKey={(row) => String(row.id_usuario)}
           emptyMessage="No se encontraron usuarios que coincidan con la búsqueda."
@@ -1484,6 +1492,7 @@ export function UsersScreen() {
                     badge="required"
                     placeholder="Ej: 99999999"
                     value={telefono}
+                    maxLength={8}
                     onChange={(e) => {
                       const soloNumeros = e.target.value.replace(/\D/g, "");
                       setTelefono(soloNumeros);
