@@ -278,8 +278,29 @@ export class PersonaService {
         return { ...rest, tratamientos };
       });
 
+      const mappedAny: Record<string, any>[] = mapped;
+      let mappedWithLastConsulta = mappedAny;
+      if (mappedAny.length > 0) {
+        const ids = mappedAny.map(p => p.id_persona);
+        const ultimasConsultas = await this.prisma.consulta.findMany({
+          where: { id_persona: { in: ids } },
+          orderBy: { fecha_inicio: 'desc' },
+          select: { id_persona: true, fecha_inicio: true, fecha_fin: true },
+        });
+        const consultaMap = new Map<number, { fecha_inicio: Date; fecha_fin: Date | null }>();
+        for (const c of ultimasConsultas) {
+          if (!consultaMap.has(c.id_persona)) {
+            consultaMap.set(c.id_persona, { fecha_inicio: c.fecha_inicio, fecha_fin: c.fecha_fin });
+          }
+        }
+        mappedWithLastConsulta = mappedAny.map(p => ({
+          ...p,
+          ultimaConsulta: consultaMap.get(p.id_persona) ?? null,
+        }));
+      }
+
       return {
-        data: mapped,
+        data: mappedWithLastConsulta,
         pagination: {
           total,
           page,

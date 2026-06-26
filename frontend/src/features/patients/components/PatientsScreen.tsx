@@ -31,6 +31,7 @@ type PersonaApi = {
   medicamentos?: string | null;
   alergias?: string | null;
   reaccion_anestesia?: string | null;
+  ultimaConsulta?: { fecha_inicio: string; fecha_fin: string | null } | null;
 };
 
 type PersonasListResponse = {
@@ -71,7 +72,7 @@ const mapPersonaToPatient = (persona: PersonaApi): Patient => {
     fullName,
     identity: persona.numero_identidad,
     phone: persona.telefono,
-    lastVisit: null,
+    lastVisit: persona.ultimaConsulta?.fecha_inicio ?? null,
   };
 };
 
@@ -244,7 +245,6 @@ export function PatientsScreen({
           nombre: activeFilters.nombre || undefined,
           telefono: activeFilters.telefono || undefined,
           codigo: activeFilters.codigo || undefined,
-          includeConsulta: false,
         },
       })
       .then((response: { data: PersonasListResponse }) => {

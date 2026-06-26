@@ -93,6 +93,7 @@ export function PatientProfileScreen() {
   );
   const [financialRows, setFinancialRows] = useState<FinancialRow[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("appointments");
+  const [lastConsultaDate, setLastConsultaDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(patientId));
   const [error, setError] = useState("");
 
@@ -134,6 +135,7 @@ export function PatientProfileScreen() {
         setPatient(patientResponse.data);
         setAppointments(appointmentsResponse.data?.data ?? []);
         setFinancialRows(pagos);
+        setLastConsultaDate(consultas[0]?.fecha_inicio ?? null);
       })
       .catch((err: unknown) => {
         if (import.meta.env.DEV) console.error("[PatientProfileScreen]", err);
@@ -200,8 +202,8 @@ export function PatientProfileScreen() {
         patient.municipio.departamento?.nombre ?? ""
       }`.replace(/,\s*$/, "")
     : "Sin ubicación";
-  const lastVisit = appointments[0]?.fecha_inicio
-    ? formatDisplayDate(appointments[0].fecha_inicio)
+  const lastVisit = lastConsultaDate
+    ? formatDisplayDate(lastConsultaDate)
     : "Sin consultas registradas";
 
   if (!patientId) {
