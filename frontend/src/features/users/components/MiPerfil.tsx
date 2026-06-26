@@ -270,7 +270,7 @@ export function MiPerfil() {
 
   const handleSave = async () => {
     if (!username.trim() || !email.trim() || !fullName.trim()) {
-      addToast("error", "Username, correo y nombre completo son obligatorios.");
+      addToast("error", "Nombre de usuario, correo y nombre completo son obligatorios.");
       return;
     }
     try {
@@ -355,7 +355,7 @@ export function MiPerfil() {
   ) : (
     <>
       <Input
-        label="Username"
+        label="Nombre de usuario"
         badge="required"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
