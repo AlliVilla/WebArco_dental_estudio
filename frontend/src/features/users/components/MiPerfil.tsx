@@ -269,16 +269,48 @@ export function MiPerfil() {
   }, [addToast]);
 
   const handleSave = async () => {
-    if (!username.trim() || !email.trim() || !fullName.trim()) {
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
+    const trimmedFullName = fullName.trim();
+
+    if (!trimmedUsername || !trimmedEmail || !trimmedFullName) {
       addToast("error", "Nombre de usuario, correo y nombre completo son obligatorios.");
       return;
     }
+
+    // Validar formato de nombre de usuario: solo letras, números, puntos y guiones bajos
+    const usernameRegex = /^[a-zA-Z0-9._]+$/;
+    if (!usernameRegex.test(trimmedUsername)) {
+      addToast(
+        "error",
+        "El nombre de usuario solo puede contener letras, números, puntos (.) y guiones bajos (_)."
+      );
+      return;
+    }
+
+    // Validar formato de correo electrónico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      addToast("error", "El formato del correo electrónico ingresado es inválido.");
+      return;
+    }
+
+    // Validar formato de nombre completo: solo letras (incluyendo acentos y ñ) y espacios
+    const fullNameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
+    if (!fullNameRegex.test(trimmedFullName)) {
+      addToast(
+        "error",
+        "El nombre completo solo puede contener letras y espacios."
+      );
+      return;
+    }
+
     try {
       setIsProfileLoading(true);
       const profile = await profileService.updateProfile({
-        username: username.trim(),
-        email: email.trim(),
-        nombre_completo: fullName.trim(),
+        username: trimmedUsername,
+        email: trimmedEmail,
+        nombre_completo: trimmedFullName,
       });
       setUsername(profile.username ?? "");
       setEmail(profile.email ?? "");
