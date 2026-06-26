@@ -385,53 +385,6 @@ export class ReminderService {
     };
   }
 
-  async exportCsv(query: QueryReminderHistoryDto) {
-    const { records } = await this.getHistory(query);
-
-    const headers = [
-      'ID Recordatorio',
-      'ID Cita',
-      'Paciente',
-      'Teléfono',
-      'Correo',
-      'Canal',
-      'Estado Respuesta',
-      'Fecha Envío',
-      'Fecha Respuesta',
-    ];
-
-    const csvLines = [headers.join(',')];
-
-    for (const r of records) {
-      const fechaEnvio = r.fecha_envio
-        ? new Date(r.fecha_envio).toISOString()
-        : '-';
-      const fechaRespuesta = r.fecha_respuesta
-        ? new Date(r.fecha_respuesta).toISOString()
-        : '-';
-      const persona = r.cita?.persona;
-      const nombrePaciente = persona
-        ? [persona.primer_nombre, persona.segundo_nombre, persona.primer_apellido, persona.segundo_apellido].filter(Boolean).join(' ')
-        : '-';
-
-      const line = [
-        r.id,
-        r.id_cita,
-        this.escapeCsv(nombrePaciente),
-        persona?.telefono ?? '-',
-        persona?.correo_electronico ?? '-',
-        r.canal,
-        r.estado_respuesta,
-        fechaEnvio,
-        fechaRespuesta,
-      ].join(',');
-
-      csvLines.push(line);
-    }
-
-    return csvLines.join('\n');
-  }
-
   async retry(id: number) {
     const recordatorio = await this.prisma.recordatorio.findUnique({
       where: { id },
@@ -487,13 +440,6 @@ export class ReminderService {
       whatsappMessage: recordatorio.canal === 'WhatsApp' ? mensajeText : undefined,
       message: `Reintento de recordatorio #${id} registrado exitosamente`,
     };
-  }
-
-  private escapeCsv(value: string): string {
-    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-      return `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
   }
 
   /**

@@ -1,5 +1,4 @@
 import { api } from '../../../services/api';
-import { API_URL } from '../../../config/constants';
 import type {
   ApiResponse,
   RecordatorioRow,
@@ -192,12 +191,6 @@ export const ReminderService = {
     payload: { respuesta: 'Confirmo' | 'Cancelo'; cambiado_por: number }
   ): Promise<ApiResponse<any>> => {
     return api.patch(`/reminders/${id}/response`, payload);
-  },
-
-
-  exportCsv: (): void => {
-    const base = API_URL;
-    window.open(`${base}/reminders/export`, '_blank');
   },
 
   // Bug fix: GET /appointments requiere start y end obligatorios (retorna 400 sin ellos).

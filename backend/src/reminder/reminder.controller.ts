@@ -10,7 +10,6 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,7 +23,6 @@ import {
   ApiBearerAuth,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
 import { ReminderService } from './reminder.service';
 import { SendReminderDto } from './dto/send-reminder.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
@@ -193,51 +191,4 @@ export class ReminderController {
     return this.reminderService.discardReminder(realId);
   }
 
-  @Privileges(31)
-  @Get('export')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Exportar historial filtrado (CSV)',
-    description:
-      'Exporta el historial de recordatorios en formato CSV con los filtros aplicados.',
-  })
-  @ApiQuery({
-    name: 'id_persona',
-    required: false,
-    description: 'Filtrar por ID del paciente',
-  })
-  @ApiQuery({
-    name: 'estado',
-    required: false,
-    description: 'Filtrar por estado de respuesta',
-    enum: EstadoRespuesta,
-  })
-  @ApiQuery({
-    name: 'canal',
-    required: false,
-    description: 'Filtrar por canal de envío',
-    enum: CanalRecordatorio,
-  })
-  @ApiQuery({
-    name: 'start',
-    required: false,
-    description: 'Inicio del rango de fechas (YYYY-MM-DD)',
-  })
-  @ApiQuery({
-    name: 'end',
-    required: false,
-    description: 'Fin del rango de fechas (YYYY-MM-DD)',
-  })
-  async exportCsv(
-    @Query() query: QueryReminderHistoryDto,
-    @Res() res: Response,
-  ) {
-    const csv = await this.reminderService.exportCsv(query);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=recordatorios_${new Date().toISOString().split('T')[0]}.csv`,
-    );
-    res.send(csv);
-  }
 }

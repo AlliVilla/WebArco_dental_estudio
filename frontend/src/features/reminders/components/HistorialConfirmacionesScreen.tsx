@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { History, Download, RefreshCw, Check, X } from "lucide-react";
+import { History, RefreshCw, Check, X } from "lucide-react";
 import { DataTable, StatsDrawer } from "../../../components";
 import { ReminderService } from "../services/ReminderService";
 import { useAuthStore } from "../../auth/hooks/useAuthStore";
@@ -692,25 +692,6 @@ export function HistorialConfirmacionesScreen(
             >
               <RefreshCw size={14} /> Actualizar
             </button>
-            <button
-              onClick={() => ReminderService.exportCsv()}
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                height: 40,
-                borderRadius: 8,
-                border: "1px solid #D3D7DA",
-                background: "#fff",
-                fontSize: 13,
-                color: "#203F49",
-                cursor: "pointer",
-              }}
-            >
-              <Download size={14} /> Exportar
-            </button>
           </div>
           {/* Cards */}
           {loading ? (
@@ -792,11 +773,6 @@ export function HistorialConfirmacionesScreen(
               label: loading ? "Cargando..." : "Actualizar",
               icon: <RefreshCw size={14} />,
               onClick: fetchHistorial,
-            },
-            {
-              label: "Exportar CSV",
-              icon: <Download size={14} />,
-              onClick: () => ReminderService.exportCsv(),
             },
           ]}
           getRowKey={(row) => String(row.id)}
