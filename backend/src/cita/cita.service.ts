@@ -50,6 +50,10 @@ export class CitaService {
   async create(createCitaDto: CreateCitaDto, creatorUserId?: number) {
     await this.assertPersonaExists(createCitaDto.id_persona);
     await this.assertUsuarioExists(createCitaDto.id_usuario);
+    await this.assertDoctorIsNotSamePatient(
+      createCitaDto.id_usuario,
+      createCitaDto.id_persona,
+    );
 
     const fechaInicio = new Date(createCitaDto.fecha_inicio);
     const fechaFin = createCitaDto.fecha_fin
@@ -58,6 +62,8 @@ export class CitaService {
 
     this.validateBusinessHours(fechaInicio);
     this.validateNotPastDate(fechaInicio);
+
+    this.validateDateRange(fechaInicio, fechaFin);
 
     await this.checkTimeConflict(
       createCitaDto.id_usuario,
@@ -211,6 +217,9 @@ export class CitaService {
 
     const doctorId = (updateCitaDto.id_usuario ?? existing.id_usuario) as number;
     const patientId = (updateCitaDto.id_persona ?? existing.id_persona) as number;
+
+    await this.assertDoctorIsNotSamePatient(doctorId, patientId);
+
     const checkStart = newFechaInicio;
     const checkEnd =
       newFechaFin ??
@@ -228,6 +237,7 @@ export class CitaService {
       if (updateCitaDto.fecha_inicio !== undefined) {
         this.validateNotPastDate(newFechaInicio);
       }
+      this.validateDateRange(checkStart, checkEnd);
       await this.checkTimeConflict(doctorId, patientId, checkStart, checkEnd, id);
     }
 
@@ -470,20 +480,17 @@ export class CitaService {
 
     const existing = await this.prisma.cita.findMany({
       where: {
-        OR: [
-          { id_usuario: id_usuario },
-          { id_persona: id_persona }
-        ],
+        OR: [{ id_usuario }, { id_persona }],
         fecha_inicio: { gte: startOfDay, lte: endOfDay },
         estado: { in: ['programada', 'confirmada'] },
         ...(excludeId ? { id_cita: { not: excludeId } } : {}),
       },
       select: {
         id_cita: true,
-        fecha_inicio: true,
-        fecha_fin: true,
         id_usuario: true,
         id_persona: true,
+        fecha_inicio: true,
+        fecha_fin: true,
       },
     });
 
@@ -497,16 +504,46 @@ export class CitaService {
         : apptStart + DEFAULT_DURATION_MINUTES * 60 * 1000;
 
       if (newStart < apptEnd && newEnd > apptStart) {
-        if (appt.id_usuario === id_usuario) {
-          throw new ConflictException(
-            'Conflicto de horario: el doctor ya tiene una cita en ese horario',
-          );
-        } else if (appt.id_persona === id_persona) {
+        if (appt.id_persona === id_persona) {
           throw new ConflictException(
             'Conflicto de horario: el paciente ya tiene una cita en ese horario',
           );
         }
+
+        throw new ConflictException(
+          'Conflicto de horario: el doctor ya tiene una cita en ese horario',
+        );
       }
+    }
+  }
+
+  private validateDateRange(fecha_inicio: Date, fecha_fin: Date) {
+    if (fecha_fin <= fecha_inicio) {
+      throw new BadRequestException(
+        'La hora de fin de la cita debe ser mayor que la hora de inicio.',
+      );
+    }
+  }
+
+  private async assertDoctorIsNotSamePatient(
+    id_usuario: number,
+    id_persona: number,
+  ) {
+    const doctor = await this.prisma.usuario.findUnique({
+      where: { id_usuario },
+      select: { id_persona: true },
+    });
+
+    if (!doctor) {
+      throw new BadRequestException(
+        `No existe un usuario con el id ${id_usuario}`,
+      );
+    }
+
+    if (doctor.id_persona === id_persona) {
+      throw new BadRequestException(
+        'Un doctor no puede agendar una cita para atenderse a sí mismo.',
+      );
     }
   }
 
