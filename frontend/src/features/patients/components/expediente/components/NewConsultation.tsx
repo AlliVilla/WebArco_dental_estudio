@@ -775,16 +775,27 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
       return;
     }
 
-    setPendingPlans((prev) => [
-      ...prev,
-      {
-        treatmentId: current.treatmentId!,
-        nombre: current.nombre,
-        costoTotal: costo,
-        fechaInicio:
-          current.fechaInicio || new Date().toISOString().slice(0, 10),
-      },
-    ]);
+    if (tratamientosPaciente.some((t:any) => t.nombre === current.nombre)) {
+      addToast("error", `Ya existe un plan activo "${current.nombre}". Complete o cancele el actual antes de crear otro.`);
+      return;
+    }
+
+    setPendingPlans((prev) => {
+      if (prev.some((p) => p.nombre === current.nombre)) {
+        addToast("error", `Ya hay un plan pendiente con el nombre "${current.nombre}".`);
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          treatmentId: current.treatmentId!,
+          nombre: current.nombre,
+          costoTotal: costo,
+          fechaInicio:
+            current.fechaInicio || new Date().toISOString().slice(0, 10),
+        },
+      ];
+    });
     setPlanForm({
       treatmentId: null,
       nombre: "",

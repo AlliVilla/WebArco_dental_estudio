@@ -15,6 +15,15 @@ export class TratamientoPacienteService {
       throw new NotFoundException(`No existe el paciente con id ${dto.pacienteId}`);
     }
 
+    const existente = await this.prisma.tratamientoPaciente.findFirst({
+      where: { pacienteId: dto.pacienteId, nombre: dto.nombre, estado: 'ACTIVO' },
+    });
+    if (existente) {
+      throw new BadRequestException(
+        `Ya existe un plan activo con el nombre "${dto.nombre}" para este paciente. Complete o cancele el plan actual antes de crear otro.`,
+      );
+    }
+
     const tratamiento = await this.prisma.tratamientoPaciente.create({
       data: {
         pacienteId: dto.pacienteId,
