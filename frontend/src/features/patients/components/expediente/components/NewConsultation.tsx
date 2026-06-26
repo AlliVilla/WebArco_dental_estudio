@@ -725,6 +725,32 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
   );
 
   const addTratamiento = (t: Treatment) => {
+    const nombreNormalizado = t.nombre.trim().toLowerCase();
+
+    // 1. Si ya existe un plan ACTIVO con ese nombre en la base de datos (tratamientosPaciente) -> rechaza
+    const existeActivo = tratamientosPaciente.some(
+      (tp: any) => tp.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existeActivo) {
+      addToast(
+        "error",
+        `No se puede agregar el tratamiento porque ya existe un plan activo con el nombre "${t.nombre}".`
+      );
+      return;
+    }
+
+    // 2. Si ya hay un plan pendiente con ese nombre en la sesión actual -> rechaza
+    const existePendiente = pendingPlans.some(
+      (p) => p.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existePendiente) {
+      addToast(
+        "error",
+        `No se puede agregar el tratamiento porque ya hay un plan pendiente con el nombre "${t.nombre}".`
+      );
+      return;
+    }
+
     const uniqueId = `${t.id}-${uid()}`;
     setTratamientos((prev) => [
       ...prev,
@@ -750,6 +776,33 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
       addToast("error", "El precio debe ser un número mayor a 0.");
       return;
     }
+
+    const nombreNormalizado = nombre.toLowerCase();
+
+    // 1. Si ya existe un plan ACTIVO con ese nombre en la base de datos (tratamientosPaciente) -> rechaza
+    const existeActivo = tratamientosPaciente.some(
+      (tp: any) => tp.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existeActivo) {
+      addToast(
+        "error",
+        `No se puede agregar el concepto porque ya existe un plan activo con el nombre "${nombre}".`
+      );
+      return;
+    }
+
+    // 2. Si ya hay un plan pendiente con ese nombre en la sesión actual -> rechaza
+    const existePendiente = pendingPlans.some(
+      (p) => p.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existePendiente) {
+      addToast(
+        "error",
+        `No se puede agregar el concepto porque ya hay un plan pendiente con el nombre "${nombre}".`
+      );
+      return;
+    }
+
     setTratamientos((prev) => [...prev, { id: uid(), nombre, precio }]);
     setConceptoLibre("");
     setPrecioLibre("");
@@ -757,6 +810,32 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
   };
 
   const initPlanForm = (t: TratamientoConsulta) => {
+    const nombreNormalizado = t.nombre.trim().toLowerCase();
+
+    // 1. Si ya existe un plan ACTIVO con ese nombre en la base de datos (tratamientosPaciente) -> rechaza
+    const existeActivo = tratamientosPaciente.some(
+      (tp: any) => tp.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existeActivo) {
+      addToast(
+        "error",
+        `No se puede crear el plan porque ya existe un plan activo con el nombre "${t.nombre}".`
+      );
+      return;
+    }
+
+    // 2. Si ya hay un plan pendiente con ese nombre en la sesión actual -> rechaza
+    const existePendiente = pendingPlans.some(
+      (p) => p.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existePendiente) {
+      addToast(
+        "error",
+        `No se puede crear el plan porque ya hay un plan pendiente con el nombre "${t.nombre}".`
+      );
+      return;
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     setPlanForm({
       treatmentId: t.id,
@@ -775,27 +854,44 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
       return;
     }
 
-    if (tratamientosPaciente.some((t:any) => t.nombre === current.nombre)) {
-      addToast("error", `Ya existe un plan activo "${current.nombre}". Complete o cancele el actual antes de crear otro.`);
+    const nombreNormalizado = current.nombre.trim().toLowerCase();
+
+    // 1. Si ya existe un plan ACTIVO con ese nombre en la base de datos (tratamientosPaciente) -> rechaza
+    const existeActivo = tratamientosPaciente.some(
+      (t: any) => t.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existeActivo) {
+      addToast(
+        "error",
+        `Ya existe un plan activo con el nombre "${current.nombre}".`
+      );
       return;
     }
 
-    setPendingPlans((prev) => {
-      if (prev.some((p) => p.nombre === current.nombre)) {
-        addToast("error", `Ya hay un plan pendiente con el nombre "${current.nombre}".`);
-        return prev;
-      }
-      return [
-        ...prev,
-        {
-          treatmentId: current.treatmentId!,
-          nombre: current.nombre,
-          costoTotal: costo,
-          fechaInicio:
-            current.fechaInicio || new Date().toISOString().slice(0, 10),
-        },
-      ];
-    });
+    // 2. Si ya hay un plan pendiente con ese nombre en la sesión actual -> rechaza
+    const existePendiente = pendingPlans.some(
+      (p) => p.nombre.trim().toLowerCase() === nombreNormalizado
+    );
+    if (existePendiente) {
+      addToast(
+        "error",
+        `Ya hay un plan pendiente con el nombre "${current.nombre}".`
+      );
+      return;
+    }
+
+    // Si pasa las validaciones, lo agregamos a los planes pendientes
+    setPendingPlans((prev) => [
+      ...prev,
+      {
+        treatmentId: current.treatmentId!,
+        nombre: current.nombre.trim(),
+        costoTotal: costo,
+        fechaInicio:
+          current.fechaInicio || new Date().toISOString().slice(0, 10),
+      },
+    ]);
+
     setPlanForm({
       treatmentId: null,
       nombre: "",
@@ -865,11 +961,12 @@ export function NuevaConsulta({ patient, onBack, onSave }: Props) {
             costoTotal: plan.costoTotal,
             fechaInicio: plan.fechaInicio,
           });
-          const planData = res.data;
-          if (res.success && planData?.id) {
+          const planData = res.data as any;
+          const createdPlan = planData?.data || planData;
+          if (res.success && createdPlan?.id) {
             tratamientosFinal = tratamientosFinal.map((t) =>
               t.id === plan.treatmentId
-                ? { ...t, tratamientoPacienteId: planData.id }
+                ? { ...t, tratamientoPacienteId: createdPlan.id }
                 : t
             );
           } else {

@@ -40,7 +40,9 @@ export class FinanzasService {
     const meses = await this.obtenerSerieMensual(rango.finExclusivo);
 
     const variacionVsPeriodoAnterior = anterior.utilidadNeta
-      ? ((actual.utilidadNeta - anterior.utilidadNeta) / Math.abs(anterior.utilidadNeta)) * 100
+      ? ((actual.utilidadNeta - anterior.utilidadNeta) /
+          Math.abs(anterior.utilidadNeta)) *
+        100
       : 0;
 
     const gastosPorCategoria = {
@@ -97,19 +99,24 @@ export class FinanzasService {
     };
   }
 
-  async getBalance(fecha_inicio: Date, fecha_fin: Date): Promise<BalanceReportDto> {
+  async getBalance(
+    fecha_inicio: Date,
+    fecha_fin: Date,
+  ): Promise<BalanceReportDto> {
     // --- Ingresos por tratamientos ----------------------------------------------
-    const consultasConTratamientos = await this.prismaService.consulta.findMany({
-      where: {
-        fecha_inicio: {
-          gte: fecha_inicio,
-          lte: fecha_fin,
+    const consultasConTratamientos = await this.prismaService.consulta.findMany(
+      {
+        where: {
+          fecha_inicio: {
+            gte: fecha_inicio,
+            lte: fecha_fin,
+          },
+        },
+        include: {
+          tratamientos: true,
         },
       },
-      include: {
-        tratamientos: true,
-      },
-    });
+    );
 
     const totalIngresosConsultas = consultasConTratamientos.reduce((acc, c) => {
       const tratamientos = c.tratamientos.reduce((sum, t) => {
@@ -152,29 +159,31 @@ export class FinanzasService {
     const totalActivosCirculantes = totalCobranzas + cuentasPorCobrar;
 
     // --- Movimeintos de Inventario ----------------------------------------------
-    const movimientosEgreso = await this.prismaService.movimientoInventario.findMany({
-      where: {
-        tipo: 'Salida',
-        fecha: {
-          gte: fecha_inicio,
-          lte: fecha_fin,
-        },
-      },
-      include: {
-        insumo: {
-          include: {
-            categoria: true,
+    const movimientosEgreso =
+      await this.prismaService.movimientoInventario.findMany({
+        where: {
+          tipo: 'Salida',
+          fecha: {
+            gte: fecha_inicio,
+            lte: fecha_fin,
           },
         },
-      },
-    });
+        include: {
+          insumo: {
+            include: {
+              categoria: true,
+            },
+          },
+        },
+      });
 
     const egresosPorCategoria: Record<string, number> = {};
     let totalEgresosPorInventario = 0;
 
     for (const movimiento of movimientosEgreso) {
       const categoria = movimiento.insumo.categoria.nombre;
-      const egreso = Number(movimiento.cantidad) * Number(movimiento.insumo.precio_costo);
+      const egreso =
+        Number(movimiento.cantidad) * Number(movimiento.insumo.precio_costo);
 
       if (!egresosPorCategoria[categoria]) {
         egresosPorCategoria[categoria] = 0;
@@ -212,10 +221,11 @@ export class FinanzasService {
       fechaInicio: fecha_inicio,
       fechaFin: fecha_fin,
     };
-
   }
 
-  private async calcularTotalesEstado(rango: RangoFechas): Promise<TotalesEstadoResultado> {
+  private async calcularTotalesEstado(
+    rango: RangoFechas,
+  ): Promise<TotalesEstadoResultado> {
     const [tratamientos, consultasConTexto, pagosConsulta] = await Promise.all([
       this.prismaService.consulta_Tratamiento.findMany({
         where: {
@@ -241,7 +251,8 @@ export class FinanzasService {
     ]);
 
     const ingresosBrutosTratamientos = tratamientos.reduce(
-      (total, t) => total + Number(t.precio || 0), 0,
+      (total, t) => total + Number(t.precio || 0),
+      0,
     );
 
     const descuentosAplicados = tratamientos.reduce((total, t) => {
@@ -252,7 +263,9 @@ export class FinanzasService {
     // Parse conceptos libres from consulta text
     let conceptosLibresTotal = 0;
     for (const c of consultasConTexto) {
-      const match = c.tratamiento?.match(/Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/);
+      const match = c.tratamiento?.match(
+        /Conceptos libres:\n([\s\S]*?)(?:\n(?=Planes activos:)|$)/,
+      );
       if (match) {
         for (const line of match[1].split('\n')) {
           const m = line.match(/^.+?\s*[—–-]\s*L\.?\s*([\d,]+(?:\.\d{2})?)/);
@@ -262,27 +275,34 @@ export class FinanzasService {
     }
 
     const ingresosPlanes = pagosConsulta.reduce(
-      (total, p) => total + Number(p.monto || 0), 0,
+      (total, p) => total + Number(p.monto || 0),
+      0,
     );
 
-    const ingresosBrutos = ingresosBrutosTratamientos + conceptosLibresTotal + ingresosPlanes;
+    const ingresosBrutos =
+      ingresosBrutosTratamientos + conceptosLibresTotal + ingresosPlanes;
     const ingresosNetos = ingresosBrutos - descuentosAplicados;
 
-    const movimientosInsumos = await this.prismaService.movimientoInventario.findMany({
-      where: {
-        tipo: 'Salida',
-        fecha: {
-          gte: rango.inicio,
-          lt: rango.finExclusivo,
+    const movimientosInsumos =
+      await this.prismaService.movimientoInventario.findMany({
+        where: {
+          tipo: 'Salida',
+          fecha: {
+            gte: rango.inicio,
+            lt: rango.finExclusivo,
+          },
         },
-      },
-      include: {
-        insumo: true,
-      },
-    });
+        include: {
+          insumo: true,
+        },
+      });
 
     const costoInsumos = movimientosInsumos.reduce((total, movimiento) => {
-      return total + Number(movimiento.cantidad || 0) * Number(movimiento.insumo.precio_costo || 0);
+      return (
+        total +
+        Number(movimiento.cantidad || 0) *
+          Number(movimiento.insumo.precio_costo || 0)
+      );
     }, 0);
 
     const egresos = await this.prismaService.egreso.findMany({
@@ -327,7 +347,11 @@ export class FinanzasService {
         continue;
       }
 
-      if (categoria.includes('nomina') || concepto.includes('nomina') || concepto.includes('salario')) {
+      if (
+        categoria.includes('nomina') ||
+        concepto.includes('nomina') ||
+        concepto.includes('salario')
+      ) {
         nomina += monto;
       } else if (
         categoria.includes('servicio') ||
@@ -347,11 +371,17 @@ export class FinanzasService {
     const costoInsumosTotal = costoInsumos + insumosSinInventario;
     const comisionesTarjeta = await this.calcularComisionesTarjeta(rango);
     const utilidadBruta = ingresosNetos - costoInsumosTotal;
-    const utilidadAntesImpuestos = utilidadBruta - gastosAdministrativos - comisionesTarjeta;
-    const impuestos = Math.max(0, utilidadAntesImpuestos) * 0.15;
+    const utilidadAntesImpuestos =
+      utilidadBruta - gastosAdministrativos - comisionesTarjeta;
+    // Impuestos deshabilitados: ya no se calculan ni se restan de la utilidad
+    // neta (antes era 15% sobre utilidadAntesImpuestos). El campo se deja en
+    // 0 en vez de eliminarse del tipo, para no romper otros lugares que lo
+    // referencian (gastosPorCategoria, serie mensual del gráfico de barras).
+    const impuestos = 0;
     const utilidadOperativa = utilidadBruta - gastosAdministrativos;
     const utilidadNeta = utilidadAntesImpuestos - impuestos;
-    const margenNeto = ingresosNetos > 0 ? (utilidadNeta / ingresosNetos) * 100 : 0;
+    const margenNeto =
+      ingresosNetos > 0 ? (utilidadNeta / ingresosNetos) * 100 : 0;
 
     return {
       ingresosBrutos,
@@ -376,26 +406,27 @@ export class FinanzasService {
   }
 
   private async calcularComisionesTarjeta(rango: RangoFechas): Promise<number> {
-    const [cuentasDestino, pagosPacienteTarjeta, pagosConsultaTarjeta] = await Promise.all([
-      this.prismaService.cuentaDestinoConfig.findMany({
-        where: { activo: true, comision: { gt: 0 } },
-        select: { nombre: true, comision: true },
-      }),
-      this.prismaService.pagoPaciente.findMany({
-        where: {
-          metodo_pago: { contains: 'Tarjeta', mode: 'insensitive' },
-          fecha: { gte: rango.inicio, lt: rango.finExclusivo },
-        },
-        select: { abono: true, cuenta_destino: true, comision: true },
-      }),
-      this.prismaService.pagoConsulta.findMany({
-        where: {
-          metodoPago: 'TARJETA',
-          fecha: { gte: rango.inicio, lt: rango.finExclusivo },
-        },
-        select: { monto: true, comision: true },
-      }),
-    ]);
+    const [cuentasDestino, pagosPacienteTarjeta, pagosConsultaTarjeta] =
+      await Promise.all([
+        this.prismaService.cuentaDestinoConfig.findMany({
+          where: { activo: true, comision: { gt: 0 } },
+          select: { nombre: true, comision: true },
+        }),
+        this.prismaService.pagoPaciente.findMany({
+          where: {
+            metodo_pago: { contains: 'Tarjeta', mode: 'insensitive' },
+            fecha: { gte: rango.inicio, lt: rango.finExclusivo },
+          },
+          select: { abono: true, cuenta_destino: true, comision: true },
+        }),
+        this.prismaService.pagoConsulta.findMany({
+          where: {
+            metodoPago: 'TARJETA',
+            fecha: { gte: rango.inicio, lt: rango.finExclusivo },
+          },
+          select: { monto: true, comision: true },
+        }),
+      ]);
 
     // Mapa de nombre de cuenta destino -> comisión (decimal, ej. 2.5 = 2.5%)
     // Solo usado como fallback para pagos viejos sin comision almacenada
@@ -410,36 +441,58 @@ export class FinanzasService {
     for (const pago of pagosPacienteTarjeta) {
       const monto = Number(pago.abono || 0);
       // Usar comision almacenada; si es null (pago viejo), buscar en config actual
-      const pct = pago.comision != null
-        ? Number(pago.comision)
-        : pago.cuenta_destino
-          ? comisionMap.get(pago.cuenta_destino)
-          : undefined;
+      const pct =
+        pago.comision != null
+          ? Number(pago.comision)
+          : pago.cuenta_destino
+            ? comisionMap.get(pago.cuenta_destino)
+            : undefined;
       totalComisiones += monto * ((pct ?? comisionDefault) / 100);
     }
 
     for (const pago of pagosConsultaTarjeta) {
       const monto = Number(pago.monto || 0);
-      const pct = pago.comision != null ? Number(pago.comision) : comisionDefault;
+      const pct =
+        pago.comision != null ? Number(pago.comision) : comisionDefault;
       totalComisiones += monto * (pct / 100);
     }
 
     return totalComisiones;
   }
 
-  private async obtenerSerieMensual(finExclusivo: Date): Promise<Array<{ mes: string; ingresos: number; gastos: number; utilidad: number }>> {
+  private async obtenerSerieMensual(
+    finExclusivo: Date,
+  ): Promise<
+    Array<{ mes: string; ingresos: number; gastos: number; utilidad: number }>
+  > {
     const referencia = this.addDays(finExclusivo, -1);
-    const meses: Array<{ mes: string; ingresos: number; gastos: number; utilidad: number }> = [];
+    const meses: Array<{
+      mes: string;
+      ingresos: number;
+      gastos: number;
+      utilidad: number;
+    }> = [];
 
     for (let i = 5; i >= 0; i -= 1) {
-      const inicioMes = new Date(Date.UTC(referencia.getUTCFullYear(), referencia.getUTCMonth() - i, 1));
-      const finMes = new Date(Date.UTC(inicioMes.getUTCFullYear(), inicioMes.getUTCMonth() + 1, 1));
-      const totales = await this.calcularTotalesEstado({ inicio: inicioMes, finExclusivo: finMes });
+      const inicioMes = new Date(
+        Date.UTC(referencia.getUTCFullYear(), referencia.getUTCMonth() - i, 1),
+      );
+      const finMes = new Date(
+        Date.UTC(inicioMes.getUTCFullYear(), inicioMes.getUTCMonth() + 1, 1),
+      );
+      const totales = await this.calcularTotalesEstado({
+        inicio: inicioMes,
+        finExclusivo: finMes,
+      });
 
       meses.push({
         mes: this.obtenerNombreMesCorto(inicioMes),
         ingresos: totales.ingresosNetos,
-        gastos: totales.costoInsumos + totales.gastosAdministrativos + totales.comisionesTarjeta + totales.impuestos,
+        gastos:
+          totales.costoInsumos +
+          totales.gastosAdministrativos +
+          totales.comisionesTarjeta +
+          totales.impuestos,
         utilidad: totales.utilidadNeta,
       });
     }
@@ -448,16 +501,20 @@ export class FinanzasService {
   }
 
   private normalizarRango(fechaInicio: Date, fechaFin: Date): RangoFechas {
-    const inicio = new Date(Date.UTC(
-      fechaInicio.getUTCFullYear(),
-      fechaInicio.getUTCMonth(),
-      fechaInicio.getUTCDate(),
-    ));
-    const finExclusivo = new Date(Date.UTC(
-      fechaFin.getUTCFullYear(),
-      fechaFin.getUTCMonth(),
-      fechaFin.getUTCDate() + 1,
-    ));
+    const inicio = new Date(
+      Date.UTC(
+        fechaInicio.getUTCFullYear(),
+        fechaInicio.getUTCMonth(),
+        fechaInicio.getUTCDate(),
+      ),
+    );
+    const finExclusivo = new Date(
+      Date.UTC(
+        fechaFin.getUTCFullYear(),
+        fechaFin.getUTCMonth(),
+        fechaFin.getUTCDate() + 1,
+      ),
+    );
 
     return { inicio, finExclusivo };
   }
@@ -465,7 +522,9 @@ export class FinanzasService {
   private obtenerRangoAnterior(rango: RangoFechas): RangoFechas {
     const dias = Math.max(
       1,
-      Math.round((rango.finExclusivo.getTime() - rango.inicio.getTime()) / 86_400_000),
+      Math.round(
+        (rango.finExclusivo.getTime() - rango.inicio.getTime()) / 86_400_000,
+      ),
     );
 
     return {
@@ -476,9 +535,18 @@ export class FinanzasService {
 
   private obtenerNombrePeriodo(inicio: Date, finExclusivo: Date): string {
     const fin = this.addDays(finExclusivo, -1);
-    const mismoMes = inicio.getUTCFullYear() === fin.getUTCFullYear() && inicio.getUTCMonth() === fin.getUTCMonth();
+    const mismoMes =
+      inicio.getUTCFullYear() === fin.getUTCFullYear() &&
+      inicio.getUTCMonth() === fin.getUTCMonth();
 
-    if (mismoMes && inicio.getUTCDate() === 1 && fin.getUTCDate() === new Date(Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth() + 1, 0)).getUTCDate()) {
+    if (
+      mismoMes &&
+      inicio.getUTCDate() === 1 &&
+      fin.getUTCDate() ===
+        new Date(
+          Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth() + 1, 0),
+        ).getUTCDate()
+    ) {
       return `${this.obtenerNombreMesLargo(inicio)} ${inicio.getUTCFullYear()}`;
     }
 
@@ -489,14 +557,19 @@ export class FinanzasService {
     return new Intl.DateTimeFormat('es-HN', {
       month: 'long',
       timeZone: 'UTC',
-    }).format(date).replace(/^./, (letter) => letter.toUpperCase());
+    })
+      .format(date)
+      .replace(/^./, (letter) => letter.toUpperCase());
   }
 
   private obtenerNombreMesCorto(date: Date): string {
     return new Intl.DateTimeFormat('es-HN', {
       month: 'short',
       timeZone: 'UTC',
-    }).format(date).replace('.', '').replace(/^./, (letter) => letter.toUpperCase());
+    })
+      .format(date)
+      .replace('.', '')
+      .replace(/^./, (letter) => letter.toUpperCase());
   }
 
   private normalizarTexto(value: string | null | undefined): string {
