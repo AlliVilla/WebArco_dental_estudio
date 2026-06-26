@@ -99,7 +99,7 @@ export class CitaService {
     end: string,
     id_usuario?: number,
   ) {
-    await this.updatePastCitasStatus();
+    this.updatePastCitasStatus().catch(() => undefined);
     const startDate = new Date(`${start}T00:00:00.000-06:00`);
     const endDate = new Date(`${end}T23:59:59.999-06:00`);
 
@@ -121,7 +121,7 @@ export class CitaService {
   }
 
   async findOne(id: number) {
-    await this.updatePastCitasStatus();
+    this.updatePastCitasStatus().catch(() => undefined);
     const cita = await this.prisma.cita.findUnique({
       where: { id_cita: id },
       include: {
@@ -398,7 +398,7 @@ export class CitaService {
       end?: string;
     },
   ) {
-    await this.updatePastCitasStatus();
+    this.updatePastCitasStatus().catch(() => undefined);
     const persona = await this.prisma.persona.findUnique({
       where: { id_persona: patientId },
       select: { id_persona: true },
@@ -523,7 +523,7 @@ export class CitaService {
   }
 
   async getPendingCount(id_usuario?: number) {
-    await this.updatePastCitasStatus();
+    this.updatePastCitasStatus().catch(() => undefined);
     const dateStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Tegucigalpa' });
     const todayStart = new Date(`${dateStr}T00:00:00.000-06:00`).toISOString();
 
