@@ -332,7 +332,8 @@ export function PatientAppointmentHistoryScreen() {
                     </div>
                     <div style={{ fontSize: 13, color: "#5F656A" }}>
                       {apt.doctor
-                        ? `${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
+                        ? `${appointment.doctor.persona.sexo === "F"
+                          ? "Dra." : "Dr." } ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
                         : "Sin doctor asignado"}
                     </div>
                     <div
@@ -539,7 +540,8 @@ export function PatientAppointmentHistoryScreen() {
                       </td>
                       <td style={{ padding: "16px", color: "#203F49" }}>
                         {apt.doctor
-                          ? `${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
+                          ? `${appointment.doctor.persona.sexo === "F"
+                            ? "Dra." : "Dr." } ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
                           : "N/A"}
                       </td>
                       <td

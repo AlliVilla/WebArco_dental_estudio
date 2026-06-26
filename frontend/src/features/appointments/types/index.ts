@@ -16,6 +16,7 @@ export interface CitaDoctor {
   persona: {
     primer_nombre: string;
     primer_apellido: string;
+    sexo: string;
   };
 }
 
