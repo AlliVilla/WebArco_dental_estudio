@@ -565,9 +565,11 @@ export class CitaService {
   }
 
   async getPendingCount(id_usuario?: number) {
-    this.updatePastCitasStatus().catch(() => undefined);
-    const dateStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Tegucigalpa' });
-    const todayStart = new Date(`${dateStr}T00:00:00.000-06:00`).toISOString();
+    await this.updatePastCitasStatus().catch(() => undefined);
+    const dateStr = new Date().toLocaleDateString('sv-SE', {
+      timeZone: 'America/Tegucigalpa',
+    });
+    const todayStart = new Date(`${dateStr}T00:00:00.000-06:00`);
 
     const where: Prisma.CitaWhereInput = {
       fecha_inicio: { gte: todayStart },

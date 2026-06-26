@@ -2,6 +2,14 @@ import api from '../../../services/api';
 import { ApiResponse } from '../../../types/api';
 import { Appointment, CreateAppointmentInput, UpdateAppointmentInput, StatusChange, PatientHistoryResponse, PersonaRecord, UsuarioRecord } from '../types';
 
+export const APPOINTMENTS_UPDATED_EVENT = 'appointments-updated';
+
+function notifyAppointmentsUpdated() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(APPOINTMENTS_UPDATED_EVENT));
+  }
+}
+
 export const appointmentService = {
   getByCalendar: async (start: string, end: string, id_usuario?: number): Promise<ApiResponse<Appointment[]>> => {
     const res: ApiResponse<{ data: Appointment[] }> = await api.get('/appointments', { params: { start, end, id_usuario } });
@@ -13,15 +21,21 @@ export const appointmentService = {
   },
 
   create: async (data: CreateAppointmentInput): Promise<ApiResponse<Appointment>> => {
-    return api.post('/appointments', data);
+    const res = await api.post('/appointments', data);
+    if (res.success) notifyAppointmentsUpdated();
+    return res;
   },
 
   update: async (id: number, data: UpdateAppointmentInput): Promise<ApiResponse<Appointment>> => {
-    return api.put(`/appointments/${id}`, data);
+    const res = await api.put(`/appointments/${id}`, data);
+    if (res.success) notifyAppointmentsUpdated();
+    return res;
   },
 
   changeStatus: async (id: number, estado: string, cambiado_por: number): Promise<ApiResponse<Appointment>> => {
-    return api.patch(`/appointments/${id}/status`, { estado, cambiado_por });
+    const res = await api.patch(`/appointments/${id}/status`, { estado, cambiado_por });
+    if (res.success) notifyAppointmentsUpdated();
+    return res;
   },
 
   getStatusHistory: async (id: number): Promise<ApiResponse<StatusChange[]>> => {
@@ -30,7 +44,9 @@ export const appointmentService = {
   },
 
   delete: async (id: number): Promise<ApiResponse<null>> => {
-    return api.delete(`/appointments/${id}`);
+    const res = await api.delete(`/appointments/${id}`);
+    if (res.success) notifyAppointmentsUpdated();
+    return res;
   },
 
   getPatientHistory: async (patientId: number, params?: Record<string, unknown>): Promise<ApiResponse<PatientHistoryResponse>> => {

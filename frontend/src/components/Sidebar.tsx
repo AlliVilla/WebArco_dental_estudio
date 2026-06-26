@@ -7,7 +7,10 @@ import logoImg from '../imports/Sidebar/ca39f86fb9c6356ff8dfa2e45f720cb62c3b2221
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 import { useWindowWidth, BREAKPOINTS } from "../hooks/useWindowWidth";
-import { appointmentService } from '../features/appointments/services/appointmentService';
+import {
+  APPOINTMENTS_UPDATED_EVENT,
+  appointmentService,
+} from '../features/appointments/services/appointmentService';
 import { useAuthStore } from '../features/auth/hooks/useAuthStore';
 import { SIDEBAR_PRIVILEGES } from '../features/users/constants/sidebar-privileges';
 
@@ -607,23 +610,35 @@ export function Sidebar({
   const [pendingCount, setPendingCount] = useState<number>(0);
   const location = useLocation();
 
-  useEffect(() => {
-    const loadPendingCount = async () => {
-      try {
-        const res = await appointmentService.getPendingCount();
-        if (res.success && res.data !== null && res.data !== undefined) {
-          const count = res.data.count ?? 0;
-          setPendingCount(count);
-        } else {
-          setPendingCount(0);
-        }
-      } catch (error) {
-        console.error('Error loading pending count:', error);
+  const loadPendingCount = useCallback(async () => {
+    try {
+      const res = await appointmentService.getPendingCount();
+      if (res.success && res.data !== null && res.data !== undefined) {
+        const count = res.data.count ?? 0;
+        setPendingCount(count);
+      } else {
         setPendingCount(0);
       }
-    };
+    } catch (error) {
+      console.error('Error loading pending count:', error);
+      setPendingCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
     loadPendingCount();
-  }, [location]);
+  }, [loadPendingCount, location]);
+
+  useEffect(() => {
+    const handleAppointmentsUpdated = () => {
+      loadPendingCount();
+    };
+
+    window.addEventListener(APPOINTMENTS_UPDATED_EVENT, handleAppointmentsUpdated);
+    return () => {
+      window.removeEventListener(APPOINTMENTS_UPDATED_EVENT, handleAppointmentsUpdated);
+    };
+  }, [loadPendingCount]);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
