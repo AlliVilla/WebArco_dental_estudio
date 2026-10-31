@@ -3,7 +3,7 @@ require('dotenv').config({
 });
 const prisma = require('./config/database');
 
-async function main() {
+async function seedCatalogs() {
   // Only reference data: no persons, accounts, appointments, files or payments.
   const steps = [
     ['dientes', 'insertDientes'],
@@ -21,9 +21,13 @@ async function main() {
   ];
   for (const [file, fn] of steps) await require(`./seeders/${file}`)[fn]();
 }
-main()
-  .catch(() => {
-    console.error('Falló la inicialización de catálogos');
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  seedCatalogs()
+    .catch(() => {
+      console.error('Falló la inicialización de catálogos');
+      process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());
+}
+
+module.exports = { seedCatalogs };

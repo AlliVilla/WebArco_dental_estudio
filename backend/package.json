@@ -27,7 +27,10 @@
     "prisma:seed": "npx prisma db seed",
     "prisma:seed:catalogs": "node prisma/seed-catalogs.js",
     "admin:provision": "node prisma/provision-admin.js",
-    "test:security": "jest --runInBand security.spec.ts"
+    "test:security": "jest --runInBand security.spec.ts",
+    "bootstrap:render": "node prisma/bootstrap-render.js",
+    "start:render": "npm run prisma:deploy && npm run bootstrap:render && npm run start:prod",
+    "test:bootstrap": "node --test prisma/bootstrap-render.test.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
