@@ -64,7 +64,7 @@ export function PatientAppointmentHistoryScreen() {
       setError(
         err instanceof Error
           ? err.message
-          : "Error al cargar datos del paciente"
+          : "Error al cargar datos del paciente",
       );
     }
   }, [id]);
@@ -95,7 +95,7 @@ export function PatientAppointmentHistoryScreen() {
       }
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Error al cargar el historial"
+        err instanceof Error ? err.message : "Error al cargar el historial",
       );
     } finally {
       setLoading(false);
@@ -332,8 +332,9 @@ export function PatientAppointmentHistoryScreen() {
                     </div>
                     <div style={{ fontSize: 13, color: "#5F656A" }}>
                       {apt.doctor
-                        ? `${appointment.doctor.persona.sexo === "F"
-                          ? "Dra." : "Dr." } ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
+                        ? `${
+                            apt.doctor.persona.sexo === "F" ? "Dra." : "Dr."
+                          } ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
                         : "Sin doctor asignado"}
                     </div>
                     <div
@@ -540,8 +541,9 @@ export function PatientAppointmentHistoryScreen() {
                       </td>
                       <td style={{ padding: "16px", color: "#203F49" }}>
                         {apt.doctor
-                          ? `${appointment.doctor.persona.sexo === "F"
-                            ? "Dra." : "Dr." } ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
+                          ? `${
+                              apt.doctor.persona.sexo === "F" ? "Dra." : "Dr."
+                            } ${apt.doctor.persona.primer_nombre} ${apt.doctor.persona.primer_apellido}`
                           : "N/A"}
                       </td>
                       <td

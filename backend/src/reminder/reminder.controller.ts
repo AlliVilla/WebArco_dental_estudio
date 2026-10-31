@@ -38,7 +38,9 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 @Controller('reminders')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
+@ApiUnauthorizedResponse({
+  description: 'No autorizado: token JWT inválido o expirado',
+})
 export class ReminderController {
   constructor(private readonly reminderService: ReminderService) {}
 
@@ -123,9 +125,7 @@ export class ReminderController {
   @ApiBadRequestResponse({ description: 'Cita no apta para recordatorio' })
   @ApiNotFoundResponse({ description: 'Cita no encontrada' })
   async send(@Body() dto: SendReminderDto, @Req() req: Request) {
-    const host = req.get('host');
-    const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
-    const dynamicBaseUrl = `${protocol}://${host}`;
+    const dynamicBaseUrl = process.env.BACKEND_URL;
     return this.reminderService.send(dto, dynamicBaseUrl);
   }
 
@@ -148,8 +148,13 @@ export class ReminderController {
   async registerResponse(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegisterResponseDto,
+    @Req() req: Request,
   ) {
-    return this.reminderService.registerResponse(id, dto.respuesta, dto.cambiado_por);
+    return this.reminderService.registerResponse(
+      id,
+      dto.respuesta,
+      (req.user as any).id_usuario,
+    );
   }
 
   @Privileges(30)
@@ -167,11 +172,14 @@ export class ReminderController {
   })
   @ApiOkResponse({ description: 'Reintento registrado exitosamente' })
   @ApiNotFoundResponse({ description: 'Recordatorio no encontrado' })
-  @ApiBadRequestResponse({ description: 'El recordatorio no está en estado pendiente' })
-  async retryReminder(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
-    const host = req.get('host');
-    const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
-    const dynamicBaseUrl = `${protocol}://${host}`;
+  @ApiBadRequestResponse({
+    description: 'El recordatorio no está en estado pendiente',
+  })
+  async retryReminder(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+  ) {
+    const dynamicBaseUrl = process.env.BACKEND_URL;
     return this.reminderService.retry(id, dynamicBaseUrl);
   }
 
@@ -185,7 +193,8 @@ export class ReminderController {
   })
   @ApiParam({
     name: 'id',
-    description: 'ID del recordatorio o cita a descartar (ej. rec-12 o cita-45)',
+    description:
+      'ID del recordatorio o cita a descartar (ej. rec-12 o cita-45)',
     example: 'rec-12',
   })
   @ApiOkResponse({ description: 'Descartado exitosamente' })
@@ -195,8 +204,9 @@ export class ReminderController {
       const realId = parseInt(id.replace('cita-', ''), 10);
       return this.reminderService.discardCita(realId);
     }
-    const realId = id.startsWith('rec-') ? parseInt(id.replace('rec-', ''), 10) : parseInt(id, 10);
+    const realId = id.startsWith('rec-')
+      ? parseInt(id.replace('rec-', ''), 10)
+      : parseInt(id, 10);
     return this.reminderService.discardReminder(realId);
   }
-
 }

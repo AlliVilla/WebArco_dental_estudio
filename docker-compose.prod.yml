@@ -5,11 +5,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-webarcodental}
       TZ: America/Tegucigalpa
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,10 +27,17 @@ services:
     ports:
       - "${BACKEND_PORT:-3030}:3030"
     environment:
-      PORT: ${BACKEND_PORT:-3030}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-webarcodental}
-      JWT_SECRET: ${JWT_SECRET:-dental}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dental123}
+      NODE_ENV: production
+      PORT: 3030
+      BACKEND_URL: ${BACKEND_URL:?Definir BACKEND_URL}
+      ENABLE_OUTBOUND_MESSAGES: ${ENABLE_OUTBOUND_MESSAGES:-false}
+      ENABLE_NOTIFICATION_JOBS: ${ENABLE_NOTIFICATION_JOBS:-false}
+      ENABLE_TWILIO_WEBHOOK: ${ENABLE_TWILIO_WEBHOOK:-false}
+      TWILIO_WEBHOOK_URL: ${TWILIO_WEBHOOK_URL:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-webarcodental}
+      JWT_SECRET: ${JWT_SECRET:?Definir JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Definir JWT_REFRESH_SECRET}
       BREVO_API_KEY: ${BREVO_API_KEY}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME}

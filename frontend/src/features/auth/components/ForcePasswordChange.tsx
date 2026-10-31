@@ -1,13 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Check,
-  X,
-  AlertCircle,
-  Lock,
-  Shield,
-  Info,
-} from "lucide-react";
+import { Check, X, AlertCircle, Lock, Shield, Info } from "lucide-react";
 import { Button, PasswordInput } from "../../../context";
 import { useAuthStore } from "../hooks/useAuthStore";
 import { profileService } from "../../users/services/profileService";
@@ -56,8 +49,7 @@ export function ForcePasswordChange() {
 
   const rules = checkRules(newPwd);
   const passwordsMatch = confirmPwd.length > 0 && newPwd === confirmPwd;
-  const canSubmit =
-    currentPwd.length > 0 && allPass(rules) && passwordsMatch;
+  const canSubmit = currentPwd.length > 0 && allPass(rules) && passwordsMatch;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -72,13 +64,12 @@ export function ForcePasswordChange() {
       if (user) {
         const updatedUser = { ...user, must_change_password: false };
         updateUser(updatedUser);
+        await useAuthStore.getState().login(user.username, newPwd);
       }
       navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Error al cambiar la contraseña.";
+        err instanceof Error ? err.message : "Error al cambiar la contraseña.";
       setError(message);
     } finally {
       setLoading(false);
@@ -115,8 +106,7 @@ export function ForcePasswordChange() {
         >
           <div
             style={{
-              background:
-                "linear-gradient(135deg, #0d6b7a 0%, #15a3ba 100%)",
+              background: "linear-gradient(135deg, #0d6b7a 0%, #15a3ba 100%)",
               padding: "2rem 2rem 1.5rem",
               textAlign: "center",
             }}
@@ -170,7 +160,11 @@ export function ForcePasswordChange() {
                 alignItems: "flex-start",
               }}
             >
-              <Info size={18} color="#0EA5E9" style={{ flexShrink: 0, marginTop: 1 }} />
+              <Info
+                size={18}
+                color="#0EA5E9"
+                style={{ flexShrink: 0, marginTop: 1 }}
+              />
               <p
                 style={{
                   margin: 0,
@@ -228,11 +222,7 @@ export function ForcePasswordChange() {
                         color: rules[key] ? "#1D9E75" : "#E24B4A",
                       }}
                     >
-                      {rules[key] ? (
-                        <Check size={14} />
-                      ) : (
-                        <X size={14} />
-                      )}
+                      {rules[key] ? <Check size={14} /> : <X size={14} />}
                       {label}
                     </li>
                   ))}
@@ -255,8 +245,7 @@ export function ForcePasswordChange() {
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      color:
-                        newPwd === confirmPwd ? "#1D9E75" : "#E24B4A",
+                      color: newPwd === confirmPwd ? "#1D9E75" : "#E24B4A",
                     }}
                   >
                     {newPwd === confirmPwd ? (
@@ -295,9 +284,7 @@ export function ForcePasswordChange() {
                 disabled={!canSubmit}
                 loading={loading}
               >
-                {loading
-                  ? "Actualizando..."
-                  : "Cambiar contraseña y continuar"}
+                {loading ? "Actualizando..." : "Cambiar contraseña y continuar"}
               </Button>
 
               <div style={{ textAlign: "center" }}>
@@ -332,7 +319,11 @@ export function ForcePasswordChange() {
                 alignItems: "flex-start",
               }}
             >
-              <Shield size={16} color="#5F656A" style={{ flexShrink: 0, marginTop: 2 }} />
+              <Shield
+                size={16}
+                color="#5F656A"
+                style={{ flexShrink: 0, marginTop: 2 }}
+              />
               <p
                 style={{
                   margin: 0,

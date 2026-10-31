@@ -1,3 +1,4 @@
+import { fetchPrivateFile } from "../../../components/PrivateImage";
 import type { ConsentRecord, ConsentStatus } from "../types";
 import { getStatusMeta } from "./consentUtils";
 import { API_URL } from "../../../config/constants";
@@ -22,10 +23,14 @@ function getSignatureImageSrc(signature?: string): string | null {
   return null;
 }
 
-function renderPrintSignature(title: string, signer: string, signature?: string) {
+function renderPrintSignature(
+  title: string,
+  signer: string,
+  signature?: string,
+) {
   const imageSrc = getSignatureImageSrc(signature);
   const signatureContent = imageSrc
-    ? `<img src="${imageSrc}" alt="${escapePrintText(title)}" />`
+    ? `<img src="${escapePrintText(imageSrc)}" alt="${escapePrintText(title)}" />`
     : `<span class="signature-status">${signature ? "Firmado" : "Pendiente"}</span>`;
 
   return `
@@ -39,7 +44,10 @@ function renderPrintSignature(title: string, signer: string, signature?: string)
 
 function buildConsentPrintDocument(consent: ConsentRecord) {
   const statusMeta = getStatusMeta(consent.estado);
-  const statusColors: Record<ConsentStatus, { background: string; color: string }> = {
+  const statusColors: Record<
+    ConsentStatus,
+    { background: string; color: string }
+  > = {
     firmado: { background: "#059669", color: "#ffffff" },
     pendiente: { background: "#fef3c7", color: "#b45309" },
     pendiente_doctor: { background: "#f59e0b", color: "#ffffff" },
@@ -242,8 +250,7 @@ function buildPrintHtml(documents: ConsentRecord[]) {
 
 /** Convierte una URL absoluta a base64 data URL para embeber en el HTML de impresión */
 async function fetchAsBase64(url: string): Promise<string> {
-  const response = await fetch(url);
-  const blob = await response.blob();
+  const blob = await fetchPrivateFile(url);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result as string);
@@ -254,7 +261,9 @@ async function fetchAsBase64(url: string): Promise<string> {
 
 /** Resuelve la firma a base64. Si ya es base64 la devuelve tal cual.
  *  Si es ruta de servidor, la descarga y convierte. Si falla, devuelve null. */
-async function resolveSignatureToBase64(signature?: string): Promise<string | null> {
+async function resolveSignatureToBase64(
+  signature?: string,
+): Promise<string | null> {
   if (!signature) return null;
   if (signature.startsWith("data:image")) return signature;
   const src = getSignatureImageSrc(signature);
@@ -273,9 +282,13 @@ export async function printConsentDocuments(documents: ConsentRecord[]) {
   const resolvedDocs = await Promise.all(
     documents.map(async (doc) => ({
       ...doc,
-      patientSignature: await resolveSignatureToBase64(doc.patientSignature) ?? doc.patientSignature,
-      doctorSignature: await resolveSignatureToBase64(doc.doctorSignature) ?? doc.doctorSignature,
-    }))
+      patientSignature:
+        (await resolveSignatureToBase64(doc.patientSignature)) ??
+        doc.patientSignature,
+      doctorSignature:
+        (await resolveSignatureToBase64(doc.doctorSignature)) ??
+        doc.doctorSignature,
+    })),
   );
 
   const printWindow = window.open("", "_blank", "width=900,height=1100");

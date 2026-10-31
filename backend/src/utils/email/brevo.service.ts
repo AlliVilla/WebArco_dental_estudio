@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -17,17 +21,24 @@ export class BrevoService {
   constructor(private configService: ConfigService) {}
 
   async sendMail({ to, subject, html, text }: SendMailOptions): Promise<any> {
-    const senderEmail = 
-      this.configService.get<string>('BREVO_SENDER_EMAIL') || 
-      this.configService.get<string>('EMAIL_USER') || 
-      'haroldhdiaz@gmail.com';
+    if (process.env.ENABLE_OUTBOUND_MESSAGES !== 'true')
+      throw new ServiceUnavailableException('Envíos externos deshabilitados');
+    const senderEmail =
+      this.configService.get<string>('BREVO_SENDER_EMAIL') ||
+      this.configService.get<string>('EMAIL_USER') ||
+      '';
+    if (!senderEmail)
+      throw new ServiceUnavailableException(
+        'Remitente de correo no configurado',
+      );
 
-    const senderName = this.configService.get<string>('BREVO_SENDER_NAME') || 'DENTAL CENTER';
+    const senderName =
+      this.configService.get<string>('BREVO_SENDER_NAME') || 'DENTAL CENTER';
     const apiKey = this.configService.get<string>('BREVO_API_KEY');
 
     // Aseguramos formato de destinatarios para Brevo
-    const toRecipients = Array.isArray(to) 
-      ? to.map((email) => ({ email })) 
+    const toRecipients = Array.isArray(to)
+      ? to.map((email) => ({ email }))
       : [{ email: to }];
 
     const data = {
@@ -42,23 +53,30 @@ export class BrevoService {
     };
 
     if (!apiKey) {
-      this.logger.error('BREVO_API_KEY no está configurada en las variables de entorno.');
-      return;
+      this.logger.error(
+        'BREVO_API_KEY no está configurada en las variables de entorno.',
+      );
+      throw new ServiceUnavailableException(
+        'Servicio de correo no configurado',
+      );
     }
 
     try {
-      const response = await axios.post('https://api.brevo.com/v3/smtp/email', data, {
-        headers: {
-          'api-key': apiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+      const response = await axios.post(
+        'https://api.brevo.com/v3/smtp/email',
+        data,
+        {
+          headers: {
+            'api-key': apiKey,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
         },
-      });
+      );
       return response.data;
     } catch (error: any) {
-      this.logger.error(
-        `Error de Brevo API: ${JSON.stringify(error.response?.data || error.message)}`,
-      );
+      this.logger.error('Fallo del proveedor de correo');
+      throw new ServiceUnavailableException('No se pudo enviar el correo');
     }
   }
 }

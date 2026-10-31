@@ -5,6 +5,8 @@ export interface TokenPayload {
   username: string;
   email?: string | null;
   id_rol: number;
+  sid?: string;
+  cv?: string;
 }
 
 export function verifyToken(token: string): TokenPayload {
@@ -12,7 +14,7 @@ export function verifyToken(token: string): TokenPayload {
     throw new Error('JWT_SECRET no está configurado');
   }
   const secret = process.env.JWT_SECRET;
-  const options: VerifyOptions = {};
+  const options: VerifyOptions = { algorithms: ['HS256'] };
 
   return verify(token, secret, options) as unknown as TokenPayload;
 }
@@ -29,9 +31,7 @@ export function verifyRefreshToken(token: string): TokenPayload {
     throw new Error('JWT_REFRESH_SECRET no está configurado');
   }
   const secret = process.env.JWT_REFRESH_SECRET;
-  const options: VerifyOptions = {};
+  const options: VerifyOptions = { algorithms: ['HS256'] };
 
   return verify(token, secret, options) as unknown as TokenPayload;
 }
-
-

@@ -1,4 +1,21 @@
 import {
+  UseGuards,
+  Req,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from '../auth/decorators/privileges.decorator';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  storeImage,
+  confinedFile,
+  safeFilename,
+  imageType,
+  uploadRoot,
+} from './private-storage';
+import {
   Controller,
   Post,
   UploadedFile,
@@ -29,10 +46,15 @@ import {
 
 @ApiTags('Uploads')
 @Controller('upload')
+@UseGuards(JwtAuthGuard, PrivilegesGuard)
 export class UploadController {
-  constructor(private readonly uploadService: UploadService) {}
+  constructor(
+    private readonly uploadService: UploadService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // ─── 1. Un solo archivo ─────────────────────────────────────────
+  @Privileges(21)
   @Post('single')
   @ApiOperation({ summary: 'Subir un solo archivo' })
   @ApiConsumes('multipart/form-data')
@@ -50,23 +72,32 @@ export class UploadController {
   @ApiResponse({ status: 201, description: 'Archivo subido correctamente' })
   @ApiResponse({ status: 400, description: 'Error al subir archivo' })
   @UseInterceptors(FileInterceptor('file'))
-  uploadSingle(@UploadedFile() file: Express.Multer.File) {
+  async uploadSingle(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
     if (!file) throw new BadRequestException('No se recibió ningún archivo');
-
     return {
-      success: true,
+      ...(await this.persist(file, req.user.id_usuario)),
       message: 'Archivo subido correctamente',
-      data: {
-        originalName: file.originalname,
-        filename: file.filename,
-        size: file.size,
-        mimetype: file.mimetype,
-        path: file.path,
-      },
+    };
+  }
+
+  private async persist(file: Express.Multer.File, ownerId: number) {
+    const saved = await storeImage(file);
+    await this.prisma.storedUpload.create({
+      data: { filename: saved.filename, ownerId },
+    });
+    return {
+      originalName: saved.originalname,
+      filename: saved.filename,
+      size: saved.size,
+      mimetype: saved.mimetype,
     };
   }
 
   // ─── 2. Múltiples archivos ──────────────────────────────────────
+  @Privileges(21)
   @Post('multiple')
   @ApiOperation({ summary: 'Subir múltiples archivos (máx 5)' })
   @ApiConsumes('multipart/form-data')
@@ -86,23 +117,21 @@ export class UploadController {
   })
   @ApiResponse({ status: 201, description: 'Archivos subidos correctamente' })
   @UseInterceptors(FilesInterceptor('files', 5))
-  uploadMultiple(@UploadedFiles() files: Express.Multer.File[]) {
-    if (!files || files.length === 0) {
+  async uploadMultiple(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: any,
+  ) {
+    if (!files?.length)
       throw new BadRequestException('No se recibieron archivos');
-    }
-
-    return {
-      success: true,
-      message: `${files.length} archivo(s) subido(s)`,
-      data: files.map((f) => ({
-        originalName: f.originalname,
-        filename: f.filename,
-        size: f.size,
-      })),
-    };
+    files.forEach((file) => imageType(file.buffer));
+    const result: any[] = [];
+    for (const file of files)
+      result.push(await this.persist(file, req.user.id_usuario));
+    return result;
   }
 
   // ─── 3. Campos diferentes ───────────────────────────────────────
+  @Privileges(21)
   @Post('fields')
   @ApiOperation({ summary: 'Subir archivos en diferentes campos' })
   @ApiConsumes('multipart/form-data')
@@ -128,24 +157,28 @@ export class UploadController {
       { name: 'document', maxCount: 1 },
     ]),
   )
-  uploadFields(
+  async uploadFields(
     @UploadedFiles()
-    files: {
-      avatar?: Express.Multer.File[];
-      document?: Express.Multer.File[];
-    },
+    files: { avatar?: Express.Multer.File[]; document?: Express.Multer.File[] },
+    @Req() req: any,
   ) {
+    const all = [...(files.avatar || []), ...(files.document || [])];
+    if (!all.length) throw new BadRequestException('No se recibieron archivos');
+    all.forEach((file) => imageType(file.buffer));
+    const avatar = files.avatar?.[0]
+      ? await this.persist(files.avatar[0], req.user.id_usuario)
+      : null;
+    const document = files.document?.[0]
+      ? await this.persist(files.document[0], req.user.id_usuario)
+      : null;
     return {
-      success: true,
-      message: 'Archivos subidos',
-      data: {
-        avatar: files.avatar?.[0]?.filename ?? null,
-        document: files.document?.[0]?.filename ?? null,
-      },
+      avatar: avatar?.filename ?? null,
+      document: document?.filename ?? null,
     };
   }
 
   // ─── 4. Servir archivo ──────────────────────────────────────────
+  @Privileges(20, 21, 25, 22)
   @Get(':filename')
   @ApiOperation({ summary: 'Obtener archivo por nombre' })
   @ApiParam({
@@ -154,7 +187,49 @@ export class UploadController {
   })
   @ApiResponse({ status: 200, description: 'Archivo encontrado' })
   @ApiResponse({ status: 404, description: 'Archivo no encontrado' })
-  serveFile(@Param('filename') filename: string, @Res() res: Response) {
-    return res.sendFile(join(process.cwd(), 'uploads', filename));
+  async serveFile(
+    @Param('filename') filename: string,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    safeFilename(filename);
+    const linked = await this.prisma.archivo.findFirst({
+      where: { url: filename },
+      select: { id_archivo: true },
+    });
+    const paths = [filename, `/uploads/${filename}`, `/static/${filename}`];
+    const signature = await this.prisma.consulta.findFirst({
+      where: {
+        OR: [
+          { firma_paciente: { in: paths } },
+          { firma_doctor_snapshot: { in: paths } },
+        ],
+      },
+      select: { consentimiento: true },
+    });
+    const staged = await this.prisma.storedUpload.findUnique({
+      where: { filename },
+    });
+    // Same expediente visibility policy as the clinical endpoints (privilege 20).
+    const hasAccess = linked
+      ? req.user.privilegios.includes(20)
+      : signature
+        ? req.user.privilegios.includes(signature.consentimiento ? 25 : 20)
+        : staged?.ownerId === req.user.id_usuario;
+    if (!hasAccess) {
+      throw new ForbiddenException('No tiene acceso a este archivo');
+    }
+    let path: string;
+    try {
+      path = await confinedFile(filename);
+    } catch {
+      throw new NotFoundException('Archivo no encontrado');
+    }
+    res.set({
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+    });
+    return res.sendFile(path, { root: uploadRoot(), dotfiles: 'deny' });
   }
 }

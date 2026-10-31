@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TipoCierre } from '@prisma/client';
 
 jest.mock('@prisma/client', () => ({
+  ...jest.requireActual('@prisma/client'),
   TipoCierre: {
     Diario: 'Diario',
     Semanal: 'Semanal',
@@ -15,7 +16,11 @@ jest.mock('@prisma/client', () => ({
 
 /** Helpers para comparar fechas ignorando milisegundos */
 const daysDiff = (a: Date, b: Date): number =>
-  Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  Math.round(
+    (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) -
+      Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) /
+      (1000 * 60 * 60 * 24),
+  );
 
 describe('CierreService', () => {
   let service: CierreService;
@@ -34,6 +39,7 @@ describe('CierreService', () => {
     pagoPaciente: {
       groupBy: jest.fn(),
     },
+    pagoConsulta: { groupBy: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -47,6 +53,7 @@ describe('CierreService', () => {
     service = module.get<CierreService>(CierreService);
     prisma = module.get(PrismaService);
     jest.clearAllMocks();
+    prismaMock.pagoConsulta.groupBy.mockResolvedValue([]);
   });
 
   it('should be defined', () => {
@@ -103,8 +110,8 @@ describe('CierreService', () => {
     it('calcula correctamente totalIngresos, totalEgresos y utilidad', async () => {
       prismaMock.egreso.aggregate.mockResolvedValue({ _sum: { monto: 2000 } });
       prismaMock.pagoPaciente.groupBy.mockResolvedValue([
-        { metodo_pago: 'Efectivo',      _sum: { abono: 5000 } },
-        { metodo_pago: 'Tarjeta',       _sum: { abono: 3000 } },
+        { metodo_pago: 'Efectivo', _sum: { abono: 5000 } },
+        { metodo_pago: 'Tarjeta', _sum: { abono: 3000 } },
         { metodo_pago: 'Transferencia', _sum: { abono: 2000 } },
       ]);
 
@@ -130,7 +137,9 @@ describe('CierreService', () => {
     });
 
     it('redondea la utilidad a 2 decimales correctamente', async () => {
-      prismaMock.egreso.aggregate.mockResolvedValue({ _sum: { monto: 3333.333 } });
+      prismaMock.egreso.aggregate.mockResolvedValue({
+        _sum: { monto: 3333.333 },
+      });
       prismaMock.pagoPaciente.groupBy.mockResolvedValue([
         { metodo_pago: 'Efectivo', _sum: { abono: 10000 } },
       ]);
@@ -214,7 +223,11 @@ describe('CierreService', () => {
 });
 
 // ─── Utilitario para extraer el filtro de fecha del primer llamado ──────────
-function captureWhere(mockFn: jest.Mock): { fechaWhere: { gte: Date; lte: Date } } {
-  const callArg = mockFn.mock.calls[0][0] as { where: { fecha: { gte: Date; lte: Date } } };
+function captureWhere(mockFn: jest.Mock): {
+  fechaWhere: { gte: Date; lte: Date };
+} {
+  const callArg = mockFn.mock.calls[0][0] as {
+    where: { fecha: { gte: Date; lte: Date } };
+  };
   return { fechaWhere: callArg.where.fecha };
 }

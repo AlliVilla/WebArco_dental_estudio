@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, ConflictException, UnauthorizedException, BadRequestException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifyToken } from '../utils/jwt/verifyToken';
 import { Prisma } from '@prisma/client';
@@ -70,7 +77,7 @@ export class UsuarioService {
       throw new NotFoundException(`Usuario con ID ${id_usuario} no encontrado`);
     }
 
-    return usuario;
+    return this.removePassword(usuario);
   }
 
   async getUserByUsername(username: string) {
@@ -86,10 +93,14 @@ export class UsuarioService {
       throw new NotFoundException(`Usuario ${username} no encontrado`);
     }
 
-    return usuario;
+    return this.removePassword(usuario);
   }
 
-  async getAllUsers( page: number = 1, limit: number = 10, filters: UsuarioFilters = {}) {
+  async getAllUsers(
+    page: number = 1,
+    limit: number = 10,
+    filters: UsuarioFilters = {},
+  ) {
     const skip = (page - 1) * limit;
     const where: Prisma.UsuarioWhereInput = {};
     const personaWhere: Prisma.PersonaWhereInput = {};
@@ -231,7 +242,10 @@ export class UsuarioService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo.');
     }
 
-    if (updateProfileDto.username !== undefined && updateProfileDto.username !== usuarioExists.username) {
+    if (
+      updateProfileDto.username !== undefined &&
+      updateProfileDto.username !== usuarioExists.username
+    ) {
       await this.validateUniqueUsername(updateProfileDto.username, id_usuario);
     }
 
@@ -474,7 +488,10 @@ export class UsuarioService {
 
     await this.validateMunicipioDepartamento(idDepartamento, idMunicipio);
 
-    if (updateUsuarioDto.username !== undefined && updateUsuarioDto.username !== usuarioExists.username) {
+    if (
+      updateUsuarioDto.username !== undefined &&
+      updateUsuarioDto.username !== usuarioExists.username
+    ) {
       await this.validateUniqueUsername(updateUsuarioDto.username, id);
     }
 
@@ -486,14 +503,16 @@ export class UsuarioService {
 
     if (
       updateUsuarioDto.numero_identidad !== undefined &&
-      updateUsuarioDto.numero_identidad !== usuarioExists.persona.numero_identidad
+      updateUsuarioDto.numero_identidad !==
+        usuarioExists.persona.numero_identidad
     ) {
       fieldsToValidate.numero_identidad = updateUsuarioDto.numero_identidad;
     }
 
     if (
       updateUsuarioDto.correo_electronico !== undefined &&
-      updateUsuarioDto.correo_electronico !== usuarioExists.persona.correo_electronico
+      updateUsuarioDto.correo_electronico !==
+        usuarioExists.persona.correo_electronico
     ) {
       fieldsToValidate.correo_electronico = updateUsuarioDto.correo_electronico;
     }
@@ -613,7 +632,8 @@ export class UsuarioService {
     }
 
     const isTryingToDeactivate = updateStatusDto.activo === false;
-    const isAdmin = usuarioExists.rol.nombre.trim().toLowerCase() === 'administrador';
+    const isAdmin =
+      usuarioExists.rol.nombre.trim().toLowerCase() === 'administrador';
 
     if (isTryingToDeactivate && isAdmin) {
       const otherActiveAdmins = await this.prisma.usuario.count({
@@ -644,6 +664,14 @@ export class UsuarioService {
       where: { id_usuario: id },
       data: {
         activo: updateStatusDto.activo,
+        sesiones: updateStatusDto.activo
+          ? undefined
+          : {
+              updateMany: {
+                where: { revokedAt: null },
+                data: { revokedAt: new Date() },
+              },
+            },
       },
       select: {
         id_usuario: true,
@@ -653,10 +681,13 @@ export class UsuarioService {
       },
     });
 
-    return usuario;
+    return this.removePassword(usuario);
   }
 
-  private async validateRolExists( id_rol: number, prismaClient: PrismaExecutor = this.prisma ) {
+  private async validateRolExists(
+    id_rol: number,
+    prismaClient: PrismaExecutor = this.prisma,
+  ) {
     const rol = await prismaClient.rol.findUnique({
       where: { id_rol },
     });
@@ -869,11 +900,10 @@ export class UsuarioService {
   }
 
   private removePassword(usuario: any) {
-    if (!usuario) return usuario;
+    if (!usuario) return this.removePassword(usuario);
 
     const { password, ...safeUsuario } = usuario;
 
     return safeUsuario;
   }
 }
-

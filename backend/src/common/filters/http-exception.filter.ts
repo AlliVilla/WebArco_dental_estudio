@@ -51,14 +51,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ...details
         } = responseObject;
 
-        data = Object.keys(details).length > 0 ? details : null;
+        data = null;
       } else {
         message = exception.message;
       }
     }
 
     if (!(exception instanceof HttpException)) {
-      console.error('Unhandled Exception:', exception);
+      console.error(
+        'Unhandled Exception:',
+        exception instanceof Error ? exception.name : 'UnknownError',
+      );
     }
 
     const body: ApiResponseDto<unknown> = {

@@ -1,3 +1,4 @@
+import { safeOutput } from '../security/safe-output';
 import {
   Injectable,
   NestInterceptor,
@@ -15,18 +16,27 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 };
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponseDto<T>>
-{
+export class ResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponseDto<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<ApiResponseDto<T>> {
     const statusCode = context.switchToHttp().getResponse().statusCode;
 
-    return next.handle().pipe(
-      map((data) => this.wrapResponse(data, statusCode) as ApiResponseDto<T>),
-    );
+    return next
+      .handle()
+      .pipe(
+        map(
+          (data) =>
+            this.wrapResponse(
+              safeOutput(data),
+              statusCode,
+            ) as ApiResponseDto<T>,
+        ),
+      );
   }
 
   private wrapResponse(
@@ -62,7 +72,8 @@ export class ResponseInterceptor<T>
     const message =
       (extracted['message'] as string | undefined) ??
       (extracted['mensaje'] as string | undefined) ??
-      (DEFAULT_MESSAGES[statusCode] ?? 'Operación exitosa');
+      DEFAULT_MESSAGES[statusCode] ??
+      'Operación exitosa';
 
     const { message: _m, mensaje: _mj, ...rest } = extracted;
 

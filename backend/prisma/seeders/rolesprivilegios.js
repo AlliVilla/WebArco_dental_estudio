@@ -1,7 +1,8 @@
-const prisma = require("../config/database");
+const prisma = require('../config/database');
 
 async function insertRolesPrivilegios() {
   const relaciones = [
+    ...[1, 3, 4, 5].map((id_rol) => ({ id_rol, id_privilegio: 9 })),
 
     // ESPECIALISTA
     { id_rol: 1, id_privilegio: 1 },
@@ -122,7 +123,7 @@ async function insertRolesPrivilegios() {
     skipDuplicates: true,
   });
 
-  console.log("Roles-Privilegios insertados correctamente");
+  console.log('Roles-Privilegios insertados correctamente');
 }
 
 module.exports = { insertRolesPrivilegios };

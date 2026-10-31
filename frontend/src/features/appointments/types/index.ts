@@ -1,4 +1,10 @@
-export type EstadoCita = 'programada' | 'confirmada' | 'atendida' | 'cancelada' | 'ausente' | 'reprogramada';
+export type EstadoCita =
+  | "programada"
+  | "confirmada"
+  | "atendida"
+  | "cancelada"
+  | "ausente"
+  | "reprogramada";
 
 export interface CitaPersona {
   id_persona: number;
@@ -40,7 +46,8 @@ export interface StatusChange {
   estado_anterior?: EstadoCita;
   estado_nuevo: EstadoCita;
   fecha_cambio: string;
-  cambiado_por: number;
+  cambiado_por: number | null;
+  origen?: string;
   usuario?: {
     id_usuario: number;
     username: string;
@@ -48,7 +55,7 @@ export interface StatusChange {
       primer_nombre: string;
       primer_apellido: string;
     };
-  };
+  } | null;
 }
 
 export interface CreateAppointmentInput {

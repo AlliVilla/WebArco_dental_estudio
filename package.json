@@ -12,5 +12,23 @@
     "dev:backend": "npm run start:dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
     "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend"
+  },
+  "overrides": {
+    "@nestjs/platform-express": {
+      "multer": "2.5.0"
+    },
+    "@nestjs/swagger": {
+      "js-yaml": "5.5.0"
+    },
+    "exceljs": {
+      "uuid": "11.1.1",
+      "unzipper": "0.12.5"
+    },
+    "archiver-utils": {
+      "glob": "14.0.3"
+    },
+    "readdir-glob": {
+      "minimatch": "11.0.1"
+    }
   }
 }

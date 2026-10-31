@@ -77,7 +77,7 @@ export function AppointmentDetailScreen() {
       } catch (err: unknown) {
         if (!cancelled)
           setError(
-            err instanceof Error ? err.message : "Error al cargar la cita"
+            err instanceof Error ? err.message : "Error al cargar la cita",
           );
       } finally {
         if (!cancelled) setLoading(false);
@@ -141,14 +141,14 @@ export function AppointmentDetailScreen() {
       const res = await appointmentService.changeStatus(
         Number(id!),
         newStatus,
-        currentUser?.id_usuario || appointment.id_usuario
+        currentUser?.id_usuario || appointment.id_usuario,
       );
       if (res.success && res.data) {
         setAppointment(res.data);
         setNewStatus(res.data.estado);
         setSuccessMessage("Estado actualizado correctamente.");
         setInfoMessage(
-          "El estado fue actualizado. El historial refleja el cambio con fecha y hora."
+          "El estado fue actualizado. El historial refleja el cambio con fecha y hora.",
         );
         setShowCancelWarning(false);
 
@@ -161,7 +161,7 @@ export function AppointmentDetailScreen() {
       }
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Error al actualizar el estado"
+        err instanceof Error ? err.message : "Error al actualizar el estado",
       );
     } finally {
       setSavingStatus(false);
@@ -175,7 +175,7 @@ export function AppointmentDetailScreen() {
       navigate("/agenda");
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Error al eliminar la cita"
+        err instanceof Error ? err.message : "Error al eliminar la cita",
       );
       setDeleting(false);
     }
@@ -186,17 +186,32 @@ export function AppointmentDetailScreen() {
       appointment.persona?.primer_apellido || ""
     }`.trim() || "Sin nombre";
   const doctorName = appointment.doctor
-  ? `${appointment.doctor.persona.sexo === "F"
-    ? "Dra." : "Dr." } ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
+    ? `${
+        appointment.doctor.persona.sexo === "F" ? "Dra." : "Dr."
+      } ${appointment.doctor.persona.primer_nombre} ${appointment.doctor.persona.primer_apellido}`
     : "Doctor no asignado";
 
   const startDateObj = new Date(appointment.fecha_inicio);
-  const startTime = startDateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  let endTime = '';
+  const startTime = startDateObj.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  let endTime = "";
   if (appointment.fecha_fin) {
-    endTime = new Date(appointment.fecha_fin).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    endTime = new Date(appointment.fecha_fin).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   } else {
-    endTime = new Date(startDateObj.getTime() + 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    endTime = new Date(
+      startDateObj.getTime() + 60 * 60 * 1000,
+    ).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   }
 
   return (
@@ -605,7 +620,10 @@ export function AppointmentDetailScreen() {
                 style={{ width: isMobile ? "100%" : undefined }}
               >
                 {savingStatus ? (
-                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                  <Loader2
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
                 ) : (
                   <Check size={16} />
                 )}
@@ -707,7 +725,9 @@ export function AppointmentDetailScreen() {
                     <div style={{ fontSize: 11, color: "#888F94" }}>
                       {formatTimestamp(change.fecha_cambio)} · Por{" "}
                       {change.usuario?.persona?.primer_nombre ||
-                        `Usuario ${change.cambiado_por}`}
+                        (change.cambiado_por === null
+                          ? `Paciente (${change.origen || "respuesta externa"})`
+                          : `Usuario ${change.cambiado_por}`)}
                     </div>
                   </div>
                 </div>
@@ -821,7 +841,10 @@ export function AppointmentDetailScreen() {
                 disabled={deleting}
               >
                 {deleting ? (
-                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                  <Loader2
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
                 ) : (
                   <Trash2 size={16} />
                 )}

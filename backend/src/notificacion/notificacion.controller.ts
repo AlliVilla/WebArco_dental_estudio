@@ -31,11 +31,13 @@ import { Privileges } from '../auth/decorators/privileges.decorator';
 @Controller('notificaciones')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
+@ApiUnauthorizedResponse({
+  description: 'No autorizado: token JWT inválido o expirado',
+})
 export class NotificacionController {
   constructor(private readonly notificacionService: NotificacionService) {}
 
-
+  @Privileges(62)
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -52,7 +54,7 @@ export class NotificacionController {
     return this.notificacionService.getNotificaciones(id_usuario, query);
   }
 
-
+  @Privileges(62)
   @Get('config')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -66,7 +68,7 @@ export class NotificacionController {
     return this.notificacionService.getConfig(id_usuario);
   }
 
-
+  @Privileges(62)
   @Put('config')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -80,32 +82,33 @@ export class NotificacionController {
     return this.notificacionService.upsertConfig(id_usuario, dto);
   }
 
-
+  @Privileges(62)
   @Patch('read-all')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Marcar todas las notificaciones como leídas',
-    description: 'Marca todas las notificaciones no leídas del doctor autenticado como leídas.',
+    description:
+      'Marca todas las notificaciones no leídas del doctor autenticado como leídas.',
   })
-  @ApiOkResponse({ description: 'Todas las notificaciones marcadas como leídas' })
+  @ApiOkResponse({
+    description: 'Todas las notificaciones marcadas como leídas',
+  })
   async markAllAsRead(@Request() req: any) {
     const id_usuario = req.user.id_usuario;
     return this.notificacionService.markAllAsRead(id_usuario);
   }
 
-
+  @Privileges(62)
   @Patch(':id/read')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Marcar una notificación como leída',
-    description: 'Marca una notificación específica como leída. Valida que pertenezca al doctor autenticado.',
+    description:
+      'Marca una notificación específica como leída. Valida que pertenezca al doctor autenticado.',
   })
   @ApiParam({ name: 'id', description: 'ID de la notificación', example: 1 })
   @ApiOkResponse({ description: 'Notificación marcada como leída' })
-  async markAsRead(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
-  ) {
+  async markAsRead(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     const id_usuario = req.user.id_usuario;
     return this.notificacionService.markAsRead(id, id_usuario);
   }

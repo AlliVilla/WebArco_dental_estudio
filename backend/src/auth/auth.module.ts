@@ -18,12 +18,18 @@ import { PrivilegesGuard } from '../guards/privileges.guard';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '8h' },
+        signOptions: { expiresIn: '15m' },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [BrevoService, AuthService, JwtStrategy, JwtAuthGuard, PrivilegesGuard],
+  providers: [
+    BrevoService,
+    AuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    PrivilegesGuard,
+  ],
   exports: [AuthService, JwtAuthGuard, PrivilegesGuard],
 })
 export class AuthModule {}
