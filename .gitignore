@@ -148,3 +148,6 @@ graphify-out*
 
 # Private runtime uploads (already tracked samples require separate review)
 backend/uploads/
+
+# Private local database backups
+/backups/
