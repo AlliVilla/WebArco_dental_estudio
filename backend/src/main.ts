@@ -1,9 +1,9 @@
 import {
   loginAccountLimiter,
+  configureCorsAndRateLimits,
   verifyCookieOrigin,
 } from './common/security/request-security';
 import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
 import { jwtSecret } from './utils/jwt/secrets';
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
@@ -41,62 +41,7 @@ async function bootstrap() {
         process.env.NODE_ENV === 'production' ? undefined : false,
     }),
   );
-  const error429 = {
-    success: false,
-    data: null,
-    message: 'Demasiados intentos. Intente más tarde.',
-  };
-  app.use(
-    '/auth',
-    rateLimit({
-      windowMs: 15 * 60000,
-      limit: 30,
-      standardHeaders: 'draft-8',
-      legacyHeaders: false,
-      message: error429,
-    }),
-  );
-  app.use(
-    '/auth/login',
-    rateLimit({
-      windowMs: 15 * 60000,
-      limit: 10,
-      standardHeaders: 'draft-8',
-      legacyHeaders: false,
-      message: error429,
-    }),
-  );
-  app.use(
-    '/webhooks',
-    rateLimit({
-      windowMs: 60000,
-      limit: 30,
-      standardHeaders: 'draft-8',
-      legacyHeaders: false,
-      message: error429,
-    }),
-  );
-  app.use(
-    '/upload',
-    rateLimit({
-      windowMs: 60000,
-      limit: 60,
-      standardHeaders: 'draft-8',
-      legacyHeaders: false,
-      message: error429,
-    }),
-  );
-  app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',').map((origin) =>
-      origin.trim(),
-    ) || [
-      'http://localhost:5173',
-      'https://webarco-dental-estudio.onrender.com',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+  configureCorsAndRateLimits(app);
   app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));

@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiResponseDto } from '../dto/api-response.dto';
+import { errorDiagnostic } from '../security/error-diagnostic';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -58,10 +59,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (!(exception instanceof HttpException)) {
-      console.error(
-        'Unhandled Exception:',
-        exception instanceof Error ? exception.name : 'UnknownError',
-      );
+      console.error('Unhandled Exception:', errorDiagnostic(exception));
     }
 
     const body: ApiResponseDto<unknown> = {
