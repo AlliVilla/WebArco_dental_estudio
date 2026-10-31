@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { storeImage, safeFilename } from '../upload/private-storage';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { RegistrarConsultaDto } from './dto/registrar-consulta.dto';
@@ -130,7 +135,9 @@ export class ExpedienteClinicoService {
                 select: {
                   id_usuario: true,
                   username: true,
-                  persona: { select: { primer_nombre: true, primer_apellido: true } },
+                  persona: {
+                    select: { primer_nombre: true, primer_apellido: true },
+                  },
                 },
               },
               pagosConsulta: true,
@@ -152,7 +159,10 @@ export class ExpedienteClinicoService {
     ).length;
 
     const tratamientosConSaldo = tratamientosPaciente.map((t) => {
-      const totalAbonado = t.abonos.reduce((s, a) => s + Number(a.montoAbonado), 0);
+      const totalAbonado = t.abonos.reduce(
+        (s, a) => s + Number(a.montoAbonado),
+        0,
+      );
       return {
         id: t.id,
         nombre: t.nombre,
@@ -192,10 +202,7 @@ export class ExpedienteClinicoService {
     const consultasPendientes = await this.prisma.consulta.findMany({
       where: {
         id_persona: idPaciente,
-        OR: [
-          { firma_paciente: null },
-          { firma_doctor_snapshot: null },
-        ],
+        OR: [{ firma_paciente: null }, { firma_doctor_snapshot: null }],
       },
       include: consultaInclude,
       orderBy: { fecha_inicio: 'desc' },
@@ -231,11 +238,11 @@ export class ExpedienteClinicoService {
 
     // If fecha_fin is provided (finalizing consultation), make sure there's at least one treatment
     if (dto.fecha_fin) {
-      const hasTratamiento = 
-        dto.tratamiento?.trim() !== '' && dto.tratamiento !== undefined ||
+      const hasTratamiento =
+        (dto.tratamiento?.trim() !== '' && dto.tratamiento !== undefined) ||
         dto.tratamientoPacienteId !== undefined ||
         (dto.tratamientos && dto.tratamientos.length > 0);
-      
+
       if (!hasTratamiento) {
         throw new BadRequestException(
           'Debe agregar al menos un tratamiento antes de finalizar la consulta.',
@@ -250,7 +257,9 @@ export class ExpedienteClinicoService {
           select: { id: true, pacienteId: true },
         });
         if (!tp || tp.pacienteId !== idPaciente) {
-          throw new BadRequestException('El tratamiento de paciente no existe o no pertenece a este paciente');
+          throw new BadRequestException(
+            'El tratamiento de paciente no existe o no pertenece a este paciente',
+          );
         }
       }
 
@@ -278,7 +287,9 @@ export class ExpedienteClinicoService {
       }
 
       if (dto.tratamientos && dto.tratamientos.length > 0) {
-        const validTratamientos = dto.tratamientos.filter((t) => t.id_tratamiento > 0);
+        const validTratamientos = dto.tratamientos.filter(
+          (t) => t.id_tratamiento > 0,
+        );
         if (validTratamientos.length > 0) {
           await tx.consulta_Tratamiento.createMany({
             data: validTratamientos.map((t) => ({
@@ -305,7 +316,9 @@ export class ExpedienteClinicoService {
       return tx.consulta.findUnique({
         where: { id_consulta: nuevaConsulta.id_consulta },
         include: consultaInclude,
-      }) as Promise<Prisma.ConsultaGetPayload<{ include: typeof consultaInclude }>>;
+      }) as Promise<
+        Prisma.ConsultaGetPayload<{ include: typeof consultaInclude }>
+      >;
     });
 
     const consultaMapeada = this.mapearConsultaConEstadoFirmas(consultaCreada);
@@ -415,7 +428,8 @@ export class ExpedienteClinicoService {
       return consultaActualizada;
     });
 
-    const consultaMapeada = this.mapearConsultaConEstadoFirmas(consultaActualizada);
+    const consultaMapeada =
+      this.mapearConsultaConEstadoFirmas(consultaActualizada);
 
     return {
       message: 'Firmas actualizadas exitosamente',
@@ -436,6 +450,7 @@ export class ExpedienteClinicoService {
     idPaciente: number,
     idConsulta: number,
     archivos: Array<{ nombre: string; url: string; categoria: string }>,
+    ownerId: number,
   ) {
     const consulta = await this.prisma.consulta.findFirst({
       where: { id_consulta: idConsulta, id_persona: idPaciente },
@@ -444,6 +459,19 @@ export class ExpedienteClinicoService {
       throw new NotFoundException('Consulta no encontrada');
     }
 
+    if (archivos.length > 5)
+      throw new BadRequestException('Máximo cinco archivos por operación');
+    for (const a of archivos) {
+      safeFilename(a.url);
+      const staged = await this.prisma.storedUpload.findUnique({
+        where: { filename: a.url },
+      });
+      const linked = await this.prisma.archivo.findFirst({
+        where: { url: a.url },
+      });
+      if (!staged || staged.ownerId !== ownerId || linked)
+        throw new BadRequestException('Archivo no disponible para vinculación');
+    }
     await this.prisma.archivo.createMany({
       data: archivos.map((a) => ({
         id_consulta: idConsulta,
@@ -511,6 +539,7 @@ export class ExpedienteClinicoService {
       throw new NotFoundException('Consulta no encontrada');
     }
 
+    file = await storeImage(file);
     const url = file.filename;
 
     const archivo = await this.prisma.archivo.create({
@@ -548,7 +577,11 @@ export class ExpedienteClinicoService {
   /**
    * Actualizar la categoría de un archivo
    */
-  async actualizarCategoriaArchivo(idPaciente: number, idArchivo: number, categoria: string) {
+  async actualizarCategoriaArchivo(
+    idPaciente: number,
+    idArchivo: number,
+    categoria: string,
+  ) {
     await this.assertPacienteExiste(idPaciente);
 
     const archivo = await this.prisma.archivo.findUnique({

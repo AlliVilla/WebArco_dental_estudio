@@ -1,25 +1,54 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { imageType } from '../upload/private-storage';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryConsentimientoDto } from './dto/query-consentimiento.dto';
 import { CreateConsentimientoDto } from './dto/create-consentimiento.dto';
 import { UpdateSignaturesDto } from './dto/update-signatures.dto';
 @Injectable()
 export class ConsentimientoService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-  // --- Helpers 
+  // --- Helpers
 
   /**
    * Si el string es un Data URL (base64), lo retorna tal cual para almacenarlo
    * directamente en la BD (como hace expediente-clínico). Si no, retorna el string
    * original (URL de archivo o null).
    */
-  private procesarBase64SiEsNecesario(base64: string | null | undefined, _prefix: string): string | null {
-    return base64 || null;
+  private procesarBase64SiEsNecesario(
+    base64: string | null | undefined,
+    _prefix: string,
+  ): string | null {
+    if (!base64) return null;
+    const match =
+      /^data:image\/(png|jpeg|gif|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(
+        base64,
+      );
+    if (!match)
+      throw new BadRequestException(
+        'La firma debe ser una imagen base64 válida',
+      );
+    const buffer = Buffer.from(match[2], 'base64');
+    if (buffer.length > 5 * 1024 * 1024)
+      throw new BadRequestException('Firma demasiado grande');
+    const type = imageType(buffer);
+    if (type.mime !== `image/${match[1]}`)
+      throw new BadRequestException(
+        'El formato de la firma no coincide con su contenido',
+      );
+    return `data:${type.mime};base64,${buffer.toString('base64')}`;
   }
 
   /** Calcula el estado de firmas en memoria a partir de los valores almacenados. */
-  private calcularEstadoFirmas(firmaPaciente: string | null, firmaDoctor: string | null) {
+  private calcularEstadoFirmas(
+    firmaPaciente: string | null,
+    firmaDoctor: string | null,
+  ) {
     const tieneFirmaPaciente = !!firmaPaciente;
     const tieneFirmaDoctor = !!firmaDoctor;
 
@@ -59,7 +88,10 @@ export class ConsentimientoService {
     switch (estado) {
       case 'completos':
       case 'completo':
-        firmaValues = { firma_paciente: { not: null }, firma_doctor_snapshot: { not: null } };
+        firmaValues = {
+          firma_paciente: { not: null },
+          firma_doctor_snapshot: { not: null },
+        };
         break;
       case 'pendientes':
       case 'pendiente':
@@ -82,14 +114,24 @@ export class ConsentimientoService {
 
   async create(data: CreateConsentimientoDto) {
     const [personaExiste, doctorExiste] = await Promise.all([
-      this.prisma.persona.findUnique({ where: { id_persona: data.id_paciente }, select: { id_persona: true } }),
-      this.prisma.usuario.findUnique({ where: { id_usuario: data.id_doctor }, select: { id_usuario: true } }),
+      this.prisma.persona.findUnique({
+        where: { id_persona: data.id_paciente },
+        select: { id_persona: true },
+      }),
+      this.prisma.usuario.findUnique({
+        where: { id_usuario: data.id_doctor },
+        select: { id_usuario: true },
+      }),
     ]);
     if (!personaExiste) {
-      throw new NotFoundException(`Paciente con ID ${data.id_paciente} no encontrado`);
+      throw new NotFoundException(
+        `Paciente con ID ${data.id_paciente} no encontrado`,
+      );
     }
     if (!doctorExiste) {
-      throw new NotFoundException(`Doctor con ID ${data.id_doctor} no encontrado`);
+      throw new NotFoundException(
+        `Doctor con ID ${data.id_doctor} no encontrado`,
+      );
     }
 
     const fecha = new Date(data.fecha);
@@ -98,8 +140,14 @@ export class ConsentimientoService {
     }
 
     // Procesar firmas si vienen en base64 en el JSON inicial
-    const firmaPacPath = this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
-    const firmaDocPath = this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
+    const firmaPacPath = this.procesarBase64SiEsNecesario(
+      data.firma_paciente,
+      'firma-paciente',
+    );
+    const firmaDocPath = this.procesarBase64SiEsNecesario(
+      data.firma_doctor,
+      'firma-doctor',
+    );
 
     const consulta = await this.prisma.consulta.create({
       data: {
@@ -124,15 +172,27 @@ export class ConsentimientoService {
           },
         },
         doctor: {
-          select: { id_usuario: true, username: true, persona: { select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true } } },
+          select: {
+            id_usuario: true,
+            username: true,
+            persona: {
+              select: {
+                primer_nombre: true,
+                segundo_nombre: true,
+                primer_apellido: true,
+                segundo_apellido: true,
+              },
+            },
+          },
         },
       },
     });
 
-    const { estadoFirmas, tieneFirmaPaciente, tieneFirmaDoctor } = this.calcularEstadoFirmas(
-      consulta.firma_paciente,
-      consulta.firma_doctor_snapshot,
-    );
+    const { estadoFirmas, tieneFirmaPaciente, tieneFirmaDoctor } =
+      this.calcularEstadoFirmas(
+        consulta.firma_paciente,
+        consulta.firma_doctor_snapshot,
+      );
 
     return {
       ...consulta,
@@ -143,7 +203,17 @@ export class ConsentimientoService {
   }
 
   async findAll(query: QueryConsentimientoDto) {
-    const { page = 1, limit = 10, id_persona, paciente, tratamiento, estado, doctor, mes, anio } = query;
+    const {
+      page = 1,
+      limit = 10,
+      id_persona,
+      paciente,
+      tratamiento,
+      estado,
+      doctor,
+      mes,
+      anio,
+    } = query;
     const skip = (page - 1) * limit;
 
     const where: any = { ...this.getEstadoWhere(estado) };
@@ -208,7 +278,12 @@ export class ConsentimientoService {
               id_usuario: true,
               username: true,
               persona: {
-                select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true },
+                select: {
+                  primer_nombre: true,
+                  segundo_nombre: true,
+                  primer_apellido: true,
+                  segundo_apellido: true,
+                },
               },
             },
           },
@@ -217,10 +292,8 @@ export class ConsentimientoService {
     ]);
 
     const data = consultas.map((c) => {
-      const { estadoFirmas, tieneFirmaPaciente, tieneFirmaDoctor } = this.calcularEstadoFirmas(
-        c.firma_paciente,
-        c.firma_doctor_snapshot,
-      );
+      const { estadoFirmas, tieneFirmaPaciente, tieneFirmaDoctor } =
+        this.calcularEstadoFirmas(c.firma_paciente, c.firma_doctor_snapshot);
 
       return {
         id_consulta: c.id_consulta,
@@ -233,7 +306,11 @@ export class ConsentimientoService {
         firma_paciente: c.firma_paciente,
         firma_doctor: c.firma_doctor_snapshot,
         paciente: c.persona,
-        doctor: { id_usuario: c.doctor.id_usuario, username: c.doctor.username, nombre: this.nombresCompletos(c.doctor.persona)},
+        doctor: {
+          id_usuario: c.doctor.id_usuario,
+          username: c.doctor.username,
+          nombre: this.nombresCompletos(c.doctor.persona),
+        },
       };
     });
 
@@ -250,7 +327,12 @@ export class ConsentimientoService {
             id_usuario: true,
             username: true,
             persona: {
-              select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true },
+              select: {
+                primer_nombre: true,
+                segundo_nombre: true,
+                primer_apellido: true,
+                segundo_apellido: true,
+              },
             },
           },
         },
@@ -258,13 +340,16 @@ export class ConsentimientoService {
     });
 
     if (!consulta) {
-      throw new NotFoundException(`Consentimiento con ID ${idConsulta} no encontrado`);
+      throw new NotFoundException(
+        `Consentimiento con ID ${idConsulta} no encontrado`,
+      );
     }
 
-    const { estadoFirmas, tieneFirmaPaciente, tieneFirmaDoctor } = this.calcularEstadoFirmas(
-      consulta.firma_paciente,
-      consulta.firma_doctor_snapshot,
-    );
+    const { estadoFirmas, tieneFirmaPaciente, tieneFirmaDoctor } =
+      this.calcularEstadoFirmas(
+        consulta.firma_paciente,
+        consulta.firma_doctor_snapshot,
+      );
 
     return {
       ...consulta,
@@ -282,7 +367,14 @@ export class ConsentimientoService {
       this.prisma.consulta.count({ where: this.getEstadoWhere('incompletos') }),
     ]);
 
-    return { total, completos, pendientes, incompletos, pendingCount: pendientes, alerta_global: pendientes > 0 };
+    return {
+      total,
+      completos,
+      pendientes,
+      incompletos,
+      pendingCount: pendientes,
+      alerta_global: pendientes > 0,
+    };
   }
 
   async updateSignatures(idConsulta: number, data: UpdateSignaturesDto) {
@@ -296,7 +388,9 @@ export class ConsentimientoService {
       where: { id_consulta: idConsulta },
     });
     if (!consulta) {
-      throw new NotFoundException(`Consentimiento con ID ${idConsulta} no encontrado`);
+      throw new NotFoundException(
+        `Consentimiento con ID ${idConsulta} no encontrado`,
+      );
     }
 
     if (data.firma_paciente && consulta.firma_paciente) {
@@ -311,8 +405,14 @@ export class ConsentimientoService {
     }
 
     // Procesar posibles base64 en el DTO (si no vinieron por multer)
-    const firmaPacPath = this.procesarBase64SiEsNecesario(data.firma_paciente, 'firma-paciente');
-    const firmaDocPath = this.procesarBase64SiEsNecesario(data.firma_doctor, 'firma-doctor');
+    const firmaPacPath = this.procesarBase64SiEsNecesario(
+      data.firma_paciente,
+      'firma-paciente',
+    );
+    const firmaDocPath = this.procesarBase64SiEsNecesario(
+      data.firma_doctor,
+      'firma-doctor',
+    );
 
     // Las URLs vienen resueltas desde el controller (ej: "/uploads/firma-123.png")
     await this.prisma.consulta.update({
@@ -335,16 +435,16 @@ export class ConsentimientoService {
     return {
       consulta_id: data.id_consulta,
       fecha: data.fecha_inicio,
-      diagnostico: data.diagnostico,           // Fix #9: ya disponible en la consulta
+      diagnostico: data.diagnostico, // Fix #9: ya disponible en la consulta
       tratamiento: data.tratamiento,
       paciente: {
         identidad: data.persona.numero_identidad,
-        nombre_completo: nombrePaciente,       // Fix #5: nombre completo del paciente
+        nombre_completo: nombrePaciente, // Fix #5: nombre completo del paciente
         telefono: data.persona.telefono,
       },
       doctor: {
-        nombre: nombreDoctor,                  // Fix #4: nombre real del doctor
-        firma: data.firma_doctor_snapshot,     // Fix #3: firma histórica de la consulta
+        nombre: nombreDoctor, // Fix #4: nombre real del doctor
+        firma: data.firma_doctor_snapshot, // Fix #3: firma histórica de la consulta
       },
       firma_paciente: data.firma_paciente,
       consentimiento_aceptado: data.consentimiento,

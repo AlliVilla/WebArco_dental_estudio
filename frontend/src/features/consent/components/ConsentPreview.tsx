@@ -1,3 +1,4 @@
+import { PrivateImage } from "../../../components/PrivateImage";
 import { CheckCircle2, Clock, Info, Printer, X } from "lucide-react";
 import { FormSection } from "../../../components";
 import { Button, Card, Input } from "../../../context";
@@ -23,12 +24,14 @@ function ReadOnlySignature({
 }) {
   const isBase64 = signature?.startsWith("data:image");
   // Es una ruta del servidor si empieza con /uploads/ o /static/
-  const isServerPath = signature?.startsWith("/uploads/") || signature?.startsWith("/static/");
+  const isServerPath =
+    signature?.startsWith("/uploads/") || signature?.startsWith("/static/");
   const hasImageSignature = isBase64 || isServerPath;
 
   // Construimos la URL completa si es una ruta del servidor (ej: /uploads/...)
-  const apiBase = API_URL.replace(/\/api$/, '');
-  const imageSrc = isServerPath && !isBase64 ? `${apiBase}${signature}` : signature;
+  const apiBase = API_URL.replace(/\/api$/, "");
+  const imageSrc =
+    isServerPath && !isBase64 ? `${apiBase}${signature}` : signature;
 
   return (
     <div
@@ -61,7 +64,7 @@ function ReadOnlySignature({
         }}
       >
         {hasImageSignature ? (
-          <img
+          <PrivateImage
             src={imageSrc}
             alt={title}
             style={{ maxWidth: "100%", maxHeight: 70, objectFit: "contain" }}
@@ -94,7 +97,7 @@ export function ConsentPreview({
   const { isMobile } = useResponsive();
 
   if (!selectedConsent) return null;
-  
+
   return (
     <Card
       style={{

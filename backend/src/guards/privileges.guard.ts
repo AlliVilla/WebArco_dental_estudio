@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -14,24 +10,25 @@ export class PrivilegesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPrivileges = this.reflector.get<number[]>(
+    const requiredPrivileges = this.reflector.getAllAndOverride<number[]>(
       'privileges',
-      context.getHandler(),
+      [context.getHandler(), context.getClass()],
     );
 
-    if (!requiredPrivileges) return true;
+    if (!requiredPrivileges?.length) return false;
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
+    if (!user) return false;
     const userId = user.id_usuario;
 
     const usuario = await this.prisma.usuario.findUnique({
       where: { id_usuario: userId },
-      select: { id_rol: true },
+      select: { id_rol: true, activo: true },
     });
 
-    if (!usuario) return false;
+    if (!usuario?.activo) return false;
 
     const privilegios = await this.prisma.rolPrivilegio.findMany({
       where: {
@@ -40,12 +37,10 @@ export class PrivilegesGuard implements CanActivate {
       select: { id_privilegio: true },
     });
 
-    const userPrivileges = privilegios.map(p => p.id_privilegio);
+    const userPrivileges = privilegios.map((p) => p.id_privilegio);
 
     request.user.privilegios = userPrivileges;
 
-    return requiredPrivileges.some(p =>
-      userPrivileges.includes(p),
-    );
+    return requiredPrivileges.some((p) => userPrivileges.includes(p));
   }
 }

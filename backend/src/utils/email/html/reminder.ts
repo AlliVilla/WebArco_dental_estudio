@@ -1,19 +1,25 @@
-export function buildReminderEmail(pacienteNombre: string, fechaCita: Date, citaId: number, dynamicBaseUrl?: string): string {
+export function buildReminderEmail(
+  pacienteNombre: string,
+  fechaCita: Date,
+  citaId: number,
+  dynamicBaseUrl?: string,
+  tokens?: { Confirmo: string; Cancelo: string },
+): string {
   const fechaStr = fechaCita.toLocaleDateString('es-HN', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
-  
+
   const horaStr = fechaCita.toLocaleTimeString('es-HN', {
     hour: '2-digit',
     minute: '2-digit',
   });
 
-  const baseUrl = dynamicBaseUrl || process.env.BACKEND_URL || 'http://localhost:3030';
-  const confirmUrl = `${baseUrl}/webhooks/email-response/${citaId}?action=Confirmo`;
-  const cancelUrl = `${baseUrl}/webhooks/email-response/${citaId}?action=Cancelo`;
+  const baseUrl = process.env.BACKEND_URL || 'http://localhost:3030';
+  const confirmUrl = `${baseUrl}/webhooks/email-response/${citaId}?action=Confirmo&token=${tokens?.Confirmo || ''}`;
+  const cancelUrl = `${baseUrl}/webhooks/email-response/${citaId}?action=Cancelo&token=${tokens?.Cancelo || ''}`;
 
   return `
   <div style="font-family: Arial, sans-serif; background:#f4f9fb; padding:30px;">
@@ -30,7 +36,7 @@ export function buildReminderEmail(pacienteNombre: string, fechaCita: Date, cita
       <!-- Body -->
       <div style="padding:30px; color:#333;">
 
-        <h3 style="margin-top:0;color:#203F49;font-size:18px;">¡Hola, ${pacienteNombre}!</h3>
+        <h3 style="margin-top:0;color:#203F49;font-size:18px;">¡Hola, ${pacienteNombre.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)}!</h3>
 
         <p style="font-size:15px;line-height:1.6;color:#5F656A;">
           Nos comunicamos para recordarte tu próxima cita programada en <b>WebArco Dental Studio</b>.

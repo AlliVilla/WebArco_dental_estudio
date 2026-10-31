@@ -33,7 +33,10 @@ import { CitaService } from './cita.service';
 import { CreateCitaDto } from './dto/create-cita.dto';
 import { UpdateCitaDto } from './dto/update-cita.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
-import { QueryCalendarDto, QueryPatientHistoryDto } from './dto/query-citas.dto';
+import {
+  QueryCalendarDto,
+  QueryPatientHistoryDto,
+} from './dto/query-citas.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
@@ -43,7 +46,9 @@ import type { Request } from 'express';
 @Controller('appointments')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
+@ApiUnauthorizedResponse({
+  description: 'No autorizado: token JWT inválido o expirado',
+})
 export class CitaController {
   constructor(private readonly citaService: CitaService) {}
 
@@ -121,9 +126,11 @@ export class CitaController {
 
     const userPrivileges: number[] = (req.user as any).privilegios || [];
     const hasGlobal = userPrivileges.includes(69);
-    
+
     // Si no tiene el privilegio global, sobrescribimos el filtro con su propio ID
-    const filterUserId = hasGlobal ? query.id_usuario : (req.user as any).id_usuario;
+    const filterUserId = hasGlobal
+      ? query.id_usuario
+      : (req.user as any).id_usuario;
 
     return this.citaService.findByCalendar(
       query.start,
@@ -176,7 +183,9 @@ export class CitaController {
     description: 'Fin del rango de fechas',
     example: '2025-12-31',
   })
-  @ApiOkResponse({ description: 'Historial de citas del paciente con paginación' })
+  @ApiOkResponse({
+    description: 'Historial de citas del paciente con paginación',
+  })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
   @ApiBadRequestResponse({ description: 'Parámetros inválidos' })
   async getPatientHistory(
@@ -286,8 +295,12 @@ export class CitaController {
   async changeStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() changeStatusDto: ChangeStatusDto,
+    @Req() req: Request,
   ) {
-    return this.citaService.changeStatus(id, changeStatusDto);
+    return this.citaService.changeStatus(id, {
+      ...changeStatusDto,
+      cambiado_por: (req.user as any).id_usuario,
+    });
   }
 
   @Privileges(27)
@@ -303,7 +316,9 @@ export class CitaController {
     description: 'ID de la cita',
     example: 1,
   })
-  @ApiNoContentResponse({ description: 'Cita eliminada exitosamente (sin contenido)' })
+  @ApiNoContentResponse({
+    description: 'Cita eliminada exitosamente (sin contenido)',
+  })
   @ApiNotFoundResponse({ description: 'Cita no encontrada' })
   @ApiConflictResponse({
     description: 'Cita con registros asociados no puede ser eliminada',

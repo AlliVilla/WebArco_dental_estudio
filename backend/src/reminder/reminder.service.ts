@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'crypto';
 import {
   Injectable,
   BadRequestException,
@@ -26,7 +27,14 @@ const personaSelect = {
 
 const doctorSelect = {
   id_usuario: true,
-  persona: { select: { primer_nombre: true, segundo_nombre: true, primer_apellido: true, segundo_apellido: true } },
+  persona: {
+    select: {
+      primer_nombre: true,
+      segundo_nombre: true,
+      primer_apellido: true,
+      segundo_apellido: true,
+    },
+  },
 } satisfies Prisma.UsuarioSelect;
 
 const citaInclude = {
@@ -54,7 +62,7 @@ export class ReminderService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private brevoService: BrevoService,
-  ) { }
+  ) {}
 
   async getQueue() {
     const now = new Date();
@@ -116,21 +124,25 @@ export class ReminderService {
       );
     }
 
-    const pacienteNombre = [cita.persona?.primer_nombre, cita.persona?.primer_apellido].filter(Boolean).join(' ') || 'Paciente';
-    const contacto = sendReminderDto.canal === 'Correo'
-      ? cita.persona?.correo_electronico
-      : cita.persona?.telefono;
+    const pacienteNombre =
+      [cita.persona?.primer_nombre, cita.persona?.primer_apellido]
+        .filter(Boolean)
+        .join(' ') || 'Paciente';
+    const contacto =
+      sendReminderDto.canal === 'Correo'
+        ? cita.persona?.correo_electronico
+        : cita.persona?.telefono;
 
     // Enviar el mensaje real antes de guardar en BD (retorna texto del mensaje)
     const mensajeText = await this.enviarPorCanal(
-      contacto ?? null, 
-      sendReminderDto.canal as CanalRecordatorio, 
-      pacienteNombre, 
+      contacto ?? null,
+      sendReminderDto.canal as CanalRecordatorio,
+      pacienteNombre,
       cita.fecha_inicio,
       cita.id_cita,
       cita.motivo,
       cita.tipo_cita,
-      dynamicBaseUrl
+      dynamicBaseUrl,
     );
 
     const recordatorio = await this.prisma.recordatorio.create({
@@ -143,7 +155,8 @@ export class ReminderService {
 
     return {
       ...recordatorio,
-      whatsappMessage: sendReminderDto.canal === 'WhatsApp' ? mensajeText : undefined,
+      whatsappMessage:
+        sendReminderDto.canal === 'WhatsApp' ? mensajeText : undefined,
       message: `Recordatorio registrado exitosamente para ${sendReminderDto.canal}`,
     };
   }
@@ -153,9 +166,14 @@ export class ReminderService {
     respuesta: RespuestaPaciente,
     cambiado_por: number,
   ) {
-    const usuarioExiste = await this.prisma.usuario.findUnique({ where: { id_usuario: cambiado_por }, select: { id_usuario: true } });
+    const usuarioExiste = await this.prisma.usuario.findUnique({
+      where: { id_usuario: cambiado_por },
+      select: { id_usuario: true },
+    });
     if (!usuarioExiste) {
-      throw new NotFoundException(`Usuario con ID ${cambiado_por} no encontrado`);
+      throw new NotFoundException(
+        `Usuario con ID ${cambiado_por} no encontrado`,
+      );
     }
 
     const recordatorio = await this.prisma.recordatorio.findUnique({
@@ -188,7 +206,7 @@ export class ReminderService {
 
     if (cita.estado !== 'programada') {
       throw new BadRequestException(
-        'Esta cita ya fue procesada (confirmada o cancelada previamente).'
+        'Esta cita ya fue procesada (confirmada o cancelada previamente).',
       );
     }
 
@@ -203,7 +221,8 @@ export class ReminderService {
     } else {
       nuevoEstadoRespuesta = 'cancelado';
       nuevoEstadoCita = EstadoCita.reprogramada;
-      message = 'Respuesta registrada: el paciente canceló la cita. Se marca para reagendamiento';
+      message =
+        'Respuesta registrada: el paciente canceló la cita. Se marca para reagendamiento';
     }
 
     const [updated] = await this.prisma.$transaction([
@@ -249,11 +268,15 @@ export class ReminderService {
     });
 
     if (!recordatorio) {
-      throw new NotFoundException(`No se encontró el recordatorio con id ${id}`);
+      throw new NotFoundException(
+        `No se encontró el recordatorio con id ${id}`,
+      );
     }
 
     if (recordatorio.estado_respuesta !== 'pendiente') {
-      throw new BadRequestException('Solo se pueden descartar recordatorios en estado pendiente');
+      throw new BadRequestException(
+        'Solo se pueden descartar recordatorios en estado pendiente',
+      );
     }
 
     const updated = await this.prisma.recordatorio.update({
@@ -302,7 +325,9 @@ export class ReminderService {
       const now = new Date();
 
       if (query.start) {
-        (where.fecha_envio as Prisma.DateTimeFilter).gte = new Date(query.start);
+        (where.fecha_envio as Prisma.DateTimeFilter).gte = new Date(
+          query.start,
+        );
       } else {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -340,7 +365,13 @@ export class ReminderService {
       this.prisma.recordatorio.count({ where }),
     ]);
 
-    return { records, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      records,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async getStats() {
@@ -408,10 +439,17 @@ export class ReminderService {
       );
     }
 
-    const pacienteNombre = [recordatorio.cita?.persona?.primer_nombre, recordatorio.cita?.persona?.primer_apellido].filter(Boolean).join(' ') || 'Paciente';
-    const contacto = recordatorio.canal === 'Correo'
-      ? recordatorio.cita?.persona?.correo_electronico
-      : recordatorio.cita?.persona?.telefono;
+    const pacienteNombre =
+      [
+        recordatorio.cita?.persona?.primer_nombre,
+        recordatorio.cita?.persona?.primer_apellido,
+      ]
+        .filter(Boolean)
+        .join(' ') || 'Paciente';
+    const contacto =
+      recordatorio.canal === 'Correo'
+        ? recordatorio.cita?.persona?.correo_electronico
+        : recordatorio.cita?.persona?.telefono;
 
     // Reenviar el mensaje real (retorna texto del mensaje)
     const mensajeText = await this.enviarPorCanal(
@@ -422,7 +460,7 @@ export class ReminderService {
       recordatorio.cita?.id_cita ?? 0,
       recordatorio.cita?.motivo,
       recordatorio.cita?.tipo_cita,
-      dynamicBaseUrl
+      dynamicBaseUrl,
     );
 
     const updated = await this.prisma.recordatorio.update({
@@ -439,7 +477,8 @@ export class ReminderService {
 
     return {
       ...updated,
-      whatsappMessage: recordatorio.canal === 'WhatsApp' ? mensajeText : undefined,
+      whatsappMessage:
+        recordatorio.canal === 'WhatsApp' ? mensajeText : undefined,
       message: `Reintento de recordatorio #${id} registrado exitosamente`,
     };
   }
@@ -462,9 +501,12 @@ export class ReminderService {
     citaId: number,
     motivo: string | null = null,
     tipoCita: string | null = null,
-    dynamicBaseUrl?: string
+    dynamicBaseUrl?: string,
   ): Promise<string> {
-    if (!contacto) throw new BadRequestException(`El paciente no tiene un contacto válido para el canal ${canal}`);
+    if (!contacto)
+      throw new BadRequestException(
+        `El paciente no tiene un contacto válido para el canal ${canal}`,
+      );
 
     const fCita = new Date(fechaCita);
     const fechaStr = fCita.toLocaleDateString('es-HN', {
@@ -491,7 +533,25 @@ export class ReminderService {
       // Omitir llamada a Twilio para redirección directa en frontend
       return mensajeFinal;
     } else if (canal === 'Correo') {
-      const htmlBody = buildReminderEmail(pacienteNombre, fechaCita, citaId, dynamicBaseUrl);
+      const tokens = {
+        Confirmo: randomBytes(32).toString('hex'),
+        Cancelo: randomBytes(32).toString('hex'),
+      };
+      await this.prisma.emailResponseToken.createMany({
+        data: Object.entries(tokens).map(([action, token]) => ({
+          hash: createHash('sha256').update(token).digest('hex'),
+          citaId,
+          action,
+          expiresAt: new Date(Date.now() + 48 * 3600000),
+        })),
+      });
+      const htmlBody = buildReminderEmail(
+        pacienteNombre,
+        fechaCita,
+        citaId,
+        undefined,
+        tokens,
+      );
       await this.brevoService.sendMail({
         to: contacto,
         subject: 'Recordatorio de Cita - WebArco Dental Studio',
@@ -503,151 +563,127 @@ export class ReminderService {
     return '';
   }
 
-  async handleTwilioWebhook(from: string, messageBody: string) {
-    const fromNumber = from.replace('whatsapp:', '');
-    const localNumber = fromNumber.replace('+504', '');
+  async validateEmailToken(citaId: number, action: string, token: string) {
+    if (
+      !Number.isSafeInteger(citaId) ||
+      citaId <= 0 ||
+      !['Confirmo', 'Cancelo'].includes(action) ||
+      typeof token !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(token)
+    )
+      throw new BadRequestException('Enlace inválido o expirado');
+    const hash = createHash('sha256').update(token).digest('hex');
+    const row = await this.prisma.emailResponseToken.findUnique({
+      where: { hash },
+    });
+    if (
+      !row ||
+      row.citaId !== citaId ||
+      row.action !== action ||
+      row.usedAt ||
+      row.expiresAt <= new Date()
+    )
+      throw new BadRequestException('Enlace inválido o expirado');
+    return hash;
+  }
 
+  async handleEmailResponse(citaId: number, action: string, token: string) {
+    const hash = await this.validateEmailToken(citaId, action, token);
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.emailResponseToken.updateMany({
+        where: { hash, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1)
+        throw new BadRequestException('El enlace ya fue utilizado');
+      await this.applyPatientResponse(
+        tx,
+        citaId,
+        action,
+        'correo_paciente',
+        'Correo',
+      );
+      await tx.emailResponseToken.updateMany({
+        where: { citaId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+    });
+  }
+
+  async handleTwilioWebhook(from: string, messageBody: string) {
+    if (!/^whatsapp:\+[1-9][0-9]{7,14}$/.test(from))
+      throw new BadRequestException('Remitente inválido');
+    const text = messageBody.trim().toLowerCase();
+    const action = ['si', 'sí', 'confirmo', 'yes'].includes(text)
+      ? 'Confirmo'
+      : ['no', 'cancelar', 'cancelo'].includes(text)
+        ? 'Cancelo'
+        : null;
+    if (!action) return;
+    const phone = from.slice('whatsapp:'.length);
     const recordatorio = await this.prisma.recordatorio.findFirst({
       where: {
         canal: 'WhatsApp',
+        estado_respuesta: 'pendiente',
         cita: {
+          estado: 'programada',
           persona: {
             OR: [
-              { telefono: localNumber },
-              { telefono: fromNumber }
-            ]
-          }
-        }
-      },
-      orderBy: {
-        fecha_envio: 'desc'
-      },
-      include: {
-        cita: true
-      }
-    });
-
-    if (!recordatorio) {
-      console.log(`Webhook Twilio: No se encontró recordatorio para el número ${fromNumber}`);
-      return;
-    }
-
-    if (recordatorio.fecha_respuesta) {
-      console.log(`Webhook Twilio: El recordatorio ${recordatorio.id} ya fue respondido antes.`);
-      return;
-    }
-
-    const texto = messageBody.trim().toLowerCase();
-    let estado: 'Confirmo' | 'Cancelo' | null = null;
-
-    if (texto === 'si' || texto === 'sí' || texto === 'confirmo' || texto === 'yes') {
-      estado = 'Confirmo';
-    } else if (texto === 'no' || texto === 'cancelar' || texto === 'cancelo') {
-      estado = 'Cancelo';
-    }
-
-    if (estado) {
-      const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-      const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-      const twilioFrom = this.configService.get<string>('TWILIO_WHATSAPP_FROM');
-      
-      let confirmMsg = '';
-      
-      try {
-        await this.registerResponse(recordatorio.id, estado as any, recordatorio.cita.id_usuario);
-        console.log(`Webhook Twilio: Recordatorio ${recordatorio.id} marcado como ${estado}`);
-
-        if (estado === 'Confirmo') {
-          confirmMsg = `✅ ¡Gracias! Tu cita ha sido *confirmada* exitosamente. ¡Te esperamos en WebArco Dental Studio!`;
-        } else {
-          confirmMsg = `❌ Hemos *cancelado* tu cita. Si deseas reprogramarla, no dudes en escribirnos de vuelta. ¡Gracias!`;
-        }
-      } catch (error: any) {
-        if (error instanceof BadRequestException && error.message.includes('previamente')) {
-          confirmMsg = `⚠️ Esta cita ya ha sido procesada previamente. No se han realizado cambios.`;
-        } else {
-          console.error("Error registrando respuesta de Twilio:", error);
-          return;
-        }
-      }
-
-      if (accountSid && authToken && twilioFrom && confirmMsg) {
-        const client = new Twilio(accountSid, authToken);
-        const numeroRemitente = twilioFrom.startsWith('whatsapp:') ? twilioFrom : `whatsapp:${twilioFrom}`;
-        const destino = `whatsapp:+504${localNumber}`; 
-
-        try {
-          await client.messages.create({
-            body: confirmMsg,
-            from: numeroRemitente,
-            to: destino
-          });
-        } catch (error) {
-          console.error("Error enviando mensaje de confirmación Twilio:", error);
-        }
-      }
-    } else {
-      console.log(`Webhook Twilio: Respuesta no reconocida ("${messageBody}") del número ${fromNumber}`);
-
-      const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-      const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-      const twilioFrom = this.configService.get<string>('TWILIO_WHATSAPP_FROM');
-
-      if (accountSid && authToken && twilioFrom) {
-        const client = new Twilio(accountSid, authToken);
-        const numeroRemitente = twilioFrom.startsWith('whatsapp:') ? twilioFrom : `whatsapp:${twilioFrom}`;
-        const destino = `whatsapp:+504${localNumber}`;
-
-        const fechaObj = new Date(recordatorio.cita.fecha_inicio);
-        const fechaStr = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        const horaStr = fechaObj.toLocaleTimeString('es-ES', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-        const fallbackMsg = `🤖 *No hemos podido procesar tu respuesta.*\n\n📅 Cita programada para el *${fechaStr}*\n⏰ Hora: *${horaStr}*\n\nPor favor, responde *ÚNICAMENTE* con un *SI* para confirmar o un *NO* para cancelar tu asistencia.`;
-
-        try {
-          await client.messages.create({
-            body: fallbackMsg,
-            from: numeroRemitente,
-            to: destino
-          });
-        } catch (error) {
-          console.error("Error enviando mensaje de fallback Twilio:", error);
-        }
-      }
-    }
-  }
-
-  async handleEmailResponse(citaId: number, action: string) {
-    const recordatorio = await this.prisma.recordatorio.findFirst({
-      where: {
-        id_cita: citaId,
-        canal: 'Correo',
-        estado_respuesta: 'pendiente'
+              { telefono: phone },
+              { telefono: phone.replace(/^\+504/, '') },
+            ],
+          },
+        },
       },
       orderBy: { fecha_envio: 'desc' },
-      include: { cita: true }
     });
+    if (!recordatorio) return;
+    await this.prisma.$transaction((tx) =>
+      this.applyPatientResponse(
+        tx,
+        recordatorio.id_cita,
+        action,
+        'twilio_paciente',
+        'WhatsApp',
+      ),
+    );
+  }
 
-    if (!recordatorio) {
-      console.log(`Email Response: No se encontró recordatorio pendiente para cita ${citaId}`);
-      return;
-    }
-
-    let estado: 'Confirmo' | 'Cancelo' | null = null;
-    if (action === 'Confirmo') estado = 'Confirmo';
-    if (action === 'Cancelo') estado = 'Cancelo';
-
-    if (estado) {
-      try {
-        // Usamos el id_usuario del doctor de la cita para registrar el cambio en el historial
-        await this.registerResponse(recordatorio.id, estado as any, recordatorio.cita.id_usuario);
-        console.log(`Email Response: Recordatorio ${recordatorio.id} marcado como ${estado}`);
-      } catch (error: any) {
-        if (error instanceof BadRequestException && error.message.includes('previamente')) {
-          throw new BadRequestException('Esta cita ya ha sido procesada previamente. No se han realizado cambios.');
-        }
-        throw error;
-      }
-    }
+  private async applyPatientResponse(
+    tx: Prisma.TransactionClient,
+    citaId: number,
+    action: string,
+    origin: string,
+    channel: CanalRecordatorio,
+  ) {
+    const reminder = await tx.recordatorio.findFirst({
+      where: { id_cita: citaId, canal: channel, estado_respuesta: 'pendiente' },
+    });
+    if (!reminder)
+      throw new BadRequestException('No existe un recordatorio pendiente');
+    const estado =
+      action === 'Confirmo' ? EstadoCita.confirmada : EstadoCita.reprogramada;
+    const claimed = await tx.cita.updateMany({
+      where: { id_cita: citaId, estado: 'programada' },
+      data: { estado },
+    });
+    if (claimed.count !== 1)
+      throw new BadRequestException('Esta cita ya fue procesada');
+    await tx.recordatorio.updateMany({
+      where: { id_cita: citaId, estado_respuesta: 'pendiente' },
+      data: {
+        estado_respuesta: action === 'Confirmo' ? 'confirmado' : 'cancelado',
+        fecha_respuesta: new Date(),
+      },
+    });
+    await tx.estadoHistorial.create({
+      data: {
+        id_cita: citaId,
+        estado_anterior: 'programada',
+        estado_nuevo: estado,
+        cambiado_por: null,
+        origen: origin,
+      },
+    });
   }
 }

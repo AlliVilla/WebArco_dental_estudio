@@ -32,8 +32,6 @@ import { EgresoModule } from './egreso/egreso.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { CuentaDestinoConfigModule } from './cuenta-destino-config/cuenta-destino-config.module';
 
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';  
 import { CierreModule } from './cierre/cierre.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificacionModule } from './notificacion/notificacion.module';
@@ -72,14 +70,6 @@ import { ConfigModule } from '@nestjs/config';
     EspecialidadModule,
     EstadoOdontogramaModule,
     UploadModule,
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-    }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/static',
-    }),
     CierreModule,
     CuentaDestinoConfigModule,
     NotificacionModule,

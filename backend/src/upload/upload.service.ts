@@ -1,3 +1,4 @@
+import { safeFilename } from './private-storage';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
@@ -8,6 +9,7 @@ export class UploadService {
    * Elimina un archivo del disco
    */
   deleteFile(filename: string): { success: boolean; message: string } {
+    safeFilename(filename);
     const filePath = join(process.cwd(), 'uploads', filename);
 
     if (!existsSync(filePath)) {

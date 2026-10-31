@@ -1,3 +1,4 @@
+import { privateUploadOptions } from '../upload/private-storage';
 import {
   Controller,
   Get,
@@ -13,10 +14,9 @@ import {
   BadRequestException,
   UseInterceptors,
   UploadedFile,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import {
   ApiTags,
   ApiOperation,
@@ -44,20 +44,13 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
 import { Privileges } from '../auth/decorators/privileges.decorator';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (req, file, callback) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = extname(file.originalname);
-    callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-  },
-});
-
 @ApiTags('Expediente Clínico')
 @Controller('expediente-clinico')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
+@ApiUnauthorizedResponse({
+  description: 'No autorizado: token JWT inválido o expirado',
+})
 export class ExpedienteClinicoController {
   constructor(
     private readonly expedienteClinicoService: ExpedienteClinicoService,
@@ -84,9 +77,7 @@ export class ExpedienteClinicoController {
     type: ExpedienteResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
-  async obtenerExpediente(
-    @Param('patientId', ParseIntPipe) patientId: number,
-  ) {
+  async obtenerExpediente(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.expedienteClinicoService.obtenerExpediente(patientId);
   }
 
@@ -138,12 +129,17 @@ export class ExpedienteClinicoController {
     type: RegistrarConsultaResponseDto,
   })
   @ApiNotFoundResponse({ description: 'Paciente no encontrado' })
-  @ApiBadRequestResponse({ description: 'Datos inválidos o doctor inexistente' })
+  @ApiBadRequestResponse({
+    description: 'Datos inválidos o doctor inexistente',
+  })
   async registrarConsulta(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() registrarConsultaDto: RegistrarConsultaDto,
   ) {
-    return this.expedienteClinicoService.registrarConsulta(patientId, registrarConsultaDto);
+    return this.expedienteClinicoService.registrarConsulta(
+      patientId,
+      registrarConsultaDto,
+    );
   }
 
   @Privileges(20)
@@ -177,7 +173,10 @@ export class ExpedienteClinicoController {
     @Param('patientId', ParseIntPipe) patientId: number,
     @Param('visitId', ParseIntPipe) visitId: number,
   ) {
-    return this.expedienteClinicoService.obtenerDetalleConsulta(patientId, visitId);
+    return this.expedienteClinicoService.obtenerDetalleConsulta(
+      patientId,
+      visitId,
+    );
   }
 
   @Privileges(21)
@@ -232,28 +231,35 @@ export class ExpedienteClinicoController {
   async agregarArchivos(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Param('visitId', ParseIntPipe) visitId: number,
-    @Body() body: { archivos: Array<{ nombre: string; url: string; categoria: string }> },
+    @Body()
+    body: {
+      archivos: Array<{ nombre: string; url: string; categoria: string }>;
+    },
+    @Req() req: any,
   ) {
     if (!body.archivos || body.archivos.length === 0) {
       throw new BadRequestException('Debe enviar al menos un archivo');
     }
-    return this.expedienteClinicoService.agregarArchivos(patientId, visitId, body.archivos);
+    return this.expedienteClinicoService.agregarArchivos(
+      patientId,
+      visitId,
+      body.archivos,
+      req.user.id_usuario,
+    );
   }
 
   @Privileges(20)
   @Get(':patientId/archivos')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener todos los archivos del paciente' })
-  async obtenerArchivos(
-    @Param('patientId', ParseIntPipe) patientId: number,
-  ) {
+  async obtenerArchivos(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.expedienteClinicoService.obtenerArchivosPaciente(patientId);
   }
 
   @Privileges(21)
   @Post(':patientId/archivos')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file', { storage }))
+  @UseInterceptors(FileInterceptor('file', privateUploadOptions))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -299,7 +305,11 @@ export class ExpedienteClinicoController {
     if (!categoria) {
       throw new BadRequestException('La categoría es requerida');
     }
-    return this.expedienteClinicoService.actualizarCategoriaArchivo(patientId, archivoId, categoria);
+    return this.expedienteClinicoService.actualizarCategoriaArchivo(
+      patientId,
+      archivoId,
+      categoria,
+    );
   }
 
   @Privileges(21)

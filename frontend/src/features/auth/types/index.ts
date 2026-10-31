@@ -7,7 +7,6 @@ export interface User {
   id_usuario: number;
   id_persona: number;
   username: string;
-  password?: string;
   id_rol: number;
   firma?: string | null;
   activo?: boolean;

@@ -1,6 +1,33 @@
-import { Controller, UseGuards, Get, Post, Put, Patch, Body, Param, ParseIntPipe, Query, HttpCode, HttpStatus, BadRequestException, Req} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiUnauthorizedResponse, ApiOkResponse, ApiNotFoundResponse, ApiBadRequestResponse,
-  ApiParam, ApiQuery, ApiCreatedResponse, ApiConflictResponse, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  UseGuards,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Body,
+  Param,
+  ParseIntPipe,
+  Query,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+  Req,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
+  ApiOkResponse,
+  ApiNotFoundResponse,
+  ApiBadRequestResponse,
+  ApiParam,
+  ApiQuery,
+  ApiCreatedResponse,
+  ApiConflictResponse,
+  ApiUnprocessableEntityResponse,
+} from '@nestjs/swagger';
 import { UsuarioService } from './usuario.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PrivilegesGuard } from '../guards/privileges.guard';
@@ -26,10 +53,13 @@ type AuthRequest = Request & {
 @Controller('usuario')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
+@ApiUnauthorizedResponse({
+  description: 'No autorizado: token JWT inválido o expirado',
+})
 export class UsuarioController {
   constructor(private usuarioService: UsuarioService) {}
 
+  @Privileges(9)
   @Get('profile')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -51,14 +81,23 @@ export class UsuarioController {
   @Privileges(9)
   @Get('profile/:id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Obtener perfil de usuario', description: 'Obtiene los datos del perfil de un usuario autenticado' })
+  @ApiOperation({
+    summary: 'Obtener perfil de usuario',
+    description: 'Obtiene los datos del perfil de un usuario autenticado',
+  })
   @ApiParam({ name: 'id', description: 'ID del usuario', example: 1 })
   @ApiOkResponse({ description: 'Datos del usuario' })
   @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
-  async getProfile(@Param('id', ParseIntPipe) id: number) {
+  async getProfile(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthRequest,
+  ) {
+    if (id !== req.user.id_usuario)
+      throw new BadRequestException('Solo puede consultar su propio perfil');
     return this.usuarioService.getUserById(id);
   }
 
+  @Privileges(9)
   @Put('profile')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -81,6 +120,7 @@ export class UsuarioController {
     return { ...profile, message: 'Perfil actualizado correctamente.' };
   }
 
+  @Privileges(9)
   @Put('profile/change-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -112,12 +152,41 @@ export class UsuarioController {
   @Privileges(6)
   @Get('all')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Listar usuarios', description: 'Obtiene un listado paginado de usuarios y permite filtrar por nombre, correo o rol.' })
-  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto 1)', example: '1', })
-  @ApiQuery({ name: 'limit', required: false, description: 'Resultados por página (por defecto 10)', example: '10' })
-  @ApiQuery({ name: 'nombre', required: false, description: 'Filtro por nombre o apellido', example: 'Juan' })
-  @ApiQuery({ name: 'correo', required: false, description: 'Filtro por correo electrónico', example: 'juan@gmail.com' })
-  @ApiQuery({ name: 'rol', required: false, description: 'Filtro por nombre del rol', example: 'Doctor' })
+  @ApiOperation({
+    summary: 'Listar usuarios',
+    description:
+      'Obtiene un listado paginado de usuarios y permite filtrar por nombre, correo o rol.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Número de página (por defecto 1)',
+    example: '1',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Resultados por página (por defecto 10)',
+    example: '10',
+  })
+  @ApiQuery({
+    name: 'nombre',
+    required: false,
+    description: 'Filtro por nombre o apellido',
+    example: 'Juan',
+  })
+  @ApiQuery({
+    name: 'correo',
+    required: false,
+    description: 'Filtro por correo electrónico',
+    example: 'juan@gmail.com',
+  })
+  @ApiQuery({
+    name: 'rol',
+    required: false,
+    description: 'Filtro por nombre del rol',
+    example: 'Doctor',
+  })
   @ApiOkResponse({ description: 'Listado de usuarios con paginación' })
   @ApiBadRequestResponse({ description: 'Parámetros de paginación inválidos' })
   async getAll(
@@ -209,7 +278,9 @@ export class UsuarioController {
     description: 'Activa o desactiva inmediatamente un usuario.',
   })
   @ApiParam({ name: 'id', description: 'ID del usuario', example: 1 })
-  @ApiOkResponse({ description: 'Estado del usuario actualizado correctamente' })
+  @ApiOkResponse({
+    description: 'Estado del usuario actualizado correctamente',
+  })
   @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -217,6 +288,9 @@ export class UsuarioController {
   ) {
     const usuario = await this.usuarioService.updateStatus(id, updateStatusDto);
 
-    return { ...usuario, message: 'Estado del usuario actualizado correctamente.' };
+    return {
+      ...usuario,
+      message: 'Estado del usuario actualizado correctamente.',
+    };
   }
 }

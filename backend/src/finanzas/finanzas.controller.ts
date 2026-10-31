@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import {
   ApiTags,
@@ -26,14 +21,17 @@ import { Privileges } from 'src/auth/decorators/privileges.decorator';
 @Controller('finanzas')
 @UseGuards(JwtAuthGuard, PrivilegesGuard)
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'No autorizado: token JWT inválido o expirado' })
+@ApiUnauthorizedResponse({
+  description: 'No autorizado: token JWT inválido o expirado',
+})
 export class FinanzasController {
   constructor(private finanzasService: FinanzasService) {}
   @Get('balance')
   @Privileges(2)
   @ApiOperation({
     summary: 'Obtener Balance General',
-    description: 'Retorna el Balance General calculando flujo de caja actual, activos y pasivos consolidados para el período especificado. Integra datos de PagoPaciente, PagoConsulta y MovimientoInventario.',
+    description:
+      'Retorna el Balance General calculando flujo de caja actual, activos y pasivos consolidados para el período especificado. Integra datos de PagoPaciente, PagoConsulta y MovimientoInventario.',
   })
   @ApiQuery({
     name: 'fecha_inicio',
@@ -54,16 +52,16 @@ export class FinanzasController {
   })
   async getBalance(
     @Query('fecha_inicio', ParseDatePipe) fecha_inicio: Date,
-                   @Query('fecha_fin', ParseDatePipe) fecha_fin: Date,
+    @Query('fecha_fin', ParseDatePipe) fecha_fin: Date,
   ): Promise<BalanceReportDto> {
     return this.finanzasService.getBalance(fecha_inicio, fecha_fin);
   }
 
   @Get('estado-resultado')
-  @Privileges(2, 63)
+  @Privileges(2)
   @ApiOperation({
     summary: 'Obtener rentabilidad',
-    description: 'Calcula ingresos menos gastos por rango de fechas.'
+    description: 'Calcula ingresos menos gastos por rango de fechas.',
   })
   @ApiQuery({ name: 'fecha_inicio', example: '2026-01-01' })
   @ApiQuery({ name: 'fecha_fin', example: '2026-01-31' })
@@ -71,7 +69,6 @@ export class FinanzasController {
     @Query('fecha_inicio', ParseDatePipe) fecha_inicio: Date,
     @Query('fecha_fin', ParseDatePipe) fecha_fin: Date,
   ) {
-
     return this.finanzasService.getEstadoResultado(fecha_inicio, fecha_fin);
   }
 }

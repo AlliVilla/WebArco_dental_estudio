@@ -135,6 +135,7 @@ model Usuario {
   egresos_creados     Egreso[] @relation("EgresoCreadoPor")
   egresos_modificados Egreso[] @relation("EgresoModificadoPor")
 
+  sesiones                     AuthSession[]
   notificaciones               Notificacion[]
   configuracion_notificaciones ConfiguracionNotificaciones?
 
@@ -261,11 +262,12 @@ model EstadoHistorial {
   id_cita         Int
   estado_anterior EstadoCita?
   estado_nuevo    EstadoCita
-  cambiado_por    Int
+  cambiado_por    Int?
+  origen          String @default("usuario") @db.VarChar(30)
   fecha_cambio    DateTime    @default(now())
 
   cita    Cita    @relation(fields: [id_cita], references: [id_cita], onDelete: Cascade)
-  usuario Usuario @relation(fields: [cambiado_por], references: [id_usuario])
+  usuario Usuario? @relation(fields: [cambiado_por], references: [id_usuario])
 
   @@index([id_cita])
   @@map("estado_historial")
@@ -586,4 +588,33 @@ model CuentaDestinoConfig {
 
   @@unique([tipo, nombre])
   @@map("cuenta_destino_config")
+}
+
+model AuthSession {
+  id String @id @db.VarChar(36)
+  id_usuario Int
+  refreshHash String @db.VarChar(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
+  @@index([id_usuario])
+  @@map("auth_session")
+}
+
+model StoredUpload {
+  filename String @id @db.VarChar(255)
+  ownerId Int
+  createdAt DateTime @default(now())
+  @@index([ownerId])
+  @@map("stored_upload")
+}
+
+model EmailResponseToken {
+  hash String @id @db.VarChar(64)
+  citaId Int
+  action String @db.VarChar(10)
+  expiresAt DateTime
+  usedAt DateTime?
+  @@index([citaId])
+  @@map("email_response_token")
 }

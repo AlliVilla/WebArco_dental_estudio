@@ -104,11 +104,13 @@ export class NotificacionService {
     });
 
     // Si no existe, devolver defaults sin crear
-    return config ?? {
-      id_usuario,
-      minutos_anticipacion: 60,
-      email_notificaciones: true,
-    };
+    return (
+      config ?? {
+        id_usuario,
+        minutos_anticipacion: 60,
+        email_notificaciones: true,
+      }
+    );
   }
 
   async upsertConfig(id_usuario: number, dto: UpdateConfigDto) {
@@ -144,7 +146,10 @@ export class NotificacionService {
 
     // Enviar email al doctor si tiene el email activado
     this.enviarEmailDoctor(id_usuario, tipo, titulo, mensaje, id_cita).catch(
-      (err) => this.logger.error(`Error enviando email de notificación: ${err?.message}`),
+      (err) =>
+        this.logger.error(
+          `Error enviando email de notificación: ${err?.message}`,
+        ),
     );
 
     return notif;
@@ -178,7 +183,9 @@ export class NotificacionService {
 
     const correo = usuario?.persona?.correo_electronico;
     if (!correo) {
-      this.logger.warn(`Doctor ${id_usuario} no tiene correo electrónico registrado`);
+      this.logger.warn(
+        `Doctor ${id_usuario} no tiene correo electrónico registrado`,
+      );
       return;
     }
 
@@ -193,7 +200,12 @@ export class NotificacionService {
     let htmlBody = '';
     let subject = titulo;
 
-    if (id_cita && (tipo === 'cita_proxima' || tipo === 'cita_confirmada' || tipo === 'cita_cancelada')) {
+    if (
+      id_cita &&
+      (tipo === 'cita_proxima' ||
+        tipo === 'cita_confirmada' ||
+        tipo === 'cita_cancelada')
+    ) {
       const cita = await this.prisma.cita.findUnique({
         where: { id_cita },
         select: {
@@ -263,6 +275,7 @@ export class NotificacionService {
 
   @Cron('*/5 * * * *')
   async checkCitasProximas() {
+    if (process.env.ENABLE_NOTIFICATION_JOBS !== 'true') return;
     this.logger.debug('Verificando citas próximas...');
 
     try {
@@ -276,20 +289,21 @@ export class NotificacionService {
           rol: {
             select: {
               privilegios: {
-                select: { id_privilegio: true }
-              }
-            }
-          }
+                select: { id_privilegio: true },
+              },
+            },
+          },
         },
       });
 
       const now = new Date();
 
       for (const user of doctores) {
-        const privs = user.rol?.privilegios.map(rp => rp.id_privilegio) || [];
+        const privs = user.rol?.privilegios.map((rp) => rp.id_privilegio) || [];
         const isGlobal = privs.includes(69);
 
-        const minutos = user.configuracion_notificaciones?.minutos_anticipacion ?? 60;
+        const minutos =
+          user.configuracion_notificaciones?.minutos_anticipacion ?? 60;
         const ventanaInicio = new Date(now.getTime() - 30 * 60 * 1000); // Desde hace 30 minutos (por si se retrasó el cron o se agendó muy sobre la hora)
         const ventanaFin = new Date(now.getTime() + (minutos + 3) * 60 * 1000); // Hasta los X minutos + tolerancia
 
@@ -312,8 +326,16 @@ export class NotificacionService {
               select: { primer_nombre: true, primer_apellido: true },
             },
             doctor: {
-              select: { persona: { select: { primer_nombre: true, primer_apellido: true, sexo: true } } }
-            }
+              select: {
+                persona: {
+                  select: {
+                    primer_nombre: true,
+                    primer_apellido: true,
+                    sexo: true,
+                  },
+                },
+              },
+            },
           },
         });
 
@@ -339,16 +361,24 @@ export class NotificacionService {
             .filter(Boolean)
             .join(' ');
 
-          const doctorNombre = cita.doctor?.persona ? `${cita.doctor.persona.primer_nombre} ${cita.doctor.persona.primer_apellido}` : 'el doctor';
-          const tratamientoDoctor = this.getTratamientoDoctor(cita.doctor?.persona?.sexo);
+          const doctorNombre = cita.doctor?.persona
+            ? `${cita.doctor.persona.primer_nombre} ${cita.doctor.persona.primer_apellido}`
+            : 'el doctor';
+          const tratamientoDoctor = this.getTratamientoDoctor(
+            cita.doctor?.persona?.sexo,
+          );
 
           const diffMs = cita.fecha_inicio.getTime() - now.getTime();
           const minutosFaltantes = Math.max(0, Math.round(diffMs / 60000));
 
-          const titulo = minutosFaltantes > 0 ? `Cita próxima en ${minutosFaltantes} minutos` : 'Cita próxima ahora';
-          const mensaje = isGlobal && cita.doctor?.persona 
-            ? `Cita de ${pacienteNombre} con ${tratamientoDoctor} ${doctorNombre} programada para dentro de ${minutosFaltantes} minutos.`
-            : `Tu cita con ${pacienteNombre} está programada para dentro de ${minutosFaltantes} minutos.`;
+          const titulo =
+            minutosFaltantes > 0
+              ? `Cita próxima en ${minutosFaltantes} minutos`
+              : 'Cita próxima ahora';
+          const mensaje =
+            isGlobal && cita.doctor?.persona
+              ? `Cita de ${pacienteNombre} con ${tratamientoDoctor} ${doctorNombre} programada para dentro de ${minutosFaltantes} minutos.`
+              : `Tu cita con ${pacienteNombre} está programada para dentro de ${minutosFaltantes} minutos.`;
 
           await this.crearNotificacion(
             user.id_usuario,

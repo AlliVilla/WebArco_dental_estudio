@@ -1,4 +1,4 @@
-FROM node:current-alpine AS base
+FROM node:24-alpine AS base
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
 COPY . .
-RUN npx vite build
+RUN npm run build
 
 # ─────────────────────────────────────────
 # Production stage — nginx sirve el bundle

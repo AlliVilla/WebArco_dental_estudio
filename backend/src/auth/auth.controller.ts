@@ -1,3 +1,8 @@
+import { Public } from './decorators/public.decorator';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PrivilegesGuard } from '../guards/privileges.guard';
+import { Privileges } from './decorators/privileges.decorator';
 import {
   Controller,
   Post,
@@ -26,6 +31,7 @@ import { ResetPasswordDto } from './dto/resetPassword';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -52,61 +58,87 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Credenciales incorrectas' })
   async login(
-        @Body() loginDto: LoginDto, 
-        @Res({passthrough: true}) res: Response
-    ) {
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const authResponse = await this.authService.login(loginDto);
 
     res.cookie('auth_token', authResponse.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 1000 * 60 * 60 * 24,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      maxAge: 15 * 60000,
     });
 
     res.cookie('refresh_token', authResponse.refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
-    return { ...authResponse, message: 'Inicio de sesión exitoso.' };
+    const { refresh_token: _refreshToken, ...publicResponse } = authResponse;
+    return { ...publicResponse, message: 'Inicio de sesión exitoso.' };
   }
 
+  @UseGuards(JwtAuthGuard, PrivilegesGuard)
+  @Privileges(9)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({summary: 'Log out del usuario', description: 'Se quita de las cookies el usuario que poseia el usuario'})
-  async logout(@Res({ passthrough: true }) res: Response){
+  @ApiOperation({
+    summary: 'Log out del usuario',
+    description: 'Se quita de las cookies el usuario que poseia el usuario',
+  })
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.authService.logout((req.user as any).sid);
     res.clearCookie('auth_token');
     res.clearCookie('refresh_token');
 
     return { message: 'Cierre de Sesión con éxito.' };
   }
 
+  @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({summary: 'Olvidar contraseña', description: 'Reenvio de link de recuperación mediante correo'})
-  async forgotPassword(@Body() body: ForgotPasswordDto){
+  @ApiOperation({
+    summary: 'Olvidar contraseña',
+    description: 'Reenvio de link de recuperación mediante correo',
+  })
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
     await this.authService.forgotPassword(body);
 
-    return { message: 'Si el correo existe, se ha enviado un enlace de recuperación.' };
+    return {
+      message: 'Si el correo existe, se ha enviado un enlace de recuperación.',
+    };
   }
 
+  @Public()
   @Put('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({summary: 'Cambio de Contraseña', description: 'Verifica el token recibido por correo y actualiza la contraseña'})
+  @ApiOperation({
+    summary: 'Cambio de Contraseña',
+    description:
+      'Verifica el token recibido por correo y actualiza la contraseña',
+  })
   async resetPassword(@Body() body: ResetPasswordDto) {
     await this.authService.resetPassword(body);
-    
+
     return { message: 'Contraseña actualizada correctamente.' };
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refrescar token de acceso', description: 'Obtiene un nuevo access_token usando el refresh_token de la cookie' })
+  @ApiOperation({
+    summary: 'Refrescar token de acceso',
+    description:
+      'Obtiene un nuevo access_token usando el refresh_token de la cookie',
+  })
   @ApiUnauthorizedResponse({ description: 'Refresh token inválido o expirado' })
-  async refresh(@Req() req: Request) {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies?.refresh_token;
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token no proporcionado.');
@@ -114,6 +146,21 @@ export class AuthController {
 
     const result = await this.authService.refreshToken(refreshToken);
 
-    return { ...result, message: 'Token refrescado exitosamente.' };
+    res.cookie('refresh_token', result.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      maxAge: 7 * 86400000,
+    });
+    res.cookie('auth_token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      maxAge: 15 * 60000,
+    });
+    return {
+      access_token: result.access_token,
+      message: 'Token refrescado exitosamente.',
+    };
   }
 }
